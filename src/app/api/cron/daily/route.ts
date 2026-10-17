@@ -1,8 +1,9 @@
 import { timingSafeEqual } from "node:crypto";
 import { runDailyMarketJob } from "@/features/market-data/server";
+import { listAllTargetTickers } from "@/features/strategy/server";
 import { listTradedTickersWithFirstDate } from "@/features/transactions/server";
 import { env } from "@/shared/env";
-import { monthKeyOfTradeDate } from "@/shared/lib/time";
+import { currentMonthKey, monthKeyOfTradeDate } from "@/shared/lib/time";
 
 export const maxDuration = 300;
 
@@ -19,9 +20,21 @@ export async function GET(request: Request) {
   if (!isAuthorized(request.headers.get("authorization"))) {
     return Response.json({ error: "Não autorizado" }, { status: 401 });
   }
-  const traded = await listTradedTickersWithFirstDate();
+  const now = new Date();
+  const [traded, targetTickers] = await Promise.all([
+    listTradedTickersWithFirstDate(),
+    listAllTargetTickers(),
+  ]);
+  // Histórico mensal desde o primeiro negócio; ativo só na Carteira Alvo precisa só da cotação.
+  const fromMonth = new Map(
+    traded.map(({ ticker, firstDate }) => [ticker, monthKeyOfTradeDate(firstDate)]),
+  );
+  for (const ticker of targetTickers) {
+    if (!fromMonth.has(ticker)) fromMonth.set(ticker, currentMonthKey(now));
+  }
   const summary = await runDailyMarketJob(
-    traded.map(({ ticker, firstDate }) => ({ ticker, fromMonth: monthKeyOfTradeDate(firstDate) })),
+    [...fromMonth].map(([ticker, month]) => ({ ticker, fromMonth: month })),
+    now,
   );
   return Response.json(summary, { headers: { "Cache-Control": "no-store" } });
 }
