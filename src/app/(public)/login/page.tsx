@@ -1,7 +1,7 @@
 import { CoinsIcon } from "lucide-react";
 import type { Metadata } from "next";
 import { Suspense } from "react";
-import { SignInButton } from "@/features/auth";
+import { SignInButton } from "@/features/auth/ui";
 import { Alert, AlertDescription } from "@/shared/ui/alert";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/shared/ui/card";
 

@@ -18,6 +18,8 @@ export interface AssetDoc {
   lastDividend?: { amount: number; exDate: Date } | null;
   dividendsFetchedAt?: Date | null;
   historyCheckedAt?: Date | null;
+  /** Início (YYYY-MM) da faixa de histórico já buscada. */
+  historyFromMonth?: string | null;
 }
 
 const assetSchema = new Schema<AssetDoc>(
@@ -38,6 +40,7 @@ const assetSchema = new Schema<AssetDoc>(
     },
     dividendsFetchedAt: { type: Date, default: null },
     historyCheckedAt: { type: Date, default: null },
+    historyFromMonth: { type: String, default: null },
   },
   { timestamps: true, versionKey: false },
 );

@@ -1,4 +1,2 @@
-// API pública da feature auth para o cliente (sem nada de servidor).
-export { authClient } from "./auth-client";
-export { SignInButton } from "./components/sign-in-button";
-export { UserMenu, UserMenuSkeleton, type UserMenuUser } from "./components/user-menu";
+// API pública pura da feature auth (sem servidor e sem componentes).
+export { isEmailAllowed, parseAllowedEmails } from "./domain/allowlist";

@@ -37,27 +37,42 @@ export async function ensureMonthlyCloses(
       { ticker: mongoose.trusted({ $in: tickers }) },
       { ticker: 1, month: 1 },
     ).lean(),
-    AssetModel.find({ _id: mongoose.trusted({ $in: tickers }) }, { historyCheckedAt: 1 }).lean(),
+    AssetModel.find(
+      { _id: mongoose.trusted({ $in: tickers }) },
+      { historyCheckedAt: 1, historyFromMonth: 1 },
+    ).lean(),
   ]);
   const have = new Map<string, Set<string>>();
   for (const doc of existing) {
     if (!have.has(doc.ticker)) have.set(doc.ticker, new Set());
     have.get(doc.ticker)!.add(doc.month);
   }
-  const checkedAt = new Map(assets.map((asset) => [asset._id, asset.historyCheckedAt ?? null]));
+  const lastCheck = new Map(
+    assets.map((asset) => [
+      asset._id,
+      { at: asset.historyCheckedAt ?? null, from: asset.historyFromMonth ?? null },
+    ]),
+  );
 
   const todo = requests.flatMap(({ ticker, fromMonth }) => {
     const months = fromMonth <= lastCompleted ? monthRange(fromMonth, lastCompleted) : [];
     const missing = months.filter((month) => !have.get(ticker)?.has(month));
-    const recentlyChecked =
-      (checkedAt.get(ticker)?.getTime() ?? 0) > now.getTime() - HISTORY_RECHECK_MS;
-    return missing.length > 0 && !recentlyChecked ? [{ ticker, from: missing[0]! }] : [];
+    // Só pula se uma busca recente já cobriu esta mesma faixa: se o pedido começa mais cedo, busca de novo.
+    const check = lastCheck.get(ticker);
+    const coveredRecently =
+      (check?.at?.getTime() ?? 0) > now.getTime() - HISTORY_RECHECK_MS &&
+      check?.from !== null &&
+      check?.from !== undefined &&
+      check.from <= fromMonth;
+    return missing.length > 0 && !coveredRecently
+      ? [{ ticker, from: missing[0]!, requestedFrom: fromMonth }]
+      : [];
   });
 
   const fetched = await mapWithConcurrency(
     todo,
     ioConcurrency(YAHOO_CONCURRENCY_CAP),
-    async ({ ticker, from }) => {
+    async ({ ticker, from, requestedFrom }) => {
       try {
         const closes = await yahooProvider.getMonthlyCloses(ticker, monthStart(from));
         const completed = closes.filter((close) => close.month <= lastCompleted);
@@ -77,9 +92,13 @@ export async function ensureMonthlyCloses(
         console.warn(`[histórico] ${ticker}:`, errorMessage(error));
         return 0;
       } finally {
+        // Mínimo calculado aqui (e não com $min): no BSON, null é menor que qualquer string.
+        const previousFrom = lastCheck.get(ticker)?.from ?? null;
+        const coveredFrom =
+          previousFrom !== null && previousFrom <= requestedFrom ? previousFrom : requestedFrom;
         await AssetModel.updateOne(
           { _id: ticker },
-          { $set: { historyCheckedAt: now } },
+          { $set: { historyCheckedAt: now, historyFromMonth: coveredFrom } },
           { upsert: true },
         );
       }

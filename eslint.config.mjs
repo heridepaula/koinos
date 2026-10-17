@@ -3,7 +3,8 @@ import nextVitals from "eslint-config-next/core-web-vitals";
 import nextTs from "eslint-config-next/typescript";
 
 // Fronteiras da arquitetura (monólito modular por features):
-// - de fora, uma feature só é importada pela API pública: index.ts, server.ts ou actions.ts;
+// - de fora, uma feature só é importada pela API pública: index.ts (puro), ui.ts (componentes),
+//   server.ts (servidor) ou actions.ts (Server Actions);
 // - dentro da própria feature, os imports são relativos;
 // - repo.ts (funções com portfolioId explícito) é só para scripts locais, nunca para o app;
 // - domain/ é TypeScript puro;
@@ -11,7 +12,7 @@ import nextTs from "eslint-config-next/typescript";
 const featureInternals = {
   group: ["@/features/*/*/**"],
   message:
-    "Importe a feature pela API pública (index.ts, server.ts ou actions.ts). Dentro da própria feature, use caminhos relativos.",
+    "Importe a feature pela API pública (index.ts, ui.ts, server.ts ou actions.ts). Dentro da própria feature, use caminhos relativos.",
 };
 
 const repoOnlyForScripts = {

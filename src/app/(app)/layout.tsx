@@ -1,5 +1,5 @@
 import { Suspense, type ReactNode } from "react";
-import { UserMenu, UserMenuSkeleton } from "@/features/auth";
+import { UserMenu, UserMenuSkeleton } from "@/features/auth/ui";
 import { getCurrentUser } from "@/features/auth/server";
 import { AppSidebar } from "@/shared/components/app-sidebar";
 import { QueryProvider } from "@/shared/components/query-provider";
