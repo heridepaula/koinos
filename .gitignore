@@ -147,3 +147,14 @@ vite.config.ts.timestamp-*
 
 # Turbo Repo
 .turbo
+
+# --- Koinos ---
+# Planilhas com dados pessoais de investimento nunca entram no repositório
+*.xlsx
+*.xls
+*.ods
+
+# Next.js / Vercel
+next-env.d.ts
+.vercel
+*.pem
