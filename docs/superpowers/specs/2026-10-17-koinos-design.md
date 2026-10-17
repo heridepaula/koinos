@@ -42,7 +42,7 @@ O Koinos substitui a planilha `FII's.xlsx` (exportada do Google Sheets) por um a
 - Várias carteiras na interface, e várias estratégias Suno (Dividendos, Valor...) com % do patrimônio para cada uma.
 - Importação pela interface (ex.: extrato da B3).
 - O IPA antigo da planilha (a "nota base" digitada).
-- Testes end-to-end.
+- Testes automatizados (unitários e end-to-end).
 - Deploy automatizado: o usuário conecta o repositório na Vercel.
 
 ## 3. Decisões
@@ -60,7 +60,10 @@ O Koinos substitui a planilha `FII's.xlsx` (exportada do Google Sheets) por um a
 | Ativo sem teto | Não recebe aporte | Regra da Suno: só comprar abaixo do preço teto |
 | % sugerida vazia | O que falta para 100% é dividido igualmente | A Suno publica as %; isto é só o fallback |
 | Preço médio | Método da Receita | É o padrão; o da planilha abate vendas pelo preço de venda |
-| Importação inconsistente | Aborta sem gravar e lista as linhas com problema | Corrigir datas no lugar do usuário distorceria quantidades e preço médio |
+| Importação | Ativo por ativo: importa os de histórico consistente e pula os demais, com relatório | Pedido do usuário; corrigir datas por conta própria distorceria quantidades e preço médio |
+| Testes automatizados | Nenhum; verificação por typecheck, lint, build e conferências pontuais | Decisão do usuário (projeto pessoal) |
+| Tabelas | Table do shadcn + ordenação própria | A TanStack Table 9 trocou a API inteira, e as tabelas são pequenas |
+| Ferramentas | Node 26.12.0, TypeScript 6.0.3, ESLint 10, shadcn base-nova (Base UI) | O TS 7 quebra o typescript-eslint do Next; o Node 26.12 é o mais novo |
 | Pacotes | npm | É o único gerenciador instalado |
 
 ## 4. Arquitetura
@@ -69,9 +72,9 @@ O Koinos substitui a planilha `FII's.xlsx` (exportada do Google Sheets) por um a
 
 | Camada | Escolha |
 |---|---|
-| App | Next.js 16.4, React 19.3, TypeScript strict (versão instalada pelo `create-next-app`) |
+| App | Next.js 16.4, React 19.3, TypeScript 6.0.3 strict |
 | Renderização | Cache Components + Partial Prefetching (`cacheComponents: true`, `partialPrefetching: true`) e React Compiler (`reactCompiler: true`) |
-| UI | Tailwind CSS 4.3, shadcn/ui (charts sobre Recharts 3), TanStack Table 9, next-themes, sonner |
+| UI | Tailwind CSS 4.3, shadcn/ui base-nova (Base UI; charts sobre Recharts 3), next-themes, sonner |
 | Estado no cliente | TanStack Query 5 (autocomplete, refresh de cotações) e nuqs 2 (estado na URL) |
 | Mutações | Server Actions com next-safe-action 8 e Zod 4 |
 | Dados | Mongoose 9 (driver MongoDB do próprio Mongoose) |
@@ -79,11 +82,11 @@ O Koinos substitui a planilha `FII's.xlsx` (exportada do Google Sheets) por um a
 | Mercado | `fetch` para a brapi, yahoo-finance2 4 para o Yahoo |
 | Configuração | `@t3-oss/env-nextjs` (variáveis de ambiente validadas com Zod) |
 | Scripts | tsx; read-excel-file 9 para ler o .xlsx |
-| Qualidade | ESLint 10 (`eslint-config-next`, `eslint-plugin-boundaries`), Prettier 3 (+ `prettier-plugin-tailwindcss`), Vitest 5, mongodb-memory-server 11, GitHub Actions |
+| Qualidade | ESLint 10 (`eslint-config-next` + `no-restricted-imports` para as fronteiras), Prettier 3 (+ `prettier-plugin-tailwindcss`), GitHub Actions |
 
 ### 4.2 Padrões
 
-1. **Monólito modular por features.** Cada feature tem regras puras, código de servidor e componentes, e só exporta uma API pública (`index.ts`).
+1. **Monólito modular por features.** Cada feature tem regras puras, código de servidor e componentes, e só exporta uma API pública: `index.ts` para o cliente e `server.ts` para o servidor.
 2. **Núcleo puro, bordas com I/O.** Posições, preço médio, pesos e o motor Suno são funções puras, sem Next, banco ou variáveis de ambiente.
 3. **Ports & Adapters nas integrações.** As cotações e o histórico ficam atrás de interfaces. A brapi e o Yahoo são adaptadores e podem ser trocados sem mexer no resto.
 4. **Data Access Layer (DAL).** É a recomendação do Next para projetos novos. São módulos `server-only` que conferem a sessão e o dono do dado e devolvem DTOs mínimos. Só a DAL acessa models, adaptadores e `env`.
@@ -107,13 +110,13 @@ src/
     layout.tsx  globals.css  error.tsx  not-found.tsx
   proxy.ts                         redirecionamento otimista por cookie
   features/
-    auth/          server/ (config, sessão) · components/ (botão de login, menu do usuário)
-    portfolio/     domain/ (posições, resumo, evolução, aportes por mês, alertas) · server/ (model, DAL) · components/
-    transactions/  domain/ (validação do histórico) · server/ · actions.ts · schemas.ts · components/ · import/ (parser puro)
-    strategy/      domain/ (pesos efetivos, prioridade, teto suspeito) · server/ · actions.ts · schemas.ts · components/
-    smart-buy/     domain/ (cascata Suno) · components/
+    auth/          domain/ (allowlist) · server/ (Better Auth, sessão, carteira do usuário, cliente de actions) · components/
+    transactions/  domain/ (posições, preço médio, validação do histórico, aportes por mês) · server/ · actions.ts · schemas.ts · components/ · import/ (parser puro)
     market-data/   domain/ (horário do pregão, vencimento) · ports.ts · adapters/ (brapi, yahoo) · server/ (models, serviços, trava) · actions.ts · components/
-    (cada feature tem um index.ts com a API pública)
+    strategy/      domain/ (pesos efetivos, teto suspeito) · server/ · actions.ts · schemas.ts · components/
+    smart-buy/     domain/ (cascata Suno, prioridade de aporte) · components/
+    portfolio/     domain/ (resumo, evolução, alertas, composição) · server/ (visão consolidada) · components/ (dashboard)
+    (cada feature expõe index.ts para o cliente e server.ts para o servidor; portfolio depende das outras, e nenhuma depende de portfolio)
   shared/
     ui/            componentes do shadcn
     components/    layout (sidebar, cabeçalho, alternar tema)
@@ -124,9 +127,9 @@ scripts/
   import-planilha.ts
 ```
 
-### 4.4 Regras de dependência (verificadas pelo `eslint-plugin-boundaries`)
+### 4.4 Regras de dependência (verificadas pelo `no-restricted-imports` do ESLint)
 
-- `app/` importa `features/*/index.ts` e `shared/`.
+- `app/` importa de cada feature só `index.ts`, `server.ts` e `actions.ts`, além de `shared/`.
 - Uma feature importa `shared/` e a API pública de outras features, nunca os arquivos internos delas.
 - `domain/` não importa Next, React, Mongoose, adaptadores nem `env`.
 - `server/` começa com `import 'server-only'`.
@@ -468,6 +471,21 @@ Botão "Entrar com Google". Quem já tem sessão vai direto para o dashboard. Um
   - o retorno é só o que a interface precisa.
 - **Cron:** compara `Authorization: Bearer CRON_SECRET` em tempo constante.
 
+### 11.1 Isolamento de dados por usuário
+
+Cada usuário logado só enxerga e altera os próprios dados. As defesas, camada por camada:
+
+1. **Dono vem da sessão.** Toda leitura e escrita filtra pelo `portfolioId` que a DAL obtém da sessão. Um id vindo do cliente nunca define o dono do dado.
+2. **Escrita atômica com dono.** Editar ou excluir usa o filtro `{ _id, portfolioId }` numa única operação no banco. Um id de outra carteira simplesmente não encontra nada.
+3. **Repositórios fechados.** As funções de repositório recebem o `portfolioId` explicitamente e só são chamadas pela DAL ou pelo importador local. Páginas e componentes não as importam (regra de lint).
+4. **DTOs mínimos.** Nada de `userId`, `portfolioId` ou documentos crus do Mongo chega ao navegador.
+5. **Cache sem mistura.** `'use cache'` só guarda dado público de mercado (catálogo e histórico de preços). Dado de carteira nunca vai para cache compartilhado. A sessão usa `'use cache: private'`, que fica só no navegador do próprio usuário. Chaves e tags de cache não levam dados pessoais.
+6. **Entradas.** Toda entrada passa por Zod, e o Mongoose roda com `sanitizeFilter` para bloquear injeção de operadores (`$ne`, `$gt`...).
+7. **APIs.** A busca de tickers exige sessão e responde `Cache-Control: private, no-store`. O cron devolve só contagens, nunca dados de carteiras.
+8. **Erros.** Uma action com falha devolve mensagem genérica; o detalhe fica só no log do servidor, sem tokens nem payloads.
+9. **Navegador.** Cabeçalhos X-Frame-Options, nosniff, Referrer-Policy, Permissions-Policy e HSTS, mais `poweredByHeader: false`.
+10. **Segredos e dependências.** Segredos só em variáveis de servidor, nenhuma `NEXT_PUBLIC_` com segredo. O npm 11.20 bloqueia scripts de instalação não aprovados, e o CI roda `npm audit`.
+
 ## 12. Importador da planilha
 
 **Comando:** `npm run import:planilha -- --file "<caminho do .xlsx>" --email <e-mail> [--dry-run] [--replace]`
@@ -488,18 +506,19 @@ Botão "Entrar com Google". Quem já tem sessão vai direto para o dashboard. Um
 - data: dia em UTC;
 - origem: `source = 'PLANILHA'`.
 
-**Validação:**
+**Validação, ativo por ativo:**
 
 - formato do ticker, data, quantidade diferente de zero e preço maior que zero;
-- `validateHistory` no histórico completo.
+- `validateHistory` no histórico do ativo;
+- quantidade final igual à coluna `QTD.` da aba "Gráficos", quando o ativo aparece lá.
 
-Se houver qualquer erro, o importador aborta sem gravar nada e lista aba, linha, data, ticker, quantidade vendida e posição na data.
+Um ativo só é importado se passar em tudo. Os outros são pulados, e o relatório mostra aba, linha, data, quantidade vendida e posição na data. A configuração da Carteira Alvo desses ativos também fica de fora, para o motor não tratar como zerada uma posição que existe. Com a planilha de 17/10/2026, entram 19 ativos e ficam de fora PMLL11, VISC11, XPML11, ALZR11 e IRIM11.
 
 **Gravação:**
 
 1. Se já existirem lançamentos `PLANILHA` e não houver `--replace`, aborta. Com `--replace`, apaga primeiro os lançamentos `PLANILHA` da carteira.
 2. Insere os lançamentos.
-3. Faz upsert dos `target_assets` a partir de "Gráficos":
+3. Faz upsert dos `target_assets` dos ativos importados, a partir de "Gráficos":
    - `inStrategy = rank ≠ 99`;
    - `sunoRank = rank` (só quando ≠ 99);
    - `ceilingPrice = teto > 0 ? teto : null`;
@@ -507,7 +526,7 @@ Se houver qualquer erro, o importador aborta sem gravar nada e lista aba, linha,
 
 **Relatório:** contagem por aba, quantidade final por ticker comparada com `QTD.` da planilha (avisa se divergir), tetos suspeitos e ativos sem teto.
 
-O arquivo do usuário nunca entra no repositório: `.gitignore` inclui `*.xlsx`. Os testes usam uma planilha sintética.
+O arquivo do usuário nunca entra no repositório: `.gitignore` inclui `*.xlsx`.
 
 ## 13. Erros e estados degradados
 
@@ -517,22 +536,16 @@ O arquivo do usuário nunca entra no repositório: `.gitignore` inclui `*.xlsx`.
 - **Erros de action:** toast (sonner); erros de validação aparecem no próprio formulário.
 - **Login recusado:** volta para `/login` com a mensagem.
 
-## 14. Testes e qualidade
+## 14. Verificação e qualidade
 
-- **TDD com Vitest em todo o `domain/`:**
-  - posições e `validateHistory`;
-  - resumo, evolução, aportes por mês e alertas;
-  - `effectiveWeights` e prioridade;
-  - `sunoCascade` (Apêndice A);
-  - horário do pregão e vencimento das cotações;
-  - parser da planilha (sobre uma planilha sintética).
-- **Adaptadores:** respostas gravadas da brapi e do Yahoo, com `fetch` e o módulo do Yahoo simulados.
-- **DAL e actions (mongodb-memory-server):**
-  - CRUD de lançamentos com rejeição de venda inválida;
-  - isolamento entre usuários: A não lê nem altera dados de B;
-  - trava e contador de cota.
-- **Verificação a cada tarefa:** `npm run lint` (incluindo fronteiras), `npm run typecheck`, `npm test` e `npm run build`.
-- **CI (GitHub Actions):** em push e PR, roda em Node 24 e 26, com variáveis fictícias e `SKIP_ENV_VALIDATION=1` no build.
+Não há suíte de testes automatizados (decisão do usuário: projeto pessoal). Cada etapa é verificada com:
+
+- `npm run lint` (incluindo as fronteiras da arquitetura) e `npm run typecheck`;
+- `npm run build`;
+- conferências pontuais, fora do repositório, das regras que mexem com dinheiro: preço médio e motor de aporte contra os exemplos do Apêndice A;
+- teste manual das telas com `npm run dev`.
+
+**CI (GitHub Actions):** em push e PR, roda lint, typecheck, build e `npm audit` em Node 24 e 26, com variáveis de ambiente fictícias.
 
 ## 15. Configuração e deploy
 
