@@ -5,6 +5,7 @@ import nextTs from "eslint-config-next/typescript";
 // Fronteiras da arquitetura (monólito modular por features):
 // - de fora, uma feature só é importada pela API pública: index.ts, server.ts ou actions.ts;
 // - dentro da própria feature, os imports são relativos;
+// - repo.ts (funções com portfolioId explícito) é só para scripts locais, nunca para o app;
 // - domain/ é TypeScript puro;
 // - componentes não acessam servidor nem banco.
 const featureInternals = {
@@ -13,43 +14,45 @@ const featureInternals = {
     "Importe a feature pela API pública (index.ts, server.ts ou actions.ts). Dentro da própria feature, use caminhos relativos.",
 };
 
+const repoOnlyForScripts = {
+  group: ["@/features/*/repo"],
+  message:
+    "repo.ts recebe ids explícitos e é só para scripts locais. No app, o dono vem da sessão: use server.ts.",
+};
+
 const serverOnlyModules = ["@/shared/db/*", "@/shared/env", "mongoose", "mongodb"];
+
+const restrict = (...patterns) => ["error", { patterns }];
 
 export default defineConfig([
   ...nextVitals,
   ...nextTs,
   {
-    files: ["src/**/*.{ts,tsx}", "scripts/**/*.ts"],
-    rules: {
-      "no-restricted-imports": ["error", { patterns: [featureInternals] }],
-    },
+    files: ["src/**/*.{ts,tsx}"],
+    rules: { "no-restricted-imports": restrict(featureInternals, repoOnlyForScripts) },
+  },
+  {
+    files: ["scripts/**/*.ts"],
+    rules: { "no-restricted-imports": restrict(featureInternals) },
   },
   {
     files: ["src/features/*/domain/**/*.ts"],
     rules: {
-      "no-restricted-imports": [
-        "error",
-        {
-          patterns: [
-            featureInternals,
-            {
-              group: [
-                "next",
-                "next/*",
-                "react",
-                "react-dom",
-                "better-auth",
-                "better-auth/*",
-                "**/server",
-                "**/server/**",
-                "**/components/**",
-                ...serverOnlyModules,
-              ],
-              message: "domain/ é puro: sem framework, banco, variáveis de ambiente ou I/O.",
-            },
-          ],
-        },
-      ],
+      "no-restricted-imports": restrict(featureInternals, repoOnlyForScripts, {
+        group: [
+          "next",
+          "next/*",
+          "react",
+          "react-dom",
+          "better-auth",
+          "better-auth/*",
+          "**/server",
+          "**/server/**",
+          "**/components/**",
+          ...serverOnlyModules,
+        ],
+        message: "domain/ é puro: sem framework, banco, variáveis de ambiente ou I/O.",
+      }),
     },
   },
   {
@@ -59,19 +62,11 @@ export default defineConfig([
       "src/shared/components/**/*.{ts,tsx}",
     ],
     rules: {
-      "no-restricted-imports": [
-        "error",
-        {
-          patterns: [
-            featureInternals,
-            {
-              group: ["**/server", "**/server/**", ...serverOnlyModules],
-              message:
-                "Componentes não acessam servidor nem banco: recebem dados por props ou chamam actions.",
-            },
-          ],
-        },
-      ],
+      "no-restricted-imports": restrict(featureInternals, repoOnlyForScripts, {
+        group: ["**/server", "**/server/**", ...serverOnlyModules],
+        message:
+          "Componentes não acessam servidor nem banco: recebem dados por props ou chamam actions.",
+      }),
     },
   },
   globalIgnores([".next/**", "out/**", "build/**", "coverage/**", "next-env.d.ts"]),
