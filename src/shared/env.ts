@@ -9,6 +9,9 @@ export const env = createEnv({
     MONGODB_URI: z
       .string()
       .regex(/^mongodb(\+srv)?:\/\//, "MONGODB_URI deve começar com mongodb:// ou mongodb+srv://"),
+    REDIS_URL: z
+      .string()
+      .regex(/^rediss?:\/\//, "REDIS_URL deve começar com redis:// ou rediss:// (TLS)"),
     BETTER_AUTH_SECRET: z.string().min(32),
     BETTER_AUTH_URL: z.url(),
     GOOGLE_CLIENT_ID: z.string().min(1),

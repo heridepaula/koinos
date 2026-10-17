@@ -4,9 +4,11 @@ import { betterAuth } from "better-auth";
 import { APIError } from "better-auth/api";
 import { nextCookies } from "better-auth/next-js";
 import { mongoClient, mongoDb } from "@/shared/db/mongo";
+import { redis } from "@/shared/db/redis";
 import { env } from "@/shared/env";
 import { isEmailAllowed, parseAllowedEmails } from "../domain/allowlist";
 import { ensureDefaultPortfolioId } from "./portfolio-repo";
+import { createProtectedSessionStorage } from "./session-storage";
 
 export const allowedEmails = parseAllowedEmails(env.ALLOWED_EMAILS);
 
@@ -15,8 +17,16 @@ export const auth = betterAuth({
   baseURL: env.BETTER_AUTH_URL,
   secret: env.BETTER_AUTH_SECRET,
   trustedOrigins: [env.BETTER_AUTH_URL],
-  // O Atlas é replica set, então o adapter usa transações (client informado).
+  // Usuários e contas no Mongo (o Atlas é replica set, então o adapter usa transações).
   database: mongodbAdapter(mongoDb, { client: mongoClient }),
+  // Sessões e rate limit no Redis, com chaves em HMAC e valores cifrados (ver session-storage.ts).
+  secondaryStorage: createProtectedSessionStorage(redis, env.BETTER_AUTH_SECRET),
+  rateLimit: {
+    enabled: true,
+    storage: "secondary-storage",
+    window: 60,
+    max: 100,
+  },
   socialProviders: {
     google: {
       clientId: env.GOOGLE_CLIENT_ID,

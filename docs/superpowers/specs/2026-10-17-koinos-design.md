@@ -53,6 +53,8 @@ O Koinos substitui a planilha `FII's.xlsx` (exportada do Google Sheets) por um a
 | Node | 26.12.0 no ambiente local; `engines: ">=24"` | É o mais novo; as Functions da Vercel ainda só rodam 24.x |
 | Banco | MongoDB Atlas M0 + Mongoose 9 | Prisma 7 não suporta Mongo; Prisma 6 perde suporte em 19/11/2026; o Mongo do Prisma 8 ainda é RC |
 | Login | Better Auth 1.7 + Google + `@better-auth/mongo-adapter` | Auth.js passou a fazer parte do Better Auth, e o v5 continua beta, só com correções de segurança |
+| Sessões | Redis Cloud via `secondaryStorage` do Better Auth (`@better-auth/redis-storage` + ioredis), com chave em HMAC-SHA256 e valor em AES-256-GCM; rate limit também no Redis | Pedido do usuário. O banco do Redis Cloud não tem TLS, então o token nunca trafega em texto |
+| Paralelismo | Na Vercel, o Fluid compute escala requisições e instâncias; no código, tarefas de rede em paralelo com limite por `os.availableParallelism()` (brapi gratuita: 1 por vez) | Pedido do usuário: aproveitar todos os núcleos |
 | Cotações | Listagem em lote da brapi (`quote/list`: uma requisição traz os 679 fundos listados); cotação individual da brapi e depois Yahoo como reservas; Yahoo para histórico e proventos | Plano gratuito da brapi: cotação individual com 1 ticker por requisição, 15 mil/mês, sem dividendos, 3 meses de histórico. A listagem responde em lote e sem token (testado em 17/10/2026) |
 | Atualização | Sob demanda (preço vencido) + cron diário | No plano Hobby, o cron da Vercel roda 1x por dia |
 | Motor de aporte | Método Suno: cascata pelo ranking até a % sugerida, só abaixo do teto | Pedido do usuário; substitui o IPA da planilha |
@@ -554,6 +556,7 @@ Não há suíte de testes automatizados (decisão do usuário: projeto pessoal).
 | Variável | Obrigatória | Uso |
 |---|---|---|
 | `MONGODB_URI` | sim | conexão com o Atlas |
+| `REDIS_URL` | sim | Redis das sessões e do rate limit (`rediss://` quando houver TLS) |
 | `BETTER_AUTH_SECRET` | sim | segredo das sessões (32+ caracteres) |
 | `BETTER_AUTH_URL` | sim | URL base (`http://localhost:3000` em dev) |
 | `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` | sim | OAuth do Google |
