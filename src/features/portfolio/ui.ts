@@ -1,2 +1,10 @@
-// Componentes de cliente da feature portfolio.
+// Componentes da feature portfolio.
+export { AlertsPanel } from "./components/alerts-panel";
+export { AllocationCharts } from "./components/allocation-charts";
+export { ClosedPositions } from "./components/closed-positions";
+export { ContributionsChart } from "./components/contributions-chart";
+export { EmptyPortfolio } from "./components/empty-portfolio";
+export { EvolutionChart } from "./components/evolution-chart";
+export { PositionsTable } from "./components/positions-table";
 export { QuoteRefresher } from "./components/quote-refresher";
+export { SummaryCards } from "./components/summary-cards";

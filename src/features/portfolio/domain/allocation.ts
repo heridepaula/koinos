@@ -1,14 +1,18 @@
 import { CATEGORY_LABELS, type Category } from "@/features/strategy";
 import type { AllocationSlice } from "./types";
 
-const UNCATEGORIZED = "SEM_CATEGORIA";
+/** Pizza só para parte-do-todo "de relance": no máximo 6 fatias (5 maiores + "Outros"). */
+export const MAX_SLICES = 6;
+export const OTHERS_KEY = "OUTROS";
+export const UNCATEGORIZED_KEY = "SEM_CATEGORIA";
 
-function withShares(entries: { key: string; label: string; value: number }[]): AllocationSlice[] {
-  const total = entries.reduce((sum, entry) => sum + entry.value, 0);
-  return entries
-    .filter((entry) => entry.value > 0)
-    .sort((a, b) => b.value - a.value)
-    .map((entry) => ({ ...entry, share: total > 0 ? entry.value / total : 0 }));
+function toSlices(entries: { key: string; label: string; value: number }[]): AllocationSlice[] {
+  const positive = entries.filter((entry) => entry.value > 0).sort((a, b) => b.value - a.value);
+  const head = positive.length > MAX_SLICES ? positive.slice(0, MAX_SLICES - 1) : positive;
+  const rest = positive.slice(head.length).reduce((sum, entry) => sum + entry.value, 0);
+  const all = rest > 0 ? [...head, { key: OTHERS_KEY, label: "Outros", value: rest }] : head;
+  const total = all.reduce((sum, entry) => sum + entry.value, 0);
+  return all.map((entry) => ({ ...entry, share: total > 0 ? entry.value / total : 0 }));
 }
 
 export function allocationByCategory(
@@ -16,29 +20,22 @@ export function allocationByCategory(
 ): AllocationSlice[] {
   const totals = new Map<string, number>();
   for (const row of rows) {
-    const key = row.category ?? UNCATEGORIZED;
+    const key = row.category ?? UNCATEGORIZED_KEY;
     totals.set(key, (totals.get(key) ?? 0) + row.currentValue);
   }
-  return withShares(
+  return toSlices(
     [...totals].map(([key, value]) => ({
       key,
-      label: key === UNCATEGORIZED ? "Sem categoria" : CATEGORY_LABELS[key as Category],
+      label: key === UNCATEGORIZED_KEY ? "Sem categoria" : CATEGORY_LABELS[key as Category],
       value,
     })),
   );
 }
 
-/** Os `top` maiores ativos e o restante somado em "Outros". */
 export function allocationByAsset(
   rows: readonly { ticker: string; currentValue: number }[],
-  top = 10,
 ): AllocationSlice[] {
-  const sorted = [...rows].sort((a, b) => b.currentValue - a.currentValue);
-  const head = sorted.slice(0, top).map((row) => ({
-    key: row.ticker,
-    label: row.ticker,
-    value: row.currentValue,
-  }));
-  const rest = sorted.slice(top).reduce((sum, row) => sum + row.currentValue, 0);
-  return withShares(rest > 0 ? [...head, { key: "OUTROS", label: "Outros", value: rest }] : head);
+  return toSlices(
+    rows.map((row) => ({ key: row.ticker, label: row.ticker, value: row.currentValue })),
+  );
 }
