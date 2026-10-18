@@ -2,7 +2,7 @@
 
 import { refresh } from "next/cache";
 import { authActionClient } from "@/features/auth/server";
-import { refreshQuotes } from "@/features/market-data/server";
+import { refreshDividends, refreshQuotes } from "@/features/market-data/server";
 import { listTargetAssetsOf } from "@/features/strategy/server";
 import { computePositions } from "@/features/transactions";
 import { listTransactionsOf } from "@/features/transactions/server";
@@ -20,6 +20,9 @@ export const refreshMyQuotesAction = authActionClient.action(async ({ ctx }) => 
     .filter((position) => position.quantity > 0)
     .map((position) => position.ticker);
   const result = await refreshQuotes([...held, ...targets.map((target) => target.ticker)]);
-  if (result.status === "done" && result.updated > 0) refresh();
+  // DY e último rendimento também sob demanda (antes só no cron): quem acabou de importar
+  // já vê o DY. refreshDividends pula o que foi buscado nas últimas 20 h.
+  const dividends = await refreshDividends(held);
+  if ((result.status === "done" && result.updated > 0) || dividends.updated > 0) refresh();
   return result;
 });
