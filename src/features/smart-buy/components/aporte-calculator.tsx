@@ -162,19 +162,19 @@ export function AporteCalculator({ assets, meta }: { assets: CascadeAsset[]; met
       {result ? (
         <>
           <div className="grid gap-4 sm:grid-cols-3">
-            <Card size="sm">
+            <Card size="sm" className="card-lift">
               <CardHeader>
                 <CardDescription>Aporte</CardDescription>
                 <CardTitle className="text-2xl tabular-nums">{formatBRL(result.amount)}</CardTitle>
               </CardHeader>
             </Card>
-            <Card size="sm">
+            <Card size="sm" className="card-lift">
               <CardHeader>
                 <CardDescription>Ordens</CardDescription>
                 <CardTitle className="text-2xl tabular-nums">{formatBRL(result.spent)}</CardTitle>
               </CardHeader>
             </Card>
-            <Card size="sm">
+            <Card size="sm" className="card-lift">
               <CardHeader>
                 <CardDescription>Sobra para o próximo aporte</CardDescription>
                 <CardTitle className="text-2xl tabular-nums">

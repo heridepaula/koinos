@@ -2,6 +2,7 @@ import { Suspense, type ReactNode } from "react";
 import { UserMenu, UserMenuSkeleton } from "@/features/auth/ui";
 import { getCurrentUser } from "@/features/auth/server";
 import { AppSidebar } from "@/shared/components/app-sidebar";
+import { PointerGlow } from "@/shared/components/pointer-glow";
 import { QueryProvider } from "@/shared/components/query-provider";
 import { ThemeToggle } from "@/shared/components/theme-toggle";
 import { SidebarInset, SidebarProvider, SidebarTrigger } from "@/shared/ui/sidebar";
@@ -15,6 +16,7 @@ async function CurrentUserMenu() {
 export default function AppLayout({ children }: { children: ReactNode }) {
   return (
     <QueryProvider>
+      <PointerGlow />
       <SidebarProvider>
         <AppSidebar
           footer={

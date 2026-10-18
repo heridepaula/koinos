@@ -28,7 +28,7 @@
     {
       "id": 4,
       "subject": "Task 4: Efeitos e destaques",
-      "status": "in_progress",
+      "status": "completed",
       "description": "**Goal:** O brilho que segue o cursor, a elevação dos cards de número, o card do patrimônio escovado com aro e a entrada suave das telas.\n\n**Files:**\n- Create: `src/shared/components/pointer-glow.tsx`\n- Create: `src/app/(app)/template.tsx`\n- Modify: `src/app/(app)/layout.tsx`\n- Modify: `src/features/portfolio/components/summary-cards.tsx`\n- Modify: `src/features/smart-buy/components/aporte-calculator.tsx`\n\n**Acceptance Criteria:**\n- [ ] `PointerGlow` registra um único `pointermove` (passivo, com `requestAnimationFrame`). Só funciona com mouse e sem movimento reduzido, e marca `data-glow-active` com `--mx`/`--my` no elemento `[data-glow]` sob o cursor\n- [ ] `template.tsx` envolve a página em `<ViewTransition enter=\"page-enter\" exit=\"page-exit\" default=\"none\">`\n- [ ] O card do patrimônio tem `brushed metal-ring card-lift`; os outros cards do resumo e Aporte, Ordens e Sobra têm `card-lift`\n- [ ] `npx tsc --noEmit`, `npm run -s lint` e `npm run -s build` sem erros\n\n**Verify:** `npx tsc --noEmit && npm run -s lint && npm run -s build` → sem erros\n\n```json:metadata\n{\"files\":[\"src/shared/components/pointer-glow.tsx\",\"src/app/(app)/template.tsx\",\"src/app/(app)/layout.tsx\",\"src/features/portfolio/components/summary-cards.tsx\",\"src/features/smart-buy/components/aporte-calculator.tsx\"],\"verifyCommand\":\"npx tsc --noEmit && npm run -s lint && npm run -s build\",\"acceptanceCriteria\":[\"`PointerGlow` registra um único `pointermove` (passivo, com `requestAnimationFrame`). Só funciona com mouse e sem movimento reduzido, e marca `data-glow-active` com `--mx`/`--my` no elemento `[data-glow]` sob o cursor\",\"`template.tsx` envolve a página em `<ViewTransition enter=\\\"page-enter\\\" exit=\\\"page-exit\\\" default=\\\"none\\\">`\",\"O card do patrimônio tem `brushed metal-ring card-lift`; os outros cards do resumo e Aporte, Ordens e Sobra têm `card-lift`\",\"`npx tsc --noEmit`, `npm run -s lint` e `npm run -s build` sem erros\"]}\n```",
       "blockedBy": [
         3
@@ -37,12 +37,12 @@
     {
       "id": 5,
       "subject": "Task 5: Conferência visual e de contraste",
-      "status": "pending",
+      "status": "in_progress",
       "description": "**Goal:** Ver o redesign com dados reais no banco de prévia isolado, nos temas claro e escuro e no celular. Ajustar os tokens até todo texto passar de 4,5:1, ou 3:1 em texto grande.\n\n**Files:**\n- Modify (se o contraste pedir): `src/app/globals.css`\n- Create (fora do repositório, no scratchpad): `shots-tool/shoot-all.mjs`, `shots-tool/contrast.mjs`\n\n**Acceptance Criteria:**\n- [ ] Screenshots de Dashboard, Transações, Carteira Alvo e Recomendações em claro, escuro e 390 px\n- [ ] Nenhuma página com rolagem horizontal em 390 px\n- [ ] `contrast.mjs` mostra 0 textos abaixo do mínimo nos dois temas\n- [ ] Com `reducedMotion: \"reduce\"`, passar o mouse num `card-lift` não muda o `translate`, e nenhum card ganha `data-glow-active`\n- [ ] `npm run -s format:check`, `lint`, `typecheck` e `build` passam\n- [ ] O banco de prévia é apagado e a sessão de teste revogada no fim\n\n**Verify:** saída do `contrast.mjs` com \"abaixo do mínimo: 0\" em claro e escuro\n\n```json:metadata\n{\"files\":[\"src/app/globals.css\",\"shots-tool/shoot-all.mjs\",\"shots-tool/contrast.mjs\"],\"verifyCommand\":\"contrast.mjs\",\"acceptanceCriteria\":[\"Screenshots de Dashboard, Transações, Carteira Alvo e Recomendações em claro, escuro e 390 px\",\"Nenhuma página com rolagem horizontal em 390 px\",\"`contrast.mjs` mostra 0 textos abaixo do mínimo nos dois temas\",\"Com `reducedMotion: \\\"reduce\\\"`, passar o mouse num `card-lift` não muda o `translate`, e nenhum card ganha `data-glow-active`\",\"`npm run -s format:check`, `lint`, `typecheck` e `build` passam\",\"O banco de prévia é apagado e a sessão de teste revogada no fim\"]}\n```",
       "blockedBy": [
         4
       ]
     }
   ],
-  "lastUpdated": "2026-10-18T19:35:18.200Z"
+  "lastUpdated": "2026-10-18T19:36:43.120Z"
 }

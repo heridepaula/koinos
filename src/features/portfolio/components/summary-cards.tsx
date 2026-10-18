@@ -6,8 +6,8 @@ import type { PortfolioSummary } from "../domain/types";
 export function SummaryCards({ summary }: { summary: PortfolioSummary }) {
   return (
     <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-      {/* Número principal do dashboard: o patrimônio. */}
-      <Card className="md:col-span-2">
+      {/* Número principal do dashboard: o patrimônio, em titânio escovado. */}
+      <Card className="metal-ring card-lift brushed md:col-span-2">
         <CardHeader>
           <CardDescription>Patrimônio</CardDescription>
           <CardTitle className="text-4xl font-semibold tracking-tight tabular-nums md:text-5xl">
@@ -26,7 +26,7 @@ export function SummaryCards({ summary }: { summary: PortfolioSummary }) {
         </CardContent>
       </Card>
 
-      <Card>
+      <Card className="card-lift">
         <CardHeader>
           <CardDescription>Lucro/Prejuízo (posições abertas)</CardDescription>
           <CardTitle className="text-2xl font-semibold">
@@ -43,7 +43,7 @@ export function SummaryCards({ summary }: { summary: PortfolioSummary }) {
         </CardContent>
       </Card>
 
-      <Card>
+      <Card className="card-lift">
         <CardHeader>
           <CardDescription>Dividend yield 12 meses</CardDescription>
           <CardTitle className="text-2xl font-semibold tabular-nums">
