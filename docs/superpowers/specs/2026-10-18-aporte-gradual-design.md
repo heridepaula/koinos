@@ -103,7 +103,7 @@ A estimativa supõe mesmo aporte, mesmo preço e mesmo ranking. Na tela, ela apa
 
 | Peça | Arquivo | Mudança |
 | --- | --- | --- |
-| Regra (puro) | `src/features/smart-buy/domain/suno-cascade.ts` | `sunoCascade(amount, assets, { maxShare })`, `DEFAULT_MAX_SHARE = 0.5` e `MAX_SHARE_OPTIONS`. `CascadeOrder` ganha `limited`, `gapAfter` e `aportesLeft`. `CascadeResult` ganha `maxShare` |
+| Regra (puro) | `src/features/smart-buy/domain/suno-cascade.ts` | `sunoCascade(amount, assets, { maxSharePercent })`, `DEFAULT_MAX_SHARE_PERCENT = 50` e `MAX_SHARE_PERCENTS`. `CascadeOrder` ganha `limited`, `gapAfter` e `aportesLeft`. `CascadeResult` ganha `maxSharePercent` |
 | API da feature | `src/features/smart-buy/index.ts` | Exporta as constantes e os tipos novos |
 | Calculadora | `src/features/smart-buy/components/aporte-calculator.tsx` | Seletor "Máximo por FII" (nuqs, `limite`), "Por quê" e o aviso da entrada aos poucos |
 | Princípios | `src/features/smart-buy/components/principles-banner.tsx` | Novo item |
