@@ -37,12 +37,12 @@
     {
       "id": 5,
       "subject": "Task 5: Conferência visual e de contraste",
-      "status": "in_progress",
+      "status": "completed",
       "description": "**Goal:** Ver o redesign com dados reais no banco de prévia isolado, nos temas claro e escuro e no celular. Ajustar os tokens até todo texto passar de 4,5:1, ou 3:1 em texto grande.\n\n**Files:**\n- Modify (se o contraste pedir): `src/app/globals.css`\n- Create (fora do repositório, no scratchpad): `shots-tool/shoot-all.mjs`, `shots-tool/contrast.mjs`\n\n**Acceptance Criteria:**\n- [ ] Screenshots de Dashboard, Transações, Carteira Alvo e Recomendações em claro, escuro e 390 px\n- [ ] Nenhuma página com rolagem horizontal em 390 px\n- [ ] `contrast.mjs` mostra 0 textos abaixo do mínimo nos dois temas\n- [ ] Com `reducedMotion: \"reduce\"`, passar o mouse num `card-lift` não muda o `translate`, e nenhum card ganha `data-glow-active`\n- [ ] `npm run -s format:check`, `lint`, `typecheck` e `build` passam\n- [ ] O banco de prévia é apagado e a sessão de teste revogada no fim\n\n**Verify:** saída do `contrast.mjs` com \"abaixo do mínimo: 0\" em claro e escuro\n\n```json:metadata\n{\"files\":[\"src/app/globals.css\",\"shots-tool/shoot-all.mjs\",\"shots-tool/contrast.mjs\"],\"verifyCommand\":\"contrast.mjs\",\"acceptanceCriteria\":[\"Screenshots de Dashboard, Transações, Carteira Alvo e Recomendações em claro, escuro e 390 px\",\"Nenhuma página com rolagem horizontal em 390 px\",\"`contrast.mjs` mostra 0 textos abaixo do mínimo nos dois temas\",\"Com `reducedMotion: \\\"reduce\\\"`, passar o mouse num `card-lift` não muda o `translate`, e nenhum card ganha `data-glow-active`\",\"`npm run -s format:check`, `lint`, `typecheck` e `build` passam\",\"O banco de prévia é apagado e a sessão de teste revogada no fim\"]}\n```",
       "blockedBy": [
         4
       ]
     }
   ],
-  "lastUpdated": "2026-10-18T19:36:43.120Z"
+  "lastUpdated": "2026-10-18T19:47:47.276Z"
 }

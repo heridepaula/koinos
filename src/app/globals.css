@@ -145,8 +145,11 @@
   --brush-light: rgb(255 255 255 / 0.07);
   --brush-dark: rgb(0 0 0 / 0.028);
   /* Botão principal com brilho e chave do iOS. */
-  --gloss-from: #52a8ff;
-  --gloss-to: #0a7aff;
+  /* Azul mais fundo que o do mockup: o texto branco passa de 4,5:1. */
+  --gloss-from: #2f80f0;
+  --gloss-to: #0055c8;
+  /* Selos (Badge): branco sobre este azul dá 5,8:1. */
+  --badge: #0062cc;
   --gloss-shadow: 0 5px 14px rgb(10 122 255 / 0.4);
   --switch-on: #34c759;
   /* Papel de parede médio. */
@@ -209,7 +212,7 @@
   --glass-strong-highlight: rgb(255 255 255 / 0.28);
   --glass-strong-shadow: 0 12px 32px rgb(0 0 0 / 0.55);
   --glass-sheen: rgb(255 255 255 / 0.16);
-  --sidebar-muted: #aeaeb2;
+  --sidebar-muted: #bcbcc1;
   --card-fill: rgb(38 38 48 / 0.8);
   --card-fill-dense: rgb(38 38 48 / 0.94);
   --card-fill-brushed: rgb(38 38 48 / 0.84);
