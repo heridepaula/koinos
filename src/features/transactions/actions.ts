@@ -7,11 +7,13 @@ import { parseTradeDate, todayTradeDate } from "@/shared/lib/time";
 import { findOversells } from "./domain/positions";
 import type { LedgerEntry } from "./domain/types";
 import {
+  b3ImportFormSchema,
   deleteTransactionSchema,
   transactionFormSchema,
   updateTransactionSchema,
   type TransactionFormInput,
 } from "./schemas";
+import { confirmB3Import, previewB3Import } from "./server/b3-import";
 import {
   deleteTransaction,
   insertTransaction,
@@ -95,4 +97,18 @@ export const deleteTransactionAction = authActionClient
     }
     refresh();
     return { ok: true as const };
+  });
+
+/** Prévia da importação da B3: nada é gravado. */
+export const previewB3ImportAction = authActionClient
+  .inputSchema(b3ImportFormSchema)
+  .action(async ({ parsedInput, ctx }) => previewB3Import(ctx.tenant, parsedInput));
+
+/** Importa os extratos da B3: recalcula a prévia com as respostas e grava. */
+export const confirmB3ImportAction = authActionClient
+  .inputSchema(b3ImportFormSchema)
+  .action(async ({ parsedInput, ctx }) => {
+    const result = await confirmB3Import(ctx.tenant, parsedInput);
+    refresh();
+    return result;
   });

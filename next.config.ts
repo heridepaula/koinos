@@ -27,6 +27,8 @@ const nextConfig: NextConfig = {
     // anterior, o CSS saiu com o conteúdo antigo. O build fica uns segundos mais lento, mas
     // sempre compila do zero.
     turbopackFileSystemCacheForBuild: false,
+    // Upload dos extratos da B3: até 3 planilhas de 2 MB (a Vercel aceita até 4,5 MB por requisição).
+    serverActions: { bodySizeLimit: "4mb" },
   },
   turbopack: {
     rules: {

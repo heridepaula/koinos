@@ -35,3 +35,45 @@ export const updateTransactionSchema = transactionFormSchema.extend({
 export const deleteTransactionSchema = z.object({
   id: z.string().regex(OBJECT_ID_REGEX, "Lançamento inválido"),
 });
+
+const fiiCode = z.string().regex(/^[A-Z0-9]{4}11$/);
+
+/** Respostas às pendências da importação da B3 (spec §7). Os ids são recalculados no servidor. */
+export const b3AnswersSchema = z.object({
+  prices: z
+    .record(z.string().regex(/^(sub|prev):[A-Z0-9]{4}11\b/), z.number().positive().max(10_000_000))
+    .default({}),
+  conversions: z
+    .record(z.string().regex(/^conv:[A-Z0-9]{4}11:/), z.union([fiiCode, z.literal("NONE")]))
+    .default({}),
+  exclude: z.array(fiiCode).max(200).default([]),
+});
+
+/** Formulário da importação: os arquivos, as respostas (JSON) e o "revisei as divergências". */
+export const b3ImportFormSchema = z.instanceof(FormData).transform((form, ctx) => {
+  const files = form
+    .getAll("files")
+    .filter((value): value is File => value instanceof File && value.size > 0);
+  const raw = form.get("answers");
+  let answers: unknown = {};
+  if (typeof raw === "string" && raw) {
+    try {
+      answers = JSON.parse(raw);
+    } catch {
+      ctx.addIssue({ code: "custom", message: "Respostas inválidas." });
+      return z.NEVER;
+    }
+  }
+  const parsed = b3AnswersSchema.safeParse(answers);
+  if (!parsed.success) {
+    ctx.addIssue({ code: "custom", message: "Respostas inválidas." });
+    return z.NEVER;
+  }
+  return {
+    files,
+    answers: parsed.data,
+    acceptDivergences: form.get("acceptDivergences") === "true",
+  };
+});
+
+export type B3ImportRequest = z.output<typeof b3ImportFormSchema>;
