@@ -1,0 +1,48 @@
+{
+  "planPath": "docs/superpowers/plans/2026-10-18-visual-redesign.md",
+  "tasks": [
+    {
+      "id": 1,
+      "subject": "Task 1: Materiais e tokens",
+      "status": "pending",
+      "description": "**Goal:** `globals.css` com os tokens dos dois temas e os utilitários dos materiais, sem mexer ainda em nenhum componente.\n\n**Files:**\n- Modify: `src/app/globals.css`\n\n**Acceptance Criteria:**\n- [ ] Tokens do papel de parede médio, vidro forte, card fosco, titânio, botão com brilho, azulejos e chave verde, nos dois temas\n- [ ] Utilitários `glass-strong`, `card-surface`, `brushed`, `card-lift`, `metal-ring`, `btn-gloss`, `tile` e `knob-metal`\n- [ ] Card com tabela usa o fundo denso; textos secundários da sidebar usam `--sidebar-muted`\n- [ ] Animações `page-enter`/`page-exit`; `::view-transition` sem capturar o ponteiro; movimento reduzido zera as animações\n- [ ] Sem `backdrop-filter`, os materiais viram fundos sólidos\n- [ ] Os tokens `--icon-*` e a regra antiga de sombra do card saem\n- [ ] `npm run -s build` passa (o Tailwind compila os `@utility`)\n\n**Verify:** `npx tsc --noEmit && npm run -s lint && npm run -s build` → sem erros\n\n```json:metadata\n{\"files\":[\"src/app/globals.css\"],\"verifyCommand\":\"npx tsc --noEmit && npm run -s lint && npm run -s build\",\"acceptanceCriteria\":[\"Tokens do papel de parede médio, vidro forte, card fosco, titânio, botão com brilho, azulejos e chave verde, nos dois temas\",\"Utilitários `glass-strong`, `card-surface`, `brushed`, `card-lift`, `metal-ring`, `btn-gloss`, `tile` e `knob-metal`\",\"Card com tabela usa o fundo denso; textos secundários da sidebar usam `--sidebar-muted`\",\"Animações `page-enter`/`page-exit`; `::view-transition` sem capturar o ponteiro; movimento reduzido zera as animações\",\"Sem `backdrop-filter`, os materiais viram fundos sólidos\",\"Os tokens `--icon-*` e a regra antiga de sombra do card saem\",\"`npm run -s build` passa (o Tailwind compila os `@utility`)\"]}\n```"
+    },
+    {
+      "id": 2,
+      "subject": "Task 2: Card, botão e chave",
+      "status": "pending",
+      "description": "**Goal:** Os componentes base usam os materiais: card fosco com brilho do cursor, botão principal com brilho, aro e toque macio, e chave verde com knob de metal.\n\n**Files:**\n- Modify: `src/shared/ui/card.tsx`\n- Modify: `src/shared/ui/button.tsx`\n- Modify: `src/shared/ui/switch.tsx`\n\n**Acceptance Criteria:**\n- [ ] `Card` usa `card-surface`, sem `bg-card` nem `ring-1 ring-foreground/10`, e tem `data-glow`\n- [ ] Botão `default` usa `btn-gloss metal-ring` e tem `data-glow`; os outros ficam como estão\n- [ ] Todos os botões encolhem para 97% no clique (`motion-safe`), sem o `translate-y-px`\n- [ ] A chave ligada usa `--switch-on`, e o knob, `knob-metal`\n- [ ] `npx tsc --noEmit`, `npm run -s lint` e `npm run -s build` sem erros\n\n**Verify:** `npx tsc --noEmit && npm run -s lint && npm run -s build` → sem erros\n\n```json:metadata\n{\"files\":[\"src/shared/ui/card.tsx\",\"src/shared/ui/button.tsx\",\"src/shared/ui/switch.tsx\"],\"verifyCommand\":\"npx tsc --noEmit && npm run -s lint && npm run -s build\",\"acceptanceCriteria\":[\"`Card` usa `card-surface`, sem `bg-card` nem `ring-1 ring-foreground/10`, e tem `data-glow`\",\"Botão `default` usa `btn-gloss metal-ring` e tem `data-glow`; os outros ficam como estão\",\"Todos os botões encolhem para 97% no clique (`motion-safe`), sem o `translate-y-px`\",\"A chave ligada usa `--switch-on`, e o knob, `knob-metal`\",\"`npx tsc --noEmit`, `npm run -s lint` e `npm run -s build` sem erros\"]}\n```",
+      "blockedBy": [
+        1
+      ]
+    },
+    {
+      "id": 3,
+      "subject": "Task 3: Sidebar flutuante, azulejos e toolbar",
+      "status": "pending",
+      "description": "**Goal:** A sidebar vira um painel flutuante de vidro forte. Os itens ganham azulejos coloridos, o ícone do app e o item ativo ganham titânio, e a toolbar usa o mesmo vidro.\n\n**Files:**\n- Modify: `src/shared/ui/sidebar.tsx`\n- Modify: `src/shared/components/app-sidebar.tsx`\n- Modify: `src/app/(app)/layout.tsx`\n\n**Acceptance Criteria:**\n- [ ] `variant=\"floating\"`: o painel tem `glass-strong` e raio de 18 px, sem o `ring-1`\n- [ ] Cada item tem um azulejo de 24 px (raio 7 px) com o gradiente da sua cor; recolhido, o azulejo cabe no botão de 32 px\n- [ ] O ícone do app é um azulejo de 32 px com `--tile-app` e `metal-ring`\n- [ ] O item ativo tem fundo de vidro claro, brilho interno e `metal-ring`\n- [ ] O rótulo do grupo usa `--sidebar-muted`\n- [ ] A toolbar usa `glass-strong`\n- [ ] `npx tsc --noEmit`, `npm run -s lint` e `npm run -s build` sem erros\n\n**Verify:** `npx tsc --noEmit && npm run -s lint && npm run -s build` → sem erros\n\n```json:metadata\n{\"files\":[\"src/shared/ui/sidebar.tsx\",\"src/shared/components/app-sidebar.tsx\",\"src/app/(app)/layout.tsx\"],\"verifyCommand\":\"npx tsc --noEmit && npm run -s lint && npm run -s build\",\"acceptanceCriteria\":[\"`variant=\\\"floating\\\"`: o painel tem `glass-strong` e raio de 18 px, sem o `ring-1`\",\"Cada item tem um azulejo de 24 px (raio 7 px) com o gradiente da sua cor; recolhido, o azulejo cabe no botão de 32 px\",\"O ícone do app é um azulejo de 32 px com `--tile-app` e `metal-ring`\",\"O item ativo tem fundo de vidro claro, brilho interno e `metal-ring`\",\"O rótulo do grupo usa `--sidebar-muted`\",\"A toolbar usa `glass-strong`\",\"`npx tsc --noEmit`, `npm run -s lint` e `npm run -s build` sem erros\"]}\n```",
+      "blockedBy": [
+        2
+      ]
+    },
+    {
+      "id": 4,
+      "subject": "Task 4: Efeitos e destaques",
+      "status": "pending",
+      "description": "**Goal:** O brilho que segue o cursor, a elevação dos cards de número, o card do patrimônio escovado com aro e a entrada suave das telas.\n\n**Files:**\n- Create: `src/shared/components/pointer-glow.tsx`\n- Create: `src/app/(app)/template.tsx`\n- Modify: `src/app/(app)/layout.tsx`\n- Modify: `src/features/portfolio/components/summary-cards.tsx`\n- Modify: `src/features/smart-buy/components/aporte-calculator.tsx`\n\n**Acceptance Criteria:**\n- [ ] `PointerGlow` registra um único `pointermove` (passivo, com `requestAnimationFrame`). Só funciona com mouse e sem movimento reduzido, e marca `data-glow-active` com `--mx`/`--my` no elemento `[data-glow]` sob o cursor\n- [ ] `template.tsx` envolve a página em `<ViewTransition enter=\"page-enter\" exit=\"page-exit\" default=\"none\">`\n- [ ] O card do patrimônio tem `brushed metal-ring card-lift`; os outros cards do resumo e Aporte, Ordens e Sobra têm `card-lift`\n- [ ] `npx tsc --noEmit`, `npm run -s lint` e `npm run -s build` sem erros\n\n**Verify:** `npx tsc --noEmit && npm run -s lint && npm run -s build` → sem erros\n\n```json:metadata\n{\"files\":[\"src/shared/components/pointer-glow.tsx\",\"src/app/(app)/template.tsx\",\"src/app/(app)/layout.tsx\",\"src/features/portfolio/components/summary-cards.tsx\",\"src/features/smart-buy/components/aporte-calculator.tsx\"],\"verifyCommand\":\"npx tsc --noEmit && npm run -s lint && npm run -s build\",\"acceptanceCriteria\":[\"`PointerGlow` registra um único `pointermove` (passivo, com `requestAnimationFrame`). Só funciona com mouse e sem movimento reduzido, e marca `data-glow-active` com `--mx`/`--my` no elemento `[data-glow]` sob o cursor\",\"`template.tsx` envolve a página em `<ViewTransition enter=\\\"page-enter\\\" exit=\\\"page-exit\\\" default=\\\"none\\\">`\",\"O card do patrimônio tem `brushed metal-ring card-lift`; os outros cards do resumo e Aporte, Ordens e Sobra têm `card-lift`\",\"`npx tsc --noEmit`, `npm run -s lint` e `npm run -s build` sem erros\"]}\n```",
+      "blockedBy": [
+        3
+      ]
+    },
+    {
+      "id": 5,
+      "subject": "Task 5: Conferência visual e de contraste",
+      "status": "pending",
+      "description": "**Goal:** Ver o redesign com dados reais no banco de prévia isolado, nos temas claro e escuro e no celular. Ajustar os tokens até todo texto passar de 4,5:1, ou 3:1 em texto grande.\n\n**Files:**\n- Modify (se o contraste pedir): `src/app/globals.css`\n- Create (fora do repositório, no scratchpad): `shots-tool/shoot-all.mjs`, `shots-tool/contrast.mjs`\n\n**Acceptance Criteria:**\n- [ ] Screenshots de Dashboard, Transações, Carteira Alvo e Recomendações em claro, escuro e 390 px\n- [ ] Nenhuma página com rolagem horizontal em 390 px\n- [ ] `contrast.mjs` mostra 0 textos abaixo do mínimo nos dois temas\n- [ ] Com `reducedMotion: \"reduce\"`, passar o mouse num `card-lift` não muda o `translate`, e nenhum card ganha `data-glow-active`\n- [ ] `npm run -s format:check`, `lint`, `typecheck` e `build` passam\n- [ ] O banco de prévia é apagado e a sessão de teste revogada no fim\n\n**Verify:** saída do `contrast.mjs` com \"abaixo do mínimo: 0\" em claro e escuro\n\n```json:metadata\n{\"files\":[\"src/app/globals.css\",\"shots-tool/shoot-all.mjs\",\"shots-tool/contrast.mjs\"],\"verifyCommand\":\"contrast.mjs\",\"acceptanceCriteria\":[\"Screenshots de Dashboard, Transações, Carteira Alvo e Recomendações em claro, escuro e 390 px\",\"Nenhuma página com rolagem horizontal em 390 px\",\"`contrast.mjs` mostra 0 textos abaixo do mínimo nos dois temas\",\"Com `reducedMotion: \\\"reduce\\\"`, passar o mouse num `card-lift` não muda o `translate`, e nenhum card ganha `data-glow-active`\",\"`npm run -s format:check`, `lint`, `typecheck` e `build` passam\",\"O banco de prévia é apagado e a sessão de teste revogada no fim\"]}\n```",
+      "blockedBy": [
+        4
+      ]
+    }
+  ],
+  "lastUpdated": "2026-10-18T19:28:37.539Z"
+}

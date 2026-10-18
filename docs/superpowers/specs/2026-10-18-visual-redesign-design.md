@@ -122,7 +122,7 @@ Todos vivem em `@media (prefers-reduced-motion: no-preference)`. Fora dela, fica
    - na navegação, a página que sai some com fade de 150 ms;
    - a que entra aparece com fade de 210 ms (depois da saída) e sobe 10 px em 400 ms;
    - isso vem de `<ViewTransition enter="page-enter" exit="page-exit" default="none">` no `template.tsx`;
-   - a toolbar e a sidebar ficam paradas (`viewTransitionName` próprio, sem animação);
+   - a toolbar e a sidebar ficam na raiz da transição, que é igual antes e depois, por isso não se mexem; só o item ativo do menu troca com fade;
    - `::view-transition { pointer-events: none }` mantém a página clicável durante a animação.
 
 ## 6. Acessibilidade e desempenho
