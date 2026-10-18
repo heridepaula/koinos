@@ -118,14 +118,15 @@ O ESLint impede importar o interior de outra feature e mantém `domain/` puro. A
 ## Deploy na Vercel
 
 1. Importe o repositório na Vercel (framework Next.js). As Functions rodam em Node 24.x.
-2. Em **Settings → Environment Variables**, cadastre as variáveis do `.env.example` com os valores de produção, incluindo `BETTER_AUTH_URL=https://seu-dominio` e `CRON_SECRET`.
+2. Em **Settings → Environment Variables**, cadastre as variáveis do `.env.example` com os valores de produção, incluindo `CRON_SECRET` e o `BETTER_AUTH_URL` com o domínio de produção do projeto (o que aparece em **Settings → Domains**, não os aliases `*-git-*` ou `*-projects.vercel.app`).
 3. Adicione o domínio de produção ao cliente OAuth do Google (origem e redirecionamento).
 4. O cron já vem no `vercel.json`. Quando `CRON_SECRET` existe, a Vercel envia `Authorization: Bearer <CRON_SECRET>` sozinha. No plano Hobby, o cron roda uma vez por dia, em algum momento dentro da hora agendada.
 5. Publique, entre com o seu e-mail e importe a planilha apontando para o banco de produção.
 
-O `vercel.json` também fixa duas escolhas:
+A configuração também fixa três escolhas:
 
 - **Região `gru1` (São Paulo):** as Functions rodam ao lado do cluster do Atlas (`sa-east-1`), em vez de Washington.
+- **Domínio único:** em produção, uma página aberta por outro endereço `*.vercel.app` redireciona para o domínio do `BETTER_AUTH_URL`, o único onde o login funciona (`next.config.ts`). As rotas `/api` ficam de fora: o cron chama um endereço `*.vercel.app` e não segue redirects.
 - **Deploy só da `main`:** outros branches não geram preview. Num preview, o login não funcionaria (o `BETTER_AUTH_URL` é o domínio de produção) e o banco seria o de produção. O CI já valida cada push.
 
 ## CI

@@ -9,6 +9,14 @@ const securityHeaders = [
   { key: "Strict-Transport-Security", value: "max-age=63072000; includeSubDomains; preload" },
 ];
 
+// Na Vercel, a produção responde em vários endereços (*.vercel.app), mas o login (cookies e retorno
+// do OAuth) só funciona no domínio do BETTER_AUTH_URL: as páginas redirecionam para ele.
+// /api fica de fora porque o cron da Vercel chama um endereço *.vercel.app e não segue redirects.
+const canonicalHost =
+  process.env.VERCEL_ENV === "production" && process.env.BETTER_AUTH_URL
+    ? new URL(process.env.BETTER_AUTH_URL).host
+    : null;
+
 const nextConfig: NextConfig = {
   cacheComponents: true,
   partialPrefetching: true,
@@ -26,7 +34,19 @@ const nextConfig: NextConfig = {
     return [{ source: "/:path*", headers: securityHeaders }];
   },
   async redirects() {
-    return [{ source: "/", destination: "/dashboard", permanent: false }];
+    return [
+      ...(canonicalHost
+        ? [
+            {
+              source: "/:path((?!api/|_next/).*)",
+              missing: [{ type: "host" as const, value: canonicalHost.replaceAll(".", "\\.") }],
+              destination: `https://${canonicalHost}/:path`,
+              permanent: false,
+            },
+          ]
+        : []),
+      { source: "/", destination: "/dashboard", permanent: false },
+    ];
   },
 };
 
