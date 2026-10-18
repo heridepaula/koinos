@@ -5,7 +5,7 @@ import { env } from "@/shared/env";
 import { createBrapiClient } from "../adapters/brapi";
 import type { CatalogEntry } from "../ports";
 import { CATALOG_ID, readCatalogFromDb } from "./catalog-db";
-import { withLock } from "./lock";
+import { withLock } from "@/shared/db/lock";
 import { TickerCatalogModel } from "./models";
 import { recordBrapiRequest } from "./usage";
 

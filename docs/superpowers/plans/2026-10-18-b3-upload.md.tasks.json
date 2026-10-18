@@ -4,13 +4,13 @@
     {
       "id": 1,
       "subject": "Task 1: Trava compartilhada e catálogo no servidor",
-      "status": "in_progress",
+      "status": "completed",
       "description": "**Goal:** A trava distribuída passa para `shared/db` (a importação também vai usá-la) e o app passa a ler os tipos do catálogo por `@/features/market-data/server`.\n\n**Files:**\n- Create: `src/shared/db/lock.ts`\n- Delete: `src/features/market-data/server/lock.ts`\n- Modify: `src/features/market-data/server/catalog.ts`, `src/features/market-data/server/quote-service.ts`, `src/features/market-data/server.ts`\n\n**Acceptance Criteria:**\n- [ ] `withLock` vive em `src/shared/db/lock.ts`, com o mesmo código e comentários\n- [ ] Ninguém mais importa `./lock` em `market-data/server`\n- [ ] `@/features/market-data/server` exporta `readCatalogTypes`\n- [ ] `npm run -s typecheck`, `npm run -s lint` e `npm run -s build` sem erros\n\n**Verify:** `npm run -s typecheck && npm run -s lint` → sem erros\n\n```json:metadata\n{\"files\":[\"src/shared/db/lock.ts\",\"src/features/market-data/server/lock.ts\",\"src/features/market-data/server/catalog.ts\",\"src/features/market-data/server/quote-service.ts\",\"src/features/market-data/server.ts\"],\"verifyCommand\":\"npm run -s typecheck && npm run -s lint\",\"acceptanceCriteria\":[\"`withLock` vive em `src/shared/db/lock.ts`, com o mesmo código e comentários\",\"Ninguém mais importa `./lock` em `market-data/server`\",\"`@/features/market-data/server` exporta `readCatalogTypes`\",\"`npm run -s typecheck`, `npm run -s lint` e `npm run -s build` sem erros\"]}\n```"
     },
     {
       "id": 2,
       "subject": "Task 2: Serviço e actions da importação",
-      "status": "pending",
+      "status": "in_progress",
       "description": "**Goal:** `previewB3ImportAction` devolve a prévia (sem ids internos) e `confirmB3ImportAction` grava. As duas recebem os arquivos e as respostas num `FormData` e recalculam tudo no servidor.\n\n**Files:**\n- Modify: `src/features/transactions/schemas.ts`\n- Create: `src/features/transactions/server/b3-import.ts`\n- Modify: `src/features/transactions/actions.ts`\n- Modify: `next.config.ts`\n\n**Acceptance Criteria:**\n- [ ] De 1 a 3 arquivos, até 2 MB cada, assinatura zip `PK\\x03\\x04`, até 50.000 linhas no total; arquivo repetido ou não reconhecido dá mensagem clara\n- [ ] A prévia traz período, arquivos reconhecidos, totais, `changes` (novos, removidos, iguais), `removedBySource`, pendências, situação por FII, ignorados, avisos, conferência pelos rendimentos e `blocked`, e nenhum id de lançamento\n- [ ] A confirmação roda dentro de `withLock(\"import:<portfolioId>\")`, recusa com FII pendente ou com divergência sem o \"revisei\", não grava quando nada mudou e chama `refresh()`\n- [ ] Respostas validadas pelo Zod: preços positivos, ids `sub:`/`prev:`/`conv:`, origens `XXXX11` ou `NONE`, até 200 FIIs de fora\n- [ ] `bodySizeLimit: \"4mb\"`\n- [ ] `npm run -s typecheck`, `npm run -s lint` e `npm run -s build` sem erros\n\n**Verify:** `npm run -s typecheck && npm run -s lint && npm run -s build` → sem erros\n\n```json:metadata\n{\"files\":[\"src/features/transactions/schemas.ts\",\"src/features/transactions/server/b3-import.ts\",\"src/features/transactions/actions.ts\",\"next.config.ts\"],\"verifyCommand\":\"npm run -s typecheck && npm run -s lint && npm run -s build\",\"acceptanceCriteria\":[\"De 1 a 3 arquivos, até 2 MB cada, assinatura zip `PK\\\\x03\\\\x04`, até 50.000 linhas no total; arquivo repetido ou não reconhecido dá mensagem clara\",\"A prévia traz período, arquivos reconhecidos, totais, `changes` (novos, removidos, iguais), `removedBySource`, pendências, situação por FII, ignorados, avisos, conferência pelos rendimentos e `blocked`, e nenhum id de lançamento\",\"A confirmação roda dentro de `withLock(\\\"import:<portfolioId>\\\")`, recusa com FII pendente ou com divergência sem o \\\"revisei\\\", não grava quando nada mudou e chama `refresh()`\",\"Respostas validadas pelo Zod: preços positivos, ids `sub:`/`prev:`/`conv:`, origens `XXXX11` ou `NONE`, até 200 FIIs de fora\",\"`bodySizeLimit: \\\"4mb\\\"`\",\"`npm run -s typecheck`, `npm run -s lint` e `npm run -s build` sem erros\"]}\n```",
       "blockedBy": [
         1
@@ -35,5 +35,5 @@
       ]
     }
   ],
-  "lastUpdated": "2026-10-18T20:09:05.344Z"
+  "lastUpdated": "2026-10-18T20:09:40.691Z"
 }

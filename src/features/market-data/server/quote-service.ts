@@ -6,7 +6,7 @@ import { createBrapiClient } from "../adapters/brapi";
 import { yahooProvider } from "../adapters/yahoo";
 import { isQuoteStale } from "../domain/market-hours";
 import type { Quote, QuoteSource } from "../ports";
-import { withLock } from "./lock";
+import { withLock } from "@/shared/db/lock";
 import { AssetModel } from "./models";
 import { brapiRequestsThisMonth, recordBrapiRequest } from "./usage";
 
