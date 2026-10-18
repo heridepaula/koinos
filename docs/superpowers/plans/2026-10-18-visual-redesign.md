@@ -50,6 +50,7 @@
 - [ ] Animações `page-enter`/`page-exit`; `::view-transition` sem capturar o ponteiro; movimento reduzido zera as animações
 - [ ] Sem `backdrop-filter`, os materiais viram fundos sólidos
 - [ ] Os tokens `--icon-*` e a regra antiga de sombra do card saem
+- [ ] Só `backdrop-filter` no fonte (sem `-webkit-`): com os dois, o Lightning CSS deixava só o `-webkit-`, que o Chrome e o Edge ignoram. O CSS gerado precisa ter os dois
 - [ ] `npm run -s build` passa (o Tailwind compila os `@utility`)
 
 **Verify:** `npx tsc --noEmit && npm run -s lint && npm run -s build` → sem erros
@@ -222,7 +223,6 @@ Depois do `@utility glass { … }` existente:
   background:
     linear-gradient(140deg, var(--glass-sheen), transparent 38%), var(--glass-strong-tint);
   backdrop-filter: blur(22px) saturate(200%);
-  -webkit-backdrop-filter: blur(22px) saturate(200%);
   border: 1px solid var(--glass-strong-border);
   box-shadow:
     inset 0 1px 0 var(--glass-strong-highlight),
@@ -242,7 +242,6 @@ Depois do `@utility glass { … }` existente:
     var(--card-rim) border-box;
   box-shadow: var(--card-shadow);
   backdrop-filter: blur(16px) saturate(160%);
-  -webkit-backdrop-filter: blur(16px) saturate(160%);
 }
 
 /* Titânio escovado (o card do patrimônio). */

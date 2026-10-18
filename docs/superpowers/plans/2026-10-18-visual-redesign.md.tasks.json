@@ -4,13 +4,13 @@
     {
       "id": 1,
       "subject": "Task 1: Materiais e tokens",
-      "status": "pending",
+      "status": "completed",
       "description": "**Goal:** `globals.css` com os tokens dos dois temas e os utilitários dos materiais, sem mexer ainda em nenhum componente.\n\n**Files:**\n- Modify: `src/app/globals.css`\n\n**Acceptance Criteria:**\n- [ ] Tokens do papel de parede médio, vidro forte, card fosco, titânio, botão com brilho, azulejos e chave verde, nos dois temas\n- [ ] Utilitários `glass-strong`, `card-surface`, `brushed`, `card-lift`, `metal-ring`, `btn-gloss`, `tile` e `knob-metal`\n- [ ] Card com tabela usa o fundo denso; textos secundários da sidebar usam `--sidebar-muted`\n- [ ] Animações `page-enter`/`page-exit`; `::view-transition` sem capturar o ponteiro; movimento reduzido zera as animações\n- [ ] Sem `backdrop-filter`, os materiais viram fundos sólidos\n- [ ] Os tokens `--icon-*` e a regra antiga de sombra do card saem\n- [ ] `npm run -s build` passa (o Tailwind compila os `@utility`)\n\n**Verify:** `npx tsc --noEmit && npm run -s lint && npm run -s build` → sem erros\n\n```json:metadata\n{\"files\":[\"src/app/globals.css\"],\"verifyCommand\":\"npx tsc --noEmit && npm run -s lint && npm run -s build\",\"acceptanceCriteria\":[\"Tokens do papel de parede médio, vidro forte, card fosco, titânio, botão com brilho, azulejos e chave verde, nos dois temas\",\"Utilitários `glass-strong`, `card-surface`, `brushed`, `card-lift`, `metal-ring`, `btn-gloss`, `tile` e `knob-metal`\",\"Card com tabela usa o fundo denso; textos secundários da sidebar usam `--sidebar-muted`\",\"Animações `page-enter`/`page-exit`; `::view-transition` sem capturar o ponteiro; movimento reduzido zera as animações\",\"Sem `backdrop-filter`, os materiais viram fundos sólidos\",\"Os tokens `--icon-*` e a regra antiga de sombra do card saem\",\"`npm run -s build` passa (o Tailwind compila os `@utility`)\"]}\n```"
     },
     {
       "id": 2,
       "subject": "Task 2: Card, botão e chave",
-      "status": "pending",
+      "status": "in_progress",
       "description": "**Goal:** Os componentes base usam os materiais: card fosco com brilho do cursor, botão principal com brilho, aro e toque macio, e chave verde com knob de metal.\n\n**Files:**\n- Modify: `src/shared/ui/card.tsx`\n- Modify: `src/shared/ui/button.tsx`\n- Modify: `src/shared/ui/switch.tsx`\n\n**Acceptance Criteria:**\n- [ ] `Card` usa `card-surface`, sem `bg-card` nem `ring-1 ring-foreground/10`, e tem `data-glow`\n- [ ] Botão `default` usa `btn-gloss metal-ring` e tem `data-glow`; os outros ficam como estão\n- [ ] Todos os botões encolhem para 97% no clique (`motion-safe`), sem o `translate-y-px`\n- [ ] A chave ligada usa `--switch-on`, e o knob, `knob-metal`\n- [ ] `npx tsc --noEmit`, `npm run -s lint` e `npm run -s build` sem erros\n\n**Verify:** `npx tsc --noEmit && npm run -s lint && npm run -s build` → sem erros\n\n```json:metadata\n{\"files\":[\"src/shared/ui/card.tsx\",\"src/shared/ui/button.tsx\",\"src/shared/ui/switch.tsx\"],\"verifyCommand\":\"npx tsc --noEmit && npm run -s lint && npm run -s build\",\"acceptanceCriteria\":[\"`Card` usa `card-surface`, sem `bg-card` nem `ring-1 ring-foreground/10`, e tem `data-glow`\",\"Botão `default` usa `btn-gloss metal-ring` e tem `data-glow`; os outros ficam como estão\",\"Todos os botões encolhem para 97% no clique (`motion-safe`), sem o `translate-y-px`\",\"A chave ligada usa `--switch-on`, e o knob, `knob-metal`\",\"`npx tsc --noEmit`, `npm run -s lint` e `npm run -s build` sem erros\"]}\n```",
       "blockedBy": [
         1
@@ -44,5 +44,5 @@
       ]
     }
   ],
-  "lastUpdated": "2026-10-18T19:28:37.539Z"
+  "lastUpdated": "2026-10-18T19:33:35.285Z"
 }
