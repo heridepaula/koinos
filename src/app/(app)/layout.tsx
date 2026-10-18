@@ -24,10 +24,11 @@ export default function AppLayout({ children }: { children: ReactNode }) {
             </Suspense>
           }
         />
-        <SidebarInset>
-          <header className="sticky top-0 z-10 flex h-14 items-center gap-2 border-b bg-background/95 px-4 backdrop-blur">
-            <SidebarTrigger className="-ml-1" />
-            <Separator orientation="vertical" className="mr-2 h-4" />
+        <SidebarInset className="bg-transparent">
+          {/* Toolbar flutuante de vidro, como no macOS 27. */}
+          <header className="sticky top-2 z-10 mx-2 mt-2 flex h-12 items-center gap-2 rounded-2xl glass px-2 md:mx-4">
+            <SidebarTrigger />
+            <Separator orientation="vertical" className="h-4" />
             <div className="ml-auto flex items-center gap-1">
               <ThemeToggle />
             </div>

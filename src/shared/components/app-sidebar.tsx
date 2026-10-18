@@ -25,10 +25,30 @@ import {
 } from "@/shared/ui/sidebar";
 
 const NAV_ITEMS = [
-  { href: "/dashboard", label: "Dashboard", icon: LayoutDashboardIcon },
-  { href: "/transacoes", label: "Transações", icon: ArrowLeftRightIcon },
-  { href: "/carteira-alvo", label: "Carteira Alvo", icon: TargetIcon },
-  { href: "/recomendacoes", label: "Recomendações", icon: LightbulbIcon },
+  {
+    href: "/dashboard",
+    label: "Dashboard",
+    icon: LayoutDashboardIcon,
+    color: "text-[var(--icon-blue)]",
+  },
+  {
+    href: "/transacoes",
+    label: "Transações",
+    icon: ArrowLeftRightIcon,
+    color: "text-[var(--icon-green)]",
+  },
+  {
+    href: "/carteira-alvo",
+    label: "Carteira Alvo",
+    icon: TargetIcon,
+    color: "text-[var(--icon-orange)]",
+  },
+  {
+    href: "/recomendacoes",
+    label: "Recomendações",
+    icon: LightbulbIcon,
+    color: "text-[var(--icon-purple)]",
+  },
 ] as const;
 
 export function AppSidebar({ footer }: { footer: ReactNode }) {
@@ -64,7 +84,8 @@ export function AppSidebar({ footer }: { footer: ReactNode }) {
                     isActive={pathname.startsWith(item.href)}
                     tooltip={item.label}
                   >
-                    <item.icon />
+                    {/* Ícones coloridos, como no macOS 27. */}
+                    <item.icon className={item.color} />
                     <span>{item.label}</span>
                   </SidebarMenuButton>
                 </SidebarMenuItem>
