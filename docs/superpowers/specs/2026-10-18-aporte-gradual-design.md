@@ -97,7 +97,7 @@ Quando o peso do FII é igual ou maior que o limite, a meta cresce tão rápido 
   - ao lado do valor, o seletor "Máximo por FII": 25%, 33%, 50% (padrão), 75% do aporte ou Sem limite;
   - texto de apoio: "Para montar cada posição aos poucos e formar o preço médio em várias compras."
 - **"Por quê" de uma ordem cortada:** termina com "limite de 50% do aporte · faltam ≈ 3 aportes como este".
-- **Ordens de compra:** quando alguma ordem foi cortada, a descrição ganha "Entrada aos poucos: nenhum FII leva mais de 50% do aporte. O que passou do limite seguiu o ranking."
+- **Ordens de compra:** quando alguma ordem foi cortada, a descrição ganha "Entrada aos poucos: nenhum FII leva mais de 50% do aporte, e o resto vai para os outros FIIs. Quem parou no limite volta a receber no próximo aporte, até chegar à meta."
 - **Faixa de princípios:** ganha "Monte posições aos poucos".
 - **Prioridade (Carteira Alvo e posições):** não muda.
 

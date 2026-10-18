@@ -365,8 +365,8 @@ O `CardHeader` de "Ordens de compra":
                 <p className="flex items-start gap-2 text-sm">
                   <LayersIcon className="mt-0.5 size-4 shrink-0 text-primary" aria-hidden="true" />
                   Entrada aos poucos: nenhum FII leva mais de {result.maxSharePercent}% do aporte, e
-                  o resto vai para os outros FIIs. Quem parou no limite continua no topo da fila no
-                  próximo aporte.
+                  o resto vai para os outros FIIs. Quem parou no limite volta a receber no próximo
+                  aporte, até chegar à meta.
                 </p>
               ) : null}
             </CardHeader>
