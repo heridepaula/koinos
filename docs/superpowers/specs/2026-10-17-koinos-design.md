@@ -53,7 +53,7 @@ O Koinos substitui a planilha `FII's.xlsx` (exportada do Google Sheets) por um a
 | Node | 26.12.0 no ambiente local; `engines: ">=24"` | É o mais novo; as Functions da Vercel ainda só rodam 24.x |
 | Banco | MongoDB Atlas M0 + Mongoose 9 | Prisma 7 não suporta Mongo; Prisma 6 perde suporte em 19/11/2026; o Mongo do Prisma 8 ainda é RC |
 | Login | Better Auth 1.7 + Google + `@better-auth/mongo-adapter` | Auth.js passou a fazer parte do Better Auth, e o v5 continua beta, só com correções de segurança |
-| Sessões | Redis Cloud via `secondaryStorage` do Better Auth (`@better-auth/redis-storage` + ioredis), com chave em HMAC-SHA256 e valor em AES-256-GCM; rate limit também no Redis | Pedido do usuário. O banco do Redis Cloud não tem TLS, então o token nunca trafega em texto |
+| Sessões | Redis Cloud via `secondaryStorage` do Better Auth (`@better-auth/redis-storage` + ioredis), com chave em HMAC-SHA256 e valor em AES-256-GCM, autenticado junto com a chave (AAD); rate limit também no Redis | Pedido do usuário. O banco do Redis Cloud não tem TLS, então o token nunca trafega em texto |
 | Paralelismo | Na Vercel, o Fluid compute escala requisições e instâncias; no código, tarefas de rede em paralelo com limite por `os.availableParallelism()` (brapi gratuita: 1 por vez) | Pedido do usuário: aproveitar todos os núcleos |
 | Cotações | Listagem em lote da brapi (`quote/list`: uma requisição traz os 679 fundos listados); cotação individual da brapi e depois Yahoo como reservas; Yahoo para histórico e proventos | Plano gratuito da brapi: cotação individual com 1 ticker por requisição, 15 mil/mês, sem dividendos, 3 meses de histórico. A listagem responde em lote e sem token (testado em 17/10/2026) |
 | Atualização | Sob demanda (preço vencido) + cron diário | No plano Hobby, o cron da Vercel roda 1x por dia |
@@ -460,11 +460,11 @@ Botão "Entrar com Google". Quem já tem sessão vai direto para o dashboard. Um
   - `session.cookieCache` de 5 min;
   - plugin `nextCookies()`.
 - **Conexão:** o `MongoClient` é criado com o driver do Mongoose (`mongoose.mongo.MongoClient`) e reaproveitado pelo Mongoose via `connection.setClient`. Fica guardado em `globalThis` em desenvolvimento.
-- **Allowlist:** `ALLOWED_EMAILS` é obrigatório. `databaseHooks.user.create.before` recusa e-mails fora da lista, e a DAL confere de novo a cada requisição.
+- **Allowlist:** `ALLOWED_EMAILS` é obrigatório. `databaseHooks.user.create.before` recusa e-mails fora da lista ou não verificados pelo Google (`emailVerified`), e a DAL confere a lista de novo a cada requisição.
 - **`proxy.ts`:** usa `getSessionCookie` só para redirecionar rápido para `/login`. A checagem real fica na DAL.
 - **DAL:**
-  - `getCurrentUser` (React `cache`) chama `auth.api.getSession({ headers })`, redireciona sem sessão e confere a allowlist;
-  - `getCurrentPortfolio` cria a carteira padrão quando preciso;
+  - `getCurrentUser` (`'use cache: private'`) chama `auth.api.getSession({ headers })`, redireciona sem sessão e confere a allowlist;
+  - `getTenant` (React `cache`) chama `connection()` antes do banco e cria a carteira padrão quando preciso; `requireTenant` faz o mesmo, sem cache, para actions e route handlers;
   - nenhuma consulta recebe `portfolioId` do cliente.
 - **Actions:**
   - o middleware do next-safe-action confere a sessão;

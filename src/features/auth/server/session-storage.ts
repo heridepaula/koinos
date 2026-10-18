@@ -10,7 +10,8 @@ const TAG_BYTES = 16;
 /**
  * Armazenamento das sessões no Redis com proteção própria, independente de TLS:
  * - a chave (que contém o token de sessão) vira um HMAC-SHA256, então o token nunca vai ao Redis;
- * - o valor (dados da sessão e do usuário) é cifrado com AES-256-GCM e autenticado.
+ * - o valor (dados da sessão e do usuário) é cifrado com AES-256-GCM e autenticado junto com a
+ *   chave (AAD): um valor copiado para outra chave não abre.
  * As duas chaves criptográficas são derivadas do BETTER_AUTH_SECRET via HKDF.
  */
 export function createProtectedSessionStorage(client: Redis, secret: string) {
@@ -20,35 +21,46 @@ export function createProtectedSessionStorage(client: Redis, secret: string) {
 
   const hashKey = (key: string) => createHmac("sha256", macKey).update(key).digest("base64url");
 
-  const seal = (plaintext: string) => {
+  const seal = (plaintext: string, storageKey: string) => {
     const iv = randomBytes(IV_BYTES);
     const cipher = createCipheriv("aes-256-gcm", encryptionKey, iv);
+    cipher.setAAD(Buffer.from(storageKey, "utf8"));
     const data = Buffer.concat([cipher.update(plaintext, "utf8"), cipher.final()]);
     return Buffer.concat([iv, cipher.getAuthTag(), data]).toString("base64url");
   };
 
-  const open = (sealed: unknown): string | null => {
+  const open = (sealed: unknown, storageKey: string): string | null => {
     if (typeof sealed !== "string") return null;
     try {
       const raw = Buffer.from(sealed, "base64url");
       const decipher = createDecipheriv("aes-256-gcm", encryptionKey, raw.subarray(0, IV_BYTES));
+      decipher.setAAD(Buffer.from(storageKey, "utf8"));
       decipher.setAuthTag(raw.subarray(IV_BYTES, IV_BYTES + TAG_BYTES));
       return Buffer.concat([
         decipher.update(raw.subarray(IV_BYTES + TAG_BYTES)),
         decipher.final(),
       ]).toString("utf8");
     } catch {
-      // Valor adulterado ou cifrado com outro segredo: trata como sessão inexistente.
+      // Valor adulterado, de outra chave ou de outro segredo: trata como sessão inexistente.
       return null;
     }
   };
 
   return {
-    get: async (key: string) => open(await base.get(hashKey(key))),
-    getAndDelete: async (key: string) => open(await base.getAndDelete(hashKey(key))),
+    get: async (key: string) => {
+      const storageKey = hashKey(key);
+      return open(await base.get(storageKey), storageKey);
+    },
+    getAndDelete: async (key: string) => {
+      const storageKey = hashKey(key);
+      return open(await base.getAndDelete(storageKey), storageKey);
+    },
     // Contadores do rate limit: só a chave é protegida (ela contém IP e rota).
     increment: (key: string, ttl: number) => base.increment(hashKey(key), ttl),
-    set: (key: string, value: string, ttl?: number) => base.set(hashKey(key), seal(value), ttl),
+    set: (key: string, value: string, ttl?: number) => {
+      const storageKey = hashKey(key);
+      return base.set(storageKey, seal(value, storageKey), ttl);
+    },
     delete: (key: string) => base.delete(hashKey(key)),
   };
 }

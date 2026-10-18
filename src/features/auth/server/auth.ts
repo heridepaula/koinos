@@ -45,9 +45,9 @@ export const auth = betterAuth({
   databaseHooks: {
     user: {
       create: {
-        // Só e-mails da allowlist podem criar conta.
+        // Só e-mails da allowlist, e verificados pelo Google, podem criar conta.
         before: async (user) => {
-          if (!isEmailAllowed(user.email, allowedEmails)) {
+          if (!user.emailVerified || !isEmailAllowed(user.email, allowedEmails)) {
             throw new APIError("FORBIDDEN", { message: "E-mail não autorizado." });
           }
         },

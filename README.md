@@ -51,7 +51,7 @@ npm run dev                  # http://localhost:3000
 
 ### Redis
 
-Use o Redis Cloud (plano gratuito) e copie a URL `redis://default:SENHA@host:porta`. O plano gratuito não tem TLS, por isso o app grava as sessões cifradas (AES-256-GCM), com as chaves embaralhadas (HMAC). Quem ler o Redis não vê tokens nem e-mails. Se o seu plano tiver TLS, use `rediss://`.
+Use o Redis Cloud (plano gratuito) e copie a URL `redis://default:SENHA@host:porta`. O plano gratuito não tem TLS, por isso o app grava as sessões cifradas (AES-256-GCM), com as chaves embaralhadas (HMAC), e cada valor só abre na própria chave. Quem ler o Redis não vê tokens nem e-mails. Sem TLS, porém, a senha do Redis trafega em texto puro. Em produção, prefira um Redis com TLS (`rediss://`), como o Upstash, que a Vercel oferece como integração.
 
 ## Importando a planilha
 
@@ -107,7 +107,7 @@ O ESLint impede importar o interior de outra feature e mantém `domain/` puro. A
 
 ## Segurança
 
-- Só entram os e-mails de `ALLOWED_EMAILS`. A lista é checada no cadastro e em toda sessão.
+- Só entram os e-mails de `ALLOWED_EMAILS` que o Google confirma como verificados. A lista é checada no cadastro e em toda sessão.
 - Toda consulta parte da sessão. O `Tenant` (usuário + carteira) só nasce nas funções de sessão; editar e excluir filtram por `_id` **e** carteira. As telas recebem DTOs sem ids internos.
 - Server Actions validam a entrada com Zod e só devolvem mensagens seguras.
 - As sessões ficam cifradas no Redis, e o login tem rate limit de 100 requisições por minuto.
