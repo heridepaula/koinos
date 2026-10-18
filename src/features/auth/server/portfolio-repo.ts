@@ -16,7 +16,7 @@ export async function ensureDefaultPortfolioId(userId: string): Promise<string> 
   const doc = await PortfolioModel.findOneAndUpdate(
     { userId, isDefault: true },
     { $setOnInsert: { userId, isDefault: true, name: "Carteira Principal" } },
-    { upsert: true, new: true, lean: true },
+    { upsert: true, returnDocument: "after", lean: true },
   );
   if (!doc) throw new Error("Falha ao criar a carteira padrão.");
   return doc._id.toHexString();
