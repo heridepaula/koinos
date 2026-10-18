@@ -123,6 +123,11 @@ O ESLint impede importar o interior de outra feature e mantém `domain/` puro. A
 4. O cron já vem no `vercel.json`. Quando `CRON_SECRET` existe, a Vercel envia `Authorization: Bearer <CRON_SECRET>` sozinha. No plano Hobby, o cron roda uma vez por dia, em algum momento dentro da hora agendada.
 5. Publique, entre com o seu e-mail e importe a planilha apontando para o banco de produção.
 
+O `vercel.json` também fixa duas escolhas:
+
+- **Região `gru1` (São Paulo):** as Functions rodam ao lado do cluster do Atlas (`sa-east-1`), em vez de Washington.
+- **Deploy só da `main`:** outros branches não geram preview. Num preview, o login não funcionaria (o `BETTER_AUTH_URL` é o domínio de produção) e o banco seria o de produção. O CI já valida cada push.
+
 ## CI
 
 O GitHub Actions (`.github/workflows/ci.yml`) roda a cada push, em Node 24 e 26:
