@@ -70,5 +70,13 @@ export default defineConfig([
       }),
     },
   },
-  globalIgnores([".next/**", "out/**", "build/**", "coverage/**", "next-env.d.ts"]),
+  // .worktrees: checkouts locais de outros branches (git worktree), com config própria.
+  globalIgnores([
+    ".next/**",
+    "out/**",
+    "build/**",
+    "coverage/**",
+    "next-env.d.ts",
+    ".worktrees/**",
+  ]),
 ]);
