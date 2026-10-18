@@ -10,7 +10,7 @@
     {
       "id": 2,
       "subject": "Task 2: Card, botão e chave",
-      "status": "in_progress",
+      "status": "completed",
       "description": "**Goal:** Os componentes base usam os materiais: card fosco com brilho do cursor, botão principal com brilho, aro e toque macio, e chave verde com knob de metal.\n\n**Files:**\n- Modify: `src/shared/ui/card.tsx`\n- Modify: `src/shared/ui/button.tsx`\n- Modify: `src/shared/ui/switch.tsx`\n\n**Acceptance Criteria:**\n- [ ] `Card` usa `card-surface`, sem `bg-card` nem `ring-1 ring-foreground/10`, e tem `data-glow`\n- [ ] Botão `default` usa `btn-gloss metal-ring` e tem `data-glow`; os outros ficam como estão\n- [ ] Todos os botões encolhem para 97% no clique (`motion-safe`), sem o `translate-y-px`\n- [ ] A chave ligada usa `--switch-on`, e o knob, `knob-metal`\n- [ ] `npx tsc --noEmit`, `npm run -s lint` e `npm run -s build` sem erros\n\n**Verify:** `npx tsc --noEmit && npm run -s lint && npm run -s build` → sem erros\n\n```json:metadata\n{\"files\":[\"src/shared/ui/card.tsx\",\"src/shared/ui/button.tsx\",\"src/shared/ui/switch.tsx\"],\"verifyCommand\":\"npx tsc --noEmit && npm run -s lint && npm run -s build\",\"acceptanceCriteria\":[\"`Card` usa `card-surface`, sem `bg-card` nem `ring-1 ring-foreground/10`, e tem `data-glow`\",\"Botão `default` usa `btn-gloss metal-ring` e tem `data-glow`; os outros ficam como estão\",\"Todos os botões encolhem para 97% no clique (`motion-safe`), sem o `translate-y-px`\",\"A chave ligada usa `--switch-on`, e o knob, `knob-metal`\",\"`npx tsc --noEmit`, `npm run -s lint` e `npm run -s build` sem erros\"]}\n```",
       "blockedBy": [
         1
@@ -19,7 +19,7 @@
     {
       "id": 3,
       "subject": "Task 3: Sidebar flutuante, azulejos e toolbar",
-      "status": "pending",
+      "status": "in_progress",
       "description": "**Goal:** A sidebar vira um painel flutuante de vidro forte. Os itens ganham azulejos coloridos, o ícone do app e o item ativo ganham titânio, e a toolbar usa o mesmo vidro.\n\n**Files:**\n- Modify: `src/shared/ui/sidebar.tsx`\n- Modify: `src/shared/components/app-sidebar.tsx`\n- Modify: `src/app/(app)/layout.tsx`\n\n**Acceptance Criteria:**\n- [ ] `variant=\"floating\"`: o painel tem `glass-strong` e raio de 18 px, sem o `ring-1`\n- [ ] Cada item tem um azulejo de 24 px (raio 7 px) com o gradiente da sua cor; recolhido, o azulejo cabe no botão de 32 px\n- [ ] O ícone do app é um azulejo de 32 px com `--tile-app` e `metal-ring`\n- [ ] O item ativo tem fundo de vidro claro, brilho interno e `metal-ring`\n- [ ] O rótulo do grupo usa `--sidebar-muted`\n- [ ] A toolbar usa `glass-strong`\n- [ ] `npx tsc --noEmit`, `npm run -s lint` e `npm run -s build` sem erros\n\n**Verify:** `npx tsc --noEmit && npm run -s lint && npm run -s build` → sem erros\n\n```json:metadata\n{\"files\":[\"src/shared/ui/sidebar.tsx\",\"src/shared/components/app-sidebar.tsx\",\"src/app/(app)/layout.tsx\"],\"verifyCommand\":\"npx tsc --noEmit && npm run -s lint && npm run -s build\",\"acceptanceCriteria\":[\"`variant=\\\"floating\\\"`: o painel tem `glass-strong` e raio de 18 px, sem o `ring-1`\",\"Cada item tem um azulejo de 24 px (raio 7 px) com o gradiente da sua cor; recolhido, o azulejo cabe no botão de 32 px\",\"O ícone do app é um azulejo de 32 px com `--tile-app` e `metal-ring`\",\"O item ativo tem fundo de vidro claro, brilho interno e `metal-ring`\",\"O rótulo do grupo usa `--sidebar-muted`\",\"A toolbar usa `glass-strong`\",\"`npx tsc --noEmit`, `npm run -s lint` e `npm run -s build` sem erros\"]}\n```",
       "blockedBy": [
         2
@@ -44,5 +44,5 @@
       ]
     }
   ],
-  "lastUpdated": "2026-10-18T19:33:35.285Z"
+  "lastUpdated": "2026-10-18T19:34:26.037Z"
 }
