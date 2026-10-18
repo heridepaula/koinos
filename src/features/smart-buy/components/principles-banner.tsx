@@ -1,10 +1,17 @@
-import { CalendarCheckIcon, ListOrderedIcon, ScaleIcon, ShieldCheckIcon } from "lucide-react";
+import {
+  CalendarCheckIcon,
+  LayersIcon,
+  ListOrderedIcon,
+  ScaleIcon,
+  ShieldCheckIcon,
+} from "lucide-react";
 
 // Princípios de aporte da Suno, sempre à vista na tela de recomendações.
 const PRINCIPLES = [
   { icon: CalendarCheckIcon, text: "Aporte todo mês" },
   { icon: ShieldCheckIcon, text: "Só abaixo do preço teto" },
   { icon: ListOrderedIcon, text: "Siga o ranking até a % sugerida" },
+  { icon: LayersIcon, text: "Monte posições aos poucos" },
   { icon: ScaleIcon, text: "Rebalanceie com aportes, não com vendas" },
 ] as const;
 

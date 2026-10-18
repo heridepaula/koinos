@@ -1,7 +1,7 @@
 "use client";
 
-import { CopyIcon } from "lucide-react";
-import { parseAsFloat, useQueryState } from "nuqs";
+import { CopyIcon, LayersIcon } from "lucide-react";
+import { parseAsFloat, parseAsNumberLiteral, useQueryState } from "nuqs";
 import { useState } from "react";
 import { toast } from "sonner";
 import { AssetLabel } from "@/shared/components/asset-label";
@@ -13,11 +13,14 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/sha
 import { Input } from "@/shared/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/shared/ui/table";
 import {
+  DEFAULT_MAX_SHARE_PERCENT,
   EXCLUSION_LABELS,
+  MAX_SHARE_PERCENTS,
   sunoCascade,
   type CascadeAsset,
   type CascadeOrder,
   type ExclusionReason,
+  type MaxSharePercent,
 } from "../domain/suno-cascade";
 
 export type AssetMeta = { ticker: string; name: string | null; logoUrl: string | null };
@@ -39,12 +42,28 @@ const REASON_ORDER: ExclusionReason[] = [
   "SEM_COTACAO",
 ];
 
-function explain(order: CascadeOrder): string {
+const selectClass =
+  "h-10 rounded-lg border border-input bg-transparent px-2 text-sm text-foreground outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 dark:bg-input/30";
+
+const limitLabel = (percent: MaxSharePercent) =>
+  percent >= 100 ? "Sem limite" : `${percent}% do aporte`;
+
+function explain(order: CascadeOrder, maxSharePercent: number): string {
   const parts = [
     `${order.rank}º do ranking`,
     `${formatPercent(order.marginToCeiling, 1)} abaixo do teto`,
     order.gapBefore > 0 ? `faltavam ${formatBRL(order.gapBefore)} para a meta` : "já na meta",
   ];
+  if (order.limited) {
+    parts.push(`limite de ${maxSharePercent}% do aporte`);
+    if (order.aportesLeft !== null) {
+      parts.push(
+        order.aportesLeft === 1
+          ? "falta ≈ 1 aporte como este"
+          : `faltam ≈ ${order.aportesLeft} aportes como este`,
+      );
+    }
+  }
   if (order.fromLeftover > 0) parts.push(`${order.fromLeftover} cota(s) da sobra`);
   return parts.join(" · ");
 }
@@ -54,10 +73,17 @@ export function AporteCalculator({ assets, meta }: { assets: CascadeAsset[]; met
     "valor",
     parseAsFloat.withDefault(0).withOptions({ history: "replace" }),
   );
+  const [maxShare, setMaxShare] = useQueryState(
+    "limite",
+    parseAsNumberLiteral(MAX_SHARE_PERCENTS)
+      .withDefault(DEFAULT_MAX_SHARE_PERCENT)
+      .withOptions({ history: "replace" }),
+  );
   const [text, setText] = useState(amount > 0 ? numberToInput(amount) : "");
   const metaByTicker = new Map(meta.map((item) => [item.ticker, item]));
 
-  const result = amount > 0 ? sunoCascade(amount, assets) : null;
+  const result = amount > 0 ? sunoCascade(amount, assets, { maxSharePercent: maxShare }) : null;
+  const limitedAny = result?.orders.some((order) => order.limited) ?? false;
   const excludedByReason = new Map<ExclusionReason, string[]>();
   for (const item of result?.excluded ?? []) {
     excludedByReason.set(item.reason, [...(excludedByReason.get(item.reason) ?? []), item.ticker]);
@@ -80,7 +106,8 @@ export function AporteCalculator({ assets, meta }: { assets: CascadeAsset[]; met
         <CardHeader>
           <CardTitle>Quanto vou aportar hoje?</CardTitle>
           <CardDescription>
-            O cálculo usa as cotações atuais e a configuração da Carteira Alvo.
+            O cálculo usa as cotações atuais e a configuração da Carteira Alvo. O máximo por FII
+            monta cada posição aos poucos: o preço médio se forma em várias compras.
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -105,6 +132,22 @@ export function AporteCalculator({ assets, meta }: { assets: CascadeAsset[]; met
                 }}
               />
             </div>
+            <label className="flex items-center gap-2 text-sm text-muted-foreground">
+              Máximo por FII
+              <select
+                className={selectClass}
+                value={maxShare}
+                onChange={(event) =>
+                  void setMaxShare(Number(event.target.value) as MaxSharePercent)
+                }
+              >
+                {MAX_SHARE_PERCENTS.map((percent) => (
+                  <option key={percent} value={percent}>
+                    {limitLabel(percent)}
+                  </option>
+                ))}
+              </select>
+            </label>
             {result && result.orders.length > 0 ? (
               <Button type="button" variant="outline" onClick={copyOrders}>
                 <CopyIcon />
@@ -146,6 +189,14 @@ export function AporteCalculator({ assets, meta }: { assets: CascadeAsset[]; met
               <CardDescription>
                 Na ordem do ranking. Os preços são de referência: confira na corretora.
               </CardDescription>
+              {limitedAny ? (
+                <p className="flex items-start gap-2 text-sm">
+                  <LayersIcon className="mt-0.5 size-4 shrink-0 text-primary" aria-hidden="true" />
+                  Entrada aos poucos: nenhum FII leva mais de {result.maxSharePercent}% do aporte, e
+                  o resto vai para os outros FIIs. Quem parou no limite continua no topo da fila no
+                  próximo aporte.
+                </p>
+              ) : null}
             </CardHeader>
             <CardContent className="px-0">
               {result.orders.length === 0 ? (
@@ -196,7 +247,7 @@ export function AporteCalculator({ assets, meta }: { assets: CascadeAsset[]; met
                           </TableCell>
                           {/* A explicação quebra linha: a tabela cabe em telas menores. */}
                           <TableCell className="min-w-64 pr-6 text-xs whitespace-normal text-muted-foreground">
-                            {explain(order)}
+                            {explain(order, result.maxSharePercent)}
                           </TableCell>
                         </TableRow>
                       );

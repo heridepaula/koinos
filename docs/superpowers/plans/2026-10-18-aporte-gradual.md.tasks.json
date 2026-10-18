@@ -10,7 +10,7 @@
     {
       "id": 2,
       "subject": "Task 2: Seletor e explicação na calculadora",
-      "status": "in_progress",
+      "status": "completed",
       "description": "**Goal:** As Recomendações deixam escolher o máximo por FII (padrão 50%), mostram o limite e os aportes que faltam no \"Por quê\", e a faixa de princípios ganha \"Monte posições aos poucos\".\n\n**Files:**\n- Modify: `src/features/smart-buy/components/aporte-calculator.tsx`\n- Modify: `src/features/smart-buy/components/principles-banner.tsx`\n\n**Acceptance Criteria:**\n- [ ] Seletor \"Máximo por FII\" com 25%, 33%, 50%, 75% do aporte e Sem limite; padrão 50%; guardado em `?limite=`\n- [ ] Ordem cortada: o \"Por quê\" termina com \"limite de 50% do aporte · faltam ≈ N aportes como este\"\n- [ ] Com alguma ordem cortada, o card das ordens mostra o aviso da entrada aos poucos\n- [ ] Faixa de princípios com \"Monte posições aos poucos\"\n- [ ] `npx tsc --noEmit`, `npm run -s lint` e `npm run -s build` sem erros\n\n**Verify:** `npx tsc --noEmit && npm run -s lint && npm run -s build` → sem erros\n\n```json:metadata\n{\"files\":[\"src/features/smart-buy/components/aporte-calculator.tsx\",\"src/features/smart-buy/components/principles-banner.tsx\"],\"verifyCommand\":\"npx tsc --noEmit && npm run -s lint && npm run -s build\",\"acceptanceCriteria\":[\"Seletor \\\"Máximo por FII\\\" com 25%, 33%, 50%, 75% do aporte e Sem limite; padrão 50%; guardado em `?limite=`\",\"Ordem cortada: o \\\"Por quê\\\" termina com \\\"limite de 50% do aporte · faltam ≈ N aportes como este\\\"\",\"Com alguma ordem cortada, o card das ordens mostra o aviso da entrada aos poucos\",\"Faixa de princípios com \\\"Monte posições aos poucos\\\"\",\"`npx tsc --noEmit`, `npm run -s lint` e `npm run -s build` sem erros\"]}\n```",
       "blockedBy": [
         1
@@ -19,12 +19,12 @@
     {
       "id": 3,
       "subject": "Task 3: Conferência com a carteira real e verificações finais",
-      "status": "pending",
+      "status": "in_progress",
       "description": "**Goal:** Mostrar, com a carteira real e casos sintéticos, que \"Sem limite\" reproduz a cascata antiga, que 50% não muda as ordens de hoje, e que um FII novo leva no máximo 50% e chega à meta em poucos aportes, sempre em 1º na fila.\n\n**Files:**\n- Create (fora do repositório, no scratchpad): `aporte/old-cascade.ts` (cópia da versão anterior) e `aporte/check-aporte.ts`\n\n**Acceptance Criteria:**\n- [ ] 2.000 carteiras aleatórias e a real: \"Sem limite\" dá as mesmas ordens da cascata antiga\n- [ ] Carteira real, R$ 15.000 a 50%: mesmas ordens de antes\n- [ ] FII novo no topo: ≤ 50% do aporte por mês, 1º na fila até a meta, meta em 4 a 5 aportes\n- [ ] Casos sintéticos: 1 cota mínima, um só elegível (sobra 50%), todos na meta (sobra com limite)\n- [ ] `npm run -s format:check`, `lint`, `typecheck` e `build` passam\n- [ ] Screenshot das Recomendações com `?valor=15000`\n\n**Verify:** saída do `check-aporte.ts` com \"ok\" em todas as checagens\n\n```json:metadata\n{\"files\":[\"aporte/old-cascade.ts\",\"aporte/check-aporte.ts\"],\"verifyCommand\":\"check-aporte.ts\",\"acceptanceCriteria\":[\"2.000 carteiras aleatórias e a real: \\\"Sem limite\\\" dá as mesmas ordens da cascata antiga\",\"Carteira real, R$ 15.000 a 50%: mesmas ordens de antes\",\"FII novo no topo: ≤ 50% do aporte por mês, 1º na fila até a meta, meta em 4 a 5 aportes\",\"Casos sintéticos: 1 cota mínima, um só elegível (sobra 50%), todos na meta (sobra com limite)\",\"`npm run -s format:check`, `lint`, `typecheck` e `build` passam\",\"Screenshot das Recomendações com `?valor=15000`\"]}\n```",
       "blockedBy": [
         2
       ]
     }
   ],
-  "lastUpdated": "2026-10-18T14:50:13.992Z"
+  "lastUpdated": "2026-10-18T14:52:20.805Z"
 }
