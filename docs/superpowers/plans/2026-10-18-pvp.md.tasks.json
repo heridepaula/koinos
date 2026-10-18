@@ -1,0 +1,47 @@
+{
+  "planPath": "docs/superpowers/plans/2026-10-18-pvp.md",
+  "tasks": [
+    {
+      "id": 1,
+      "subject": "Task 1: Regras puras do VP e do P/VP",
+      "status": "pending",
+      "description": "**Goal:** Funções puras que ligam ticker a CNPJ, escolhem o VP mais recente consistente e calculam o P/VP só dentro da faixa válida.\n\n**Files:**\n- Create: `src/features/market-data/domain/nav.ts`\n- Modify: `src/features/market-data/index.ts`\n\n**Acceptance Criteria:**\n- [ ] normalizeFundName iguala os nomes da B3 e da CVM do SNAG11\n- [ ] linkFunds só liga com ISIN+nome, nome único ou ISIN único com >= 50% das palavras\n- [ ] latestNavByCnpj descarta VP a mais de 1% de PL / cotas\n- [ ] priceToNav devolve null fora de 0,3-3\n- [ ] tsc e lint sem erros\n\n**Verify:** `npx tsc --noEmit && npm run -s lint` → sem erros\n\n```json:metadata\n{\"files\": [\"src/features/market-data/domain/nav.ts\", \"src/features/market-data/index.ts\"], \"verifyCommand\": \"npx tsc --noEmit && npm run -s lint\", \"acceptanceCriteria\": [\"normalizeFundName iguala SNAG11\", \"linkFunds com regras do spec §4\", \"latestNavByCnpj com checagem de 1%\", \"priceToNav com faixa 0,3-3\", \"tsc e lint sem erros\"]}\n```"
+    },
+    {
+      "id": 2,
+      "subject": "Task 2: Adaptadores da CVM e da B3",
+      "status": "pending",
+      "blockedBy": [1],
+      "description": "**Goal:** Baixar os informes da CVM (FII anual, Fiagro mensal) e a lista de fundos listados da B3, devolvendo FundReport[] e ListedFund[].\n\n**Files:**\n- Create: `src/features/market-data/adapters/cvm.ts`\n- Create: `src/features/market-data/adapters/b3-funds.ts`\n- Modify: `package.json` (fflate)\n\n**Acceptance Criteria:**\n- [ ] fetchFiiReports lê geral + complemento pelas colunas do cabeçalho\n- [ ] fetchFiagroReports lê o mês; 404 devolve []\n- [ ] timeout de 60 s e limite de 30 MB\n- [ ] fetchListedFunds pagina de 120 em 120\n- [ ] tsc e lint sem erros\n\n**Verify:** `npx tsc --noEmit && npm run -s lint` → sem erros\n\n```json:metadata\n{\"files\": [\"src/features/market-data/adapters/cvm.ts\", \"src/features/market-data/adapters/b3-funds.ts\", \"package.json\"], \"verifyCommand\": \"npx tsc --noEmit && npm run -s lint\", \"acceptanceCriteria\": [\"informe FII anual lido\", \"informe Fiagro mensal lido, 404 vazio\", \"timeout e limite de tamanho\", \"lista B3 paginada\", \"tsc e lint sem erros\"]}\n```"
+    },
+    {
+      "id": 3,
+      "subject": "Task 3: Serviço, modelo e cron",
+      "status": "pending",
+      "blockedBy": [2],
+      "description": "**Goal:** refreshNavs(tickers) grava o VP mais recente de cada FII no ativo, roda no cron diário, e o AssetSnapshot expõe nav.\n\n**Files:**\n- Modify: `src/features/market-data/server/models.ts`\n- Create: `src/features/market-data/server/nav-service.ts`\n- Modify: `src/features/market-data/server/assets-read.ts`\n- Modify: `src/features/market-data/server/daily-job.ts`\n- Modify: `src/features/market-data/server.ts`\n\n**Acceptance Criteria:**\n- [ ] AssetDoc.nav = { perShare, month, cnpj, fetchedAt } | null\n- [ ] refreshNavs busca FII do ano (e anterior em jan/fev), Fiagro dos últimos 3 meses e listas B3; falha só gera log\n- [ ] runDailyMarketJob devolve navs\n- [ ] getAssetSnapshots devolve nav\n- [ ] tsc e lint sem erros\n\n**Verify:** `npx tsc --noEmit && npm run -s lint` → sem erros\n\n```json:metadata\n{\"files\": [\"src/features/market-data/server/models.ts\", \"src/features/market-data/server/nav-service.ts\", \"src/features/market-data/server/assets-read.ts\", \"src/features/market-data/server/daily-job.ts\", \"src/features/market-data/server.ts\"], \"verifyCommand\": \"npx tsc --noEmit && npm run -s lint\", \"acceptanceCriteria\": [\"campo nav no ativo\", \"refreshNavs com fontes do spec §6\", \"navs no resumo do cron\", \"nav no AssetSnapshot\", \"tsc e lint sem erros\"]}\n```"
+    },
+    {
+      "id": 4,
+      "subject": "Task 4: P/VP na carteira e alerta P/VP alto",
+      "status": "pending",
+      "blockedBy": [3],
+      "description": "**Goal:** Linhas da Carteira Alvo e das posições trazem pvp e pvpAlert, e o dashboard ganha o alerta P/VP alto; a cascata não muda.\n\n**Files:**\n- Modify: `src/shared/lib/format.ts`\n- Modify: `src/features/portfolio/domain/types.ts`\n- Modify: `src/features/portfolio/domain/alerts.ts`\n- Modify: `src/features/portfolio/domain/snapshot.ts`\n- Modify: `src/features/portfolio/server/snapshot.ts`\n\n**Acceptance Criteria:**\n- [ ] formatRatio(0.968) = \"0,97\"\n- [ ] isPvpAlert só para FII_PAPEL/FII_FOF com P/VP > 1,05\n- [ ] StrategyRow e PositionRow com pvp e pvpAlert\n- [ ] alerta pvp-alto só quando há pvpAlert\n- [ ] cascadeInput inalterado\n- [ ] tsc e lint sem erros\n\n**Verify:** `npx tsc --noEmit && npm run -s lint` → sem erros\n\n```json:metadata\n{\"files\": [\"src/shared/lib/format.ts\", \"src/features/portfolio/domain/types.ts\", \"src/features/portfolio/domain/alerts.ts\", \"src/features/portfolio/domain/snapshot.ts\", \"src/features/portfolio/server/snapshot.ts\"], \"verifyCommand\": \"npx tsc --noEmit && npm run -s lint\", \"acceptanceCriteria\": [\"formatRatio\", \"isPvpAlert papel/FoF > 1,05\", \"pvp nas linhas\", \"alerta pvp-alto\", \"cascadeInput inalterado\", \"tsc e lint sem erros\"]}\n```"
+    },
+    {
+      "id": 5,
+      "subject": "Task 5: Telas (Carteira Alvo e Recomendações)",
+      "status": "pending",
+      "blockedBy": [4],
+      "description": "**Goal:** Carteira Alvo mostra P/VP embaixo do preço (tooltip, âmbar no alerta) e as Recomendações mostram P/VP no Por quê e o aviso de ágio.\n\n**Files:**\n- Modify: `src/features/strategy/components/strategy-table.tsx`\n- Modify: `src/features/smart-buy/components/aporte-calculator.tsx`\n- Modify: `src/app/(app)/recomendacoes/page.tsx`\n\n**Acceptance Criteria:**\n- [ ] Carteira Alvo sem coluna nova; P/VP embaixo do preço com tooltip do VP e mês\n- [ ] Por quê termina com P/VP\n- [ ] aviso âmbar de ágio quando pvpAlert\n- [ ] build passa\n\n**Verify:** `npx tsc --noEmit && npm run -s lint && npm run -s build` → sem erros\n\n```json:metadata\n{\"files\": [\"src/features/strategy/components/strategy-table.tsx\", \"src/features/smart-buy/components/aporte-calculator.tsx\", \"src/app/(app)/recomendacoes/page.tsx\"], \"verifyCommand\": \"npx tsc --noEmit && npm run -s lint && npm run -s build\", \"acceptanceCriteria\": [\"P/VP na Carteira Alvo\", \"P/VP no Por quê\", \"aviso de ágio\", \"build passa\"]}\n```"
+    },
+    {
+      "id": 6,
+      "subject": "Task 6: Conferência com dados reais, deploy e carga inicial",
+      "status": "pending",
+      "blockedBy": [5],
+      "description": "**Goal:** Provar com a carteira real que os 20 FIIs têm P/VP correto, publicar e fazer a carga inicial em produção.\n\n**Files:**\n- Create (descartável): `scripts/_check-pvp.ts`\n- Create (descartável): `scripts/_load-navs.ts`\n\n**Acceptance Criteria:**\n- [ ] MXRF11 com VP 9,352547 em 2026-09\n- [ ] 20 FIIs em carteira com P/VP entre 0,3 e 3, inclusive TRXF11, KNUQ11, PMLL11, SNAG11\n- [ ] format, lint, typecheck e build passam\n- [ ] produção com nav nos 20 FIIs depois do deploy\n- [ ] scripts descartáveis apagados, sem segredos no Git\n\n**Verify:** saída de `scripts/_check-pvp.ts` com 20 FIIs, MXRF11 = 9,352547 e 0 fora da faixa\n\n```json:metadata\n{\"files\": [\"scripts/_check-pvp.ts\", \"scripts/_load-navs.ts\"], \"verifyCommand\": \"npx tsx --conditions=react-server --env-file=.env.local scripts/_check-pvp.ts\", \"acceptanceCriteria\": [\"MXRF11 = 9,352547\", \"20 FIIs com P/VP válido\", \"verificações completas passam\", \"nav em produção\", \"scripts apagados\"]}\n```"
+    }
+  ],
+  "lastUpdated": "2026-10-18T10:45:00.000Z"
+}
