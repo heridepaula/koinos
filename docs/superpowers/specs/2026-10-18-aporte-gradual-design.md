@@ -89,6 +89,8 @@ Vale para uma ordem cortada pelo limite com o FII ainda abaixo da meta.
 
 A estimativa supõe mesmo aporte, mesmo preço e mesmo ranking. Na tela, ela aparece como aproximação ("≈").
 
+Quando o peso do FII é igual ou maior que o limite, a meta cresce tão rápido quanto as compras. Exemplo: peso 50% com limite de 50%. Nesse ritmo, o FII não alcança a meta, então a tela não mostra estimativa. Com os 17 FIIs da carteira real (5,9% cada), isso não acontece.
+
 ## 6. Tela (Recomendações)
 
 - **Card "Quanto vou aportar hoje?":**

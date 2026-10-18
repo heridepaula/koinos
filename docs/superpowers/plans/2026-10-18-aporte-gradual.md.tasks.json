@@ -4,13 +4,13 @@
     {
       "id": 1,
       "subject": "Task 1: Cascata com limite por FII",
-      "status": "pending",
+      "status": "completed",
       "description": "**Goal:** `sunoCascade(amount, assets, { maxSharePercent })` limita a compra de cada ativo a essa % do aporte, com mínimo de 1 cota. Com 100%, devolve exatamente as ordens de antes.\n\n**Files:**\n- Modify: `src/features/smart-buy/domain/suno-cascade.ts`\n- Modify: `src/features/smart-buy/index.ts`\n\n**Acceptance Criteria:**\n- [ ] Com `maxSharePercent` 100, as ordens são idênticas às da versão anterior\n- [ ] Com 50, nenhuma ordem passa de 50% do aporte, salvo quando 1 cota já passa disso\n- [ ] O passo 2 roda quando todo elegível está na meta ou no limite, e respeita o limite\n- [ ] A ordem cortada traz `limited: true`, `gapAfter` e `aportesLeft`\n- [ ] `aportePriorities` não muda\n- [ ] `npx tsc --noEmit` e `npm run -s lint` sem erros\n\n**Verify:** `npx tsc --noEmit && npm run -s lint` → sem erros (o comportamento é conferido na Tarefa 3)\n\n```json:metadata\n{\"files\":[\"src/features/smart-buy/domain/suno-cascade.ts\",\"src/features/smart-buy/index.ts\"],\"verifyCommand\":\"npx tsc --noEmit && npm run -s lint\",\"acceptanceCriteria\":[\"Com `maxSharePercent` 100, as ordens são idênticas às da versão anterior\",\"Com 50, nenhuma ordem passa de 50% do aporte, salvo quando 1 cota já passa disso\",\"O passo 2 roda quando todo elegível está na meta ou no limite, e respeita o limite\",\"A ordem cortada traz `limited: true`, `gapAfter` e `aportesLeft`\",\"`aportePriorities` não muda\",\"`npx tsc --noEmit` e `npm run -s lint` sem erros\"]}\n```"
     },
     {
       "id": 2,
       "subject": "Task 2: Seletor e explicação na calculadora",
-      "status": "pending",
+      "status": "in_progress",
       "description": "**Goal:** As Recomendações deixam escolher o máximo por FII (padrão 50%), mostram o limite e os aportes que faltam no \"Por quê\", e a faixa de princípios ganha \"Monte posições aos poucos\".\n\n**Files:**\n- Modify: `src/features/smart-buy/components/aporte-calculator.tsx`\n- Modify: `src/features/smart-buy/components/principles-banner.tsx`\n\n**Acceptance Criteria:**\n- [ ] Seletor \"Máximo por FII\" com 25%, 33%, 50%, 75% do aporte e Sem limite; padrão 50%; guardado em `?limite=`\n- [ ] Ordem cortada: o \"Por quê\" termina com \"limite de 50% do aporte · faltam ≈ N aportes como este\"\n- [ ] Com alguma ordem cortada, o card das ordens mostra o aviso da entrada aos poucos\n- [ ] Faixa de princípios com \"Monte posições aos poucos\"\n- [ ] `npx tsc --noEmit`, `npm run -s lint` e `npm run -s build` sem erros\n\n**Verify:** `npx tsc --noEmit && npm run -s lint && npm run -s build` → sem erros\n\n```json:metadata\n{\"files\":[\"src/features/smart-buy/components/aporte-calculator.tsx\",\"src/features/smart-buy/components/principles-banner.tsx\"],\"verifyCommand\":\"npx tsc --noEmit && npm run -s lint && npm run -s build\",\"acceptanceCriteria\":[\"Seletor \\\"Máximo por FII\\\" com 25%, 33%, 50%, 75% do aporte e Sem limite; padrão 50%; guardado em `?limite=`\",\"Ordem cortada: o \\\"Por quê\\\" termina com \\\"limite de 50% do aporte · faltam ≈ N aportes como este\\\"\",\"Com alguma ordem cortada, o card das ordens mostra o aviso da entrada aos poucos\",\"Faixa de princípios com \\\"Monte posições aos poucos\\\"\",\"`npx tsc --noEmit`, `npm run -s lint` e `npm run -s build` sem erros\"]}\n```",
       "blockedBy": [
         1
@@ -26,5 +26,5 @@
       ]
     }
   ],
-  "lastUpdated": "2026-10-18T14:47:00.141Z"
+  "lastUpdated": "2026-10-18T14:50:13.992Z"
 }
