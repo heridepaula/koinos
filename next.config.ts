@@ -22,6 +22,12 @@ const nextConfig: NextConfig = {
   partialPrefetching: true,
   reactCompiler: true,
   poweredByHeader: false,
+  experimental: {
+    // Sem o cache em disco do Turbopack no build: na Vercel, com o cache restaurado do deploy
+    // anterior, o CSS saiu com o conteúdo antigo. O build fica uns segundos mais lento, mas
+    // sempre compila do zero.
+    turbopackFileSystemCacheForBuild: false,
+  },
   turbopack: {
     rules: {
       "*.css": {
