@@ -19,7 +19,7 @@
     {
       "id": 3,
       "subject": "Task 3: Sidebar flutuante, azulejos e toolbar",
-      "status": "in_progress",
+      "status": "completed",
       "description": "**Goal:** A sidebar vira um painel flutuante de vidro forte. Os itens ganham azulejos coloridos, o ícone do app e o item ativo ganham titânio, e a toolbar usa o mesmo vidro.\n\n**Files:**\n- Modify: `src/shared/ui/sidebar.tsx`\n- Modify: `src/shared/components/app-sidebar.tsx`\n- Modify: `src/app/(app)/layout.tsx`\n\n**Acceptance Criteria:**\n- [ ] `variant=\"floating\"`: o painel tem `glass-strong` e raio de 18 px, sem o `ring-1`\n- [ ] Cada item tem um azulejo de 24 px (raio 7 px) com o gradiente da sua cor; recolhido, o azulejo cabe no botão de 32 px\n- [ ] O ícone do app é um azulejo de 32 px com `--tile-app` e `metal-ring`\n- [ ] O item ativo tem fundo de vidro claro, brilho interno e `metal-ring`\n- [ ] O rótulo do grupo usa `--sidebar-muted`\n- [ ] A toolbar usa `glass-strong`\n- [ ] `npx tsc --noEmit`, `npm run -s lint` e `npm run -s build` sem erros\n\n**Verify:** `npx tsc --noEmit && npm run -s lint && npm run -s build` → sem erros\n\n```json:metadata\n{\"files\":[\"src/shared/ui/sidebar.tsx\",\"src/shared/components/app-sidebar.tsx\",\"src/app/(app)/layout.tsx\"],\"verifyCommand\":\"npx tsc --noEmit && npm run -s lint && npm run -s build\",\"acceptanceCriteria\":[\"`variant=\\\"floating\\\"`: o painel tem `glass-strong` e raio de 18 px, sem o `ring-1`\",\"Cada item tem um azulejo de 24 px (raio 7 px) com o gradiente da sua cor; recolhido, o azulejo cabe no botão de 32 px\",\"O ícone do app é um azulejo de 32 px com `--tile-app` e `metal-ring`\",\"O item ativo tem fundo de vidro claro, brilho interno e `metal-ring`\",\"O rótulo do grupo usa `--sidebar-muted`\",\"A toolbar usa `glass-strong`\",\"`npx tsc --noEmit`, `npm run -s lint` e `npm run -s build` sem erros\"]}\n```",
       "blockedBy": [
         2
@@ -28,7 +28,7 @@
     {
       "id": 4,
       "subject": "Task 4: Efeitos e destaques",
-      "status": "pending",
+      "status": "in_progress",
       "description": "**Goal:** O brilho que segue o cursor, a elevação dos cards de número, o card do patrimônio escovado com aro e a entrada suave das telas.\n\n**Files:**\n- Create: `src/shared/components/pointer-glow.tsx`\n- Create: `src/app/(app)/template.tsx`\n- Modify: `src/app/(app)/layout.tsx`\n- Modify: `src/features/portfolio/components/summary-cards.tsx`\n- Modify: `src/features/smart-buy/components/aporte-calculator.tsx`\n\n**Acceptance Criteria:**\n- [ ] `PointerGlow` registra um único `pointermove` (passivo, com `requestAnimationFrame`). Só funciona com mouse e sem movimento reduzido, e marca `data-glow-active` com `--mx`/`--my` no elemento `[data-glow]` sob o cursor\n- [ ] `template.tsx` envolve a página em `<ViewTransition enter=\"page-enter\" exit=\"page-exit\" default=\"none\">`\n- [ ] O card do patrimônio tem `brushed metal-ring card-lift`; os outros cards do resumo e Aporte, Ordens e Sobra têm `card-lift`\n- [ ] `npx tsc --noEmit`, `npm run -s lint` e `npm run -s build` sem erros\n\n**Verify:** `npx tsc --noEmit && npm run -s lint && npm run -s build` → sem erros\n\n```json:metadata\n{\"files\":[\"src/shared/components/pointer-glow.tsx\",\"src/app/(app)/template.tsx\",\"src/app/(app)/layout.tsx\",\"src/features/portfolio/components/summary-cards.tsx\",\"src/features/smart-buy/components/aporte-calculator.tsx\"],\"verifyCommand\":\"npx tsc --noEmit && npm run -s lint && npm run -s build\",\"acceptanceCriteria\":[\"`PointerGlow` registra um único `pointermove` (passivo, com `requestAnimationFrame`). Só funciona com mouse e sem movimento reduzido, e marca `data-glow-active` com `--mx`/`--my` no elemento `[data-glow]` sob o cursor\",\"`template.tsx` envolve a página em `<ViewTransition enter=\\\"page-enter\\\" exit=\\\"page-exit\\\" default=\\\"none\\\">`\",\"O card do patrimônio tem `brushed metal-ring card-lift`; os outros cards do resumo e Aporte, Ordens e Sobra têm `card-lift`\",\"`npx tsc --noEmit`, `npm run -s lint` e `npm run -s build` sem erros\"]}\n```",
       "blockedBy": [
         3
@@ -44,5 +44,5 @@
       ]
     }
   ],
-  "lastUpdated": "2026-10-18T19:34:26.037Z"
+  "lastUpdated": "2026-10-18T19:35:18.200Z"
 }

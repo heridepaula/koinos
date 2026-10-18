@@ -1,5 +1,6 @@
 "use client";
 
+import { cn } from "cn";
 import {
   ArrowLeftRightIcon,
   CoinsIcon,
@@ -29,38 +30,42 @@ const NAV_ITEMS = [
     href: "/dashboard",
     label: "Dashboard",
     icon: LayoutDashboardIcon,
-    color: "text-[var(--icon-blue)]",
+    tile: "[--tile:var(--tile-blue)]",
   },
   {
     href: "/transacoes",
     label: "Transações",
     icon: ArrowLeftRightIcon,
-    color: "text-[var(--icon-green)]",
+    tile: "[--tile:var(--tile-green)]",
   },
   {
     href: "/carteira-alvo",
     label: "Carteira Alvo",
     icon: TargetIcon,
-    color: "text-[var(--icon-orange)]",
+    tile: "[--tile:var(--tile-orange)]",
   },
   {
     href: "/recomendacoes",
     label: "Recomendações",
     icon: LightbulbIcon,
-    color: "text-[var(--icon-purple)]",
+    tile: "[--tile:var(--tile-purple)]",
   },
 ] as const;
+
+// Item ativo: vidro claro com brilho interno (o aro de titânio vem do metal-ring).
+const ACTIVE_ITEM =
+  "data-active:bg-white/60 data-active:shadow-[inset_0_1px_0_#fff,0_1px_3px_rgb(30_40_100/0.12)] dark:data-active:bg-white/12 dark:data-active:shadow-[inset_0_1px_0_rgb(255_255_255/0.22)]";
 
 export function AppSidebar({ footer }: { footer: ReactNode }) {
   const pathname = usePathname();
 
   return (
-    <Sidebar collapsible="icon">
+    <Sidebar collapsible="icon" variant="floating">
       <SidebarHeader>
         <SidebarMenu>
           <SidebarMenuItem>
             <SidebarMenuButton size="lg" render={<Link href="/dashboard" />}>
-              <div className="flex aspect-square size-8 items-center justify-center rounded-lg bg-primary text-primary-foreground">
+              <div className="metal-ring tile aspect-square size-8 rounded-[9px] [--tile:var(--tile-app)]">
                 <CoinsIcon className="size-4" />
               </div>
               <div className="grid flex-1 text-left leading-tight">
@@ -74,22 +79,33 @@ export function AppSidebar({ footer }: { footer: ReactNode }) {
 
       <SidebarContent>
         <SidebarGroup>
-          <SidebarGroupLabel>Carteira</SidebarGroupLabel>
+          <SidebarGroupLabel className="text-[var(--sidebar-muted)]">Carteira</SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
-              {NAV_ITEMS.map((item) => (
-                <SidebarMenuItem key={item.href}>
-                  <SidebarMenuButton
-                    render={<Link href={item.href} />}
-                    isActive={pathname.startsWith(item.href)}
-                    tooltip={item.label}
-                  >
-                    {/* Ícones coloridos, como no macOS 27. */}
-                    <item.icon className={item.color} />
-                    <span>{item.label}</span>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-              ))}
+              {NAV_ITEMS.map((item) => {
+                const active = pathname.startsWith(item.href);
+                return (
+                  <SidebarMenuItem key={item.href}>
+                    <SidebarMenuButton
+                      render={<Link href={item.href} />}
+                      isActive={active}
+                      tooltip={item.label}
+                      // Recolhida, a sidebar tem botões de 32 px: o azulejo de 24 px pede padding menor.
+                      className={cn(
+                        ACTIVE_ITEM,
+                        "group-data-[collapsible=icon]:p-1!",
+                        active && "metal-ring",
+                      )}
+                    >
+                      {/* Azulejo colorido, como os Ajustes do iPhone. */}
+                      <span className={cn("tile size-6 rounded-[7px]", item.tile)}>
+                        <item.icon />
+                      </span>
+                      <span>{item.label}</span>
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
+                );
+              })}
             </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>

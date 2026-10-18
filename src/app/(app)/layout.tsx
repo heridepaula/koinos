@@ -25,8 +25,8 @@ export default function AppLayout({ children }: { children: ReactNode }) {
         />
         {/* min-w-0: tabelas largas rolam dentro do card, sem empurrar a página. */}
         <SidebarInset className="min-w-0 bg-transparent">
-          {/* Toolbar flutuante de vidro, como no macOS 27. */}
-          <header className="sticky top-2 z-10 mx-2 mt-2 flex h-12 items-center gap-2 rounded-2xl glass px-2 md:mx-4">
+          {/* Toolbar flutuante de vidro forte, como a sidebar. */}
+          <header className="sticky top-2 z-10 mx-2 mt-2 flex h-12 items-center gap-2 rounded-2xl px-2 glass-strong md:mx-4">
             <SidebarTrigger />
             <div className="ml-auto flex items-center gap-1">
               <ThemeToggle />
