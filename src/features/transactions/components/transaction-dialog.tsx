@@ -4,6 +4,7 @@ import { useAction } from "next-safe-action/hooks";
 import { useState, type ReactElement } from "react";
 import { toast } from "sonner";
 import { actionErrorMessage } from "@/shared/lib/action-error";
+import { numberToInput, parseNumberInput } from "@/shared/lib/parse-number";
 import { toIsoDate } from "@/shared/lib/time";
 import { Button } from "@/shared/ui/button";
 import {
@@ -33,14 +34,8 @@ type Draft = {
   notes: string;
 };
 
-/** Aceita "1.234,56" (pt-BR), "98,50" e "98.50". */
-const toNumber = (text: string) => {
-  const trimmed = text.trim();
-  if (trimmed === "") return Number.NaN;
-  const normalized = trimmed.includes(",") ? trimmed.replace(/\./g, "").replace(",", ".") : trimmed;
-  return Number(normalized);
-};
-const toText = (value: number) => String(value).replace(".", ",");
+const toNumber = parseNumberInput;
+const toText = (value: number) => numberToInput(value);
 
 function emptyDraft(): Draft {
   return {
