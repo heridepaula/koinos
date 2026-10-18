@@ -4,15 +4,17 @@ import { cn } from "@/shared/lib/utils";
 
 /**
  * Valor com sinal: verde/vermelho + seta + sinal, para nunca depender só da cor.
- * `value` em R$ e/ou `pct` como fração.
+ * `value` em R$ e/ou `pct` como fração. `stacked` põe o % embaixo do valor (tabelas estreitas).
  */
 export function Delta({
   value,
   pct,
+  stacked,
   className,
 }: {
   value?: number | null;
   pct?: number | null;
+  stacked?: boolean;
   className?: string;
 }) {
   const reference = value ?? pct ?? 0;
@@ -21,6 +23,18 @@ export function Delta({
   const money =
     value === undefined || value === null ? null : `${value > 0 ? "+" : ""}${formatBRL(value)}`;
   const percent = pct === undefined || pct === null ? null : formatSignedPercent(pct);
+
+  if (stacked && money && percent) {
+    return (
+      <span className={cn("inline-flex flex-col items-end tabular-nums", tone, className)}>
+        <span className="inline-flex items-center gap-0.5">
+          <Icon className="size-[1em] shrink-0" aria-hidden="true" />
+          {money}
+        </span>
+        <span className="text-xs opacity-80">{percent}</span>
+      </span>
+    );
+  }
   return (
     <span className={cn("inline-flex items-center gap-0.5 tabular-nums", tone, className)}>
       <Icon className="size-[1em] shrink-0" aria-hidden="true" />

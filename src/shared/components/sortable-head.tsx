@@ -1,17 +1,19 @@
 "use client";
 
-import { ArrowDownIcon, ArrowUpDownIcon, ArrowUpIcon } from "lucide-react";
+import { ChevronDownIcon, ChevronUpIcon } from "lucide-react";
 import type { ReactNode } from "react";
 import type { SortDirection } from "@/shared/lib/sort";
 import { cn } from "@/shared/lib/utils";
 import { TableHead } from "@/shared/ui/table";
 
+/** Cabeçalho ordenável. Como no Finder, só a coluna ordenada mostra a seta. */
 export function SortableHead({
   active,
   direction,
   onSort,
   align = "left",
   className,
+  title,
   children,
 }: {
   active: boolean;
@@ -19,9 +21,10 @@ export function SortableHead({
   onSort: () => void;
   align?: "left" | "right";
   className?: string;
+  title?: string;
   children: ReactNode;
 }) {
-  const Icon = !active ? ArrowUpDownIcon : direction === "asc" ? ArrowUpIcon : ArrowDownIcon;
+  const Icon = direction === "asc" ? ChevronUpIcon : ChevronDownIcon;
   return (
     <TableHead
       aria-sort={active ? (direction === "asc" ? "ascending" : "descending") : "none"}
@@ -30,14 +33,15 @@ export function SortableHead({
       <button
         type="button"
         onClick={onSort}
+        title={title}
         className={cn(
-          "inline-flex items-center gap-1 whitespace-nowrap hover:text-foreground",
+          "inline-flex items-center gap-0.5 whitespace-nowrap hover:text-foreground",
           align === "right" && "flex-row-reverse",
           active && "text-foreground",
         )}
       >
         {children}
-        <Icon className="size-3.5 opacity-60" aria-hidden="true" />
+        {active ? <Icon className="size-3.5" aria-hidden="true" /> : null}
       </button>
     </TableHead>
   );

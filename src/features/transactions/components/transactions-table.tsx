@@ -10,7 +10,7 @@ import { Badge } from "@/shared/ui/badge";
 import { Button } from "@/shared/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/shared/ui/card";
 import { Input } from "@/shared/ui/input";
-import { Table, TableBody, TableCell, TableHeader, TableRow } from "@/shared/ui/table";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/shared/ui/table";
 import { DeleteTransactionButton } from "./delete-transaction-button";
 import { TransactionDialog } from "./transaction-dialog";
 import type { TransactionRow } from "./types";
@@ -123,9 +123,7 @@ export function TransactionsTable({ rows }: { rows: TransactionRow[] }) {
               >
                 Ativo
               </SortableHead>
-              <SortableHead active={false} direction={direction} onSort={() => toggle("data")}>
-                Tipo
-              </SortableHead>
+              <TableHead>Tipo</TableHead>
               <SortableHead
                 active={sortKey === "qtd"}
                 direction={direction}
@@ -142,14 +140,7 @@ export function TransactionsTable({ rows }: { rows: TransactionRow[] }) {
               >
                 Preço
               </SortableHead>
-              <SortableHead
-                active={false}
-                direction={direction}
-                onSort={() => toggle("total")}
-                align="right"
-              >
-                Taxas
-              </SortableHead>
+              <TableHead className="text-right">Taxas</TableHead>
               <SortableHead
                 active={sortKey === "total"}
                 direction={direction}
@@ -158,14 +149,7 @@ export function TransactionsTable({ rows }: { rows: TransactionRow[] }) {
               >
                 Total
               </SortableHead>
-              <SortableHead
-                active={false}
-                direction={direction}
-                onSort={() => toggle("data")}
-                className="pr-6 text-right"
-              >
-                Ações
-              </SortableHead>
+              <TableHead className="pr-6 text-right">Ações</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>

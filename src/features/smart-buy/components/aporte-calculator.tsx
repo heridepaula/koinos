@@ -194,7 +194,8 @@ export function AporteCalculator({ assets, meta }: { assets: CascadeAsset[]; met
                           <TableCell className="text-right tabular-nums">
                             {formatPercent(order.targetWeight, 1)}
                           </TableCell>
-                          <TableCell className="pr-6 text-xs text-muted-foreground">
+                          {/* A explicação quebra linha: a tabela cabe em telas menores. */}
+                          <TableCell className="min-w-64 pr-6 text-xs whitespace-normal text-muted-foreground">
                             {explain(order)}
                           </TableCell>
                         </TableRow>

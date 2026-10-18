@@ -10,6 +10,7 @@ import { TickerInput } from "@/features/transactions/ui";
 import { AssetLabel } from "@/shared/components/asset-label";
 import { actionErrorMessage } from "@/shared/lib/action-error";
 import { formatBRL, formatPercent } from "@/shared/lib/format";
+import { cn } from "@/shared/lib/utils";
 import { numberToInput, parseNumberInput } from "@/shared/lib/parse-number";
 import { Button } from "@/shared/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/shared/ui/card";
@@ -35,11 +36,13 @@ function NumberCell({
   value,
   label,
   integer,
+  className,
   onCommit,
 }: {
   value: number | null;
   label: string;
   integer?: boolean;
+  className?: string;
   onCommit: (value: number | null) => void;
 }) {
   const [text, setText] = useState(numberToInput(value));
@@ -64,7 +67,7 @@ function NumberCell({
     <Input
       aria-label={label}
       inputMode="decimal"
-      className="h-8 w-24 text-right tabular-nums"
+      className={cn("h-8 w-24 text-right tabular-nums", className)}
       value={text}
       onChange={(event) => setText(event.target.value)}
       onBlur={commit}
@@ -101,6 +104,7 @@ function StrategyTableRow({ row }: { row: StrategyRow }) {
         <NumberCell
           label="Rank"
           integer
+          className="w-14"
           value={row.sunoRank}
           onCommit={(value) => save({ sunoRank: value })}
         />
@@ -108,6 +112,7 @@ function StrategyTableRow({ row }: { row: StrategyRow }) {
       <TableCell>
         <NumberCell
           label="Preço teto"
+          className="w-20"
           value={row.ceilingPrice}
           onCommit={(value) => save({ ceilingPrice: value })}
         />
@@ -115,6 +120,7 @@ function StrategyTableRow({ row }: { row: StrategyRow }) {
       <TableCell>
         <NumberCell
           label="% sugerida"
+          className="w-16"
           value={row.suggestedPercent}
           onCommit={(value) => save({ suggestedPercent: value })}
         />
@@ -234,15 +240,19 @@ export function StrategyTable({
           <TableHeader>
             <TableRow>
               <TableHead className="sticky left-0 z-10 bg-card pl-6">Ativo</TableHead>
-              <TableHead>Na estratégia</TableHead>
+              <TableHead>Estratégia</TableHead>
               <TableHead>Rank</TableHead>
-              <TableHead>Preço teto (R$)</TableHead>
+              <TableHead>Teto (R$)</TableHead>
               <TableHead>% sugerida</TableHead>
               <TableHead>Categoria</TableHead>
               <TableHead className="text-right">Preço atual</TableHead>
-              <TableHead className="text-right">Margem até o teto</TableHead>
-              <TableHead className="text-right">% estratégia / meta</TableHead>
-              <TableHead>Prioridade de aporte</TableHead>
+              <TableHead className="text-right" title="Margem até o preço teto">
+                Margem
+              </TableHead>
+              <TableHead className="text-right" title="Peso atual na estratégia / peso-alvo">
+                Peso / meta
+              </TableHead>
+              <TableHead title="Prioridade de aporte pelo método Suno">Prioridade</TableHead>
               <TableHead className="pr-6" />
             </TableRow>
           </TableHeader>

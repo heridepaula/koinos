@@ -412,16 +412,15 @@ Botão "Entrar com Google". Quem já tem sessão vai direto para o dashboard. Um
 **/dashboard**
 
 - **Cards:**
-  1. Patrimônio, com a variação do dia.
-  2. Investido, com o L/P realizado.
-  3. L/P não realizado, em R$ e %.
-  4. DY 12m médio, com a renda mensal estimada.
-- **Gráficos:** evolução (área: Patrimônio × Investido), aportes por mês (barras) e composição por categoria e por ativo (donuts; top 10 + "Outros").
+  1. Patrimônio (número em destaque), com a variação do dia, o investido e o número de ativos.
+  2. L/P não realizado, em R$ e %, com o L/P realizado.
+  3. DY 12m médio, com a renda mensal estimada.
+- **Gráficos:** evolução (área: Patrimônio × Investido), aportes por mês (barras) e composição por categoria e por ativo (donuts com até 6 fatias: os 5 maiores + "Outros").
 - **Alertas:** concentração, teto suspeito, configuração incompleta e cotações desatualizadas.
-- **Tabela de posições:** Ativo (logo, ticker e nome) · Rank · Qtd. · Preço atual · Preço médio · Preço teto · Valor atual · Valor investido · L/P (R$) · L/P (%) · % carteira · % estratégia / meta · Prioridade.
-  - Ordenável, com a ordenação na URL.
+- **Tabela de posições:** Ativo (logo, ticker e nome) · Rank · Qtd. · Preço atual · Preço médio · Preço teto · Valor atual · Valor investido · L/P (R$, com o % embaixo) · % carteira · Prioridade. O peso na estratégia × meta fica na Carteira Alvo; assim a tabela cabe em 1440 px.
+  - Ordenável, com a ordenação na URL. Como no Finder, só a coluna ordenada mostra a seta.
   - L/P em verde ou vermelho.
-  - Selo "abaixo do teto" quando preço < teto.
+  - Ícone ✓ "abaixo do teto" quando preço < teto, com a margem no tooltip. Com teto suspeito, só o aviso.
 - **Posições encerradas:** seção recolhível com o L/P realizado de cada uma.
 
 **/transacoes**
@@ -436,7 +435,7 @@ Botão "Entrar com Google". Quem já tem sessão vai direto para o dashboard. Um
 **/carteira-alvo**
 
 - **Linhas:** uma por ativo em carteira ou com configuração.
-- **Colunas:** Ativo · Na estratégia (switch) · Rank · Preço teto · % sugerida · Categoria · Preço atual · Margem até o teto · % estratégia · % meta efetiva · Status.
+- **Colunas:** Ativo · Estratégia (switch) · Rank · Teto (R$) · % sugerida · Categoria · Preço atual · Margem (até o teto) · Peso / meta (peso na estratégia × meta efetiva) · Prioridade.
 - **Edição:** inline, com atualização otimista.
 - **Ações:** adicionar ativo (combobox) e remover configuração.
 - **Categoria sugerida** pelo subtipo da brapi: `fi-agro` → Fiagro, `etf` → ETF, `stock` → Ação. Para FIIs, você escolhe entre tijolo, papel, híbrido e FoF.
@@ -448,7 +447,7 @@ Botão "Entrar com Google". Quem já tem sessão vai direto para o dashboard. Um
 - **Contexto:** horário das cotações e uma faixa fixa com os princípios: "Aporte todo mês · Só abaixo do teto · Siga o ranking até a % sugerida · Rebalanceie com aportes, não com vendas".
 - **Resultado:**
   - resumo com valor, gasto e sobra;
-  - tabela de ordens: Ativo · Rank · Cotas · Preço · Total · % antes → depois · % meta · Por quê;
+  - tabela de ordens: Ativo · Cotas · Preço · Total · % antes → depois · % meta · Por quê (com a posição no ranking);
   - excluídos agrupados por motivo, mais a lista "fora da estratégia";
   - botão "Copiar ordens".
 - **Cálculo:** roda no navegador com a função pura, a partir de um DTO montado no servidor.

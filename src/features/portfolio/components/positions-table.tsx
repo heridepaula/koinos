@@ -1,6 +1,6 @@
 "use client";
 
-import { TriangleAlertIcon } from "lucide-react";
+import { CircleCheckIcon, TriangleAlertIcon } from "lucide-react";
 import { PriorityBadge } from "@/features/smart-buy/ui";
 import { AssetLabel } from "@/shared/components/asset-label";
 import { Delta } from "@/shared/components/delta";
@@ -8,7 +8,6 @@ import { SortableHead } from "@/shared/components/sortable-head";
 import { useSortState } from "@/shared/hooks/use-sort-state";
 import { formatBRL, formatPercent, formatQuantity } from "@/shared/lib/format";
 import { sortRows } from "@/shared/lib/sort";
-import { Badge } from "@/shared/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/shared/ui/card";
 import { Table, TableBody, TableCell, TableHeader, TableRow } from "@/shared/ui/table";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/shared/ui/tooltip";
@@ -24,7 +23,6 @@ const SORT_KEYS = [
   "valor",
   "investido",
   "lp",
-  "lppct",
   "peso",
   "prioridade",
 ] as const;
@@ -40,7 +38,6 @@ const SORT_VALUE: Record<SortKey, (row: PositionRow) => number | string | null> 
   valor: (row) => row.currentValue,
   investido: (row) => row.totalCost,
   lp: (row) => row.pnl,
-  lppct: (row) => row.pnlPct,
   peso: (row) => row.portfolioWeight,
   prioridade: (row) =>
     row.priority?.kind === "fila" ? row.priority.position : row.priority ? 1000 : null,
@@ -54,13 +51,15 @@ const COLUMNS: { key: SortKey; label: string; align?: "right" }[] = [
   { key: "teto", label: "Preço teto", align: "right" },
   { key: "valor", label: "Valor atual", align: "right" },
   { key: "investido", label: "Investido", align: "right" },
-  { key: "lp", label: "L/P (R$)", align: "right" },
-  { key: "lppct", label: "L/P (%)", align: "right" },
+  { key: "lp", label: "L/P", align: "right" },
   { key: "peso", label: "% carteira", align: "right" },
 ];
 
 function CeilingCell({ row }: { row: PositionRow }) {
   if (row.ceilingPrice === null) return <span className="text-muted-foreground">—</span>;
+  // Com teto suspeito, "abaixo do teto" não é confiável: mostra só o aviso.
+  const belowCeiling =
+    !row.suspiciousCeiling && row.marginToCeiling !== null && row.marginToCeiling > 0;
   return (
     <div className="flex items-center justify-end gap-1.5">
       {row.suspiciousCeiling ? (
@@ -76,10 +75,17 @@ function CeilingCell({ row }: { row: PositionRow }) {
           </TooltipContent>
         </Tooltip>
       ) : null}
-      <span className="tabular-nums">{formatBRL(row.ceilingPrice)}</span>
-      {row.marginToCeiling !== null && row.marginToCeiling > 0 ? (
-        <Badge variant="secondary">abaixo do teto</Badge>
+      {belowCeiling ? (
+        <Tooltip>
+          <TooltipTrigger render={<span />}>
+            <CircleCheckIcon className="size-3.5 text-gain" aria-label="Abaixo do teto" />
+          </TooltipTrigger>
+          <TooltipContent>
+            Abaixo do teto: margem de {formatPercent(row.marginToCeiling ?? 0, 1)}.
+          </TooltipContent>
+        </Tooltip>
       ) : null}
+      <span className="tabular-nums">{formatBRL(row.ceilingPrice)}</span>
     </div>
   );
 }
@@ -124,20 +130,13 @@ export function PositionsTable({ rows }: { rows: PositionRow[] }) {
                 </SortableHead>
               ))}
               <SortableHead
-                active={false}
-                direction={direction}
-                onSort={() => toggle("peso")}
-                align="right"
-              >
-                % estratégia / meta
-              </SortableHead>
-              <SortableHead
                 active={sortKey === "prioridade"}
                 direction={direction}
                 onSort={() => toggle("prioridade")}
                 className="pr-6"
+                title="Prioridade de aporte pelo método Suno"
               >
-                Prioridade de aporte
+                Prioridade
               </SortableHead>
             </TableRow>
           </TableHeader>
@@ -169,18 +168,10 @@ export function PositionsTable({ rows }: { rows: PositionRow[] }) {
                   {formatBRL(row.totalCost)}
                 </TableCell>
                 <TableCell className="text-right">
-                  <Delta value={row.pnl} />
-                </TableCell>
-                <TableCell className="text-right">
-                  <Delta pct={row.pnlPct} />
+                  <Delta value={row.pnl} pct={row.pnlPct} stacked />
                 </TableCell>
                 <TableCell className="text-right tabular-nums">
                   {formatPercent(row.portfolioWeight, 1)}
-                </TableCell>
-                <TableCell className="text-right tabular-nums">
-                  {row.strategyWeight === null || row.targetWeight === null
-                    ? "—"
-                    : `${formatPercent(row.strategyWeight, 1)} / ${formatPercent(row.targetWeight, 1)}`}
                 </TableCell>
                 <TableCell className="pr-6">
                   <PriorityBadge priority={row.priority} />
