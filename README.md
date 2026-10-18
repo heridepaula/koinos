@@ -74,6 +74,25 @@ Use o Redis Cloud (plano gratuito) e copie a URL `redis://default:SENHA@host:por
 - O script grava no banco do `.env.local`. Para importar em produção, use o `MONGODB_URI` de produção.
 - Planilhas nunca entram no Git: `*.xlsx` está no `.gitignore`.
 
+## Importando os extratos da B3
+
+Na Área do Investidor da B3, baixe em Excel os extratos de **Negociação** e de **Movimentação**, desde 11/2019. Por enquanto a importação roda pelo script; a tela de upload é o próximo passo.
+
+```bash
+npm run import:b3 -- --negociacao negociacao.xlsx --movimentacao movimentacao.xlsx --planilha "FII's.xlsx" --dry-run
+npm run import:b3 -- --negociacao negociacao.xlsx --movimentacao movimentacao.xlsx --planilha "FII's.xlsx" --email voce@gmail.com --respostas respostas.json --alvo
+```
+
+- **O que o dry-run mostra:**
+  - a situação de cada FII;
+  - as pendências: preços que nem a B3 nem a planilha informam, posições anteriores a nov/2019 e conversões a confirmar;
+  - a conferência da posição pelos rendimentos que a B3 pagou.
+- **Respostas:** o `respostas.json` responde as pendências pelos ids que o dry-run mostra. O formato está no topo de `scripts/import-b3.ts`.
+- **Quando grava:** só sem pendência aberta e sem divergência inexplicada na conferência.
+- **A B3 manda:** no período dos extratos, os lançamentos de FII dão lugar aos do extrato. Os lançamentos B3 ficam travados em Transações; para corrigir, rode de novo.
+- **`--alvo`:** preenche a Carteira Alvo com o rank e o preço teto da planilha.
+- **Regras completas:** [spec da importação](docs/superpowers/specs/2026-10-18-importacao-b3-design.md).
+
 ## Scripts
 
 | Comando                                   | O que faz                                                |
@@ -84,6 +103,7 @@ Use o Redis Cloud (plano gratuito) e copie a URL `redis://default:SENHA@host:por
 | `npm run typecheck`                       | Tipos das rotas (`next typegen`) e `tsc`.                |
 | `npm run format` / `npm run format:check` | Prettier.                                                |
 | `npm run import:planilha`                 | Importador da planilha (acima).                          |
+| `npm run import:b3`                       | Importador dos extratos da B3 (acima).                   |
 
 ## Cotações e dados de mercado
 

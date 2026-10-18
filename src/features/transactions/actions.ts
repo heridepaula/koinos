@@ -36,6 +36,9 @@ function toInput(form: TransactionFormInput): TransactionInput {
   };
 }
 
+const B3_LOCKED =
+  "Este lançamento veio do extrato da B3. Para corrigir, envie o extrato de novo em Importar da B3.";
+
 /** Rejeita qualquer gravação que deixe uma venda maior que a posição na data. */
 function assertConsistentHistory(entries: readonly LedgerEntry[]) {
   const [first] = findOversells(entries);
@@ -66,6 +69,7 @@ export const updateTransactionAction = authActionClient
     const current = await listTransactions(portfolioId);
     const existing = current.find((entry) => entry.id === parsedInput.id);
     if (!existing) throw new ActionError("Lançamento não encontrado.");
+    if (existing.source === "B3") throw new ActionError(B3_LOCKED);
     assertConsistentHistory(
       current.map((entry) => (entry.id === existing.id ? { ...entry, ...input } : entry)),
     );
@@ -81,9 +85,9 @@ export const deleteTransactionAction = authActionClient
   .action(async ({ parsedInput, ctx }) => {
     const { portfolioId } = ctx.tenant;
     const current = await listTransactions(portfolioId);
-    if (!current.some((entry) => entry.id === parsedInput.id)) {
-      throw new ActionError("Lançamento não encontrado.");
-    }
+    const existing = current.find((entry) => entry.id === parsedInput.id);
+    if (!existing) throw new ActionError("Lançamento não encontrado.");
+    if (existing.source === "B3") throw new ActionError(B3_LOCKED);
     // Excluir uma compra pode deixar uma venda posterior sem cobertura.
     assertConsistentHistory(current.filter((entry) => entry.id !== parsedInput.id));
     if (!(await deleteTransaction(portfolioId, parsedInput.id))) {

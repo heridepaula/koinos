@@ -2,6 +2,7 @@
 import "server-only";
 
 export {
+  applyTransactionChanges,
   countTransactionsBySource,
   deleteTransactionsBySource,
   insertManyTransactions,

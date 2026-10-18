@@ -4,24 +4,12 @@ import { connectMongo } from "@/shared/db/mongo";
 import { env } from "@/shared/env";
 import { createBrapiClient } from "../adapters/brapi";
 import type { CatalogEntry } from "../ports";
+import { CATALOG_ID, readCatalogFromDb } from "./catalog-db";
 import { withLock } from "./lock";
 import { TickerCatalogModel } from "./models";
 import { recordBrapiRequest } from "./usage";
 
-const CATALOG_ID = "b3";
 const CATALOG_TAG = "ticker-catalog";
-
-async function readCatalogFromDb(): Promise<CatalogEntry[]> {
-  await connectMongo();
-  const doc = await TickerCatalogModel.findById(CATALOG_ID).lean();
-  return (doc?.entries ?? []).map((entry) => ({
-    ticker: entry.ticker,
-    name: entry.name,
-    type: entry.type ?? null,
-    subType: entry.subType ?? null,
-    logoUrl: entry.logoUrl ?? null,
-  }));
-}
 
 // Catálogo público de tickers: pode ficar em cache compartilhado (não é dado de usuário).
 async function loadCatalog(): Promise<CatalogEntry[]> {

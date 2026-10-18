@@ -1,13 +1,19 @@
 import "server-only";
-import { Types } from "mongoose";
+import mongoose, { Types } from "mongoose";
 import { connectMongo } from "@/shared/db/mongo";
-import type { LedgerEntry, TransactionType } from "../domain/types";
+import type { LedgerEntry, PriceSource, TransactionKind, TransactionType } from "../domain/types";
 import { TransactionModel, type TransactionDoc, type TransactionSource } from "./transaction.model";
 
 // Toda função recebe o portfolioId explícito e o usa em TODOS os filtros.
 // Editar/excluir filtra por { _id, portfolioId } numa só operação: um id de outra carteira não encontra nada.
 
-export type TransactionRecord = LedgerEntry & { source: TransactionSource; notes: string | null };
+export type TransactionRecord = LedgerEntry & {
+  source: TransactionSource;
+  kind: TransactionKind;
+  priceSource: PriceSource | null;
+  relatedTicker: string | null;
+  notes: string | null;
+};
 
 export type TransactionInput = {
   ticker: string;
@@ -16,8 +22,14 @@ export type TransactionInput = {
   unitPrice: number;
   fees: number;
   date: Date;
+  kind?: TransactionKind;
+  priceSource?: PriceSource | null;
+  relatedTicker?: string | null;
   notes?: string | null;
 };
+
+// Lançamentos vindos do extrato da B3 só mudam por um novo upload (a B3 manda).
+const NOT_FROM_B3 = { source: mongoose.trusted({ $ne: "B3" as TransactionSource }) };
 
 const toObjectId = (id: string) => new Types.ObjectId(id);
 
@@ -32,6 +44,9 @@ function toRecord(doc: TransactionDoc): TransactionRecord {
     date: doc.date,
     createdAt: doc.createdAt,
     source: doc.source,
+    kind: doc.kind ?? "NEGOCIO",
+    priceSource: doc.priceSource ?? null,
+    relatedTicker: doc.relatedTicker ?? null,
     notes: doc.notes ?? null,
   };
 }
@@ -81,7 +96,7 @@ export async function updateTransaction(
 ): Promise<boolean> {
   await connectMongo();
   const result = await TransactionModel.updateOne(
-    { _id: toObjectId(id), portfolioId: toObjectId(portfolioId) },
+    { _id: toObjectId(id), portfolioId: toObjectId(portfolioId), ...NOT_FROM_B3 },
     { $set: { ...input, notes: input.notes ?? null } },
     { runValidators: true },
   );
@@ -94,8 +109,59 @@ export async function deleteTransaction(portfolioId: string, id: string): Promis
   const result = await TransactionModel.deleteOne({
     _id: toObjectId(id),
     portfolioId: toObjectId(portfolioId),
+    ...NOT_FROM_B3,
   });
   return result.deletedCount === 1;
+}
+
+/**
+ * Troca lançamentos de uma vez, numa transação do Mongo: remove `removeIds` (só desta carteira)
+ * e insere `inserts`. Ou entra tudo, ou nada.
+ */
+export async function applyTransactionChanges(
+  portfolioId: string,
+  changes: {
+    removeIds: readonly string[];
+    inserts: readonly TransactionInput[];
+    source: TransactionSource;
+  },
+): Promise<{ removed: number; inserted: number }> {
+  await connectMongo();
+  const owner = toObjectId(portfolioId);
+  const session = await mongoose.startSession();
+  try {
+    let removed = 0;
+    let inserted = 0;
+    await session.withTransaction(async () => {
+      removed = 0;
+      inserted = 0;
+      if (changes.removeIds.length > 0) {
+        const result = await TransactionModel.deleteMany(
+          { _id: mongoose.trusted({ $in: changes.removeIds.map(toObjectId) }), portfolioId: owner },
+          { session },
+        );
+        removed = result.deletedCount;
+        if (removed !== changes.removeIds.length) {
+          throw new Error("Algum lançamento a remover não existe mais nesta carteira.");
+        }
+      }
+      if (changes.inserts.length > 0) {
+        const docs = await TransactionModel.insertMany(
+          changes.inserts.map((input) => ({
+            ...input,
+            notes: input.notes ?? null,
+            portfolioId: owner,
+            source: changes.source,
+          })),
+          { session },
+        );
+        inserted = docs.length;
+      }
+    });
+    return { removed, inserted };
+  } finally {
+    await session.endSession();
+  }
 }
 
 export async function countTransactionsBySource(

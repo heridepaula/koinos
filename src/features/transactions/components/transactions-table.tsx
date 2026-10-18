@@ -1,6 +1,6 @@
 "use client";
 
-import { PencilIcon, PlusIcon } from "lucide-react";
+import { LockIcon, PencilIcon, PlusIcon } from "lucide-react";
 import { parseAsString, parseAsStringLiteral, useQueryStates } from "nuqs";
 import { SortableHead } from "@/shared/components/sortable-head";
 import { useSortState } from "@/shared/hooks/use-sort-state";
@@ -11,6 +11,8 @@ import { Button } from "@/shared/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/shared/ui/card";
 import { Input } from "@/shared/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/shared/ui/table";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/shared/ui/tooltip";
+import type { TransactionKind } from "../domain/types";
 import { DeleteTransactionButton } from "./delete-transaction-button";
 import { TransactionDialog } from "./transaction-dialog";
 import type { TransactionRow } from "./types";
@@ -27,6 +29,14 @@ const SORT_VALUE: Record<SortKey, (row: TransactionRow) => number | string> = {
   total,
 };
 const TYPES = ["todos", "compra", "venda"] as const;
+
+const KIND_LABELS: Record<Exclude<TransactionKind, "NEGOCIO">, string> = {
+  SUBSCRICAO: "Subscrição",
+  DESDOBRO: "Desdobro",
+  INCORPORACAO: "Incorporação",
+  FRACAO: "Leilão de fração",
+  POSICAO_ANTERIOR: "Posição anterior",
+};
 
 const selectClass =
   "h-8 rounded-lg border border-input bg-transparent px-2.5 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 dark:bg-input/30";
@@ -172,12 +182,21 @@ export function TransactionsTable({ rows }: { rows: TransactionRow[] }) {
                     ) : null}
                   </TableCell>
                   <TableCell>
-                    <Badge variant={row.type === "BUY" ? "secondary" : "outline"}>
-                      {row.type === "BUY" ? "Compra" : "Venda"}
-                    </Badge>
-                    {row.source === "PLANILHA" ? (
-                      <span className="ml-1.5 text-xs text-muted-foreground">planilha</span>
-                    ) : null}
+                    <div className="flex items-center gap-1.5">
+                      <Badge variant={row.type === "BUY" ? "secondary" : "outline"}>
+                        {row.type === "BUY" ? "Compra" : "Venda"}
+                      </Badge>
+                      {row.kind !== "NEGOCIO" ? (
+                        <span className="text-xs">{KIND_LABELS[row.kind]}</span>
+                      ) : null}
+                      {row.source === "B3" ? (
+                        <Badge variant="outline" className="text-[10px]">
+                          B3
+                        </Badge>
+                      ) : row.source === "PLANILHA" ? (
+                        <span className="text-xs text-muted-foreground">planilha</span>
+                      ) : null}
+                    </div>
                   </TableCell>
                   <TableCell className="text-right tabular-nums">
                     {formatQuantity(row.quantity)}
@@ -188,17 +207,32 @@ export function TransactionsTable({ rows }: { rows: TransactionRow[] }) {
                   <TableCell className="text-right tabular-nums">{formatBRL(row.fees)}</TableCell>
                   <TableCell className="text-right tabular-nums">{formatBRL(total(row))}</TableCell>
                   <TableCell className="pr-6 text-right">
-                    <div className="flex justify-end gap-0.5">
-                      <TransactionDialog
-                        transaction={row}
-                        trigger={
-                          <Button variant="ghost" size="icon-sm" aria-label="Editar lançamento">
-                            <PencilIcon />
-                          </Button>
-                        }
-                      />
-                      <DeleteTransactionButton transaction={row} />
-                    </div>
+                    {row.source === "B3" ? (
+                      // A B3 manda: corrige-se reenviando o extrato, não editando aqui.
+                      <Tooltip>
+                        <TooltipTrigger render={<span className="inline-flex p-1.5" />}>
+                          <LockIcon
+                            className="size-3.5 text-muted-foreground"
+                            aria-label="Lançamento da B3"
+                          />
+                        </TooltipTrigger>
+                        <TooltipContent>
+                          Veio do extrato da B3. Para corrigir, envie o extrato de novo.
+                        </TooltipContent>
+                      </Tooltip>
+                    ) : (
+                      <div className="flex justify-end gap-0.5">
+                        <TransactionDialog
+                          transaction={row}
+                          trigger={
+                            <Button variant="ghost" size="icon-sm" aria-label="Editar lançamento">
+                              <PencilIcon />
+                            </Button>
+                          }
+                        />
+                        <DeleteTransactionButton transaction={row} />
+                      </div>
+                    )}
                   </TableCell>
                 </TableRow>
               ))

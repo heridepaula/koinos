@@ -1,5 +1,26 @@
 export type TransactionType = "BUY" | "SELL";
 
+export const TRANSACTION_SOURCES = ["MANUAL", "PLANILHA", "B3"] as const;
+export type TransactionSource = (typeof TRANSACTION_SOURCES)[number];
+
+/**
+ * O que originou o lançamento. O livro-razão só conhece compra e venda: subscrição é compra,
+ * desdobro é compra a preço 0 e incorporação é venda da origem + compra do destino pelo mesmo custo.
+ */
+export const TRANSACTION_KINDS = [
+  "NEGOCIO",
+  "SUBSCRICAO",
+  "DESDOBRO",
+  "INCORPORACAO",
+  "FRACAO",
+  "POSICAO_ANTERIOR",
+] as const;
+export type TransactionKind = (typeof TRANSACTION_KINDS)[number];
+
+/** De onde veio o preço de um lançamento importado. */
+export const PRICE_SOURCES = ["B3", "PLANILHA", "USUARIO", "ESTIMADO"] as const;
+export type PriceSource = (typeof PRICE_SOURCES)[number];
+
 /** Um lançamento, do jeito que as regras de cálculo enxergam. */
 export type LedgerEntry = {
   id: string;
@@ -11,6 +32,8 @@ export type LedgerEntry = {
   /** Data do negócio (meia-noite UTC). */
   date: Date;
   createdAt: Date;
+  /** Ausente nos lançamentos antigos: vale como negócio. */
+  kind?: TransactionKind;
 };
 
 export type Position = {

@@ -10,7 +10,8 @@
     "typecheck": "next typegen && tsc --noEmit",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
-    "import:planilha": "tsx --conditions=react-server --env-file=.env.local scripts/import-planilha.ts"
+    "import:planilha": "tsx --conditions=react-server --env-file=.env.local scripts/import-planilha.ts",
+    "import:b3": "tsx --conditions=react-server --env-file=.env.local scripts/import-b3.ts"
   },
   "dependencies": {
     "@base-ui/react": "^1.9.0",

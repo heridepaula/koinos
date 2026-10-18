@@ -21,3 +21,26 @@ export {
   type AcceptedTicker,
   type RejectedTicker,
 } from "./import/select-valid";
+export { detectB3File } from "./import/b3/detect";
+export { readNegociacao } from "./import/b3/read-negociacao";
+export { readMovimentacao } from "./import/b3/read-movimentacao";
+export { B3ImportError, planB3Import, type PlanInput } from "./import/b3/plan";
+export type {
+  AssetTypeInfo,
+  B3FileKind,
+  B3ImportAnswers,
+  B3ImportPlan,
+  DividendCheck,
+  ExistingTransaction,
+  PendingItem,
+  PlannedTransaction,
+  TickerPlan,
+} from "./import/b3/types";
+export {
+  PRICE_SOURCES,
+  TRANSACTION_KINDS,
+  TRANSACTION_SOURCES,
+  type PriceSource,
+  type TransactionKind,
+  type TransactionSource,
+} from "./domain/types";

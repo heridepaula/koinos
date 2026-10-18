@@ -30,6 +30,7 @@ async function TransactionsContent() {
     fees: transaction.fees,
     date: transaction.date,
     source: transaction.source,
+    kind: transaction.kind,
     notes: transaction.notes,
   }));
   return <TransactionsTable rows={rows} />;

@@ -1,8 +1,16 @@
 import "server-only";
 import mongoose, { Schema, type Model, type Types } from "mongoose";
-import type { TransactionType } from "../domain/types";
+import {
+  PRICE_SOURCES,
+  TRANSACTION_KINDS,
+  TRANSACTION_SOURCES,
+  type PriceSource,
+  type TransactionKind,
+  type TransactionSource,
+  type TransactionType,
+} from "../domain/types";
 
-export type TransactionSource = "MANUAL" | "PLANILHA";
+export type { TransactionSource };
 
 export interface TransactionDoc {
   _id: Types.ObjectId;
@@ -14,6 +22,11 @@ export interface TransactionDoc {
   fees: number;
   date: Date;
   source: TransactionSource;
+  /** Ausente nos documentos antigos: vale como negócio. */
+  kind?: TransactionKind;
+  priceSource?: PriceSource | null;
+  /** O outro lado de uma incorporação. */
+  relatedTicker?: string | null;
   notes?: string | null;
   createdAt: Date;
   updatedAt: Date;
@@ -31,10 +44,14 @@ const transactionSchema = new Schema<TransactionDoc>(
     },
     type: { type: String, required: true, enum: ["BUY", "SELL"] },
     quantity: { type: Number, required: true, min: 0.000001 },
-    unitPrice: { type: Number, required: true, min: 0.000001 },
+    // Desdobro entra como compra a preço 0 (o custo total não muda). O formulário exige preço > 0.
+    unitPrice: { type: Number, required: true, min: 0 },
     fees: { type: Number, required: true, default: 0, min: 0 },
     date: { type: Date, required: true },
-    source: { type: String, required: true, enum: ["MANUAL", "PLANILHA"], default: "MANUAL" },
+    source: { type: String, required: true, enum: TRANSACTION_SOURCES, default: "MANUAL" },
+    kind: { type: String, required: true, enum: TRANSACTION_KINDS, default: "NEGOCIO" },
+    priceSource: { type: String, enum: [...PRICE_SOURCES, null], default: null },
+    relatedTicker: { type: String, default: null },
     notes: { type: String, maxlength: 500, default: null },
   },
   { timestamps: true },

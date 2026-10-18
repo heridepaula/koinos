@@ -1,4 +1,4 @@
-import type { TransactionType } from "../domain/types";
+import type { TransactionKind, TransactionSource, TransactionType } from "../domain/types";
 
 /** Lançamento como a tela recebe (sem dono: o id só identifica o lançamento). */
 export type TransactionRow = {
@@ -9,6 +9,7 @@ export type TransactionRow = {
   unitPrice: number;
   fees: number;
   date: Date;
-  source: "MANUAL" | "PLANILHA";
+  source: TransactionSource;
+  kind: TransactionKind;
   notes: string | null;
 };
