@@ -35,3 +35,9 @@ yarn-error.log*
 *.xlsx
 *.xls
 *.ods
+
+# Mockups do brainstorming visual (locais)
+.superpowers/
+
+# Worktrees locais (git worktree)
+.worktrees/
