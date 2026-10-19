@@ -18,7 +18,7 @@ Guardar os proventos que a B3 informa no extrato de Movimentação e usá-los em
 
 1. Com os extratos reais (e as respostas das pendências), a importação guarda 1.280 Rendimentos (R$ 290.553,26) e 4 Reembolsos (R$ 2.334,41) de FIIs, e nada além disso. Os outros 67 créditos de Rendimento e Reembolso do extrato são de ações (PETR4, BBAS3, BBSE3, VALE3, EGIE3) e ficam de fora.
 2. Importar os mesmos extratos de novo não muda nada.
-3. O "a receber" de outubro/2026 confere à mão com o MXRF11 (R$ 0,10 por cota) e o HGLG11 (R$ 1,17 por cota), com as cotas que o usuário tinha na véspera da data ex.
+3. O "a receber" de outubro/2026 confere à mão em dois FIIs da carteira que aparecem na lista: cotas que o usuário tinha na véspera da data ex × valor por cota anunciado no Yahoo. MXRF11 e HGLG11, usados como exemplo no design, não estão na carteira.
 4. Exemplo do SNFF11: com cotação −60k e proventos +20k, o resultado com proventos é −40k. Somando vendas de −5k, o resultado total é −45k.
 5. As Recomendações e a renda mensal estimada do Dashboard não mudam.
 
@@ -158,7 +158,7 @@ As telas ficam em `portfolio/components/dividends/`, para não criar uma feature
 ## 8. Verificação
 
 1. **Script descartável com os extratos reais em um banco isolado:** confere os totais do critério 1 (§1) e confere que reenviar não muda nada.
-2. **Conferência à mão do "a receber" de outubro:** MXRF11 e HGLG11.
+2. **Conferência à mão do "a receber" de outubro:** dois FIIs da carteira que aparecem na lista.
 3. **Cascata:** as mesmas ordens de antes para o mesmo aporte.
 4. **Checagens:** `npm run format:check`, `lint`, `typecheck` e `build`.
 5. **Capturas de tela da preview isolada:** `/proventos` nas três abas, nos temas claro e escuro, mais o Dashboard.

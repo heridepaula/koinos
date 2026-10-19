@@ -589,6 +589,11 @@ git commit -m "feat(import): extract Rendimento and Reembolso credits as dividen
 
 ### Task 3: gravar os proventos (modelo, repositório, importação e script)
 
+> **Executado (2026-10-19):** commits bc4d378 e 0e8f968. A execução seguiu um adendo do coordenador, que vale sobre os Steps abaixo:
+> - a comparação dos proventos está no módulo puro `import/b3/dividend-changes.ts`;
+> - a confirmação pula a troca do que não mudou (lançamentos e proventos, cada um por si);
+> - `confirmB3Import` devolve as mudanças líquidas `{ changes, dividendChanges }`, os mesmos números da prévia, e o aviso de sucesso usa esses números.
+
 **Goal:** gravar os proventos na coleção `dividends`, na mesma transação dos lançamentos. A regra "A B3 manda" vale no período e por FII, e reenviar o mesmo extrato não grava nada.
 
 **Files:**
@@ -1739,7 +1744,7 @@ git commit -m "feat(dividends): /proventos page with month totals, upcoming list
 **Acceptance Criteria:**
 - [ ] O upload pela tela mostra a prévia com "1.284 proventos novos" (ou o número explicado na Task 2), e a confirmação grava esses proventos.
 - [ ] O segundo upload dos mesmos arquivos mostra "0 proventos novos · 0 saem".
-- [ ] O "a receber" de outubro do MXRF11 e do HGLG11 bate com cotas na véspera × R$ 0,10 e × R$ 1,17, conferido no banco da preview.
+- [ ] O "a receber" de outubro de dois FIIs da carteira que aparecem na lista bate com as cotas na véspera da data ex × o valor por cota do anúncio, conferido no banco da preview. MXRF11 e HGLG11 não estão na carteira.
 - [ ] As capturas de tela de `/proventos` (abas mes, ano e papel) e do Dashboard nos temas claro e escuro não têm quebra de layout nem em 390 px de largura.
 - [ ] O `contrast.mjs` dá 0 falhas.
 - [ ] Para o mesmo aporte, as Recomendações geram as mesmas ordens de antes.
