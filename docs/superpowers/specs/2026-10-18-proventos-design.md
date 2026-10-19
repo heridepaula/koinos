@@ -128,9 +128,13 @@ A estrutura segue as outras páginas: Server Components, a casca estática e as 
 
 ### 5.2 Dashboard
 
-- **Card de resumo novo, "Proventos recebidos":** o total desde sempre, com o resultado total embaixo.
-- **Tabela de posições:** colunas "Proventos" e "Resultado c/ proventos". O tooltip mostra a conta: cotação, + proventos, + vendas e o resultado total.
-- **Posições encerradas:** coluna "Proventos".
+- **Card de resumo novo, "Proventos recebidos":** o total desde sempre, com o L/P c/ proventos e o resultado total embaixo.
+  - Os cards se arrumam pela largura disponível (container queries): 1, 2, 3 ou 5 colunas, sem card sozinho numa linha.
+- **Tabela de posições:** uma coluna nova, "c/ proventos", logo depois do L/P.
+  - Em cima vem o resultado com proventos; embaixo, em letra menor, os proventos recebidos ("prov. R$ …").
+  - O tooltip mostra a conta: cotação, + proventos, = com proventos, + vendas, = resultado total.
+  - Duas colunas separadas empurravam "% carteira" e "Prioridade" para fora da tela em 1440 px. Com uma coluna e um respiro menor nas colunas do meio, a tabela volta a caber.
+- **Posições encerradas:** viram uma tabela com FII, Última venda, Vendas, Proventos e Total. O resumo mostra os três totais.
 - **Renda mensal estimada (`monthlyIncome`):** não muda.
 
 ## 6. Arquitetura
@@ -154,6 +158,7 @@ As telas ficam em `portfolio/components/dividends/`, para não criar uma feature
 - A data de pagamento oficial, que exige a brapi paga.
 - A remuneração do aluguel de cotas, dividendos e JCP de ações.
 - A edição manual de proventos.
+- **Proventos anteriores a 08/11/2019.** O extrato da B3 começa em novembro de 2019, e antes disso a carteira só tem as posições anteriores de 07/11/2019, sem data de compra. A planilha começa em 12/2019. O Yahoo não tem proventos de FII entre 2018 e o começo de 2022. Em 2026-10-19, o usuário decidiu deixar como está: os proventos começam no que a B3 registra, sem estimativa.
 
 ## 8. Verificação
 
