@@ -1,5 +1,5 @@
 import type {
-  DividendKind,
+  DividendEntry,
   LedgerEntry,
   PriceSource,
   TransactionKind,
@@ -152,23 +152,20 @@ export type DividendCheck = {
 };
 
 /** Provento que o plano manda gravar (sempre com `source: "B3"`). */
-export type PlannedDividend = {
-  ticker: string;
-  paidAt: Date;
-  kind: DividendKind;
-  amount: number;
-  quantity: number | null;
-  perShare: number | null;
-};
+export type PlannedDividend = DividendEntry;
 
 export type PlannedDividends = {
   /** Período do extrato de Movimentação: os proventos destes FIIs nele são trocados. */
   period: { start: Date; end: Date };
+  /**
+   * FIIs cujos proventos dentro de `period` são trocados: os do plano com status OK e os que só
+   * aparecem pelos proventos. Os FORA, os PENDENTE e os deixados de fora mantêm o que já têm.
+   */
   tickers: string[];
   inserts: PlannedDividend[];
 };
 
-export type B3DividendChanges = { added: number; removed: number; unchanged: number };
+export type B3DividendChanges = B3ImportChanges;
 
 export type B3ImportPlan = {
   period: { start: Date; end: Date };

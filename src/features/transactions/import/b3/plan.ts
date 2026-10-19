@@ -1,5 +1,5 @@
 import { findOversells } from "../../domain/positions";
-import type { LedgerEntry, PriceSource, TransactionSource } from "../../domain/types";
+import type { DividendKind, LedgerEntry, PriceSource, TransactionSource } from "../../domain/types";
 import type { ParsedPlanilha } from "../parse-planilha";
 import type {
   AssetTypeInfo,
@@ -901,13 +901,12 @@ export function planB3Import(input: PlanInput): B3ImportPlan {
   }
 
   const accepted = (ticker: string) => status.get(ticker)?.status === "OK";
-  // Proventos: o FII que só aparece por Rendimento/Reembolso não tem status (não há o que
-  // conferir) e entra, salvo se o usuário o deixou de fora. O que ficou FORA ou PENDENTE
-  // mantém os proventos que já tem.
+  // Proventos: quem tem status segue o status (só o OK troca os proventos que já tem).
   const acceptsDividends = (ticker: string) => {
-    if (!managed(ticker) || exclude.has(ticker)) return false;
     const decision = status.get(ticker);
-    return !decision || decision.status === "OK";
+    if (decision) return decision.status === "OK";
+    // Só aparece pelos proventos: não há o que conferir; entra, salvo se ficou de fora.
+    return managed(ticker) && !exclude.has(ticker);
   };
   const inserts = newEntries.filter((entry) => accepted(entry.ticker));
   const removed = [
@@ -968,10 +967,11 @@ export function planB3Import(input: PlanInput): B3ImportPlan {
 
 // --- Proventos (spec proventos, §3.1) ------------------------------------------------------
 
-const DIVIDEND_ROW_KINDS: Record<string, PlannedDividend["kind"]> = {
-  Rendimento: "RENDIMENTO",
-  Reembolso: "REEMBOLSO",
-};
+// Map, e não objeto: um tipo de linha como "constructor" não pode achar nada no prototype.
+const DIVIDEND_ROW_KINDS = new Map<string, DividendKind>([
+  ["Rendimento", "RENDIMENTO"],
+  ["Reembolso", "REEMBOLSO"],
+]);
 
 function extractDividends(
   rows: readonly MovementRow[],
@@ -981,7 +981,7 @@ function extractDividends(
 ): PlannedDividends {
   const inserts: PlannedDividend[] = [];
   for (const row of rows) {
-    const kind = DIVIDEND_ROW_KINDS[row.kind];
+    const kind = DIVIDEND_ROW_KINDS.get(row.kind);
     if (!row.credit || !kind || !FII_FAMILY_CODE.test(row.code)) continue;
     if (row.value === null || row.value <= 0) continue;
     const ticker = fiiOf(row.code);
