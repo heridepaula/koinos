@@ -1,7 +1,8 @@
 # P/VP dos FIIs: especificação de design
 
 - **Data:** 2026-10-18
-- **Status:** design aprovado na conversa: "informar e alertar", com dados da CVM
+- **Status:** **descartado em 2026-10-19.** O usuário decidiu não implementar o P/VP. A B3 não oferece integração para pessoa física, e só com os dados da CVM a ligação ticker → fundo falhava em 5 FIIs da carteira. O documento fica como registro do que foi estudado.
+- **Design original:** aprovado na conversa ("informar e alertar", com dados da CVM).
 - **Ciclo:** complemento das Recomendações. A cascata Suno (spec do MVP, §9) não muda.
 
 ## 1. Objetivo
