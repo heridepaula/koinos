@@ -2,6 +2,8 @@ import "server-only";
 import mongoose, { Types } from "mongoose";
 import { connectMongo } from "@/shared/db/mongo";
 import type { LedgerEntry, PriceSource, TransactionKind, TransactionType } from "../domain/types";
+import type { PlannedDividends } from "../import/b3/types";
+import { DividendModel } from "./dividend.model";
 import { TransactionModel, type TransactionDoc, type TransactionSource } from "./transaction.model";
 
 // Toda função recebe o portfolioId explícito e o usa em TODOS os filtros.
@@ -116,7 +118,8 @@ export async function deleteTransaction(portfolioId: string, id: string): Promis
 
 /**
  * Troca lançamentos de uma vez, numa transação do Mongo: remove `removeIds` (só desta carteira)
- * e insere `inserts`. Ou entra tudo, ou nada.
+ * e insere `inserts`. Com `dividends`, troca também os proventos dos FIIs do escopo dentro do
+ * período do extrato. Ou entra tudo, ou nada.
  */
 export async function applyTransactionChanges(
   portfolioId: string,
@@ -124,17 +127,27 @@ export async function applyTransactionChanges(
     removeIds: readonly string[];
     inserts: readonly TransactionInput[];
     source: TransactionSource;
+    dividends?: PlannedDividends;
   },
-): Promise<{ removed: number; inserted: number }> {
+): Promise<{
+  removed: number;
+  inserted: number;
+  dividendsRemoved: number;
+  dividendsInserted: number;
+}> {
   await connectMongo();
   const owner = toObjectId(portfolioId);
   const session = await mongoose.startSession();
   try {
     let removed = 0;
     let inserted = 0;
+    let dividendsRemoved = 0;
+    let dividendsInserted = 0;
     await session.withTransaction(async () => {
       removed = 0;
       inserted = 0;
+      dividendsRemoved = 0;
+      dividendsInserted = 0;
       if (changes.removeIds.length > 0) {
         const result = await TransactionModel.deleteMany(
           { _id: mongoose.trusted({ $in: changes.removeIds.map(toObjectId) }), portfolioId: owner },
@@ -157,8 +170,28 @@ export async function applyTransactionChanges(
         );
         inserted = docs.length;
       }
+      if (changes.dividends && changes.dividends.tickers.length > 0) {
+        // "A B3 manda": no período do extrato, os proventos de cada FII do escopo são os do extrato.
+        const { period, tickers, inserts } = changes.dividends;
+        const result = await DividendModel.deleteMany(
+          {
+            portfolioId: owner,
+            ticker: mongoose.trusted({ $in: tickers }),
+            paidAt: mongoose.trusted({ $gte: period.start, $lte: period.end }),
+          },
+          { session },
+        );
+        dividendsRemoved = result.deletedCount;
+        if (inserts.length > 0) {
+          const docs = await DividendModel.insertMany(
+            inserts.map((item) => ({ ...item, portfolioId: owner, source: "B3" })),
+            { session },
+          );
+          dividendsInserted = docs.length;
+        }
+      }
     });
-    return { removed, inserted };
+    return { removed, inserted, dividendsRemoved, dividendsInserted };
   } finally {
     await session.endSession();
   }
