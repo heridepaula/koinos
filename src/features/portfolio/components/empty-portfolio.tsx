@@ -19,12 +19,15 @@ export function EmptyPortfolio() {
         </EmptyMedia>
         <EmptyTitle>Sua carteira ainda está vazia</EmptyTitle>
         <EmptyDescription>
-          Registre as compras e vendas, ou importe a planilha com{" "}
-          <code className="rounded bg-muted px-1 py-0.5 text-xs">npm run import:planilha</code>.
+          Importe os extratos da B3 (Negociação e Movimentação) ou registre as compras e vendas uma
+          a uma.
         </EmptyDescription>
       </EmptyHeader>
-      <EmptyContent>
-        <Button render={<Link href="/transacoes" />}>Registrar uma transação</Button>
+      <EmptyContent className="flex-row flex-wrap justify-center gap-2">
+        <Button render={<Link href="/transacoes/importar" />}>Importar da B3</Button>
+        <Button variant="outline" render={<Link href="/transacoes" />}>
+          Registrar uma transação
+        </Button>
       </EmptyContent>
     </Empty>
   );

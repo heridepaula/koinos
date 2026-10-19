@@ -164,3 +164,13 @@ export type B3ImportPlan = {
   check: DividendCheck;
   totals: Partial<Record<TransactionKind, number>>;
 };
+
+export type B3ImportChanges = { added: number; removed: number; unchanged: number };
+
+/** Prévia que vai para a tela: os lançamentos viram contagens, sem ids internos. */
+export type B3ImportPreview = Omit<B3ImportPlan, "inserts" | "removeIds"> & {
+  files: B3FileKind[];
+  changes: B3ImportChanges;
+  /** Algum FII ainda depende de resposta. */
+  blocked: boolean;
+};

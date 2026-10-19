@@ -7,7 +7,13 @@ import { detectB3File } from "../import/b3/detect";
 import { B3ImportError, planB3Import } from "../import/b3/plan";
 import { readMovimentacao } from "../import/b3/read-movimentacao";
 import { readNegociacao } from "../import/b3/read-negociacao";
-import type { B3FileKind, B3ImportPlan, PlannedTransaction } from "../import/b3/types";
+import type {
+  B3FileKind,
+  B3ImportChanges,
+  B3ImportPlan,
+  B3ImportPreview,
+  PlannedTransaction,
+} from "../import/b3/types";
 import { parsePlanilha, type SheetInput } from "../import/parse-planilha";
 import type { B3ImportRequest } from "../schemas";
 import {
@@ -28,16 +34,6 @@ const FILE_LABELS: Record<B3FileKind, string> = {
   NEGOCIACAO: "Negociação",
   MOVIMENTACAO: "Movimentação",
   PLANILHA: "planilha",
-};
-
-export type B3ImportChanges = { added: number; removed: number; unchanged: number };
-
-/** Prévia para o navegador: os lançamentos viram contagens, sem ids internos. */
-export type B3ImportPreview = Omit<B3ImportPlan, "inserts" | "removeIds"> & {
-  files: B3FileKind[];
-  changes: B3ImportChanges;
-  /** Algum FII ainda depende de resposta. */
-  blocked: boolean;
 };
 
 async function readSheets(file: File): Promise<SheetInput[]> {
