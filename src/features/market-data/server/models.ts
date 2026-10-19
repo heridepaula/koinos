@@ -16,6 +16,11 @@ export interface AssetDoc {
   quoteFetchedAt?: Date | null;
   dy12m?: number | null;
   lastDividend?: { amount: number; exDate: Date } | null;
+  /**
+   * Anúncios dos últimos 90 dias (Yahoo): data ex e valor por cota. A data ex é data de negócio
+   * (meia-noite UTC do dia em São Paulo), como as datas dos lançamentos, e não o horário do Yahoo.
+   */
+  dividendAnnouncements?: { exDate: Date; perShare: number }[];
   dividendsFetchedAt?: Date | null;
   historyCheckedAt?: Date | null;
   /** Início (YYYY-MM) da faixa de histórico já buscada. */
@@ -37,6 +42,10 @@ const assetSchema = new Schema<AssetDoc>(
     lastDividend: {
       type: new Schema({ amount: Number, exDate: Date }, { _id: false }),
       default: null,
+    },
+    dividendAnnouncements: {
+      type: [new Schema({ exDate: Date, perShare: Number }, { _id: false })],
+      default: [],
     },
     dividendsFetchedAt: { type: Date, default: null },
     historyCheckedAt: { type: Date, default: null },

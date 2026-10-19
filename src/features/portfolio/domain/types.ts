@@ -13,8 +13,6 @@ export type PriceInfo = {
   quoteFetchedAt: Date | null;
   dy12m: number | null;
   lastDividend: { amount: number; exDate: Date } | null;
-  /** Anúncios recentes do Yahoo (data ex e valor por cota), para o "a receber". */
-  dividendAnnouncements: { exDate: Date; perShare: number }[];
 };
 
 export type TargetConfig = {
