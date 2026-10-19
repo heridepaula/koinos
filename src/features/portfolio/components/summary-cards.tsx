@@ -5,13 +5,18 @@ import type { PortfolioSummary } from "../domain/types";
 
 export function SummaryCards({ summary }: { summary: PortfolioSummary }) {
   return (
-    // Com o card de proventos são cinco blocos. Só cabem numa linha quando cada card tem uns 250 px
-    // (o que o L/P precisa para o sinal não se separar do número); por isso o container query mede
-    // a área do conteúdo, com a sidebar aberta ou recolhida. Abaixo disso, quatro colunas.
+    // Os quatro blocos se arrumam pela largura da área do conteúdo (container query), com a sidebar
+    // aberta ou recolhida, e as linhas ficam sempre completas. Cada card precisa de uns 250 px: é o
+    // que o L/P exige para o sinal não se separar do número. Todos os passos são @min-[...] em px,
+    // porque o Tailwind ordena as variantes arbitrárias antes das nomeadas (md:, xl:).
+    //   até 519 px  1 coluna
+    //   520 px      2 colunas: patrimônio | L/P + proventos | rendimento
+    //   784 px      3 colunas: patrimônio inteiro | L/P + proventos + rendimento
+    //   1320 px     5 colunas: patrimônio (2) + L/P + proventos + rendimento
     <div className="@container">
-      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4 @min-[1320px]:grid-cols-5">
+      <div className="grid gap-4 @min-[520px]:grid-cols-2 @min-[784px]:grid-cols-3 @min-[1320px]:grid-cols-5">
         {/* Número principal do dashboard: o patrimônio, em titânio escovado. */}
-        <Card className="metal-ring card-lift brushed md:col-span-2">
+        <Card className="metal-ring card-lift brushed @min-[520px]:col-span-2 @min-[784px]:col-span-3 @min-[1320px]:col-span-2">
           <CardHeader>
             <CardDescription>Patrimônio</CardDescription>
             <CardTitle className="text-4xl font-semibold tracking-tight tabular-nums md:text-5xl">
@@ -64,7 +69,7 @@ export function SummaryCards({ summary }: { summary: PortfolioSummary }) {
           </CardContent>
         </Card>
 
-        <Card className="card-lift">
+        <Card className="card-lift @min-[520px]:col-span-2 @min-[784px]:col-span-1">
           <CardHeader>
             <CardDescription>Dividend yield 12 meses</CardDescription>
             <CardTitle className="text-2xl font-semibold tabular-nums">
