@@ -13,6 +13,8 @@ export type PriceInfo = {
   quoteFetchedAt: Date | null;
   dy12m: number | null;
   lastDividend: { amount: number; exDate: Date } | null;
+  /** Anúncios recentes do Yahoo (data ex e valor por cota), para o "a receber". */
+  dividendAnnouncements: { exDate: Date; perShare: number }[];
 };
 
 export type TargetConfig = {
@@ -119,4 +121,43 @@ export type EvolutionPoint = {
   invested: number;
   /** Algum preço do mês foi estimado (sem fechamento disponível). */
   estimated: boolean;
+};
+
+export type AdjustedResult = { withDividends: number; total: number };
+
+export type UpcomingDividend = {
+  ticker: string;
+  exDate: Date;
+  quantity: number;
+  perShare: number;
+  amount: number;
+  /** Estimativa: o Yahoo não informa a data de pagamento. */
+  payBy: Date;
+};
+
+export type DividendMonthSummary = {
+  month: string;
+  received: number;
+  upcoming: number;
+  total: number;
+};
+
+export type DividendMonthGroup = {
+  month: string;
+  total: number;
+  byTicker: { ticker: string; amount: number }[];
+};
+
+export type DividendYearGroup = {
+  year: string;
+  total: number;
+  months: number;
+  monthlyAverage: number;
+};
+
+export type DividendTickerGroup = {
+  ticker: string;
+  total: number;
+  payments: number;
+  lastPaidAt: Date;
 };

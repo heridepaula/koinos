@@ -1,7 +1,14 @@
 // API pública da feature transactions para o cliente (regras puras e schemas).
 export { computePositions, findOversells, replayLedger, sortLedger } from "./domain/positions";
 export { monthlyContributions, type MonthlyContribution } from "./domain/contributions";
-export type { LedgerEntry, Oversell, Position, TransactionType } from "./domain/types";
+export type {
+  DividendEntry,
+  DividendKind,
+  LedgerEntry,
+  Oversell,
+  Position,
+  TransactionType,
+} from "./domain/types";
 export {
   TICKER_REGEX,
   tickerSchema,
@@ -37,6 +44,7 @@ export type {
   TickerPlan,
 } from "./import/b3/types";
 export {
+  DIVIDEND_KINDS,
   PRICE_SOURCES,
   TRANSACTION_KINDS,
   TRANSACTION_SOURCES,

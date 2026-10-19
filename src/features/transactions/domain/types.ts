@@ -55,3 +55,17 @@ export type Oversell = {
   sellQuantity: number;
   heldQuantity: number;
 };
+
+/** Provento recebido, como a B3 informa no extrato de Movimentação. */
+export const DIVIDEND_KINDS = ["RENDIMENTO", "REEMBOLSO"] as const;
+export type DividendKind = (typeof DIVIDEND_KINDS)[number];
+
+export type DividendEntry = {
+  ticker: string;
+  /** Data do pagamento (meia-noite UTC, como as datas de negócio). */
+  paidAt: Date;
+  kind: DividendKind;
+  amount: number;
+  quantity: number | null;
+  perShare: number | null;
+};
