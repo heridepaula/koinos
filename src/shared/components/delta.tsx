@@ -2,9 +2,13 @@ import { ArrowDownRightIcon, ArrowUpRightIcon, MinusIcon } from "lucide-react";
 import { formatBRL, formatSignedPercent } from "@/shared/lib/format";
 import { cn } from "@/shared/lib/utils";
 
+/** Abaixo de meio centavo o valor aparece como R$ 0,00: vale como zero (sobra de ponto flutuante). */
+const ZERO_BELOW = 0.005;
+
 /**
  * Valor com sinal: verde/vermelho + seta + sinal, para nunca depender só da cor.
  * `value` em R$ e/ou `pct` como fração. `stacked` põe o % embaixo do valor (tabelas estreitas).
+ * Um `value` menor que meio centavo, em módulo, é tratado como zero (cor neutra, sem sinal).
  */
 export function Delta({
   value,
@@ -17,11 +21,12 @@ export function Delta({
   stacked?: boolean;
   className?: string;
 }) {
-  const reference = value ?? pct ?? 0;
+  const amount =
+    value === undefined || value === null ? null : Math.abs(value) < ZERO_BELOW ? 0 : value;
+  const reference = amount ?? pct ?? 0;
   const tone = reference > 0 ? "text-gain" : reference < 0 ? "text-loss" : "text-muted-foreground";
   const Icon = reference > 0 ? ArrowUpRightIcon : reference < 0 ? ArrowDownRightIcon : MinusIcon;
-  const money =
-    value === undefined || value === null ? null : `${value > 0 ? "+" : ""}${formatBRL(value)}`;
+  const money = amount === null ? null : `${amount > 0 ? "+" : ""}${formatBRL(amount)}`;
   const percent = pct === undefined || pct === null ? null : formatSignedPercent(pct);
 
   if (stacked && money && percent) {

@@ -1,6 +1,12 @@
 // Formatação em pt-BR. Datas de negócio ficam à meia-noite UTC, por isso usam timeZone UTC.
 
-const brl = new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" });
+// signDisplay "negative": o que arredonda para zero (sobra de ponto flutuante, como -1e-13) sai
+// "R$ 0,00", sem o sinal; os demais valores, positivos ou negativos, saem como antes.
+const brl = new Intl.NumberFormat("pt-BR", {
+  style: "currency",
+  currency: "BRL",
+  signDisplay: "negative",
+});
 const compactBrl = new Intl.NumberFormat("pt-BR", {
   style: "currency",
   currency: "BRL",
