@@ -66,6 +66,11 @@ export function PreviewSummary({ preview }: { preview: B3ImportPreview }) {
                 .join(", ")})`
             : ""}
         </p>
+        <p>
+          <strong>{formatQuantity(preview.dividendChanges.added)}</strong> proventos novos ·{" "}
+          <strong>{formatQuantity(preview.dividendChanges.removed)}</strong> saem ·{" "}
+          {formatQuantity(preview.dividendChanges.unchanged)} já iguais
+        </p>
         {unconfirmed.length > 0 ? (
           <p className="text-muted-foreground">
             Sem confirmação da B3 no período (saem):{" "}

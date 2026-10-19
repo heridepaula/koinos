@@ -1,5 +1,6 @@
 // Importa os extratos da B3 (Negociação + Movimentação) para a carteira de um usuário, com a
 // planilha FII's.xlsx como complemento. Usa o mesmo plano da tela de importação (planB3Import).
+// Também troca os proventos (Rendimento e Reembolso de FIIs) do extrato de Movimentação.
 //
 //   npm run import:b3 -- --negociacao n.xlsx --movimentacao m.xlsx [--planilha "FII's.xlsx"] --dry-run
 //   npm run import:b3 -- --negociacao n.xlsx --movimentacao m.xlsx --email voce@gmail.com --respostas r.json
@@ -105,6 +106,10 @@ async function main() {
     `Lançamentos atuais: ${existing.length} · a remover: ${plan.removeIds.length} ${JSON.stringify(plan.removedBySource)} · a inserir: ${plan.inserts.length}`,
   );
   console.log(`Por tipo (todos os FIIs): ${JSON.stringify(plan.totals)}`);
+  const dividendsTotal = plan.dividends.inserts.reduce((sum, item) => sum + item.amount, 0);
+  console.log(
+    `Proventos: ${plan.dividends.inserts.length} (${formatBRL(dividendsTotal)}) em ${plan.dividends.tickers.length} FIIs`,
+  );
 
   console.log("\nFII       situação   cotas      preço médio  L/P realizado   lançamentos");
   for (const item of plan.tickers) {
@@ -173,8 +178,11 @@ async function main() {
     removeIds: plan.removeIds,
     inserts: plan.inserts,
     source: "B3",
+    dividends: plan.dividends,
   });
-  console.log(`\nGravado: ${result.removed} removidos e ${result.inserted} inseridos.`);
+  console.log(
+    `\nGravado: ${result.removed} removidos e ${result.inserted} inseridos · proventos: ${result.dividendsRemoved} removidos e ${result.dividendsInserted} inseridos.`,
+  );
 
   // Conferência depois de gravar: as mesmas regras do app, lendo do banco.
   const saved = await listTransactions(portfolioId!);

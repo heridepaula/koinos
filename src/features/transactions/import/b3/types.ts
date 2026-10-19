@@ -193,3 +193,6 @@ export type B3ImportPreview = Omit<B3ImportPlan, "inserts" | "removeIds" | "divi
   /** Algum FII ainda depende de resposta. */
   blocked: boolean;
 };
+
+/** O que a importação mudou de fato: as mesmas contagens líquidas que a prévia mostrou. */
+export type B3ImportResult = Pick<B3ImportPreview, "changes" | "dividendChanges">;

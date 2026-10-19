@@ -5,15 +5,35 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { toast } from "sonner";
 import { actionErrorMessage } from "@/shared/lib/action-error";
+import { formatQuantity } from "@/shared/lib/format";
 import { Button } from "@/shared/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/shared/ui/card";
 import { Spinner } from "@/shared/ui/spinner";
 import { confirmB3ImportAction, previewB3ImportAction } from "../../actions";
-import type { B3ImportPreview } from "../../import/b3/types";
+import type { B3ImportPreview, B3ImportResult } from "../../import/b3/types";
 import { emptyDraft, toAnswers, type AnswersDraft } from "./answers";
 import { FilePicker } from "./file-picker";
 import { isOpen, PendingList } from "./pending-list";
 import { DividendCheck, IgnoredAndWarnings, PreviewSummary, TickerTable } from "./preview-sections";
+
+/** Mensagem do aviso depois de importar: só cita o que mudou de fato (as contagens da prévia). */
+function importedMessage(result: B3ImportResult | undefined): string {
+  const nothing = "Nada mudou: a carteira já está igual aos extratos.";
+  if (!result) return nothing;
+  const parts: string[] = [];
+  const { changes, dividendChanges } = result;
+  if (changes.added + changes.removed > 0) {
+    parts.push(
+      `Lançamentos: ${formatQuantity(changes.added)} novos, ${formatQuantity(changes.removed)} saíram`,
+    );
+  }
+  if (dividendChanges.added + dividendChanges.removed > 0) {
+    parts.push(
+      `Proventos: ${formatQuantity(dividendChanges.added)} novos, ${formatQuantity(dividendChanges.removed)} saíram`,
+    );
+  }
+  return parts.length > 0 ? `Importado. ${parts.join(" · ")}.` : nothing;
+}
 
 /** Importação dos extratos da B3: arquivos → prévia (com pendências) → importar. */
 export function B3ImportWizard() {
@@ -40,11 +60,7 @@ export function B3ImportWizard() {
   });
   const confirmAction = useAction(confirmB3ImportAction, {
     onSuccess: ({ data }) => {
-      toast.success(
-        data && data.inserted + data.removed > 0
-          ? `Importado: ${data.inserted} lançamentos da B3 (${data.removed} substituídos).`
-          : "Nada mudou: a carteira já está igual aos extratos.",
-      );
+      toast.success(importedMessage(data));
       router.push("/transacoes");
     },
     onError: ({ error }) => toast.error(actionErrorMessage(error)),

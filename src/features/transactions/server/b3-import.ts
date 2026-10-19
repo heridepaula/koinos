@@ -4,6 +4,7 @@ import { ActionError, type Tenant } from "@/features/auth/server";
 import { readCatalogTypes } from "@/features/market-data/server";
 import { withLock } from "@/shared/db/lock";
 import { detectB3File } from "../import/b3/detect";
+import { compareDividends } from "../import/b3/dividend-changes";
 import { B3ImportError, planB3Import } from "../import/b3/plan";
 import { readMovimentacao } from "../import/b3/read-movimentacao";
 import { readNegociacao } from "../import/b3/read-negociacao";
@@ -12,10 +13,12 @@ import type {
   B3ImportChanges,
   B3ImportPlan,
   B3ImportPreview,
+  B3ImportResult,
   PlannedTransaction,
 } from "../import/b3/types";
 import { parsePlanilha, type SheetInput } from "../import/parse-planilha";
 import type { B3ImportRequest } from "../schemas";
+import { listDividends } from "./dividend-repo";
 import {
   applyTransactionChanges,
   listTransactions,
@@ -81,8 +84,9 @@ async function recognize(files: readonly File[]) {
 
 async function buildPlan(tenant: Tenant, request: B3ImportRequest) {
   const files = await recognize(request.files);
-  const [existing, assetTypes] = await Promise.all([
+  const [existing, existingDividends, assetTypes] = await Promise.all([
     listTransactions(tenant.portfolioId),
+    listDividends(tenant.portfolioId),
     readCatalogTypes(),
   ]);
   if (assetTypes.size === 0) {
@@ -99,7 +103,7 @@ async function buildPlan(tenant: Tenant, request: B3ImportRequest) {
       assetTypes,
       answers: request.answers,
     });
-    return { plan, existing, kinds: files.kinds };
+    return { plan, existing, existingDividends, kinds: files.kinds };
   } catch (error) {
     // Erros de conteúdo dos arquivos já vêm com mensagem para o usuário.
     if (error instanceof B3ImportError) throw new ActionError(error.message);
@@ -183,13 +187,12 @@ export async function previewB3Import(
   tenant: Tenant,
   request: B3ImportRequest,
 ): Promise<B3ImportPreview> {
-  const { plan, existing, kinds } = await buildPlan(tenant, request);
+  const { plan, existing, existingDividends, kinds } = await buildPlan(tenant, request);
   return {
     ...withoutEntries(plan),
     files: kinds,
     changes: compare(plan, existing),
-    // Task 3 compara os proventos de verdade.
-    dividendChanges: { added: 0, removed: 0, unchanged: 0 },
+    dividendChanges: compareDividends(plan.dividends, existingDividends),
     blocked: isBlocked(plan),
   };
 }
@@ -197,9 +200,9 @@ export async function previewB3Import(
 export async function confirmB3Import(
   tenant: Tenant,
   request: B3ImportRequest,
-): Promise<{ removed: number; inserted: number }> {
+): Promise<B3ImportResult> {
   const result = await withLock(`import:${tenant.portfolioId}`, LOCK_TTL_MS, async () => {
-    const { plan, existing } = await buildPlan(tenant, request);
+    const { plan, existing, existingDividends } = await buildPlan(tenant, request);
     if (isBlocked(plan)) {
       throw new ActionError("A prévia mudou e há pendências sem resposta. Gere a prévia de novo.");
     }
@@ -209,12 +212,21 @@ export async function confirmB3Import(
       );
     }
     const changes = compare(plan, existing);
-    if (changes.added === 0 && changes.removed === 0) return { removed: 0, inserted: 0 };
-    return applyTransactionChanges(tenant.portfolioId, {
-      removeIds: plan.removeIds,
-      inserts: plan.inserts,
-      source: "B3",
-    });
+    const dividendChanges = compareDividends(plan.dividends, existingDividends);
+    const entriesChanged = changes.added > 0 || changes.removed > 0;
+    const dividendsChanged = dividendChanges.added > 0 || dividendChanges.removed > 0;
+    if (entriesChanged || dividendsChanged) {
+      // Só troca o que mudou. `compare` só conta como "já igual" a linha da B3 a remover que tem um
+      // insert idêntico: com zero novos e zero que saem, `removeIds` e `inserts` são o mesmo
+      // conjunto, e trocar um pelo outro não muda nada. O mesmo vale para os proventos.
+      await applyTransactionChanges(tenant.portfolioId, {
+        removeIds: entriesChanged ? plan.removeIds : [],
+        inserts: entriesChanged ? plan.inserts : [],
+        source: "B3",
+        dividends: dividendsChanged ? plan.dividends : undefined,
+      });
+    }
+    return { changes, dividendChanges };
   });
   if (!result) {
     throw new ActionError(
