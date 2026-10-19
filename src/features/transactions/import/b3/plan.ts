@@ -807,6 +807,10 @@ export function planB3Import(input: PlanInput): B3ImportPlan {
     ...b3Tickers,
     ...replaced.map((entry) => entry.ticker),
     ...priors.map((entry) => entry.ticker),
+    // Também precisam de status: a origem de uma incorporação (no período só tem o Resgate) e o
+    // FII com Grupamento (sem outra linha). Sem ele, escapam da conferência do grupo.
+    ...final.links.flat(),
+    ...unsupported.keys(),
   ]);
   const parent = new Map<string, string>([...tickers].map((ticker) => [ticker, ticker]));
   const root = (ticker: string): string => {
