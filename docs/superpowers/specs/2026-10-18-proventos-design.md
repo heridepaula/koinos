@@ -49,13 +49,14 @@ Coleção nova `dividends` em `transactions/server/dividend.model.ts`:
 | `quantity` | number \| null | a quantidade do extrato, quando vier |
 | `perShare` | number \| null | o "Preço unitário" do extrato, quando vier |
 | `source` | `"B3"` | |
-| `signature` | string | para comparar com o que já existe |
 
-- O `planB3Import` passa a devolver `dividends` com os créditos de Rendimento e Reembolso cujo código é de FII (`FII_CODE`).
-- **"A B3 manda":** o serviço apaga os proventos do portfolio cujo `paidAt` está no período do extrato de Movimentação e grava os do extrato, na mesma transação dos lançamentos.
-- **Reenvio sem mudança:** a comparação por assinatura passa a cobrir os proventos. Se nada mudou, nada é gravado.
-- **Prévia:** mostra "N proventos novos" e "N proventos substituídos".
-- O script `scripts/import-b3.ts` usa o mesmo plano, então também grava os proventos.
+- **O que entra:** o `planB3Import` passa a devolver `dividends`, com os créditos de Rendimento e Reembolso de valor positivo. Valem os códigos da família de um FII, ou seja, a cota, o direito ou o recibo, todos levados ao FII.
+- **Escopo da troca ("A B3 manda"):** dentro do período do extrato de Movimentação, o serviço troca, FII por FII, os proventos guardados pelos do extrato, na mesma transação dos lançamentos.
+  - **Entram no escopo** os FIIs do plano com situação OK e os FIIs que só aparecem pelos proventos, sem negócio nem evento no período, salvo os que o usuário deixou de fora.
+  - **Ficam fora do escopo** os FIIs FORA ou PENDENTE. Eles mantêm os proventos que já existem e não recebem os do extrato.
+- **Reenvio sem mudança:** os proventos são comparados pelos campos (FII, data, tipo, valor, cotas e valor por cota), contando repetições. O que não mudou não é regravado, e se nada mudou, nada é gravado.
+- **Prévia:** mostra "N proventos novos · N saem · N já iguais".
+- **Script:** o `scripts/import-b3.ts` usa o mesmo plano, então também grava os proventos.
 
 ### 3.2 Anúncios do Yahoo
 

@@ -426,12 +426,16 @@ git commit -m "feat(dividends): pure rules for upcoming dividends, grouping and 
 - Modify: `src/features/transactions/import/b3/plan.ts`
 - Modify: `src/features/transactions/index.ts`
 
+> **Executado (2026-10-19):** commits bee994c, 38b4ce2, 0f6051e e 863f723. A revisão mudou a regra de escopo: valem os critérios abaixo e o spec §3.1, não o trecho de código dos Steps.
+
 **Acceptance Criteria:**
-- [ ] `plan.dividends.inserts` tem só créditos `Rendimento` e `Reembolso` cujo código é da família de um FII aceito (status `OK`).
+- [ ] `plan.dividends.inserts` tem só créditos `Rendimento` e `Reembolso` de valor positivo, cujo código é da família de um FII.
+  - Entram os FIIs com status `OK` e os FIIs sem status, que só aparecem pelos proventos e não foram deixados de fora.
+  - FIIs FORA ou PENDENTE não recebem nada.
 - [ ] `plan.dividends.period` é o período do extrato de Movimentação (`firstDate` a `lastDate`).
-- [ ] `plan.dividends.tickers` lista os FIIs aceitos, que são os que terão os proventos substituídos.
-- [ ] Com os extratos reais, a contagem e a soma batem com 1.290 Rendimentos + 61 Reembolsos (R$ 298.410,30 no total).
-  - Se a contagem for diferente, o script lista os códigos excluídos, e a diferença precisa ser explicada (por exemplo, FIIs fora do catálogo) antes do commit.
+- [ ] `plan.dividends.tickers` é o escopo da troca: os FIIs do plano com status `OK` mais os FIIs dos proventos mantidos.
+- [ ] Com os extratos reais, entram 1.280 Rendimentos (R$ 290.553,26) e 4 Reembolsos (R$ 2.334,41) de FIIs. Os outros 67 créditos são de ações.
+- [ ] Todo FII que os extratos tocam recebe um status, inclusive a origem de uma incorporação e um FII com Grupamento (correção 0f6051e).
 
 **Verify:** `npx tsx --conditions=react-server --env-file=.env.local <scratchpad>/check-plan-dividends.ts` imprime as contagens. É só leitura: usa `readCatalogTypes` e não grava nada.
 
