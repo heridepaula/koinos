@@ -600,7 +600,7 @@ git commit -m "feat(import): extract Rendimento and Reembolso credits as dividen
 **Acceptance Criteria:**
 - [ ] A coleção `dividends` tem o índice `{ portfolioId: 1, ticker: 1, paidAt: 1 }`.
 - [ ] Toda consulta e toda remoção filtram por `portfolioId`.
-- [ ] Uma importação em `koinos_preview` grava 1.351 proventos (ou o número que a Task 2 explicou).
+- [ ] Uma importação em `koinos_preview` grava 1.284 proventos (ou o número que a Task 2 explicou).
 - [ ] Reimportar os mesmos arquivos dá `dividendChanges = { added: 0, removed: 0 }` e não grava nada.
 - [ ] A prévia mostra "N proventos novos · N saem · N já iguais".
 - [ ] O script `import:b3` imprime e grava os proventos.
@@ -885,7 +885,7 @@ Run:
 - `node <scratchpad>/aporte/env-exports.mjs` para obter a URI da preview;
 - depois `MONGODB_URI=<uri preview> npx tsx --conditions=react-server --env-file=.env.local <scratchpad>/check-import-dividends.ts <portfolioId do seed>`.
 
-Expected: nas duas rodadas, `depois` é igual (1.351 ou o número da Task 2), e o total não cresce no reenvio. A comparação por assinatura que evita a gravação está no serviço e é conferida pela tela na Task 7.
+Expected: nas duas rodadas, `depois` é igual (1.284), e o total não cresce no reenvio. A comparação por assinatura que evita a gravação está no serviço e é conferida pela tela na Task 7.
 
 - [ ] **Step 9: lint, typecheck e commit**
 
@@ -1732,7 +1732,7 @@ git commit -m "feat(dividends): /proventos page with month totals, upcoming list
 - Nenhum arquivo do repositório. Os scripts ficam no scratchpad: `aporte/seed-preview.ts`, `shots-tool/upload-b3.mjs`, `shots-tool/shoot-all.mjs` e `shots-tool/contrast.mjs`.
 
 **Acceptance Criteria:**
-- [ ] O upload pela tela mostra a prévia com "1.351 proventos novos" (ou o número explicado na Task 2), e a confirmação grava esses proventos.
+- [ ] O upload pela tela mostra a prévia com "1.284 proventos novos" (ou o número explicado na Task 2), e a confirmação grava esses proventos.
 - [ ] O segundo upload dos mesmos arquivos mostra "0 proventos novos · 0 saem".
 - [ ] O "a receber" de outubro do MXRF11 e do HGLG11 bate com cotas na véspera × R$ 0,10 e × R$ 1,17, conferido no banco da preview.
 - [ ] As capturas de tela de `/proventos` (abas mes, ano e papel) e do Dashboard nos temas claro e escuro não têm quebra de layout nem em 390 px de largura.

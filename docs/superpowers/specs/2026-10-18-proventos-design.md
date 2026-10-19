@@ -16,7 +16,7 @@ Guardar os proventos que a B3 informa no extrato de Movimentação e usá-los em
 
 ### Critérios de sucesso
 
-1. Com os extratos reais, a importação guarda 1.290 Rendimentos (R$ 290.564,42) e 61 Reembolsos (R$ 7.845,88), e nada além disso.
+1. Com os extratos reais (e as respostas das pendências), a importação guarda 1.280 Rendimentos (R$ 290.553,26) e 4 Reembolsos (R$ 2.334,41) de FIIs, e nada além disso. Os outros 67 créditos de Rendimento e Reembolso do extrato são de ações (PETR4, BBAS3, BBSE3, VALE3, EGIE3) e ficam de fora.
 2. Importar os mesmos extratos de novo não muda nada.
 3. O "a receber" de outubro/2026 confere à mão com o MXRF11 (R$ 0,10 por cota) e o HGLG11 (R$ 1,17 por cota), com as cotas que o usuário tinha na véspera da data ex.
 4. Exemplo do SNFF11: com cotação −60k e proventos +20k, o resultado com proventos é −40k. Somando vendas de −5k, o resultado total é −45k.
