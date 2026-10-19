@@ -1,5 +1,5 @@
 import { Suspense, type ReactNode } from "react";
-import { UserMenu, UserMenuSkeleton } from "@/features/auth/ui";
+import { SessionKeepAlive, UserMenu, UserMenuSkeleton } from "@/features/auth/ui";
 import { getCurrentUser } from "@/features/auth/server";
 import { AppSidebar } from "@/shared/components/app-sidebar";
 import { PointerGlow } from "@/shared/components/pointer-glow";
@@ -17,6 +17,7 @@ export default function AppLayout({ children }: { children: ReactNode }) {
   return (
     <QueryProvider>
       <PointerGlow />
+      <SessionKeepAlive />
       <SidebarProvider>
         <AppSidebar
           footer={

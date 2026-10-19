@@ -35,8 +35,10 @@ export const auth = betterAuth({
     },
   },
   session: {
-    expiresIn: 60 * 60 * 24 * 7, // 7 dias
-    updateAge: 60 * 60 * 24, // renova a cada 1 dia de uso
+    // Expira depois de 1 h sem uso: cada uso (no máximo a cada 5 min) empurra o prazo para
+    // 1 h dali. O SessionKeepAlive renova o cookie quando há interação no navegador.
+    expiresIn: 60 * 60,
+    updateAge: 5 * 60,
     cookieCache: { enabled: true, maxAge: 5 * 60 },
   },
   advanced: {
@@ -45,7 +47,7 @@ export const auth = betterAuth({
   databaseHooks: {
     user: {
       create: {
-        // Só e-mails da allowlist, e verificados pelo Google, podem criar conta.
+        // Só e-mails verificados pelo Google (e da allowlist, quando existe) podem criar conta.
         before: async (user) => {
           if (!user.emailVerified || !isEmailAllowed(user.email, allowedEmails)) {
             throw new APIError("FORBIDDEN", { message: "E-mail não autorizado." });

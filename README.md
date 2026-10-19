@@ -23,17 +23,17 @@ cp .env.example .env.local   # e preencha (tabela abaixo)
 npm run dev                  # http://localhost:3000
 ```
 
-| Variável                                    | O que é                                                                                                                                                                          |
-| ------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `MONGODB_URI`                               | Conexão do Atlas, com o nome do banco no caminho (ex.: `/koinos`).                                                                                                               |
-| `REDIS_URL`                                 | Redis das sessões e do rate limit.                                                                                                                                               |
-| `BETTER_AUTH_SECRET`                        | 32+ caracteres aleatórios: `node -e "console.log(require('crypto').randomBytes(32).toString('base64'))"`. Também cifra as sessões no Redis: trocar o segredo desloga todo mundo. |
-| `BETTER_AUTH_URL`                           | URL pública do app: `http://localhost:3000` em dev, `https://seu-dominio` em produção.                                                                                           |
-| `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` | Cliente OAuth do Google (veja abaixo).                                                                                                                                           |
-| `ALLOWED_EMAILS`                            | E-mails que podem entrar, separados por vírgula. Qualquer outro é recusado, já no cadastro.                                                                                      |
-| `BRAPI_TOKEN`                               | Opcional. Sem token, as cotações vêm da listagem em lote da brapi, e o que faltar vem do Yahoo.                                                                                  |
-| `BRAPI_MONTHLY_QUOTA`                       | Cota mensal do seu plano da brapi (padrão 15000). Ao passar de 90%, o app usa só o Yahoo até o mês virar.                                                                        |
-| `CRON_SECRET`                               | 16+ caracteres. Protege `/api/cron/daily`; obrigatório em produção.                                                                                                              |
+| Variável                                    | O que é                                                                                                                                                                                        |
+| ------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `MONGODB_URI`                               | Conexão do Atlas, com o nome do banco no caminho (ex.: `/koinos`).                                                                                                                             |
+| `REDIS_URL`                                 | Redis das sessões e do rate limit.                                                                                                                                                             |
+| `BETTER_AUTH_SECRET`                        | 32+ caracteres aleatórios: `node -e "console.log(require('crypto').randomBytes(32).toString('base64'))"`. Também cifra as sessões no Redis: trocar o segredo desloga todo mundo.               |
+| `BETTER_AUTH_URL`                           | URL pública do app: `http://localhost:3000` em dev, `https://seu-dominio` em produção.                                                                                                         |
+| `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` | Cliente OAuth do Google (veja abaixo).                                                                                                                                                         |
+| `ALLOWED_EMAILS`                            | Só para desenvolvimento local: e-mails que podem entrar, separados por vírgula. Em produção fica sem valor, e quem entra é definido pelos usuários de teste do app OAuth no console do Google. |
+| `BRAPI_TOKEN`                               | Opcional. Sem token, as cotações vêm da listagem em lote da brapi, e o que faltar vem do Yahoo.                                                                                                |
+| `BRAPI_MONTHLY_QUOTA`                       | Cota mensal do seu plano da brapi (padrão 15000). Ao passar de 90%, o app usa só o Yahoo até o mês virar.                                                                                      |
+| `CRON_SECRET`                               | 16+ caracteres. Protege `/api/cron/daily`; obrigatório em produção.                                                                                                                            |
 
 ### Login com Google
 
@@ -127,7 +127,8 @@ O ESLint impede importar o interior de outra feature e mantém `domain/` puro. A
 
 ## Segurança
 
-- Só entram os e-mails de `ALLOWED_EMAILS` que o Google confirma como verificados. A lista é checada no cadastro e em toda sessão.
+- Só entram e-mails que o Google confirma como verificados. Em produção, o console do Google (usuários de teste do app OAuth) define quem passa. Localmente, `ALLOWED_EMAILS` restringe ainda mais, no cadastro e em toda sessão.
+- A sessão expira depois de 1 hora sem uso. Cada interação no navegador renova o prazo.
 - Toda consulta parte da sessão. O `Tenant` (usuário + carteira) só nasce nas funções de sessão; editar e excluir filtram por `_id` **e** carteira. As telas recebem DTOs sem ids internos.
 - Server Actions validam a entrada com Zod e só devolvem mensagens seguras.
 - As sessões ficam cifradas no Redis, e o login tem rate limit de 100 requisições por minuto.

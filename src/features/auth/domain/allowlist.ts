@@ -1,5 +1,6 @@
-/** "a@x.com, B@y.com" vira um conjunto normalizado (minúsculas, sem espaços). */
-export function parseAllowedEmails(raw: string): Set<string> {
+/** "a@x.com, B@y.com" vira um conjunto normalizado (minúsculas, sem espaços); sem lista, null. */
+export function parseAllowedEmails(raw: string | undefined): Set<string> | null {
+  if (!raw) return null;
   return new Set(
     raw
       .split(",")
@@ -10,7 +11,8 @@ export function parseAllowedEmails(raw: string): Set<string> {
 
 export function isEmailAllowed(
   email: string | null | undefined,
-  allowed: ReadonlySet<string>,
+  allowed: ReadonlySet<string> | null,
 ): boolean {
-  return Boolean(email) && allowed.has(email!.trim().toLowerCase());
+  if (!email) return false;
+  return allowed === null || allowed.has(email.trim().toLowerCase());
 }
