@@ -36,6 +36,14 @@ export type PositionRow = {
   currentValue: number;
   pnl: number;
   pnlPct: number | null;
+  /** Proventos recebidos deste FII desde sempre. */
+  dividends: number;
+  /** L/P da cotação + proventos. */
+  pnlWithDividends: number;
+  /** L/P da cotação + proventos + vendas. */
+  totalResult: number;
+  /** Resultado realizado nas vendas deste FII, desde sempre. */
+  realizedPnL: number;
   changePercent: number | null;
   dy12m: number | null;
   /** Peso na carteira inteira. */
@@ -72,7 +80,15 @@ export type StrategyRow = {
   priority: AportePriority | null;
 };
 
-export type ClosedPosition = { ticker: string; realizedPnL: number; lastDate: Date };
+export type ClosedPosition = {
+  ticker: string;
+  realizedPnL: number;
+  /** Proventos recebidos deste FII desde sempre. */
+  dividends: number;
+  /** Vendas + proventos: sem cotação, porque a posição está zerada. */
+  totalResult: number;
+  lastDate: Date;
+};
 
 export type PortfolioSummary = {
   patrimony: number;
@@ -80,6 +96,12 @@ export type PortfolioSummary = {
   pnl: number;
   pnlPct: number | null;
   realizedPnL: number;
+  /** Proventos recebidos de todos os FIIs, abertos ou encerrados, desde sempre. */
+  dividendsReceived: number;
+  /** L/P da cotação + proventos. */
+  pnlWithDividends: number;
+  /** L/P da cotação + proventos + vendas. */
+  totalResult: number;
   dayChange: number;
   dayChangePct: number | null;
   dy12m: number | null;

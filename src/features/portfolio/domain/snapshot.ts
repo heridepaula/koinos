@@ -6,10 +6,16 @@ import {
   marginToCeiling,
   suggestCategory,
 } from "@/features/strategy";
-import { monthlyContributions, replayLedger, type LedgerEntry } from "@/features/transactions";
+import {
+  monthlyContributions,
+  replayLedger,
+  type DividendEntry,
+  type LedgerEntry,
+} from "@/features/transactions";
 import { addMonths, currentMonthKey, monthRange } from "@/shared/lib/time";
 import { buildAlerts } from "./alerts";
 import { allocationByAsset, allocationByCategory } from "./allocation";
+import { adjustedResult, dividendsByTicker } from "./dividends";
 import type {
   PortfolioSnapshot,
   PortfolioSummary,
@@ -26,6 +32,8 @@ export type SnapshotInput = {
   now: Date;
   transactions: readonly LedgerEntry[];
   targets: readonly TargetConfig[];
+  /** Proventos recebidos: só afetam o resultado ajustado, não a cascata nem a renda estimada. */
+  dividends: readonly DividendEntry[];
   prices: ReadonlyMap<string, PriceInfo>;
 };
 
@@ -33,9 +41,11 @@ export function buildSnapshot({
   now,
   transactions,
   targets,
+  dividends,
   prices,
 }: SnapshotInput): PortfolioSnapshot {
   const { positions } = replayLedger(transactions);
+  const received = dividendsByTicker(dividends);
   const open = positions.filter((position) => position.quantity > 0);
   const openByTicker = new Map(open.map((position) => [position.ticker, position]));
   const targetByTicker = new Map(targets.map((target) => [target.ticker, target]));
@@ -97,12 +107,19 @@ export function buildSnapshot({
       monthlyIncome += position.quantity * info.lastDividend.amount;
     }
   }
+  // Resultado ajustado da carteira: inclui os proventos de todos os FIIs, abertos ou encerrados.
+  const realizedPnL = positions.reduce((sum, position) => sum + position.realizedPnL, 0);
+  const dividendsReceived = [...received.values()].reduce((sum, value) => sum + value, 0);
+  const portfolioAdjusted = adjustedResult(patrimony - invested, dividendsReceived, realizedPnL);
   const summary: PortfolioSummary = {
     patrimony,
     invested,
     pnl: patrimony - invested,
     pnlPct: invested > 0 ? (patrimony - invested) / invested : null,
-    realizedPnL: positions.reduce((sum, position) => sum + position.realizedPnL, 0),
+    realizedPnL,
+    dividendsReceived,
+    pnlWithDividends: portfolioAdjusted.withDividends,
+    totalResult: portfolioAdjusted.total,
     dayChange,
     dayChangePct: patrimony - dayChange > 0 ? dayChange / (patrimony - dayChange) : null,
     dy12m: dyBase > 0 ? dyWeighted / dyBase : null,
@@ -118,6 +135,9 @@ export function buildSnapshot({
       const price = info?.price ?? null;
       const value = valueOf(position.ticker);
       const inStrategy = target?.inStrategy ?? false;
+      const pnl = value - position.totalCost;
+      const dividendsOf = received.get(position.ticker) ?? 0;
+      const adjusted = adjustedResult(pnl, dividendsOf, position.realizedPnL);
       return {
         ticker: position.ticker,
         name: info?.name ?? null,
@@ -128,8 +148,12 @@ export function buildSnapshot({
         totalCost: position.totalCost,
         price,
         currentValue: value,
-        pnl: value - position.totalCost,
+        pnl,
         pnlPct: position.totalCost > 0 ? (value - position.totalCost) / position.totalCost : null,
+        dividends: dividendsOf,
+        pnlWithDividends: adjusted.withDividends,
+        totalResult: adjusted.total,
+        realizedPnL: position.realizedPnL,
         changePercent: info?.changePercent ?? null,
         dy12m: info?.dy12m ?? null,
         portfolioWeight: patrimony > 0 ? value / patrimony : 0,
@@ -194,11 +218,17 @@ export function buildSnapshot({
     positions: positionRows,
     closed: positions
       .filter((position) => position.quantity === 0)
-      .map((position) => ({
-        ticker: position.ticker,
-        realizedPnL: position.realizedPnL,
-        lastDate: position.lastDate,
-      }))
+      .map((position) => {
+        const dividendsOf = received.get(position.ticker) ?? 0;
+        return {
+          ticker: position.ticker,
+          realizedPnL: position.realizedPnL,
+          dividends: dividendsOf,
+          // Posição zerada: não há resultado de cotação, só vendas e proventos.
+          totalResult: adjustedResult(0, dividendsOf, position.realizedPnL).total,
+          lastDate: position.lastDate,
+        };
+      })
       .sort((a, b) => b.lastDate.getTime() - a.lastDate.getTime()),
     strategy: { rows: strategyRows, strategyValue, sumOfSuggested, weightsWarning },
     cascadeInput,

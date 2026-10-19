@@ -9,7 +9,7 @@ import {
 } from "@/features/market-data/server";
 import { getMyTargetAssets } from "@/features/strategy/server";
 import { replayLedger } from "@/features/transactions";
-import { getMyTransactions } from "@/features/transactions/server";
+import { getMyDividends, getMyTransactions } from "@/features/transactions/server";
 import { currentMonthKey, monthKeyOfTradeDate } from "@/shared/lib/time";
 import { computeEvolution } from "../domain/evolution";
 import { buildSnapshot } from "../domain/snapshot";
@@ -39,12 +39,22 @@ function toPriceInfo(assets: ReadonlyMap<string, AssetSnapshot>): Map<string, Pr
  */
 export const getPortfolioSnapshot = cache(async (): Promise<PortfolioSnapshot> => {
   await connection(); // usa a hora atual: só em tempo de requisição
-  const [transactions, targets] = await Promise.all([getMyTransactions(), getMyTargetAssets()]);
+  const [transactions, targets, dividends] = await Promise.all([
+    getMyTransactions(),
+    getMyTargetAssets(),
+    getMyDividends(),
+  ]);
   const tickers = [
     ...new Set([...transactions.map((t) => t.ticker), ...targets.map((t) => t.ticker)]),
   ];
   const assets = await getAssetSnapshots(tickers);
-  return buildSnapshot({ now: new Date(), transactions, targets, prices: toPriceInfo(assets) });
+  return buildSnapshot({
+    now: new Date(),
+    transactions,
+    targets,
+    dividends,
+    prices: toPriceInfo(assets),
+  });
 });
 
 /** Evolução mensal. Completa no Yahoo os fechamentos que faltam (uma vez por mês e ticker). */

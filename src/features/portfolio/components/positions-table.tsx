@@ -23,6 +23,8 @@ const SORT_KEYS = [
   "valor",
   "investido",
   "lp",
+  "proventos",
+  "ajustado",
   "peso",
   "prioridade",
 ] as const;
@@ -38,6 +40,8 @@ const SORT_VALUE: Record<SortKey, (row: PositionRow) => number | string | null> 
   valor: (row) => row.currentValue,
   investido: (row) => row.totalCost,
   lp: (row) => row.pnl,
+  proventos: (row) => row.dividends,
+  ajustado: (row) => row.pnlWithDividends,
   peso: (row) => row.portfolioWeight,
   prioridade: (row) =>
     row.priority?.kind === "fila" ? row.priority.position : row.priority ? 1000 : null,
@@ -52,6 +56,8 @@ const COLUMNS: { key: SortKey; label: string; align?: "right" }[] = [
   { key: "valor", label: "Valor atual", align: "right" },
   { key: "investido", label: "Investido", align: "right" },
   { key: "lp", label: "L/P", align: "right" },
+  { key: "proventos", label: "Proventos", align: "right" },
+  { key: "ajustado", label: "Resultado c/ proventos", align: "right" },
   { key: "peso", label: "% carteira", align: "right" },
 ];
 
@@ -87,6 +93,26 @@ function CeilingCell({ row }: { row: PositionRow }) {
       ) : null}
       <span className="tabular-nums">{formatBRL(row.ceilingPrice)}</span>
     </div>
+  );
+}
+
+/** Resultado com proventos; o tooltip mostra a conta até o resultado total. */
+function AdjustedCell({ row }: { row: PositionRow }) {
+  return (
+    <Tooltip>
+      <TooltipTrigger render={<span />}>
+        <Delta value={row.pnlWithDividends} />
+      </TooltipTrigger>
+      <TooltipContent>
+        <div className="grid gap-0.5 tabular-nums">
+          <span>Cotação {formatBRL(row.pnl)}</span>
+          <span>+ Proventos {formatBRL(row.dividends)}</span>
+          <span>= Com proventos {formatBRL(row.pnlWithDividends)}</span>
+          <span>+ Vendas {formatBRL(row.realizedPnL)}</span>
+          <span className="font-medium">= Resultado total {formatBRL(row.totalResult)}</span>
+        </div>
+      </TooltipContent>
+    </Tooltip>
   );
 }
 
@@ -169,6 +195,12 @@ export function PositionsTable({ rows }: { rows: PositionRow[] }) {
                 </TableCell>
                 <TableCell className="text-right">
                   <Delta value={row.pnl} pct={row.pnlPct} stacked />
+                </TableCell>
+                <TableCell className="text-right tabular-nums">
+                  {formatBRL(row.dividends)}
+                </TableCell>
+                <TableCell className="text-right">
+                  <AdjustedCell row={row} />
                 </TableCell>
                 <TableCell className="text-right tabular-nums">
                   {formatPercent(row.portfolioWeight, 1)}
