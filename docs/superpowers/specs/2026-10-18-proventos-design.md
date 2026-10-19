@@ -54,7 +54,7 @@ Coleção nova `dividends` em `transactions/server/dividend.model.ts`:
 - **Escopo da troca ("A B3 manda"):** dentro do período do extrato de Movimentação, o serviço troca, FII por FII, os proventos guardados pelos do extrato, na mesma transação dos lançamentos.
   - **Entram no escopo** os FIIs do plano com situação OK e os FIIs que só aparecem pelos proventos, sem negócio nem evento no período, salvo os que o usuário deixou de fora.
   - **Ficam fora do escopo** os FIIs FORA ou PENDENTE. Eles mantêm os proventos que já existem e não recebem os do extrato.
-- **Reenvio sem mudança:** os proventos são comparados pelos campos (FII, data, tipo, valor, cotas e valor por cota), contando repetições. O que não mudou não é regravado, e se nada mudou, nada é gravado.
+- **Reenvio sem mudança:** os proventos são comparados pelos campos (FII, data, tipo, valor, cotas e valor por cota), contando repetições. Se os proventos não mudaram, eles não são regravados; se nada mudou, nada é gravado. Quando algo muda, o escopo inteiro é trocado.
 - **Prévia:** mostra "N proventos novos · N saem · N já iguais".
 - **Script:** o `scripts/import-b3.ts` usa o mesmo plano, então também grava os proventos.
 

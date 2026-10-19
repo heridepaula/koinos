@@ -435,7 +435,8 @@ git commit -m "feat(dividends): pure rules for upcoming dividends, grouping and 
 - [ ] `plan.dividends.period` é o período do extrato de Movimentação (`firstDate` a `lastDate`).
 - [ ] `plan.dividends.tickers` é o escopo da troca: os FIIs do plano com status `OK` mais os FIIs dos proventos mantidos.
 - [ ] Com os extratos reais, entram 1.280 Rendimentos (R$ 290.553,26) e 4 Reembolsos (R$ 2.334,41) de FIIs. Os outros 67 créditos são de ações.
-- [ ] Todo FII que os extratos tocam recebe um status, inclusive a origem de uma incorporação e um FII com Grupamento (correção 0f6051e).
+- [ ] A origem de uma incorporação e o FII com Grupamento também recebem status (correção 0f6051e).
+  - Fica de fora, como pendência anterior a este trabalho: um Resgate tratado como troco de incorporação quando a resposta é "não é conversão".
 
 **Verify:** `npx tsx --conditions=react-server --env-file=.env.local <scratchpad>/check-plan-dividends.ts` imprime as contagens. É só leitura: usa `readCatalogTypes` e não grava nada.
 
