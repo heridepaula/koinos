@@ -897,6 +897,14 @@ export function planB3Import(input: PlanInput): B3ImportPlan {
   }
 
   const accepted = (ticker: string) => status.get(ticker)?.status === "OK";
+  // Proventos: o FII que só aparece por Rendimento/Reembolso não tem status (não há o que
+  // conferir) e entra, salvo se o usuário o deixou de fora. O que ficou FORA ou PENDENTE
+  // mantém os proventos que já tem.
+  const acceptsDividends = (ticker: string) => {
+    if (!managed(ticker) || exclude.has(ticker)) return false;
+    const decision = status.get(ticker);
+    return !decision || decision.status === "OK";
+  };
   const inserts = newEntries.filter((entry) => accepted(entry.ticker));
   const removed = [
     ...replaced.filter((entry) => accepted(entry.ticker)),
@@ -944,7 +952,12 @@ export function planB3Import(input: PlanInput): B3ImportPlan {
       .sort((a, b) => a.reason.localeCompare(b.reason)),
     warnings,
     check: dividendCheck(movimentacao.rows, final.timeline, managed),
-    dividends: extractDividends(movimentacao, accepted, [...tickers].sort()),
+    dividends: extractDividends(
+      movimentacao.rows,
+      { start: movimentacao.firstDate, end: movimentacao.lastDate },
+      acceptsDividends,
+      [...tickers].filter(accepted),
+    ),
     totals,
   };
 }
@@ -957,17 +970,18 @@ const DIVIDEND_ROW_KINDS: Record<string, PlannedDividend["kind"]> = {
 };
 
 function extractDividends(
-  movimentacao: MovimentacaoData,
-  accepted: (ticker: string) => boolean,
-  tickers: readonly string[],
+  rows: readonly MovementRow[],
+  period: PlannedDividends["period"],
+  accepts: (ticker: string) => boolean,
+  acceptedTickers: readonly string[],
 ): PlannedDividends {
   const inserts: PlannedDividend[] = [];
-  for (const row of movimentacao.rows) {
+  for (const row of rows) {
     const kind = DIVIDEND_ROW_KINDS[row.kind];
     if (!row.credit || !kind || !FII_FAMILY_CODE.test(row.code)) continue;
     if (row.value === null || row.value <= 0) continue;
     const ticker = fiiOf(row.code);
-    if (!accepted(ticker)) continue;
+    if (!accepts(ticker)) continue;
     inserts.push({
       ticker,
       paidAt: row.date,
@@ -977,11 +991,9 @@ function extractDividends(
       perShare: row.unitPrice,
     });
   }
-  return {
-    period: { start: movimentacao.firstDate!, end: movimentacao.lastDate! },
-    tickers: tickers.filter(accepted),
-    inserts,
-  };
+  // Escopo da troca: os FIIs aceitos do plano e os que só aparecem pelos próprios proventos.
+  const tickers = new Set([...acceptedTickers, ...inserts.map((item) => item.ticker)]);
+  return { period, tickers: [...tickers].sort(), inserts };
 }
 
 // --- Conferência pelos rendimentos (§6.7) -----------------------------------------------------
