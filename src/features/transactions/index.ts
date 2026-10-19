@@ -40,6 +40,8 @@ export type {
   DividendCheck,
   ExistingTransaction,
   PendingItem,
+  PlannedDividend,
+  PlannedDividends,
   PlannedTransaction,
   TickerPlan,
 } from "./import/b3/types";

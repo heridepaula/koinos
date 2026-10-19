@@ -12,6 +12,8 @@ import type {
   MovimentacaoData,
   NegociacaoData,
   PendingItem,
+  PlannedDividend,
+  PlannedDividends,
   PlannedTransaction,
   TickerPlan,
 } from "./types";
@@ -942,7 +944,43 @@ export function planB3Import(input: PlanInput): B3ImportPlan {
       .sort((a, b) => a.reason.localeCompare(b.reason)),
     warnings,
     check: dividendCheck(movimentacao.rows, final.timeline, managed),
+    dividends: extractDividends(movimentacao, accepted, [...tickers].sort()),
     totals,
+  };
+}
+
+// --- Proventos (spec proventos, §3.1) ------------------------------------------------------
+
+const DIVIDEND_ROW_KINDS: Record<string, PlannedDividend["kind"]> = {
+  Rendimento: "RENDIMENTO",
+  Reembolso: "REEMBOLSO",
+};
+
+function extractDividends(
+  movimentacao: MovimentacaoData,
+  accepted: (ticker: string) => boolean,
+  tickers: readonly string[],
+): PlannedDividends {
+  const inserts: PlannedDividend[] = [];
+  for (const row of movimentacao.rows) {
+    const kind = DIVIDEND_ROW_KINDS[row.kind];
+    if (!row.credit || !kind || !FII_FAMILY_CODE.test(row.code)) continue;
+    if (row.value === null || row.value <= 0) continue;
+    const ticker = fiiOf(row.code);
+    if (!accepted(ticker)) continue;
+    inserts.push({
+      ticker,
+      paidAt: row.date,
+      kind,
+      amount: row.value,
+      quantity: row.quantity,
+      perShare: row.unitPrice,
+    });
+  }
+  return {
+    period: { start: movimentacao.firstDate!, end: movimentacao.lastDate! },
+    tickers: tickers.filter(accepted),
+    inserts,
   };
 }
 

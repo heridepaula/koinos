@@ -163,7 +163,9 @@ function compare(plan: B3ImportPlan, existing: readonly TransactionRecord[]): B3
 const isBlocked = (plan: B3ImportPlan) => plan.tickers.some((item) => item.status === "PENDENTE");
 
 /** A prévia não leva os lançamentos nem os ids a remover: só as contagens. */
-function withoutEntries(plan: B3ImportPlan): Omit<B3ImportPlan, "inserts" | "removeIds"> {
+function withoutEntries(
+  plan: B3ImportPlan,
+): Omit<B3ImportPlan, "inserts" | "removeIds" | "dividends"> {
   return {
     period: plan.period,
     priorDate: plan.priorDate,
@@ -186,6 +188,8 @@ export async function previewB3Import(
     ...withoutEntries(plan),
     files: kinds,
     changes: compare(plan, existing),
+    // Task 3 compara os proventos de verdade.
+    dividendChanges: { added: 0, removed: 0, unchanged: 0 },
     blocked: isBlocked(plan),
   };
 }

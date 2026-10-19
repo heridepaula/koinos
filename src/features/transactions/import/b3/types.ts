@@ -1,4 +1,5 @@
 import type {
+  DividendKind,
   LedgerEntry,
   PriceSource,
   TransactionKind,
@@ -150,6 +151,25 @@ export type DividendCheck = {
   unexplained: DividendCheckItem[];
 };
 
+/** Provento que o plano manda gravar (sempre com `source: "B3"`). */
+export type PlannedDividend = {
+  ticker: string;
+  paidAt: Date;
+  kind: DividendKind;
+  amount: number;
+  quantity: number | null;
+  perShare: number | null;
+};
+
+export type PlannedDividends = {
+  /** Período do extrato de Movimentação: os proventos destes FIIs nele são trocados. */
+  period: { start: Date; end: Date };
+  tickers: string[];
+  inserts: PlannedDividend[];
+};
+
+export type B3DividendChanges = { added: number; removed: number; unchanged: number };
+
 export type B3ImportPlan = {
   period: { start: Date; end: Date };
   /** Data das posições anteriores ao extrato (véspera da data mais antiga dos arquivos). */
@@ -162,15 +182,17 @@ export type B3ImportPlan = {
   ignored: { reason: string; codes: string[] }[];
   warnings: string[];
   check: DividendCheck;
+  dividends: PlannedDividends;
   totals: Partial<Record<TransactionKind, number>>;
 };
 
 export type B3ImportChanges = { added: number; removed: number; unchanged: number };
 
 /** Prévia que vai para a tela: os lançamentos viram contagens, sem ids internos. */
-export type B3ImportPreview = Omit<B3ImportPlan, "inserts" | "removeIds"> & {
+export type B3ImportPreview = Omit<B3ImportPlan, "inserts" | "removeIds" | "dividends"> & {
   files: B3FileKind[];
   changes: B3ImportChanges;
+  dividendChanges: B3DividendChanges;
   /** Algum FII ainda depende de resposta. */
   blocked: boolean;
 };
