@@ -23,7 +23,6 @@ const SORT_KEYS = [
   "valor",
   "investido",
   "lp",
-  "proventos",
   "ajustado",
   "peso",
   "prioridade",
@@ -40,14 +39,13 @@ const SORT_VALUE: Record<SortKey, (row: PositionRow) => number | string | null> 
   valor: (row) => row.currentValue,
   investido: (row) => row.totalCost,
   lp: (row) => row.pnl,
-  proventos: (row) => row.dividends,
   ajustado: (row) => row.pnlWithDividends,
   peso: (row) => row.portfolioWeight,
   prioridade: (row) =>
     row.priority?.kind === "fila" ? row.priority.position : row.priority ? 1000 : null,
 };
 
-const COLUMNS: { key: SortKey; label: string; align?: "right" }[] = [
+const COLUMNS: { key: SortKey; label: string; align?: "right"; title?: string }[] = [
   { key: "rank", label: "Rank", align: "right" },
   { key: "qtd", label: "Qtd.", align: "right" },
   { key: "preco", label: "Preço atual", align: "right" },
@@ -56,8 +54,12 @@ const COLUMNS: { key: SortKey; label: string; align?: "right" }[] = [
   { key: "valor", label: "Valor atual", align: "right" },
   { key: "investido", label: "Investido", align: "right" },
   { key: "lp", label: "L/P", align: "right" },
-  { key: "proventos", label: "Proventos", align: "right" },
-  { key: "ajustado", label: "Resultado c/ proventos", align: "right" },
+  {
+    key: "ajustado",
+    label: "c/ proventos",
+    align: "right",
+    title: "Resultado com proventos: L/P da cotação + proventos recebidos",
+  },
   { key: "peso", label: "% carteira", align: "right" },
 ];
 
@@ -96,12 +98,18 @@ function CeilingCell({ row }: { row: PositionRow }) {
   );
 }
 
-/** Resultado com proventos; o tooltip mostra a conta até o resultado total. */
+/**
+ * Resultado com proventos, empilhado como o L/P: o valor em cima e os proventos embaixo.
+ * O tooltip mostra a conta até o resultado total.
+ */
 function AdjustedCell({ row }: { row: PositionRow }) {
   return (
     <Tooltip>
-      <TooltipTrigger render={<span />}>
+      <TooltipTrigger render={<span className="inline-flex flex-col items-end" />}>
         <Delta value={row.pnlWithDividends} />
+        <span className="text-xs text-muted-foreground tabular-nums">
+          prov. {formatBRL(row.dividends)}
+        </span>
       </TooltipTrigger>
       <TooltipContent>
         <div className="grid gap-0.5 tabular-nums">
@@ -133,7 +141,9 @@ export function PositionsTable({ rows }: { rows: PositionRow[] }) {
         </CardDescription>
       </CardHeader>
       <CardContent className="px-0">
-        <Table>
+        {/* Colunas do meio mais coladas (px-1) só nesta tabela: com os proventos são 12 colunas e,
+            com a sidebar aberta, em 1440 px elas só cabem sem rolagem com o espaçamento reduzido. */}
+        <Table className="[&_td:not(:first-child):not(:last-child)]:px-1 [&_th:not(:first-child):not(:last-child)]:px-1">
           <TableHeader>
             <TableRow>
               <SortableHead
@@ -151,6 +161,7 @@ export function PositionsTable({ rows }: { rows: PositionRow[] }) {
                   direction={direction}
                   onSort={() => toggle(column.key)}
                   align={column.align}
+                  title={column.title}
                 >
                   {column.label}
                 </SortableHead>
@@ -195,9 +206,6 @@ export function PositionsTable({ rows }: { rows: PositionRow[] }) {
                 </TableCell>
                 <TableCell className="text-right">
                   <Delta value={row.pnl} pct={row.pnlPct} stacked />
-                </TableCell>
-                <TableCell className="text-right tabular-nums">
-                  {formatBRL(row.dividends)}
                 </TableCell>
                 <TableCell className="text-right">
                   <AdjustedCell row={row} />

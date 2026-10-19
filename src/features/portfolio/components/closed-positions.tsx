@@ -2,24 +2,28 @@ import { ChevronDownIcon } from "lucide-react";
 import { Delta } from "@/shared/components/delta";
 import { formatBRL, formatTradeDate } from "@/shared/lib/format";
 import { Card, CardContent } from "@/shared/ui/card";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/shared/ui/table";
 import type { ClosedPosition } from "../domain/types";
+
+/** Zera sobras de ponto flutuante (como -1e-13), que a tela mostraria como "-R$ 0,00" em vermelho. */
+const settle = (value: number) => (Math.abs(value) < 0.005 ? 0 : value);
 
 export function ClosedPositions({ rows }: { rows: readonly ClosedPosition[] }) {
   if (rows.length === 0) return null;
-  const total = rows.reduce((sum, row) => sum + row.realizedPnL, 0);
+  const sales = rows.reduce((sum, row) => sum + row.realizedPnL, 0);
   const dividends = rows.reduce((sum, row) => sum + row.dividends, 0);
   const result = rows.reduce((sum, row) => sum + row.totalResult, 0);
   return (
     <Card>
       <CardContent>
         <details className="group">
-          {/* Quebra de linha em telas estreitas: cada total fica inteiro na sua linha. */}
+          {/* Nos celulares os totais descem para a linha de baixo; cada um fica inteiro. */}
           <summary className="flex cursor-pointer list-none flex-wrap items-center gap-x-2 gap-y-1 text-sm font-medium">
             <ChevronDownIcon className="size-4 transition-transform group-open:rotate-180" />
             Posições encerradas ({rows.length})
-            <span className="ml-auto flex flex-wrap justify-end gap-x-4 gap-y-1 font-normal">
+            <span className="flex w-full flex-wrap gap-x-4 gap-y-1 font-normal sm:ml-auto sm:w-auto sm:justify-end">
               <span className="whitespace-nowrap">
-                Realizado <Delta value={total} />
+                Realizado <Delta value={sales} />
               </span>
               <span className="whitespace-nowrap">
                 Proventos <span className="tabular-nums">{formatBRL(dividends)}</span>
@@ -29,25 +33,37 @@ export function ClosedPositions({ rows }: { rows: readonly ClosedPosition[] }) {
               </span>
             </span>
           </summary>
-          <ul className="mt-3 grid gap-1.5 text-sm">
-            {rows.map((row) => (
-              <li key={row.ticker} className="flex flex-wrap items-center gap-x-3 gap-y-1">
-                <span className="w-20 font-medium">{row.ticker}</span>
-                <span className="text-muted-foreground">
-                  última venda em {formatTradeDate(row.lastDate)}
-                </span>
-                <span className="ml-auto flex gap-4">
-                  <span className="text-muted-foreground tabular-nums">
+          {/* pl-0/pr-0 nas pontas: o texto alinha com o resumo acima. Se faltar largura, rola no card. */}
+          <Table className="mt-3">
+            <TableHeader>
+              <TableRow>
+                <TableHead className="pl-0">FII</TableHead>
+                <TableHead className="hidden sm:table-cell">Última venda</TableHead>
+                <TableHead className="text-right">Vendas</TableHead>
+                <TableHead className="text-right">Proventos</TableHead>
+                <TableHead className="pr-0 text-right">Total</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {rows.map((row) => (
+                <TableRow key={row.ticker}>
+                  <TableCell className="pl-0 font-medium">{row.ticker}</TableCell>
+                  <TableCell className="hidden text-muted-foreground sm:table-cell">
+                    {formatTradeDate(row.lastDate)}
+                  </TableCell>
+                  <TableCell className="text-right">
+                    <Delta value={settle(row.realizedPnL)} />
+                  </TableCell>
+                  <TableCell className="text-right tabular-nums">
                     {formatBRL(row.dividends)}
-                  </span>
-                  {/* Largura mínima só para alinhar a coluna de proventos; nada fixo que estoure. */}
-                  <span className="min-w-32 text-right">
-                    <Delta value={row.totalResult} />
-                  </span>
-                </span>
-              </li>
-            ))}
-          </ul>
+                  </TableCell>
+                  <TableCell className="pr-0 text-right">
+                    <Delta value={settle(row.totalResult)} />
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
         </details>
       </CardContent>
     </Card>
