@@ -1,7 +1,13 @@
 "use client";
 
-import { LockIcon, PencilIcon, PlusIcon } from "lucide-react";
-import { parseAsString, parseAsStringLiteral, useQueryStates } from "nuqs";
+import { ChevronLeftIcon, ChevronRightIcon, LockIcon, PencilIcon, PlusIcon } from "lucide-react";
+import {
+  parseAsInteger,
+  parseAsNumberLiteral,
+  parseAsString,
+  parseAsStringLiteral,
+  useQueryStates,
+} from "nuqs";
 import { SortableHead } from "@/shared/components/sortable-head";
 import { useSortState } from "@/shared/hooks/use-sort-state";
 import { formatBRL, formatQuantity, formatTradeDate } from "@/shared/lib/format";
@@ -29,6 +35,7 @@ const SORT_VALUE: Record<SortKey, (row: TransactionRow) => number | string> = {
   total,
 };
 const TYPES = ["todos", "compra", "venda"] as const;
+const PAGE_SIZES = [10, 50, 100] as const;
 
 const KIND_LABELS: Record<Exclude<TransactionKind, "NEGOCIO">, string> = {
   SUBSCRICAO: "Subscrição",
@@ -47,10 +54,16 @@ export function TransactionsTable({ rows }: { rows: TransactionRow[] }) {
       ativo: parseAsString.withDefault(""),
       tipo: parseAsStringLiteral(TYPES).withDefault("todos"),
       ano: parseAsString.withDefault(""),
+      pagina: parseAsInteger.withDefault(1),
+      por: parseAsNumberLiteral(PAGE_SIZES).withDefault(10),
     },
     { history: "replace" },
   );
   const { sortKey, direction, toggle } = useSortState(SORT_KEYS, "data", "desc", ["ativo"]);
+  const sortBy = (key: SortKey) => {
+    toggle(key);
+    void setFilters({ pagina: 1 });
+  };
 
   const years = [...new Set(rows.map((row) => String(row.date.getUTCFullYear())))].sort().reverse();
   const tickerFilter = filters.ativo.trim().toUpperCase();
@@ -61,6 +74,11 @@ export function TransactionsTable({ rows }: { rows: TransactionRow[] }) {
       (!filters.ano || String(row.date.getUTCFullYear()) === filters.ano),
   );
   const sorted = sortRows(filtered, SORT_VALUE[sortKey], direction);
+  const pageCount = Math.max(1, Math.ceil(sorted.length / filters.por));
+  // Uma página fora da faixa (ex.: depois de filtrar) volta para a última que existe.
+  const page = Math.min(Math.max(1, filters.pagina), pageCount);
+  const firstIndex = (page - 1) * filters.por;
+  const pageRows = sorted.slice(firstIndex, firstIndex + filters.por);
 
   return (
     <Card>
@@ -77,14 +95,14 @@ export function TransactionsTable({ rows }: { rows: TransactionRow[] }) {
             placeholder="Ativo"
             className="w-28"
             value={filters.ativo}
-            onChange={(event) => void setFilters({ ativo: event.target.value })}
+            onChange={(event) => void setFilters({ ativo: event.target.value, pagina: 1 })}
           />
           <select
             aria-label="Filtrar por tipo"
             className={selectClass}
             value={filters.tipo}
             onChange={(event) =>
-              void setFilters({ tipo: event.target.value as (typeof TYPES)[number] })
+              void setFilters({ tipo: event.target.value as (typeof TYPES)[number], pagina: 1 })
             }
           >
             <option value="todos">Compras e vendas</option>
@@ -95,7 +113,7 @@ export function TransactionsTable({ rows }: { rows: TransactionRow[] }) {
             aria-label="Filtrar por ano"
             className={selectClass}
             value={filters.ano}
-            onChange={(event) => void setFilters({ ano: event.target.value })}
+            onChange={(event) => void setFilters({ ano: event.target.value, pagina: 1 })}
           >
             <option value="">Todos os anos</option>
             {years.map((year) => (
@@ -121,7 +139,7 @@ export function TransactionsTable({ rows }: { rows: TransactionRow[] }) {
               <SortableHead
                 active={sortKey === "data"}
                 direction={direction}
-                onSort={() => toggle("data")}
+                onSort={() => sortBy("data")}
                 className="pl-6"
               >
                 Data
@@ -129,7 +147,7 @@ export function TransactionsTable({ rows }: { rows: TransactionRow[] }) {
               <SortableHead
                 active={sortKey === "ativo"}
                 direction={direction}
-                onSort={() => toggle("ativo")}
+                onSort={() => sortBy("ativo")}
               >
                 Ativo
               </SortableHead>
@@ -137,7 +155,7 @@ export function TransactionsTable({ rows }: { rows: TransactionRow[] }) {
               <SortableHead
                 active={sortKey === "qtd"}
                 direction={direction}
-                onSort={() => toggle("qtd")}
+                onSort={() => sortBy("qtd")}
                 align="right"
               >
                 Qtd.
@@ -145,7 +163,7 @@ export function TransactionsTable({ rows }: { rows: TransactionRow[] }) {
               <SortableHead
                 active={sortKey === "preco"}
                 direction={direction}
-                onSort={() => toggle("preco")}
+                onSort={() => sortBy("preco")}
                 align="right"
               >
                 Preço
@@ -154,7 +172,7 @@ export function TransactionsTable({ rows }: { rows: TransactionRow[] }) {
               <SortableHead
                 active={sortKey === "total"}
                 direction={direction}
-                onSort={() => toggle("total")}
+                onSort={() => sortBy("total")}
                 align="right"
               >
                 Total
@@ -170,7 +188,7 @@ export function TransactionsTable({ rows }: { rows: TransactionRow[] }) {
                 </TableCell>
               </TableRow>
             ) : (
-              sorted.map((row) => (
+              pageRows.map((row) => (
                 <TableRow key={row.id}>
                   <TableCell className="pl-6 tabular-nums">{formatTradeDate(row.date)}</TableCell>
                   <TableCell className="font-medium">
@@ -239,6 +257,57 @@ export function TransactionsTable({ rows }: { rows: TransactionRow[] }) {
             )}
           </TableBody>
         </Table>
+        {sorted.length > 0 ? (
+          <div className="flex flex-wrap items-center justify-between gap-3 px-6 pt-4 text-sm text-muted-foreground">
+            <label className="flex items-center gap-2">
+              Mostrar
+              <select
+                aria-label="Lançamentos por página"
+                className={selectClass}
+                value={filters.por}
+                onChange={(event) =>
+                  void setFilters({
+                    por: Number(event.target.value) as (typeof PAGE_SIZES)[number],
+                    pagina: 1,
+                  })
+                }
+              >
+                {PAGE_SIZES.map((size) => (
+                  <option key={size} value={size}>
+                    {size}
+                  </option>
+                ))}
+              </select>
+              por página
+            </label>
+            <div className="flex items-center gap-2">
+              <span className="tabular-nums">
+                {firstIndex + 1}–{firstIndex + pageRows.length} de {sorted.length}
+              </span>
+              <Button
+                variant="outline"
+                size="icon-sm"
+                aria-label="Página anterior"
+                disabled={page <= 1}
+                onClick={() => void setFilters({ pagina: page - 1 })}
+              >
+                <ChevronLeftIcon />
+              </Button>
+              <span className="tabular-nums">
+                Página {page} de {pageCount}
+              </span>
+              <Button
+                variant="outline"
+                size="icon-sm"
+                aria-label="Próxima página"
+                disabled={page >= pageCount}
+                onClick={() => void setFilters({ pagina: page + 1 })}
+              >
+                <ChevronRightIcon />
+              </Button>
+            </div>
+          </div>
+        ) : null}
       </CardContent>
     </Card>
   );
