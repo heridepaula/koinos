@@ -9,6 +9,18 @@ import type { AnswersDraft } from "./answers";
 
 type Pending = B3ImportPreview["pending"][number];
 
+/** De onde veio um preço já preenchido. */
+const PRICE_ORIGIN: Record<string, string> = {
+  USUARIO: "informado por você",
+  ESTIMADO: "estimado",
+  PLANILHA: "da sua planilha",
+  B3: "da B3",
+};
+
+/** Ainda sem resposta no servidor (a conversão com sugestão vai confirmada junto). */
+export const isOpen = (item: Pending) =>
+  item.type === "CONVERSAO" ? item.source === null : item.price === null;
+
 const selectClass =
   "h-8 rounded-lg border border-input bg-transparent px-2 text-sm text-foreground outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 disabled:opacity-50 dark:bg-input/30";
 
@@ -41,9 +53,12 @@ export function PendingList({
         : [...draft.exclude, ticker],
     });
 
+  // As que esperam resposta vêm primeiro; as já preenchidas seguem abaixo, para conferir.
+  const ordered = [...preview.pending].sort((a, b) => Number(isOpen(b)) - Number(isOpen(a)));
+
   return (
     <ul className="grid gap-4">
-      {preview.pending.map((item) => {
+      {ordered.map((item) => {
         const out = excluded.has(item.ticker);
         const stored =
           item.type !== "CONVERSAO" && item.price !== null && draft.prices[item.id] === undefined;
@@ -104,7 +119,7 @@ export function PendingList({
               )}
               {stored ? (
                 <Badge variant="outline">
-                  {item.priceSource === "ESTIMADO" ? "estimado" : "informado por você"} ·{" "}
+                  {PRICE_ORIGIN[item.priceSource ?? ""] ?? "já preenchido"} ·{" "}
                   {formatBRL(item.price ?? 0)}
                 </Badge>
               ) : null}

@@ -65,13 +65,17 @@ export function FilePicker({
         <ul className="grid gap-1.5">
           {files.map((file) => (
             <li key={`${file.name}-${file.size}`} className="flex items-center gap-2 text-sm">
-              <FileSpreadsheetIcon className="size-4 text-[var(--switch-on)]" aria-hidden="true" />
-              <span className="truncate">{file.name}</span>
-              <span className="text-xs text-muted-foreground">
+              <FileSpreadsheetIcon
+                className="size-4 shrink-0 text-[var(--switch-on)]"
+                aria-hidden="true"
+              />
+              <span className="min-w-0 flex-1 truncate">{file.name}</span>
+              <span className="shrink-0 text-xs text-muted-foreground">
                 {Math.ceil(file.size / 1024)} KB
               </span>
               <Button
                 type="button"
+                className="shrink-0"
                 variant="ghost"
                 size="icon-xs"
                 aria-label={`Tirar ${file.name}`}

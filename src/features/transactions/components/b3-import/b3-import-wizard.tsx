@@ -12,7 +12,7 @@ import { confirmB3ImportAction, previewB3ImportAction } from "../../actions";
 import type { B3ImportPreview } from "../../import/b3/types";
 import { emptyDraft, toAnswers, type AnswersDraft } from "./answers";
 import { FilePicker } from "./file-picker";
-import { PendingList } from "./pending-list";
+import { isOpen, PendingList } from "./pending-list";
 import { DividendCheck, IgnoredAndWarnings, PreviewSummary, TickerTable } from "./preview-sections";
 
 /** Importação dos extratos da B3: arquivos → prévia (com pendências) → importar. */
@@ -120,7 +120,11 @@ export function B3ImportWizard() {
             <Card>
               <CardHeader>
                 <CardTitle>Pendências</CardTitle>
-                <CardDescription>O que a B3 não informa e só você sabe.</CardDescription>
+                <CardDescription>
+                  O que a B3 não informa e só você sabe. {preview.pending.filter(isOpen).length} sem
+                  resposta; as demais já vêm preenchidas (da sua planilha ou de um envio anterior) e
+                  podem ser corrigidas.
+                </CardDescription>
               </CardHeader>
               <CardContent>
                 <PendingList preview={preview} draft={draft} onChange={change} />

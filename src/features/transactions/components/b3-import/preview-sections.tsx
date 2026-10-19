@@ -9,14 +9,15 @@ const FILE_LABELS = {
   MOVIMENTACAO: "Movimentação",
   PLANILHA: "Sua planilha",
 } as const;
-const KIND_LABELS: Record<string, string> = {
-  NEGOCIO: "negócios",
-  SUBSCRICAO: "subscrições",
-  DESDOBRO: "desdobros",
-  INCORPORACAO: "lançamentos de conversão",
-  FRACAO: "leilões de fração",
-  POSICAO_ANTERIOR: "posições anteriores",
+const KIND_LABELS: Record<string, [string, string]> = {
+  NEGOCIO: ["negócio", "negócios"],
+  SUBSCRICAO: ["subscrição", "subscrições"],
+  DESDOBRO: ["desdobro", "desdobros"],
+  INCORPORACAO: ["lançamento de conversão", "lançamentos de conversão"],
+  FRACAO: ["leilão de fração", "leilões de fração"],
+  POSICAO_ANTERIOR: ["posição anterior", "posições anteriores"],
 };
+const kindLabel = (kind: string, count: number) => KIND_LABELS[kind]?.[count === 1 ? 0 : 1] ?? kind;
 const SOURCE_LABELS: Record<string, string> = {
   MANUAL: "manuais",
   PLANILHA: "da planilha",
@@ -52,7 +53,7 @@ export function PreviewSummary({ preview }: { preview: B3ImportPreview }) {
         </div>
         <p className="text-muted-foreground">
           {totals
-            .map(([kind, count]) => `${formatQuantity(count ?? 0)} ${KIND_LABELS[kind] ?? kind}`)
+            .map(([kind, count]) => `${formatQuantity(count ?? 0)} ${kindLabel(kind, count ?? 0)}`)
             .join(" · ")}
         </p>
         <p>

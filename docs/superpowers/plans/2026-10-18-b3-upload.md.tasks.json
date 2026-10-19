@@ -28,12 +28,12 @@
     {
       "id": 4,
       "subject": "Task 4: Conferência na prévia isolada",
-      "status": "in_progress",
+      "status": "completed",
       "description": "**Goal:** Importar os extratos reais pela tela, num banco de prévia vazio, e conferir:\n\n**Files:**\n- Create (fora do repositório, no scratchpad): `aporte/seed-preview.ts` com a opção de carteira vazia, `shots-tool/upload-b3.mjs`\n\n**Acceptance Criteria:**\n- [ ] A prévia dos 3 arquivos reais lista as pendências conhecidas: 3 preços de subscrição, as posições anteriores e 2 conversões com sugestão\n- [ ] Com os preços respondidos (os mesmos estimados da carga de produção), \"Importar\" grava, e a carteira da prévia fica com os mesmos lançamentos B3 da produção (mesma contagem e mesmas posições)\n- [ ] Reenvio dos mesmos arquivos: \"0 novos · 0 saem\", respostas preenchidas como \"informado por você\"; importar devolve \"Nada mudou\"\n- [ ] Arquivo não .xlsx e arquivo repetido dão a mensagem certa\n- [ ] Screenshots da tela em claro, escuro e 390 px, sem rolagem horizontal\n- [ ] `npm run -s format:check`, `lint`, `typecheck` e `build` passam\n- [ ] Banco de prévia apagado e sessão revogada no fim\n\n**Verify:** saída do `upload-b3.mjs` com as contagens batendo com a produção\n\n```json:metadata\n{\"files\":[\"aporte/seed-preview.ts\",\"shots-tool/upload-b3.mjs\"],\"verifyCommand\":\"upload-b3.mjs\",\"acceptanceCriteria\":[\"A prévia dos 3 arquivos reais lista as pendências conhecidas: 3 preços de subscrição, as posições anteriores e 2 conversões com sugestão\",\"Com os preços respondidos (os mesmos estimados da carga de produção), \\\"Importar\\\" grava, e a carteira da prévia fica com os mesmos lançamentos B3 da produção (mesma contagem e mesmas posições)\",\"Reenvio dos mesmos arquivos: \\\"0 novos · 0 saem\\\", respostas preenchidas como \\\"informado por você\\\"; importar devolve \\\"Nada mudou\\\"\",\"Arquivo não .xlsx e arquivo repetido dão a mensagem certa\",\"Screenshots da tela em claro, escuro e 390 px, sem rolagem horizontal\",\"`npm run -s format:check`, `lint`, `typecheck` e `build` passam\",\"Banco de prévia apagado e sessão revogada no fim\"]}\n```",
       "blockedBy": [
         3
       ]
     }
   ],
-  "lastUpdated": "2026-10-19T00:27:53.080Z"
+  "lastUpdated": "2026-10-19T00:38:48.611Z"
 }
