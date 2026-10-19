@@ -1,5 +1,5 @@
 import { sortLedger, type DividendEntry, type LedgerEntry } from "@/features/transactions";
-import { addMonths, currentMonthKey, monthKeyOfTradeDate } from "@/shared/lib/time";
+import { addMonths, currentMonthKey, monthKeyOfTradeDate, todayTradeDate } from "@/shared/lib/time";
 import type {
   AdjustedResult,
   DividendMonthGroup,
@@ -43,12 +43,14 @@ export function upcomingDividends(input: {
 }): UpcomingDividend[] {
   const month = currentMonthKey(input.now);
   const firstMonth = addMonths(month, -1);
+  // Datas ex são datas de negócio (meia-noite UTC): compara com o dia de hoje em São Paulo.
+  const today = todayTradeDate(input.now);
   const result: UpcomingDividend[] = [];
   for (const [ticker, list] of input.announcements) {
     for (const announcement of list) {
       const exMonth = monthKeyOfTradeDate(announcement.exDate);
       if (exMonth < firstMonth || exMonth > month) continue;
-      if (announcement.exDate.getTime() > input.now.getTime()) continue;
+      if (announcement.exDate.getTime() > today.getTime()) continue;
       const paid = input.received.some(
         (item) => item.ticker === ticker && item.paidAt.getTime() >= announcement.exDate.getTime(),
       );
