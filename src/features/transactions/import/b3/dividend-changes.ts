@@ -16,6 +16,27 @@ export const dividendSignature = (item: DividendEntry): string =>
   ].join("|");
 
 /**
+ * O escopo da troca: o FII é um dos `tickers` e o pagamento cai dentro de `period` (inclusive).
+ * Escrito em positivo, então uma data inválida fica fora do escopo.
+ */
+function scopeTest({ period, tickers }: Pick<PlannedDividends, "period" | "tickers">) {
+  const scope = new Set(tickers);
+  return (item: DividendEntry) =>
+    scope.has(item.ticker) && item.paidAt >= period.start && item.paidAt <= period.end;
+}
+
+/**
+ * Algum provento a gravar cai fora do escopo da troca? Com o plano isso não acontece: `tickers`
+ * inclui todos os FIIs dos proventos e o período é o dos próprios extratos. É a trava de quem
+ * chama o repositório direto, pois um provento fora do escopo não seria removido num reenvio
+ * (ficaria repetido) e, com `tickers` vazio, seria descartado sem aviso.
+ */
+export function hasDividendOutsideScope(planned: PlannedDividends): boolean {
+  const isInScope = scopeTest(planned);
+  return planned.inserts.some((item) => !isInScope(item));
+}
+
+/**
  * Quantos proventos realmente mudam na troca do plano. Só conta o escopo da troca: os FIIs de
  * `planned.tickers`, com `paidAt` dentro de `planned.period` (inclusive). O resto fica como está.
  * Compara por assinatura, contando repetições (o mesmo FII em duas corretoras paga duas linhas
@@ -25,13 +46,13 @@ export function compareDividends(
   planned: PlannedDividends,
   existing: readonly DividendEntry[],
 ): B3DividendChanges {
-  const { period, tickers, inserts } = planned;
-  const scope = new Set(tickers);
+  const { inserts } = planned;
+  const isInScope = scopeTest(planned);
   const pool = new Map<string, number>();
-  let inScope = 0;
+  let storedInScope = 0;
   for (const item of existing) {
-    if (!scope.has(item.ticker) || item.paidAt < period.start || item.paidAt > period.end) continue;
-    inScope++;
+    if (!isInScope(item)) continue;
+    storedInScope++;
     const key = dividendSignature(item);
     pool.set(key, (pool.get(key) ?? 0) + 1);
   }
@@ -44,5 +65,5 @@ export function compareDividends(
       unchanged++;
     }
   }
-  return { added: inserts.length - unchanged, removed: inScope - unchanged, unchanged };
+  return { added: inserts.length - unchanged, removed: storedInScope - unchanged, unchanged };
 }

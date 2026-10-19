@@ -218,7 +218,8 @@ export async function confirmB3Import(
     if (entriesChanged || dividendsChanged) {
       // Só troca o que mudou. `compare` só conta como "já igual" a linha da B3 a remover que tem um
       // insert idêntico: com zero novos e zero que saem, `removeIds` e `inserts` são o mesmo
-      // conjunto, e trocar um pelo outro não muda nada. O mesmo vale para os proventos.
+      // multiconjunto (as repetições contam), e trocar um pelo outro não muda nada. O mesmo vale
+      // para os proventos.
       await applyTransactionChanges(tenant.portfolioId, {
         removeIds: entriesChanged ? plan.removeIds : [],
         inserts: entriesChanged ? plan.inserts : [],

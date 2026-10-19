@@ -2,6 +2,7 @@ import "server-only";
 import mongoose, { Types } from "mongoose";
 import { connectMongo } from "@/shared/db/mongo";
 import type { LedgerEntry, PriceSource, TransactionKind, TransactionType } from "../domain/types";
+import { hasDividendOutsideScope } from "../import/b3/dividend-changes";
 import type { PlannedDividends } from "../import/b3/types";
 import { DividendModel } from "./dividend.model";
 import { TransactionModel, type TransactionDoc, type TransactionSource } from "./transaction.model";
@@ -119,7 +120,7 @@ export async function deleteTransaction(portfolioId: string, id: string): Promis
 /**
  * Troca lançamentos de uma vez, numa transação do Mongo: remove `removeIds` (só desta carteira)
  * e insere `inserts`. Com `dividends`, troca também os proventos dos FIIs do escopo dentro do
- * período do extrato. Ou entra tudo, ou nada.
+ * período do extrato; um provento novo fora desse escopo é erro. Ou entra tudo, ou nada.
  */
 export async function applyTransactionChanges(
   portfolioId: string,
@@ -170,6 +171,12 @@ export async function applyTransactionChanges(
         );
         inserted = docs.length;
       }
+      if (changes.dividends && hasDividendOutsideScope(changes.dividends)) {
+        // Fora do escopo, o provento não seria removido num reenvio (ficaria repetido) e, com
+        // `tickers` vazio, seria descartado sem aviso. O erro desfaz a transação inteira.
+        throw new Error("Provento fora do escopo da troca.");
+      }
+      // Escopo vazio: pela trava acima também não há proventos novos, então não há o que trocar.
       if (changes.dividends && changes.dividends.tickers.length > 0) {
         // "A B3 manda": no período do extrato, os proventos de cada FII do escopo são os do extrato.
         const { period, tickers, inserts } = changes.dividends;

@@ -16,6 +16,11 @@ import { FilePicker } from "./file-picker";
 import { isOpen, PendingList } from "./pending-list";
 import { DividendCheck, IgnoredAndWarnings, PreviewSummary, TickerTable } from "./preview-sections";
 
+/** "1 novo" ou "N novos", com o separador de milhar em pt-BR. */
+const novos = (count: number) => `${formatQuantity(count)} ${count === 1 ? "novo" : "novos"}`;
+/** "1 saiu" ou "N saíram". */
+const sairam = (count: number) => `${formatQuantity(count)} ${count === 1 ? "saiu" : "saíram"}`;
+
 /** Mensagem do aviso depois de importar: só cita o que mudou de fato (as contagens da prévia). */
 function importedMessage(result: B3ImportResult | undefined): string {
   const nothing = "Nada mudou: a carteira já está igual aos extratos.";
@@ -23,14 +28,10 @@ function importedMessage(result: B3ImportResult | undefined): string {
   const parts: string[] = [];
   const { changes, dividendChanges } = result;
   if (changes.added + changes.removed > 0) {
-    parts.push(
-      `Lançamentos: ${formatQuantity(changes.added)} novos, ${formatQuantity(changes.removed)} saíram`,
-    );
+    parts.push(`Lançamentos: ${novos(changes.added)}, ${sairam(changes.removed)}`);
   }
   if (dividendChanges.added + dividendChanges.removed > 0) {
-    parts.push(
-      `Proventos: ${formatQuantity(dividendChanges.added)} novos, ${formatQuantity(dividendChanges.removed)} saíram`,
-    );
+    parts.push(`Proventos: ${novos(dividendChanges.added)}, ${sairam(dividendChanges.removed)}`);
   }
   return parts.length > 0 ? `Importado. ${parts.join(" · ")}.` : nothing;
 }
