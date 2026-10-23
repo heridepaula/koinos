@@ -203,3 +203,47 @@ export type DividendsView = {
   /** Algum provento da B3 já foi importado. */
   imported: boolean;
 };
+
+/** Compra paga em dinheiro (negócio ou subscrição), como o relatório de reinvestimento lista. */
+export type MonthPurchase = {
+  date: Date;
+  ticker: string;
+  kind: "NEGOCIO" | "SUBSCRICAO";
+  quantity: number;
+  unitPrice: number;
+  fees: number;
+  total: number;
+};
+
+/** Divisão do aporte do mês entre proventos reinvestidos e dinheiro do bolso. */
+export type ReinvestmentSplit = {
+  fromDividends: number;
+  fromPocket: number;
+  /** Proventos que a % mandaria reinvestir mas que não tiveram compra no mês. */
+  unspent: number;
+  /** Participação dos proventos no aporte; null sem aporte. */
+  dividendsShare: number | null;
+};
+
+export type ReinvestmentMonth = ReinvestmentSplit & {
+  month: string;
+  aporte: number;
+  /** Quantas compras em dinheiro o mês teve. */
+  purchaseCount: number;
+  dividends: number;
+  percent: number;
+  /** O mês não tem % salva: vale a padrão (100%). */
+  isDefault: boolean;
+};
+
+/** Tela de reinvestimento: o mês escolhido, as compras dele e o histórico. */
+export type ReinvestmentView = {
+  month: string;
+  /** Meses do seletor (do mais recente ao mais antigo): os com compra ou provento e o atual. */
+  months: string[];
+  current: ReinvestmentMonth;
+  purchases: (MonthPurchase & AssetMeta)[];
+  /** Os últimos 24 meses, do mais antigo ao mais recente. */
+  history: ReinvestmentMonth[];
+  last12: { aporte: number; fromDividends: number; share: number | null };
+};

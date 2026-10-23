@@ -11,6 +11,14 @@ export {
   quantityBefore,
   upcomingDividends,
 } from "./domain/dividends";
+export {
+  DEFAULT_REINVESTMENT_PERCENT,
+  monthPurchases,
+  reinvestmentHistory,
+  reinvestmentMonths,
+  splitAporte,
+  summarizeReinvestment,
+} from "./domain/reinvestment";
 export type {
   AdjustedResult,
   AllocationSlice,
@@ -21,10 +29,14 @@ export type {
   DividendTickerGroup,
   DividendYearGroup,
   EvolutionPoint,
+  MonthPurchase,
   PortfolioAlert,
   PortfolioSnapshot,
   PortfolioSummary,
   PositionRow,
+  ReinvestmentMonth,
+  ReinvestmentSplit,
+  ReinvestmentView,
   StrategyRow,
   UpcomingDividend,
 } from "./domain/types";
