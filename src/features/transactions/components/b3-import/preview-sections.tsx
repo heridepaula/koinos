@@ -2,7 +2,14 @@ import { formatBRL, formatQuantity, formatTradeDate } from "@/shared/lib/format"
 import { Badge } from "@/shared/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/shared/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/shared/ui/table";
-import type { B3ImportPreview } from "../../import/b3/types";
+import type { DividendKind, TransactionKind } from "../../domain/types";
+import type {
+  B3ImportPreview,
+  PlannedDividend,
+  PlannedTransaction,
+  StoredLedgerRow,
+} from "../../import/b3/types";
+import { isOpen } from "./pending-list";
 
 const FILE_LABELS = {
   NEGOCIACAO: "Negociação",
@@ -10,17 +17,19 @@ const FILE_LABELS = {
   EVENTOS: "Eventos",
   PLANILHA: "Sua planilha",
 } as const;
-const KIND_LABELS: Record<string, [string, string]> = {
-  NEGOCIO: ["negócio", "negócios"],
-  SUBSCRICAO: ["subscrição", "subscrições"],
-  DESDOBRO: ["desdobro", "desdobros"],
-  INCORPORACAO: ["lançamento de conversão", "lançamentos de conversão"],
-  FRACAO: ["leilão de fração", "leilões de fração"],
-  POSICAO_ANTERIOR: ["posição anterior", "posições anteriores"],
+const KIND_LABELS: Record<Exclude<TransactionKind, "NEGOCIO">, string> = {
+  SUBSCRICAO: "Subscrição",
+  DESDOBRO: "Desdobro",
+  INCORPORACAO: "Incorporação",
+  FRACAO: "Leilão de fração",
+  POSICAO_ANTERIOR: "Posição anterior",
 };
-const kindLabel = (kind: string, count: number) => KIND_LABELS[kind]?.[count === 1 ? 0 : 1] ?? kind;
-const SOURCE_LABELS: Record<string, string> = {
-  MANUAL: "manuais",
+const DIVIDEND_LABELS: Record<DividendKind, string> = {
+  RENDIMENTO: "Rendimento",
+  REEMBOLSO: "Reembolso",
+};
+const SOURCE_LABELS: Record<StoredLedgerRow["source"], string> = {
+  MANUAL: "manual",
   PLANILHA: "da planilha",
   B3: "da B3",
 };
@@ -29,22 +38,72 @@ const STATUS = {
   PENDENTE: { label: "pendente", variant: "default" },
   FORA: { label: "de fora", variant: "outline" },
 } as const;
+// A primeira e a última célula de cada linha encostam na margem do card.
+const ROW_EDGES = "[&>td:first-child]:pl-6 [&>td:last-child]:pr-6";
+
+/** "1 novo" ou "N novos", com o separador de milhar em pt-BR. */
+export const novos = (count: number) =>
+  `${formatQuantity(count)} ${count === 1 ? "novo" : "novos"}`;
+/** "1 substituído" ou "N substituídos". */
+export const substituidos = (count: number) =>
+  `${formatQuantity(count)} ${count === 1 ? "substituído" : "substituídos"}`;
+/** "1 item" ou "N itens". */
+export const itens = (count: number) =>
+  `${formatQuantity(count)} ${count === 1 ? "item" : "itens"}`;
+const iguais = (count: number) => `${formatQuantity(count)} ${count === 1 ? "igual" : "iguais"}`;
+
+const entryType = (entry: PlannedTransaction) =>
+  entry.kind === "NEGOCIO"
+    ? entry.type === "BUY"
+      ? "Compra"
+      : "Venda"
+    : `${KIND_LABELS[entry.kind]} (${entry.type === "BUY" ? "entrada" : "saída"})`;
+
+/** Os avisos da §5 do spec que não bloqueiam: FIIs de fora e "a receber" fora da carteira. */
+const warningsOf = (preview: B3ImportPreview) => ({
+  outside: preview.tickers.filter((item) => item.status === "FORA"),
+  mismatches: preview.forecastMismatches,
+});
 
 export function PreviewSummary({ preview }: { preview: B3ImportPreview }) {
-  const totals = Object.entries(preview.totals).filter(([, count]) => count);
-  const removedBySource = Object.entries(preview.removedBySource).filter(([, count]) => count);
+  const { entries, dividends, upcoming } = preview;
+  const { outside, mismatches } = warningsOf(preview);
+  const inconsistencies =
+    preview.pending.filter(isOpen).length +
+    preview.check.unexplained.length +
+    outside.length +
+    mismatches.length;
   const unconfirmed = preview.tickers.filter((item) => item.unconfirmed > 0);
+  const rows = [
+    {
+      label: "Lançamentos",
+      value: `${novos(entries.added.length)} · ${substituidos(entries.replaced.length)} · ${iguais(entries.unchanged)}`,
+    },
+    {
+      label: "Proventos recebidos",
+      value: `${novos(dividends.added.length)} · ${substituidos(dividends.replaced.length)} · ${iguais(dividends.unchanged)}`,
+    },
+    {
+      label: "A receber",
+      value: `${itens(upcoming.items.length)} · ${formatBRL(upcoming.total)} · ${upcoming.changed ? "passa a valer em Proventos" : "igual ao que já está gravado"}`,
+    },
+    {
+      label: "Inconsistências",
+      value: inconsistencies === 0 ? "nenhuma" : `${formatQuantity(inconsistencies)}: veja abaixo`,
+    },
+  ];
   return (
     <Card>
       <CardHeader>
         <CardTitle>Prévia</CardTitle>
         <CardDescription>
-          Extratos de {formatTradeDate(preview.period.start)} a{" "}
-          {formatTradeDate(preview.period.end)}. Nesse período, os lançamentos de FIIs passam a ser
-          os da B3.
+          Lançamentos de {formatTradeDate(preview.period.start)} a{" "}
+          {formatTradeDate(preview.period.end)} e proventos de{" "}
+          {formatTradeDate(dividends.period.start)} a {formatTradeDate(dividends.period.end)}. Nesse
+          período, o que a B3 mostra substitui o que está gravado.
         </CardDescription>
       </CardHeader>
-      <CardContent className="grid gap-3 text-sm">
+      <CardContent className="grid gap-4 text-sm">
         <div className="flex flex-wrap gap-2">
           {preview.files.map((kind) => (
             <Badge key={kind} variant="secondary">
@@ -52,32 +111,304 @@ export function PreviewSummary({ preview }: { preview: B3ImportPreview }) {
             </Badge>
           ))}
         </div>
-        <p className="text-muted-foreground">
-          {totals
-            .map(([kind, count]) => `${formatQuantity(count ?? 0)} ${kindLabel(kind, count ?? 0)}`)
-            .join(" · ")}
-        </p>
-        <p>
-          <strong>{formatQuantity(preview.changes.added)}</strong> lançamentos novos ·{" "}
-          <strong>{formatQuantity(preview.changes.removed)}</strong> saem ·{" "}
-          {formatQuantity(preview.changes.unchanged)} já iguais
-          {removedBySource.length > 0
-            ? ` (a troca inclui ${removedBySource
-                .map(([source, count]) => `${count} ${SOURCE_LABELS[source] ?? source}`)
-                .join(", ")})`
-            : ""}
-        </p>
-        <p>
-          <strong>{formatQuantity(preview.dividendChanges.added)}</strong> proventos novos ·{" "}
-          <strong>{formatQuantity(preview.dividendChanges.removed)}</strong> saem ·{" "}
-          {formatQuantity(preview.dividendChanges.unchanged)} já iguais
-        </p>
+        <dl className="grid gap-2 sm:grid-cols-[auto_1fr] sm:gap-x-6">
+          {rows.map((row) => (
+            <div key={row.label} className="contents">
+              <dt className="font-medium">{row.label}</dt>
+              <dd className="text-muted-foreground tabular-nums">{row.value}</dd>
+            </div>
+          ))}
+        </dl>
         {unconfirmed.length > 0 ? (
           <p className="text-muted-foreground">
             Sem confirmação da B3 no período (saem):{" "}
             {unconfirmed.map((item) => `${item.ticker} (${item.unconfirmed})`).join(", ")}
           </p>
         ) : null}
+        {preview.nothingNew ? (
+          <p className="rounded-xl border bg-muted/40 px-4 py-3 font-medium">
+            Nada novo: a carteira já está igual aos extratos.
+          </p>
+        ) : null}
+      </CardContent>
+    </Card>
+  );
+}
+
+function EntryHead({ label }: { label?: string }) {
+  return (
+    <TableRow>
+      {label ? <TableHead className="pl-6">{label}</TableHead> : null}
+      <TableHead className={label ? undefined : "pl-6"}>Data</TableHead>
+      <TableHead>FII</TableHead>
+      <TableHead className="hidden @min-[480px]:table-cell">Tipo</TableHead>
+      <TableHead className="hidden text-right @min-[600px]:table-cell">Cotas</TableHead>
+      <TableHead className="hidden text-right @min-[600px]:table-cell">Preço</TableHead>
+      <TableHead className="pr-6 text-right">Valor</TableHead>
+    </TableRow>
+  );
+}
+
+function EntryCells({ entry }: { entry: PlannedTransaction }) {
+  return (
+    <>
+      <TableCell className="tabular-nums">{formatTradeDate(entry.date)}</TableCell>
+      <TableCell className="font-medium">{entry.ticker}</TableCell>
+      <TableCell className="hidden @min-[480px]:table-cell">{entryType(entry)}</TableCell>
+      <TableCell className="hidden text-right tabular-nums @min-[600px]:table-cell">
+        {formatQuantity(entry.quantity)}
+      </TableCell>
+      <TableCell className="hidden text-right tabular-nums @min-[600px]:table-cell">
+        {formatBRL(entry.unitPrice)}
+      </TableCell>
+      <TableCell className="text-right tabular-nums">
+        {formatBRL(entry.quantity * entry.unitPrice + entry.fees)}
+      </TableCell>
+    </>
+  );
+}
+
+function DividendHead({ label }: { label?: string }) {
+  return (
+    <TableRow>
+      {label ? <TableHead className="pl-6">{label}</TableHead> : null}
+      <TableHead className={label ? undefined : "pl-6"}>Pagamento</TableHead>
+      <TableHead>FII</TableHead>
+      <TableHead className="hidden @min-[480px]:table-cell">Tipo</TableHead>
+      <TableHead className="hidden text-right @min-[600px]:table-cell">Cotas</TableHead>
+      <TableHead className="pr-6 text-right">Valor</TableHead>
+    </TableRow>
+  );
+}
+
+function DividendCells({ item }: { item: PlannedDividend }) {
+  return (
+    <>
+      <TableCell className="tabular-nums">{formatTradeDate(item.paidAt)}</TableCell>
+      <TableCell className="font-medium">{item.ticker}</TableCell>
+      <TableCell className="hidden @min-[480px]:table-cell">{DIVIDEND_LABELS[item.kind]}</TableCell>
+      <TableCell className="hidden text-right tabular-nums @min-[600px]:table-cell">
+        {item.quantity !== null ? formatQuantity(item.quantity) : "—"}
+      </TableCell>
+      <TableCell className="text-right tabular-nums">{formatBRL(item.amount)}</TableCell>
+    </>
+  );
+}
+
+/** Lançamentos e proventos que entram sem substituir nada. */
+export function NewRows({ preview }: { preview: B3ImportPreview }) {
+  const { entries, dividends } = preview;
+  return (
+    <>
+      {entries.added.length > 0 ? (
+        <Card>
+          <CardHeader>
+            <CardTitle>Lançamentos novos</CardTitle>
+            <CardDescription>Entram na carteira com a origem B3.</CardDescription>
+          </CardHeader>
+          <CardContent className="@container px-0">
+            <Table>
+              <TableHeader>
+                <EntryHead />
+              </TableHeader>
+              <TableBody>
+                {entries.added.map((entry, index) => (
+                  <TableRow key={index} className={ROW_EDGES}>
+                    <EntryCells entry={entry} />
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </CardContent>
+        </Card>
+      ) : null}
+      {dividends.added.length > 0 ? (
+        <Card>
+          <CardHeader>
+            <CardTitle>Proventos novos</CardTitle>
+            <CardDescription>
+              Rendimentos e reembolsos que a Movimentação mostra como pagos.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="@container px-0">
+            <Table>
+              <TableHeader>
+                <DividendHead />
+              </TableHeader>
+              <TableBody>
+                {dividends.added.map((item, index) => (
+                  <TableRow key={index} className={ROW_EDGES}>
+                    <DividendCells item={item} />
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </CardContent>
+        </Card>
+      ) : null}
+    </>
+  );
+}
+
+/** Cada linha gravada que a B3 troca, com a do extrato logo abaixo. */
+export function Replacements({ preview }: { preview: B3ImportPreview }) {
+  const { entries, dividends } = preview;
+  if (entries.replaced.length === 0 && dividends.replaced.length === 0) return null;
+  const gone = (columns: number) => (
+    <TableCell colSpan={columns} className="text-muted-foreground">
+      A B3 não mostra mais: sai.
+    </TableCell>
+  );
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle>Substituídos pela B3</CardTitle>
+        <CardDescription>
+          Onde o extrato diverge do que está gravado, vale o extrato: a linha gravada sai e a do
+          extrato entra.
+        </CardDescription>
+      </CardHeader>
+      <CardContent className="@container grid gap-6 px-0">
+        {entries.replaced.length > 0 ? (
+          <Table>
+            <TableHeader>
+              <EntryHead label="Lançamento" />
+            </TableHeader>
+            <TableBody>
+              {entries.replaced.flatMap(({ before, after }, index) => [
+                <TableRow key={`${index}-gravado`} className={`border-b-0 ${ROW_EDGES}`}>
+                  <TableCell className="text-muted-foreground">
+                    Gravado ({SOURCE_LABELS[before.source]})
+                  </TableCell>
+                  <EntryCells entry={before} />
+                </TableRow>,
+                <TableRow key={`${index}-extrato`} className={ROW_EDGES}>
+                  <TableCell className="font-medium">Extrato</TableCell>
+                  {after ? <EntryCells entry={after} /> : gone(6)}
+                </TableRow>,
+              ])}
+            </TableBody>
+          </Table>
+        ) : null}
+        {dividends.replaced.length > 0 ? (
+          <Table>
+            <TableHeader>
+              <DividendHead label="Provento" />
+            </TableHeader>
+            <TableBody>
+              {dividends.replaced.flatMap(({ before, after }, index) => [
+                <TableRow key={`${index}-gravado`} className={`border-b-0 ${ROW_EDGES}`}>
+                  <TableCell className="text-muted-foreground">Gravado</TableCell>
+                  <DividendCells item={before} />
+                </TableRow>,
+                <TableRow key={`${index}-extrato`} className={ROW_EDGES}>
+                  <TableCell className="font-medium">Extrato</TableCell>
+                  {after ? <DividendCells item={after} /> : gone(5)}
+                </TableRow>,
+              ])}
+            </TableBody>
+          </Table>
+        ) : null}
+      </CardContent>
+    </Card>
+  );
+}
+
+/** A foto do "a receber" que o extrato de Eventos traz. */
+export function UpcomingPreview({ preview }: { preview: B3ImportPreview }) {
+  const { upcoming } = preview;
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle>A receber</CardTitle>
+        <CardDescription>
+          Proventos a Receber da B3 em {formatTradeDate(upcoming.asOf)}.{" "}
+          {upcoming.changed
+            ? "A lista inteira passa a valer em Proventos, no lugar da anterior."
+            : "É a mesma lista que já está gravada."}
+        </CardDescription>
+      </CardHeader>
+      <CardContent className="@container px-0">
+        {upcoming.items.length === 0 ? (
+          <p className="px-6 text-sm text-muted-foreground">
+            A B3 não lista nenhum rendimento de FII a receber.
+          </p>
+        ) : (
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead className="pl-6">FII</TableHead>
+                <TableHead className="hidden @min-[480px]:table-cell">Tipo</TableHead>
+                <TableHead className="hidden text-right @min-[600px]:table-cell">Cotas</TableHead>
+                <TableHead className="hidden text-right @min-[600px]:table-cell">
+                  Por cota
+                </TableHead>
+                <TableHead className="text-right">Valor</TableHead>
+                <TableHead className="pr-6 text-right">Pagamento</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {upcoming.items.map((item, index) => (
+                <TableRow key={`${item.ticker}-${index}`} className={ROW_EDGES}>
+                  <TableCell className="font-medium">{item.ticker}</TableCell>
+                  <TableCell className="hidden @min-[480px]:table-cell">
+                    {DIVIDEND_LABELS[item.kind]}
+                  </TableCell>
+                  <TableCell className="hidden text-right tabular-nums @min-[600px]:table-cell">
+                    {item.quantity !== null ? formatQuantity(item.quantity) : "—"}
+                  </TableCell>
+                  <TableCell className="hidden text-right tabular-nums @min-[600px]:table-cell">
+                    {item.perShare !== null ? formatBRL(item.perShare) : "—"}
+                  </TableCell>
+                  <TableCell className="text-right font-medium tabular-nums">
+                    {formatBRL(item.amount)}
+                  </TableCell>
+                  <TableCell className="text-right whitespace-nowrap text-muted-foreground tabular-nums">
+                    {item.payDate ? formatTradeDate(item.payDate) : "sem data"}
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
+/** FIIs que ficam de fora e "a receber" que não bate com a carteira: só avisam. */
+export function Inconsistencies({ preview }: { preview: B3ImportPreview }) {
+  const { outside, mismatches } = warningsOf(preview);
+  if (outside.length === 0 && mismatches.length === 0) return null;
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle>Inconsistências</CardTitle>
+        <CardDescription>Não bloqueiam a atualização, mas valem uma conferência.</CardDescription>
+      </CardHeader>
+      <CardContent className="text-sm">
+        <ul className="grid gap-2">
+          {outside.map((item) => (
+            <li key={`fora-${item.ticker}`}>
+              <span className="font-medium">{item.ticker}</span> fica de fora:{" "}
+              {item.reasons.join(" ")}{" "}
+              <span className="text-muted-foreground">
+                O que ele já tem na carteira continua como está.
+              </span>
+            </li>
+          ))}
+          {mismatches.map((item, index) => (
+            <li key={`receber-${item.ticker}-${index}`}>
+              <span className="font-medium">{item.ticker}</span>:{" "}
+              {item.held < 1e-6
+                ? "a B3 lista um provento a receber, mas a carteira não tem cotas dele."
+                : `a B3 lista ${formatQuantity(item.quantity ?? 0)} cotas a receber, e a carteira tem ${formatQuantity(item.held)}.`}{" "}
+              <span className="text-muted-foreground">
+                Confira: pode ser compra ou venda depois da data com.
+              </span>
+            </li>
+          ))}
+        </ul>
       </CardContent>
     </Card>
   );
@@ -88,7 +419,7 @@ export function TickerTable({ preview }: { preview: B3ImportPreview }) {
     <Card>
       <CardHeader>
         <CardTitle>Situação por FII</CardTitle>
-        <CardDescription>Como cada FII fica depois da importação.</CardDescription>
+        <CardDescription>Como cada FII fica depois da atualização.</CardDescription>
       </CardHeader>
       <CardContent className="px-0">
         <Table>
@@ -140,6 +471,9 @@ export function IgnoredAndWarnings({ preview }: { preview: B3ImportPreview }) {
     <Card>
       <CardHeader>
         <CardTitle>Ignorados e avisos</CardTitle>
+        <CardDescription>
+          O app acompanha só os FIIs: o resto dos extratos fica de fora, agrupado por motivo.
+        </CardDescription>
       </CardHeader>
       <CardContent className="grid gap-2 text-sm">
         {preview.ignored.map((group) => (

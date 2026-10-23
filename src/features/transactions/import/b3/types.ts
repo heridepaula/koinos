@@ -79,6 +79,9 @@ export type ExistingTransaction = LedgerEntry & {
   notes: string | null;
 };
 
+/** Provento gravado, como a diferença da atualização precisa enxergar. */
+export type ExistingDividend = DividendEntry & { id: string };
+
 /** Lançamento que o plano manda gravar (sempre com `source: "B3"`). */
 export type PlannedTransaction = {
   ticker: string;
@@ -182,8 +185,6 @@ export type PlannedDividends = {
   inserts: PlannedDividend[];
 };
 
-export type B3DividendChanges = B3ImportChanges;
-
 /** Provento anunciado pela B3 e ainda não pago (extrato de Eventos). */
 export type PlannedForecast = {
   ticker: string;
@@ -220,16 +221,43 @@ export type B3ImportPlan = {
   totals: Partial<Record<TransactionKind, number>>;
 };
 
-export type B3ImportChanges = { added: number; removed: number; unchanged: number };
+/** Uma linha trocada pela B3: a gravada e a do extrato (null quando a B3 não mostra mais). */
+export type Replacement<Before, After> = { before: Before; after: After | null };
 
-/** Prévia que vai para a tela: os lançamentos viram contagens, sem ids internos. */
-export type B3ImportPreview = Omit<B3ImportPlan, "inserts" | "removeIds" | "dividends"> & {
+/** Lançamento gravado que a B3 substitui, como a prévia mostra (sem ids internos). */
+export type StoredLedgerRow = PlannedTransaction & { source: TransactionSource };
+
+/** Prévia que vai para a tela (spec atualizacao-b3, §7), sem ids internos. */
+export type B3ImportPreview = Pick<
+  B3ImportPlan,
+  "period" | "priorDate" | "tickers" | "pending" | "ignored" | "warnings" | "check"
+> & {
   files: B3FileKind[];
-  changes: B3ImportChanges;
-  dividendChanges: B3DividendChanges;
+  entries: {
+    added: PlannedTransaction[];
+    replaced: Replacement<StoredLedgerRow, PlannedTransaction>[];
+    unchanged: number;
+  };
+  dividends: {
+    period: PlannedDividends["period"];
+    added: PlannedDividend[];
+    replaced: Replacement<PlannedDividend, PlannedDividend>[];
+    unchanged: number;
+  };
+  /** A foto nova do "a receber"; `changed` diz se os itens diferem dos gravados. */
+  upcoming: PlannedUpcoming & { total: number; changed: boolean };
+  forecastMismatches: ForecastMismatch[];
+  /** Nada a gravar: lançamentos, proventos e "a receber" já estão iguais aos extratos. */
+  nothingNew: boolean;
   /** Algum FII ainda depende de resposta. */
   blocked: boolean;
 };
 
-/** O que a importação mudou de fato: as mesmas contagens líquidas que a prévia mostrou. */
-export type B3ImportResult = Pick<B3ImportPreview, "changes" | "dividendChanges">;
+export type B3UpdateCounts = { added: number; replaced: number; unchanged: number };
+
+/** O que a atualização gravou: as mesmas contagens que a prévia mostrou. */
+export type B3ImportResult = {
+  entries: B3UpdateCounts;
+  dividends: B3UpdateCounts;
+  upcoming: { items: number; changed: boolean };
+};

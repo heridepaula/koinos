@@ -3,32 +3,37 @@ import readXlsxFile from "read-excel-file/node";
 import { ActionError, type Tenant } from "@/features/auth/server";
 import { readCatalogTypes } from "@/features/market-data/server";
 import { withLock } from "@/shared/db/lock";
+import { todayTradeDate } from "@/shared/lib/time";
+import type { DividendEntry } from "../domain/types";
+import {
+  diffDividends,
+  diffLedger,
+  hasDividendOutsideScope,
+  sameForecast,
+} from "../import/b3/changes";
 import { detectB3File } from "../import/b3/detect";
-import { compareDividends } from "../import/b3/dividend-changes";
 import { B3ImportError, planB3Import } from "../import/b3/plan";
+import { readEventos } from "../import/b3/read-eventos";
 import { readMovimentacao } from "../import/b3/read-movimentacao";
 import { readNegociacao } from "../import/b3/read-negociacao";
 import type {
   B3FileKind,
-  B3ImportChanges,
   B3ImportPlan,
   B3ImportPreview,
   B3ImportResult,
-  PlannedTransaction,
+  ExistingDividend,
+  StoredLedgerRow,
 } from "../import/b3/types";
-import { parsePlanilha, type SheetInput } from "../import/parse-planilha";
+import type { SheetInput } from "../import/parse-planilha";
 import type { B3ImportRequest } from "../schemas";
-import { listDividends } from "./dividend-repo";
-import {
-  applyTransactionChanges,
-  listTransactions,
-  type TransactionRecord,
-} from "./transaction-repo";
+import { getDividendForecast, listDividendRecords } from "./dividend-repo";
+import { applyB3Update, listTransactions, type TransactionRecord } from "./transaction-repo";
 
-// Importação dos extratos da B3 pela tela (spec importacao-b3, §8, §10 e §11). Os arquivos são
-// lidos em memória e descartados; a cada chamada, tudo é recalculado no servidor.
+// Atualização pela B3 (spec atualizacao-b3): os três extratos da Área do Investidor, lidos em
+// memória e descartados. A cada chamada, tudo é recalculado no servidor, e a confirmação grava só
+// a diferença: o que já está igual fica com o mesmo `_id`.
 
-const MAX_FILES = 3;
+const REQUIRED_FILES: readonly B3FileKind[] = ["NEGOCIACAO", "MOVIMENTACAO", "EVENTOS"];
 const MAX_FILE_BYTES = 2 * 1024 * 1024;
 const MAX_ROWS = 50_000;
 const LOCK_TTL_MS = 60_000;
@@ -49,11 +54,10 @@ async function readSheets(file: File): Promise<SheetInput[]> {
   return (await readXlsxFile(bytes)) as unknown as SheetInput[];
 }
 
+/** Exatamente os três extratos (spec atualizacao-b3, §5): falta, sobra ou planilha bloqueiam. */
 async function recognize(files: readonly File[]) {
-  if (files.length === 0 || files.length > MAX_FILES) {
-    throw new ActionError(
-      "Envie os extratos de Negociação e de Movimentação e, se quiser, a sua planilha.",
-    );
+  if (files.length === 0 || files.length > REQUIRED_FILES.length) {
+    throw new ActionError("Envie os três extratos da B3: Negociação, Movimentação e Eventos.");
   }
   const found = new Map<B3FileKind, SheetInput[]>();
   let rows = 0;
@@ -67,27 +71,32 @@ async function recognize(files: readonly File[]) {
         `Não reconheci ${file.name}. Envie os extratos baixados da Área do Investidor da B3.`,
       );
     }
+    if (kind === "PLANILHA") {
+      throw new ActionError("A planilha não é mais usada: envie só os três extratos da B3.");
+    }
     if (found.has(kind)) throw new ActionError(`Chegaram dois arquivos de ${FILE_LABELS[kind]}.`);
     found.set(kind, sheets);
   }
-  const negociacao = found.get("NEGOCIACAO");
-  const movimentacao = found.get("MOVIMENTACAO");
-  if (!negociacao || !movimentacao) {
-    throw new ActionError(`Falta o extrato de ${negociacao ? "Movimentação" : "Negociação"}.`);
+  const missing = REQUIRED_FILES.filter((kind) => !found.has(kind)).map(
+    (kind) => FILE_LABELS[kind],
+  );
+  if (missing.length === 1) throw new ActionError(`Falta o extrato de ${missing[0]}.`);
+  if (missing.length > 1) {
+    throw new ActionError(`Faltam os extratos de ${missing.join(" e de ")}.`);
   }
   return {
-    negociacao,
-    movimentacao,
-    planilha: found.get("PLANILHA") ?? null,
-    kinds: [...found.keys()],
+    negociacao: found.get("NEGOCIACAO")!,
+    movimentacao: found.get("MOVIMENTACAO")!,
+    eventos: found.get("EVENTOS")!,
   };
 }
 
-async function buildPlan(tenant: Tenant, request: B3ImportRequest) {
+async function buildUpdate(tenant: Tenant, request: B3ImportRequest) {
   const files = await recognize(request.files);
-  const [existing, existingDividends, assetTypes] = await Promise.all([
+  const [existing, existingDividends, storedForecast, assetTypes] = await Promise.all([
     listTransactions(tenant.portfolioId),
-    listDividends(tenant.portfolioId),
+    listDividendRecords(tenant.portfolioId),
+    getDividendForecast(tenant.portfolioId),
     readCatalogTypes(),
   ]);
   if (assetTypes.size === 0) {
@@ -95,96 +104,77 @@ async function buildPlan(tenant: Tenant, request: B3ImportRequest) {
       "O catálogo de tickers ainda não foi carregado. Tente de novo em alguns minutos.",
     );
   }
+  const asOf = todayTradeDate(new Date());
+  let plan: B3ImportPlan;
   try {
-    const plan = planB3Import({
+    plan = planB3Import({
       negociacao: readNegociacao(files.negociacao),
       movimentacao: readMovimentacao(files.movimentacao),
-      eventos: null,
-      asOf: new Date(),
-      planilha: files.planilha ? parsePlanilha(files.planilha) : null,
+      eventos: readEventos(files.eventos),
+      asOf,
+      planilha: null,
       existing,
       assetTypes,
       answers: request.answers,
     });
-    return { plan, existing, existingDividends, kinds: files.kinds };
   } catch (error) {
     // Erros de conteúdo dos arquivos já vêm com mensagem para o usuário.
     if (error instanceof B3ImportError) throw new ActionError(error.message);
     throw error;
   }
+  const upcoming = plan.upcoming ?? { asOf, items: [] };
+  const entries = diffLedger(plan, existing);
+  const dividends = diffDividends(plan.dividends, existingDividends);
+  const forecastChanged = !storedForecast || !sameForecast(storedForecast.items, upcoming.items);
+  const changed =
+    entries.insert.length > 0 ||
+    entries.removeIds.length > 0 ||
+    dividends.insert.length > 0 ||
+    dividends.removeIds.length > 0 ||
+    forecastChanged;
+  return { plan, upcoming, entries, dividends, forecastChanged, changed };
 }
 
-type Comparable = Pick<
-  PlannedTransaction,
-  | "ticker"
-  | "type"
-  | "quantity"
-  | "unitPrice"
-  | "fees"
-  | "date"
-  | "kind"
-  | "priceSource"
-  | "relatedTicker"
-  | "notes"
->;
-
-const signature = (entry: Comparable) =>
-  [
-    entry.ticker,
-    entry.type,
-    entry.quantity,
-    entry.unitPrice,
-    entry.fees,
-    entry.date.toISOString(),
-    entry.kind,
-    entry.priceSource ?? "",
-    entry.relatedTicker ?? "",
-    entry.notes ?? "",
-  ].join("|");
-
-/** Quantos lançamentos realmente mudam: o plano troca tudo, mas um reenvio igual não muda nada. */
-function compare(plan: B3ImportPlan, existing: readonly TransactionRecord[]): B3ImportChanges {
-  const removing = new Set(plan.removeIds);
-  const pool = new Map<string, number>();
-  for (const entry of existing) {
-    if (!removing.has(entry.id) || entry.source !== "B3") continue;
-    const key = signature(entry);
-    pool.set(key, (pool.get(key) ?? 0) + 1);
-  }
-  let unchanged = 0;
-  for (const insert of plan.inserts) {
-    const key = signature(insert);
-    const left = pool.get(key) ?? 0;
-    if (left > 0) {
-      pool.set(key, left - 1);
-      unchanged++;
-    }
-  }
-  return {
-    added: plan.inserts.length - unchanged,
-    removed: plan.removeIds.length - unchanged,
-    unchanged,
-  };
-}
+type Update = Awaited<ReturnType<typeof buildUpdate>>;
 
 const isBlocked = (plan: B3ImportPlan) => plan.tickers.some((item) => item.status === "PENDENTE");
 
-/** A prévia não leva os lançamentos nem os ids a remover: só as contagens. */
-function withoutEntries(
-  plan: B3ImportPlan,
-): Omit<B3ImportPlan, "inserts" | "removeIds" | "dividends"> {
+// A prévia vai para o navegador: só os campos que a tela mostra, sem ids internos.
+const storedRow = (entry: TransactionRecord): StoredLedgerRow => ({
+  ticker: entry.ticker,
+  type: entry.type,
+  quantity: entry.quantity,
+  unitPrice: entry.unitPrice,
+  fees: entry.fees,
+  date: entry.date,
+  kind: entry.kind,
+  priceSource: entry.priceSource,
+  relatedTicker: entry.relatedTicker,
+  notes: entry.notes,
+  source: entry.source,
+});
+const storedDividend = (item: ExistingDividend): DividendEntry => ({
+  ticker: item.ticker,
+  paidAt: item.paidAt,
+  kind: item.kind,
+  amount: item.amount,
+  quantity: item.quantity,
+  perShare: item.perShare,
+});
+
+function counts(update: Update): B3ImportResult {
   return {
-    period: plan.period,
-    priorDate: plan.priorDate,
-    tickers: plan.tickers,
-    pending: plan.pending,
-    removedBySource: plan.removedBySource,
-    ignored: plan.ignored,
-    warnings: plan.warnings,
-    check: plan.check,
-    upcoming: plan.upcoming,
-    forecastMismatches: plan.forecastMismatches,
-    totals: plan.totals,
+    entries: {
+      added: update.entries.added.length,
+      replaced: update.entries.replaced.length,
+      unchanged: update.entries.unchanged,
+    },
+    dividends: {
+      added: update.dividends.added.length,
+      replaced: update.dividends.replaced.length,
+      unchanged: update.dividends.unchanged,
+    },
+    upcoming: { items: update.upcoming.items.length, changed: update.forecastChanged },
   };
 }
 
@@ -192,12 +182,38 @@ export async function previewB3Import(
   tenant: Tenant,
   request: B3ImportRequest,
 ): Promise<B3ImportPreview> {
-  const { plan, existing, existingDividends, kinds } = await buildPlan(tenant, request);
+  const update = await buildUpdate(tenant, request);
+  const { plan, entries, dividends, upcoming } = update;
   return {
-    ...withoutEntries(plan),
-    files: kinds,
-    changes: compare(plan, existing),
-    dividendChanges: compareDividends(plan.dividends, existingDividends),
+    period: plan.period,
+    priorDate: plan.priorDate,
+    tickers: plan.tickers,
+    pending: plan.pending,
+    ignored: plan.ignored,
+    warnings: plan.warnings,
+    check: plan.check,
+    files: [...REQUIRED_FILES],
+    entries: {
+      added: entries.added,
+      replaced: entries.replaced.map(({ before, after }) => ({ before: storedRow(before), after })),
+      unchanged: entries.unchanged,
+    },
+    dividends: {
+      period: plan.dividends.period,
+      added: dividends.added,
+      replaced: dividends.replaced.map(({ before, after }) => ({
+        before: storedDividend(before),
+        after,
+      })),
+      unchanged: dividends.unchanged,
+    },
+    upcoming: {
+      ...upcoming,
+      total: upcoming.items.reduce((sum, item) => sum + item.amount, 0),
+      changed: update.forecastChanged,
+    },
+    forecastMismatches: plan.forecastMismatches,
+    nothingNew: !update.changed,
     blocked: isBlocked(plan),
   };
 }
@@ -207,7 +223,8 @@ export async function confirmB3Import(
   request: B3ImportRequest,
 ): Promise<B3ImportResult> {
   const result = await withLock(`import:${tenant.portfolioId}`, LOCK_TTL_MS, async () => {
-    const { plan, existing, existingDividends } = await buildPlan(tenant, request);
+    const update = await buildUpdate(tenant, request);
+    const { plan, entries, dividends, upcoming } = update;
     if (isBlocked(plan)) {
       throw new ActionError("A prévia mudou e há pendências sem resposta. Gere a prévia de novo.");
     }
@@ -216,27 +233,23 @@ export async function confirmB3Import(
         "A conferência pelos rendimentos tem divergências. Confirme que revisou para importar mesmo assim.",
       );
     }
-    const changes = compare(plan, existing);
-    const dividendChanges = compareDividends(plan.dividends, existingDividends);
-    const entriesChanged = changes.added > 0 || changes.removed > 0;
-    const dividendsChanged = dividendChanges.added > 0 || dividendChanges.removed > 0;
-    if (entriesChanged || dividendsChanged) {
-      // Só troca o que mudou. `compare` só conta como "já igual" a linha da B3 a remover que tem um
-      // insert idêntico: com zero novos e zero que saem, `removeIds` e `inserts` são o mesmo
-      // multiconjunto (as repetições contam), e trocar um pelo outro não muda nada. O mesmo vale
-      // para os proventos.
-      await applyTransactionChanges(tenant.portfolioId, {
-        removeIds: entriesChanged ? plan.removeIds : [],
-        inserts: entriesChanged ? plan.inserts : [],
-        source: "B3",
-        dividends: dividendsChanged ? plan.dividends : undefined,
+    // Fora do escopo, o provento não seria comparado num reenvio e ficaria repetido.
+    if (hasDividendOutsideScope(plan.dividends))
+      throw new Error("Provento fora do escopo da troca.");
+    if (update.changed) {
+      await applyB3Update(tenant.portfolioId, {
+        removeIds: entries.removeIds,
+        inserts: entries.insert,
+        dividendRemoveIds: dividends.removeIds,
+        dividendInserts: dividends.insert,
+        forecast: upcoming,
       });
     }
-    return { changes, dividendChanges };
+    return counts(update);
   });
   if (!result) {
     throw new ActionError(
-      "Outra importação desta carteira está em andamento. Tente de novo em instantes.",
+      "Outra atualização desta carteira está em andamento. Tente de novo em instantes.",
     );
   }
   return result;

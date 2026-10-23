@@ -1,9 +1,16 @@
 import "server-only";
 import mongoose, { Types } from "mongoose";
 import { connectMongo } from "@/shared/db/mongo";
-import type { LedgerEntry, PriceSource, TransactionKind, TransactionType } from "../domain/types";
-import { hasDividendOutsideScope } from "../import/b3/dividend-changes";
-import type { PlannedDividends } from "../import/b3/types";
+import type {
+  DividendEntry,
+  LedgerEntry,
+  PriceSource,
+  TransactionKind,
+  TransactionType,
+} from "../domain/types";
+import { hasDividendOutsideScope } from "../import/b3/changes";
+import type { PlannedDividends, PlannedUpcoming } from "../import/b3/types";
+import { DividendForecastModel } from "./dividend-forecast.model";
 import { DividendModel } from "./dividend.model";
 import { TransactionModel, type TransactionDoc, type TransactionSource } from "./transaction.model";
 
@@ -199,6 +206,75 @@ export async function applyTransactionChanges(
       }
     });
     return { removed, inserted, dividendsRemoved, dividendsInserted };
+  } finally {
+    await session.endSession();
+  }
+}
+
+/**
+ * Atualização pela B3 (spec atualizacao-b3, §4.2), numa transação do Mongo: apaga só o que a B3
+ * substitui (pelos ids, nesta carteira), insere só o que é novo e troca a foto do "a receber".
+ * Um id que não existe mais desfaz tudo: a prévia ficou velha.
+ */
+export async function applyB3Update(
+  portfolioId: string,
+  changes: {
+    removeIds: readonly string[];
+    inserts: readonly TransactionInput[];
+    dividendRemoveIds: readonly string[];
+    dividendInserts: readonly DividendEntry[];
+    forecast: PlannedUpcoming;
+  },
+): Promise<void> {
+  await connectMongo();
+  const owner = toObjectId(portfolioId);
+  const session = await mongoose.startSession();
+  try {
+    await session.withTransaction(async () => {
+      if (changes.removeIds.length > 0) {
+        const result = await TransactionModel.deleteMany(
+          { _id: mongoose.trusted({ $in: changes.removeIds.map(toObjectId) }), portfolioId: owner },
+          { session },
+        );
+        if (result.deletedCount !== changes.removeIds.length) {
+          throw new Error("Algum lançamento a remover não existe mais nesta carteira.");
+        }
+      }
+      if (changes.inserts.length > 0) {
+        await TransactionModel.insertMany(
+          changes.inserts.map((input) => ({
+            ...input,
+            notes: input.notes ?? null,
+            portfolioId: owner,
+            source: "B3",
+          })),
+          { session },
+        );
+      }
+      if (changes.dividendRemoveIds.length > 0) {
+        const result = await DividendModel.deleteMany(
+          {
+            _id: mongoose.trusted({ $in: changes.dividendRemoveIds.map(toObjectId) }),
+            portfolioId: owner,
+          },
+          { session },
+        );
+        if (result.deletedCount !== changes.dividendRemoveIds.length) {
+          throw new Error("Algum provento a remover não existe mais nesta carteira.");
+        }
+      }
+      if (changes.dividendInserts.length > 0) {
+        await DividendModel.insertMany(
+          changes.dividendInserts.map((item) => ({ ...item, portfolioId: owner, source: "B3" })),
+          { session },
+        );
+      }
+      await DividendForecastModel.updateOne(
+        { portfolioId: owner },
+        { $set: { asOf: changes.forecast.asOf, items: changes.forecast.items } },
+        { upsert: true, runValidators: true, session },
+      );
+    });
   } finally {
     await session.endSession();
   }

@@ -1,48 +1,58 @@
 "use client";
 
 import { useAction } from "next-safe-action/hooks";
-import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { useState } from "react";
 import { toast } from "sonner";
 import { actionErrorMessage } from "@/shared/lib/action-error";
-import { formatQuantity } from "@/shared/lib/format";
 import { Button } from "@/shared/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/shared/ui/card";
 import { Spinner } from "@/shared/ui/spinner";
 import { confirmB3ImportAction, previewB3ImportAction } from "../../actions";
 import type { B3ImportPreview, B3ImportResult } from "../../import/b3/types";
 import { emptyDraft, toAnswers, type AnswersDraft } from "./answers";
-import { FilePicker } from "./file-picker";
+import { FilePicker, FILE_COUNT } from "./file-picker";
 import { isOpen, PendingList } from "./pending-list";
-import { DividendCheck, IgnoredAndWarnings, PreviewSummary, TickerTable } from "./preview-sections";
+import {
+  DividendCheck,
+  IgnoredAndWarnings,
+  Inconsistencies,
+  itens,
+  NewRows,
+  novos,
+  PreviewSummary,
+  Replacements,
+  substituidos,
+  TickerTable,
+  UpcomingPreview,
+} from "./preview-sections";
 
-/** "1 novo" ou "N novos", com o separador de milhar em pt-BR. */
-const novos = (count: number) => `${formatQuantity(count)} ${count === 1 ? "novo" : "novos"}`;
-/** "1 saiu" ou "N saíram". */
-const sairam = (count: number) => `${formatQuantity(count)} ${count === 1 ? "saiu" : "saíram"}`;
-
-/** Mensagem do aviso depois de importar: só cita o que mudou de fato (as contagens da prévia). */
-function importedMessage(result: B3ImportResult | undefined): string {
-  const nothing = "Nada mudou: a carteira já está igual aos extratos.";
-  if (!result) return nothing;
+/** Mensagem do aviso depois de gravar: só cita o que mudou de fato (as contagens da prévia). */
+function updatedMessage(result: B3ImportResult): string {
   const parts: string[] = [];
-  const { changes, dividendChanges } = result;
-  if (changes.added + changes.removed > 0) {
-    parts.push(`Lançamentos: ${novos(changes.added)}, ${sairam(changes.removed)}`);
-  }
-  if (dividendChanges.added + dividendChanges.removed > 0) {
-    parts.push(`Proventos: ${novos(dividendChanges.added)}, ${sairam(dividendChanges.removed)}`);
-  }
-  return parts.length > 0 ? `Importado. ${parts.join(" · ")}.` : nothing;
+  const counts = (label: string, { added, replaced }: B3ImportResult["entries"]) => {
+    if (added + replaced === 0) return;
+    parts.push(
+      `${label}: ${[added > 0 ? novos(added) : null, replaced > 0 ? substituidos(replaced) : null]
+        .filter(Boolean)
+        .join(", ")}`,
+    );
+  };
+  counts("Lançamentos", result.entries);
+  counts("Proventos", result.dividends);
+  if (result.upcoming.changed) parts.push(`A receber: ${itens(result.upcoming.items)}`);
+  return parts.length > 0
+    ? `Atualizado. ${parts.join(" · ")}.`
+    : "Nada mudou: a carteira já está igual aos extratos.";
 }
 
-/** Importação dos extratos da B3: arquivos → prévia (com pendências) → importar. */
+/** Atualização pela B3: os três extratos → prévia (com pendências) → gravar só o que é novo. */
 export function B3ImportWizard() {
-  const router = useRouter();
   const [files, setFiles] = useState<File[]>([]);
   const [draft, setDraft] = useState<AnswersDraft>(emptyDraft);
   const [preview, setPreview] = useState<B3ImportPreview | null>(null);
   const [dirty, setDirty] = useState(false);
+  const [done, setDone] = useState<B3ImportResult | null>(null);
 
   const toForm = () => {
     const form = new FormData();
@@ -50,6 +60,12 @@ export function B3ImportWizard() {
     form.append("answers", JSON.stringify(toAnswers(draft, preview)));
     form.append("acceptDivergences", String(draft.acceptDivergences));
     return form;
+  };
+  const reset = (next: File[]) => {
+    setFiles(next);
+    setPreview(null);
+    setDraft(emptyDraft());
+    setDirty(false);
   };
   const previewAction = useAction(previewB3ImportAction, {
     onSuccess: ({ data }) => {
@@ -61,8 +77,10 @@ export function B3ImportWizard() {
   });
   const confirmAction = useAction(confirmB3ImportAction, {
     onSuccess: ({ data }) => {
-      toast.success(importedMessage(data));
-      router.push("/transacoes");
+      if (!data) return;
+      toast.success(updatedMessage(data));
+      setDone(data);
+      reset([]);
     },
     onError: ({ error }) => toast.error(actionErrorMessage(error)),
   });
@@ -72,41 +90,45 @@ export function B3ImportWizard() {
     setDirty(true);
   };
   const busy = previewAction.isPending || confirmAction.isPending;
+  const ready = files.length === FILE_COUNT;
   const divergent = (preview?.check.unexplained.length ?? 0) > 0;
   const canImport =
-    preview !== null && !preview.blocked && !dirty && (!divergent || draft.acceptDivergences);
+    preview !== null &&
+    !preview.nothingNew &&
+    !preview.blocked &&
+    !dirty &&
+    (!divergent || draft.acceptDivergences);
 
   return (
     <div className="grid gap-6">
       <Card>
         <CardHeader>
-          <CardTitle>Arquivos</CardTitle>
+          <CardTitle>Extratos</CardTitle>
           <CardDescription>
-            Na Área do Investidor da B3, em Extratos, baixe Negociação e Movimentação em Excel,
-            cobrindo todo o período que você quer importar.
+            Na Área do Investidor da B3, em Extratos, baixe em Excel os três do mesmo dia:
+            Negociação, Movimentação e Eventos (a aba Proventos a Receber). Negociação e
+            Movimentação precisam cobrir o período que você quer atualizar.
           </CardDescription>
         </CardHeader>
         <CardContent className="grid gap-4">
           <FilePicker
             files={files}
             onChange={(next) => {
-              setFiles(next);
-              setPreview(null);
-              setDraft(emptyDraft());
-              setDirty(false);
+              setDone(null);
+              reset(next);
             }}
           />
-          <div className="flex flex-wrap gap-2">
+          <div className="flex flex-wrap items-center gap-2">
             <Button
               type="button"
               variant={preview ? "outline" : "default"}
-              disabled={files.length < 2 || busy}
+              disabled={!ready || busy}
               onClick={() => previewAction.execute(toForm())}
             >
               {previewAction.isPending ? <Spinner /> : null}
               {preview ? "Atualizar prévia" : "Gerar prévia"}
             </Button>
-            {preview ? (
+            {preview && !preview.nothingNew ? (
               <Button
                 type="button"
                 disabled={!canImport || busy}
@@ -117,6 +139,18 @@ export function B3ImportWizard() {
               </Button>
             ) : null}
           </div>
+          {!ready && files.length > 0 ? (
+            <p className="text-sm text-muted-foreground">
+              A prévia só sai com os três extratos: falta{" "}
+              {FILE_COUNT - files.length === 1
+                ? "1 arquivo"
+                : `${FILE_COUNT - files.length} arquivos`}
+              .
+            </p>
+          ) : null}
+          {preview?.nothingNew && !dirty ? (
+            <p className="text-sm font-medium">Nada novo: a carteira já está igual aos extratos.</p>
+          ) : null}
           {preview && dirty ? (
             <p className="text-sm text-muted-foreground">
               Você mudou respostas: atualize a prévia para conferir antes de importar.
@@ -130,6 +164,23 @@ export function B3ImportWizard() {
         </CardContent>
       </Card>
 
+      {done && !preview ? (
+        <Card>
+          <CardHeader>
+            <CardTitle>Atualização gravada</CardTitle>
+            <CardDescription>{updatedMessage(done)}</CardDescription>
+          </CardHeader>
+          <CardContent className="flex flex-wrap gap-2">
+            <Button variant="outline" nativeButton={false} render={<Link href="/proventos" />}>
+              Ver proventos
+            </Button>
+            <Button variant="outline" nativeButton={false} render={<Link href="/transacoes" />}>
+              Ver transações
+            </Button>
+          </CardContent>
+        </Card>
+      ) : null}
+
       {preview ? (
         <>
           <PreviewSummary preview={preview} />
@@ -139,8 +190,8 @@ export function B3ImportWizard() {
                 <CardTitle>Pendências</CardTitle>
                 <CardDescription>
                   O que a B3 não informa e só você sabe. {preview.pending.filter(isOpen).length} sem
-                  resposta; as demais já vêm preenchidas (da sua planilha ou de um envio anterior) e
-                  podem ser corrigidas.
+                  resposta; as demais já vêm preenchidas de um envio anterior e podem ser
+                  corrigidas.
                 </CardDescription>
               </CardHeader>
               <CardContent>
@@ -148,11 +199,15 @@ export function B3ImportWizard() {
               </CardContent>
             </Card>
           ) : null}
+          <Inconsistencies preview={preview} />
           <DividendCheck
             preview={preview}
             accepted={draft.acceptDivergences}
             onAccept={(value) => setDraft({ ...draft, acceptDivergences: value })}
           />
+          <NewRows preview={preview} />
+          <Replacements preview={preview} />
+          <UpcomingPreview preview={preview} />
           <TickerTable preview={preview} />
           <IgnoredAndWarnings preview={preview} />
         </>

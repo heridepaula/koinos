@@ -5,9 +5,10 @@ import { FileSpreadsheetIcon, UploadIcon, XIcon } from "lucide-react";
 import { useState } from "react";
 import { Button } from "@/shared/ui/button";
 
-const MAX_FILES = 3;
+/** Negociação, Movimentação e Eventos: a atualização só sai com os três. */
+export const FILE_COUNT = 3;
 
-/** Até 3 planilhas .xlsx, por clique ou arrastar e soltar. O servidor reconhece cada uma. */
+/** Os três extratos .xlsx, por clique ou arrastar e soltar. O servidor reconhece cada um. */
 export function FilePicker({
   files,
   onChange,
@@ -23,7 +24,7 @@ export function FilePicker({
     for (const file of list) {
       if (!next.some((item) => item.name === file.name && item.size === file.size)) next.push(file);
     }
-    onChange(next.slice(0, MAX_FILES));
+    onChange(next.slice(0, FILE_COUNT));
   };
 
   return (
@@ -47,8 +48,7 @@ export function FilePicker({
         <UploadIcon className="size-6 text-primary" aria-hidden="true" />
         <span className="font-medium">Arraste os arquivos .xlsx aqui ou clique para escolher</span>
         <span className="max-w-xl text-sm text-muted-foreground">
-          Extratos de Negociação e de Movimentação da Área do Investidor da B3 e, se quiser, a sua
-          planilha de FIIs (para os preços que a B3 não informa).
+          Os três extratos da Área do Investidor da B3: Negociação, Movimentação e Eventos.
         </span>
         <input
           type="file"
