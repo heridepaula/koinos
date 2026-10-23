@@ -32,6 +32,12 @@ const LABELS: Record<Grouping, string> = { mes: "Mês", ano: "Ano", papel: "Pape
 // Uma série só: o título nomeia o gráfico, sem legenda. Cor validada contra o card nos dois temas.
 const config = { amount: { label: "Proventos", color: "var(--chart-2)" } } satisfies ChartConfig;
 
+// Segmento escolhido em azul sólido (--badge, 5,9:1 com o texto branco). O botão com brilho
+// (btn-gloss) não serve aqui: no tamanho sm o texto fica sob o brilho e o contraste cai para 3,3:1.
+// O dark: repete as classes porque tem a mesma especificidade do aria-pressed: no outline.
+const SELECTED =
+  "aria-pressed:border-transparent aria-pressed:bg-(--badge) aria-pressed:text-white aria-pressed:hover:bg-(--badge) aria-pressed:hover:text-white dark:aria-pressed:border-transparent dark:aria-pressed:bg-(--badge) dark:aria-pressed:hover:bg-(--badge)";
+
 /** Histórico dos proventos recebidos, agrupado por mês, ano ou papel (a escolha fica na URL). */
 export function DividendsHistory({ view }: { view: DividendsView }) {
   const [grouping, setGrouping] = useQueryState(
@@ -54,7 +60,8 @@ export function DividendsHistory({ view }: { view: DividendsView }) {
               <Button
                 key={key}
                 size="sm"
-                variant={grouping === key ? "default" : "outline"}
+                variant="outline"
+                className={SELECTED}
                 aria-pressed={grouping === key}
                 onClick={() => void setGrouping(key)}
               >
