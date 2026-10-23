@@ -7,8 +7,10 @@ export function SummaryCards({ summary }: { summary: PortfolioSummary }) {
   return (
     // Os quatro blocos se arrumam pela largura da área do conteúdo (container query), com a sidebar
     // aberta ou recolhida, e as linhas ficam sempre completas. Cada card precisa de uns 250 px: é o
-    // que o L/P exige para o sinal não se separar do número. Todos os passos são @min-[...] em px,
-    // porque o Tailwind ordena as variantes arbitrárias antes das nomeadas (md:, xl:).
+    // que o L/P exige para o sinal não se separar do número. Todos os passos são @min-[...] em px:
+    // o Tailwind emite os tamanhos de container em px antes dos nomeados em rem (@md, @3xl...), e
+    // misturar os dois faria os nomeados vencerem. As regras por largura de tela (md:, xl:) saem
+    // antes das de container, por isso não competem com estas.
     //   até 519 px  1 coluna
     //   520 px      2 colunas: patrimônio | L/P + proventos | rendimento
     //   784 px      3 colunas: patrimônio inteiro | L/P + proventos + rendimento

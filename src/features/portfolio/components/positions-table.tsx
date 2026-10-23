@@ -9,6 +9,7 @@ import { useSortState } from "@/shared/hooks/use-sort-state";
 import { formatBRL, formatPercent, formatQuantity } from "@/shared/lib/format";
 import { sortRows } from "@/shared/lib/sort";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/shared/ui/card";
+import { Popover, PopoverContent, PopoverTitle, PopoverTrigger } from "@/shared/ui/popover";
 import { Table, TableBody, TableCell, TableHeader, TableRow } from "@/shared/ui/table";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/shared/ui/tooltip";
 import type { PositionRow } from "../domain/types";
@@ -100,27 +101,41 @@ function CeilingCell({ row }: { row: PositionRow }) {
 
 /**
  * Resultado com proventos, empilhado como o L/P: o valor em cima e os proventos embaixo.
- * O tooltip mostra a conta até o resultado total.
+ * É um botão que abre a conta até o resultado total: por clique ou toque, por teclado (Enter ou
+ * Espaço) e ao passar o mouse. É o único lugar que mostra as vendas e o total de cada posição.
  */
 function AdjustedCell({ row }: { row: PositionRow }) {
   return (
-    <Tooltip>
-      <TooltipTrigger render={<span className="inline-flex flex-col items-end" />}>
+    <Popover>
+      <PopoverTrigger
+        type="button"
+        openOnHover
+        delay={200}
+        closeDelay={100}
+        aria-label={`Ver a conta do resultado de ${row.ticker}: ${formatBRL(row.pnlWithDividends)} com proventos`}
+        className="inline-flex cursor-pointer flex-col items-end rounded-sm outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
+      >
         <Delta value={row.pnlWithDividends} />
         <span className="text-xs text-muted-foreground tabular-nums">
           prov. {formatBRL(row.dividends)}
         </span>
-      </TooltipTrigger>
-      <TooltipContent>
-        <div className="grid gap-0.5 tabular-nums">
-          <span>Cotação {formatBRL(row.pnl)}</span>
-          <span>+ Proventos {formatBRL(row.dividends)}</span>
-          <span>= Com proventos {formatBRL(row.pnlWithDividends)}</span>
-          <span>+ Vendas {formatBRL(row.realizedPnL)}</span>
-          <span className="font-medium">= Resultado total {formatBRL(row.totalResult)}</span>
-        </div>
-      </TooltipContent>
-    </Tooltip>
+      </PopoverTrigger>
+      <PopoverContent align="end" className="w-auto">
+        <PopoverTitle className="sr-only">Conta do resultado de {row.ticker}</PopoverTitle>
+        <dl className="grid grid-cols-[auto_auto] gap-x-3 gap-y-0.5 tabular-nums">
+          <dt>Cotação</dt>
+          <dd className="text-right">{formatBRL(row.pnl)}</dd>
+          <dt>+ Proventos</dt>
+          <dd className="text-right">{formatBRL(row.dividends)}</dd>
+          <dt>= Com proventos</dt>
+          <dd className="text-right">{formatBRL(row.pnlWithDividends)}</dd>
+          <dt>+ Vendas</dt>
+          <dd className="text-right">{formatBRL(row.realizedPnL)}</dd>
+          <dt className="font-medium">= Resultado total</dt>
+          <dd className="text-right font-medium">{formatBRL(row.totalResult)}</dd>
+        </dl>
+      </PopoverContent>
+    </Popover>
   );
 }
 
