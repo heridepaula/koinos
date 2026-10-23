@@ -213,7 +213,8 @@ export async function previewB3Import(
       changed: update.forecastChanged,
     },
     forecastMismatches: plan.forecastMismatches,
-    nothingNew: !update.changed,
+    // Com pendência aberta, o FII pendente fica fora da comparação: responder pode trazer o novo.
+    nothingNew: !update.changed && !isBlocked(plan),
     blocked: isBlocked(plan),
   };
 }

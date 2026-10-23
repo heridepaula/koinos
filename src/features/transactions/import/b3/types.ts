@@ -247,7 +247,10 @@ export type B3ImportPreview = Pick<
   /** A foto nova do "a receber"; `changed` diz se os itens diferem dos gravados. */
   upcoming: PlannedUpcoming & { total: number; changed: boolean };
   forecastMismatches: ForecastMismatch[];
-  /** Nada a gravar: lançamentos, proventos e "a receber" já estão iguais aos extratos. */
+  /**
+   * Nada a gravar: lançamentos, proventos e "a receber" já estão iguais aos extratos. Nunca com
+   * pendência aberta: o FII pendente fica fora da comparação até ser respondido.
+   */
   nothingNew: boolean;
   /** Algum FII ainda depende de resposta. */
   blocked: boolean;

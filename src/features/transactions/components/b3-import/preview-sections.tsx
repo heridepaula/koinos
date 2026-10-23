@@ -125,11 +125,6 @@ export function PreviewSummary({ preview }: { preview: B3ImportPreview }) {
             {unconfirmed.map((item) => `${item.ticker} (${item.unconfirmed})`).join(", ")}
           </p>
         ) : null}
-        {preview.nothingNew ? (
-          <p className="rounded-xl border bg-muted/40 px-4 py-3 font-medium">
-            Nada novo: a carteira já está igual aos extratos.
-          </p>
-        ) : null}
       </CardContent>
     </Card>
   );
