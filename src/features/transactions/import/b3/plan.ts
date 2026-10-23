@@ -1,20 +1,25 @@
 import { findOversells } from "../../domain/positions";
 import type { DividendKind, LedgerEntry, PriceSource, TransactionSource } from "../../domain/types";
 import type { ParsedPlanilha } from "../parse-planilha";
+import { normalizeHeader } from "./cells";
 import type {
   AssetTypeInfo,
   B3ImportAnswers,
   B3ImportPlan,
   DividendCheck,
   DividendCheckItem,
+  EventosData,
   ExistingTransaction,
+  ForecastMismatch,
   MovementRow,
   MovimentacaoData,
   NegociacaoData,
   PendingItem,
   PlannedDividend,
   PlannedDividends,
+  PlannedForecast,
   PlannedTransaction,
+  PlannedUpcoming,
   TickerPlan,
 } from "./types";
 
@@ -38,6 +43,10 @@ export class B3ImportError extends Error {}
 export type PlanInput = {
   negociacao: NegociacaoData;
   movimentacao: MovimentacaoData;
+  /** Extrato de Eventos (o "a receber"); null quando não veio (script de terminal). */
+  eventos: EventosData | null;
+  /** Dia do envio: a data da foto do "a receber". */
+  asOf: Date;
   planilha: ParsedPlanilha | null;
   existing: readonly ExistingTransaction[];
   /** Tipo de cada código no catálogo; ausente ou null = fora do catálogo. */
@@ -340,7 +349,7 @@ function simulate(events: readonly SimEvent[], context: SimContext): SimResult {
 // --- Plano ----------------------------------------------------------------------------------
 
 export function planB3Import(input: PlanInput): B3ImportPlan {
-  const { negociacao, movimentacao, planilha, existing, assetTypes } = input;
+  const { negociacao, movimentacao, eventos, planilha, existing, assetTypes } = input;
   const answers = input.answers ?? {};
   if (!negociacao.firstDate || !negociacao.lastDate) {
     throw new B3ImportError("O extrato de Negociação não tem nenhum negócio.");
@@ -359,17 +368,15 @@ export function planB3Import(input: PlanInput): B3ImportPlan {
 
   const warnings: string[] = [];
   const ignored = new Map<string, Set<string>>();
+  const addIgnored = (reason: string, code: string) =>
+    (ignored.get(reason) ?? ignored.set(reason, new Set()).get(reason)!).add(code);
   const classifications = new Map<string, Classification>();
   const classificationOf = (code: string) => {
     let result = classifications.get(code);
     if (!result) {
       result = classify(code, assetTypes);
       classifications.set(code, result);
-      if (!result.managed) {
-        (
-          ignored.get(result.reason) ?? ignored.set(result.reason, new Set()).get(result.reason)!
-        ).add(code);
-      }
+      if (!result.managed) addIgnored(result.reason, code);
     }
     return result;
   };
@@ -384,7 +391,11 @@ export function planB3Import(input: PlanInput): B3ImportPlan {
       `${negociacao.otherMarkets} negócios fora do mercado à vista (opções, termo...) foram ignorados.`,
     );
   }
-  for (const error of [...negociacao.rowErrors, ...movimentacao.rowErrors]) {
+  for (const error of [
+    ...negociacao.rowErrors,
+    ...movimentacao.rowErrors,
+    ...(eventos?.rowErrors ?? []),
+  ]) {
     warnings.push(`${error.sheet}, linha ${error.row}: ${error.message}`);
   }
 
@@ -394,14 +405,17 @@ export function planB3Import(input: PlanInput): B3ImportPlan {
     return { price, source: answers.estimated?.includes(id) ? "ESTIMADO" : "USUARIO" };
   };
 
-  // Respostas de uploads anteriores ficam nos próprios lançamentos B3 do período (§7).
+  // Respostas de uploads anteriores ficam nos próprios lançamentos B3 do período (§7). O preço
+  // que veio da planilha num envio anterior também vale: a página não recebe mais a planilha.
   const previousSubscription = new Map<string, { price: number; source: PriceSource }>();
   const previousConversion = new Map<string, string>();
   for (const entry of existing) {
     if (entry.source !== "B3" || !inPeriod(entry.date)) continue;
     if (
       entry.kind === "SUBSCRICAO" &&
-      (entry.priceSource === "USUARIO" || entry.priceSource === "ESTIMADO")
+      (entry.priceSource === "USUARIO" ||
+        entry.priceSource === "ESTIMADO" ||
+        entry.priceSource === "PLANILHA")
     ) {
       previousSubscription.set(subId(entry.ticker, entry.date, entry.quantity), {
         price: entry.unitPrice,
@@ -678,6 +692,7 @@ export function planB3Import(input: PlanInput): B3ImportPlan {
   // Tudo o que aparece nos extratos e não é FII entra na lista de ignorados da prévia.
   for (const row of movimentacao.rows) classificationOf(row.code);
   for (const trade of negociacao.trades) classificationOf(trade.ticker);
+  for (const row of eventos?.rows ?? []) classificationOf(row.code);
 
   // --- Lançamentos atuais: fora do período ficam; dentro, dos FIIs gerenciados, saem -------
   const managedExisting = existing.filter((entry) => managed(entry.ticker));
@@ -942,6 +957,17 @@ export function planB3Import(input: PlanInput): B3ImportPlan {
   const totals: B3ImportPlan["totals"] = {};
   for (const entry of newEntries) totals[entry.kind] = (totals[entry.kind] ?? 0) + 1;
 
+  // "A receber" com quantidade diferente da posição final: compra ou venda depois da data com,
+  // ou um FII que a carteira não tem (spec atualizacao-b3, §5). Só avisa.
+  const upcoming = eventos ? extractUpcoming(eventos, input.asOf, managed, addIgnored) : null;
+  const forecastMismatches: ForecastMismatch[] = [];
+  for (const item of upcoming?.items ?? []) {
+    const held = final.states.get(item.ticker)?.quantity ?? 0;
+    const differs =
+      item.quantity === null ? held <= EPSILON : Math.abs(item.quantity - held) > EPSILON;
+    if (differs) forecastMismatches.push({ ticker: item.ticker, quantity: item.quantity, held });
+  }
+
   return {
     period: { start, end },
     priorDate,
@@ -961,6 +987,8 @@ export function planB3Import(input: PlanInput): B3ImportPlan {
       acceptsDividends,
       [...tickers].filter(accepted),
     ),
+    upcoming,
+    forecastMismatches,
     totals,
   };
 }
@@ -998,6 +1026,44 @@ function extractDividends(
   // Escopo da troca: os FIIs aceitos do plano e os que só aparecem pelos próprios proventos.
   const tickers = new Set([...acceptedTickers, ...inserts.map((item) => item.ticker)]);
   return { period, tickers: [...tickers].sort(), inserts };
+}
+
+// --- A receber (spec atualizacao-b3, §3) -----------------------------------------------------
+
+// Map, e não objeto, pelo mesmo motivo de DIVIDEND_ROW_KINDS.
+const FORECAST_EVENT_KINDS = new Map<string, DividendKind>([
+  ["rendimento", "RENDIMENTO"],
+  ["reembolso - rendimento", "REEMBOLSO"],
+]);
+
+function extractUpcoming(
+  eventos: EventosData,
+  asOf: Date,
+  managed: (code: string) => boolean,
+  addIgnored: (reason: string, code: string) => void,
+): PlannedUpcoming {
+  const items: PlannedForecast[] = [];
+  for (const row of eventos.rows) {
+    // Ações e units já entraram nos ignorados pela classificação. Como na Movimentação, o
+    // direito ou recibo (…12 a …19) é levado ao FII da família.
+    if (!FII_FAMILY_CODE.test(row.code)) continue;
+    const ticker = fiiOf(row.code);
+    if (!managed(ticker)) continue;
+    const kind = FORECAST_EVENT_KINDS.get(normalizeHeader(row.eventType));
+    if (!kind || row.value === null || row.value <= 0) {
+      addIgnored("Eventos de FII que não são rendimento", row.code);
+      continue;
+    }
+    items.push({
+      ticker,
+      kind,
+      payDate: row.payDate,
+      quantity: row.quantity,
+      perShare: row.unitPrice,
+      amount: row.value,
+    });
+  }
+  return { asOf, items };
 }
 
 // --- Conferência pelos rendimentos (§6.7) -----------------------------------------------------

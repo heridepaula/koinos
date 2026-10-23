@@ -96,7 +96,17 @@ async function main() {
   }
   const existing = portfolioId ? await listTransactions(portfolioId) : [];
 
-  const plan = planB3Import({ negociacao, movimentacao, planilha, existing, assetTypes, answers });
+  const plan = planB3Import({
+    negociacao,
+    movimentacao,
+    // O extrato de Eventos só entra pela página /atualizacao-b3.
+    eventos: null,
+    asOf: new Date(),
+    planilha,
+    existing,
+    assetTypes,
+    answers,
+  });
 
   // --- Relatório ---------------------------------------------------------------------------
   console.log(

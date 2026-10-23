@@ -1,5 +1,6 @@
 import type {
   DividendEntry,
+  DividendKind,
   LedgerEntry,
   PriceSource,
   TransactionKind,
@@ -183,6 +184,23 @@ export type PlannedDividends = {
 
 export type B3DividendChanges = B3ImportChanges;
 
+/** Provento anunciado pela B3 e ainda não pago (extrato de Eventos). */
+export type PlannedForecast = {
+  ticker: string;
+  kind: DividendKind;
+  /** Previsão de pagamento; null quando a B3 ainda não informou. */
+  payDate: Date | null;
+  quantity: number | null;
+  perShare: number | null;
+  amount: number;
+};
+
+/** A foto do "a receber" da B3 no dia do envio: cada envio troca a foto inteira. */
+export type PlannedUpcoming = { asOf: Date; items: PlannedForecast[] };
+
+/** "A receber" cuja quantidade não bate com a posição da carteira (só aviso). */
+export type ForecastMismatch = { ticker: string; quantity: number | null; held: number };
+
 export type B3ImportPlan = {
   period: { start: Date; end: Date };
   /** Data das posições anteriores ao extrato (véspera da data mais antiga dos arquivos). */
@@ -196,6 +214,9 @@ export type B3ImportPlan = {
   warnings: string[];
   check: DividendCheck;
   dividends: PlannedDividends;
+  /** A foto do "a receber" (extrato de Eventos); null quando ele não foi enviado. */
+  upcoming: PlannedUpcoming | null;
+  forecastMismatches: ForecastMismatch[];
   totals: Partial<Record<TransactionKind, number>>;
 };
 

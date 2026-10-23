@@ -99,6 +99,8 @@ async function buildPlan(tenant: Tenant, request: B3ImportRequest) {
     const plan = planB3Import({
       negociacao: readNegociacao(files.negociacao),
       movimentacao: readMovimentacao(files.movimentacao),
+      eventos: null,
+      asOf: new Date(),
       planilha: files.planilha ? parsePlanilha(files.planilha) : null,
       existing,
       assetTypes,
@@ -180,6 +182,8 @@ function withoutEntries(
     ignored: plan.ignored,
     warnings: plan.warnings,
     check: plan.check,
+    upcoming: plan.upcoming,
+    forecastMismatches: plan.forecastMismatches,
     totals: plan.totals,
   };
 }
