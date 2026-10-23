@@ -1,4 +1,9 @@
-import { sortLedger, type DividendEntry, type LedgerEntry } from "@/features/transactions";
+import {
+  sortLedger,
+  type DividendEntry,
+  type LedgerEntry,
+  type PlannedUpcoming,
+} from "@/features/transactions";
 import {
   addMonths,
   currentMonthKey,
@@ -15,7 +20,8 @@ import type {
   UpcomingDividend,
 } from "./types";
 
-// Regras: docs/superpowers/specs/2026-10-18-proventos-design.md (§4).
+// Regras: docs/superpowers/specs/2026-10-18-proventos-design.md (§4) e, para a foto da B3,
+// docs/superpowers/specs/2026-10-23-atualizacao-b3-design.md (§6).
 
 const DAY = 86_400_000;
 const EPSILON = 1e-9;
@@ -38,24 +44,39 @@ export function quantityBefore(
 }
 
 /**
- * Proventos anunciados e ainda não recebidos: data ex no mês atual ou no anterior, até hoje,
- * sem provento da B3 do mesmo FII pago na data ex ou depois. Do mês anterior, só o que tinha
- * pagamento previsto para este mês: o que vencia no mês passado é daquele mês, não deste.
+ * Proventos a receber. Com a foto da B3 (extrato de Eventos), valem os itens dela, com a data
+ * oficial; o Yahoo só completa com o que foi anunciado depois do envio (data ex posterior).
+ *
+ * Do Yahoo: data ex no mês atual ou no anterior, até hoje, sem provento da B3 do mesmo FII pago
+ * na data ex ou depois. Do mês anterior, só o que tinha pagamento previsto para este mês: o que
+ * vencia no mês passado é daquele mês, não deste.
  */
 export function upcomingDividends(input: {
   now: Date;
   transactions: readonly LedgerEntry[];
   received: readonly DividendEntry[];
   announcements: ReadonlyMap<string, readonly { exDate: Date; perShare: number }[]>;
+  forecast?: PlannedUpcoming | null;
 }): UpcomingDividend[] {
   const month = currentMonthKey(input.now);
   const firstMonth = addMonths(month, -1);
   // Datas ex são datas de negócio (meia-noite UTC): compara com o dia de hoje em São Paulo.
   const today = todayTradeDate(input.now);
   const monthStart = parseTradeDate(`${month}-01`);
-  const result: UpcomingDividend[] = [];
+  const { forecast } = input;
+  const result: UpcomingDividend[] = (forecast?.items ?? []).map((item) => ({
+    ticker: item.ticker,
+    exDate: null,
+    quantity: item.quantity,
+    perShare: item.perShare,
+    amount: item.amount,
+    payBy: item.payDate,
+    source: "B3",
+  }));
   for (const [ticker, list] of input.announcements) {
     for (const announcement of list) {
+      // A B3 tem prioridade: o que foi anunciado até o envio já está (ou não) na foto dela.
+      if (forecast && announcement.exDate.getTime() <= forecast.asOf.getTime()) continue;
       const exMonth = monthKeyOfTradeDate(announcement.exDate);
       if (exMonth < firstMonth || exMonth > month) continue;
       if (announcement.exDate.getTime() > today.getTime()) continue;
@@ -74,11 +95,17 @@ export function upcomingDividends(input: {
         perShare: announcement.perShare,
         amount: quantity * announcement.perShare,
         payBy,
+        source: "YAHOO",
       });
     }
   }
+  // Pela data de pagamento (sem data por último) e, no empate, pela data ex.
+  const time = (date: Date | null) => date?.getTime() ?? Number.POSITIVE_INFINITY;
   return result.sort(
-    (a, b) => a.exDate.getTime() - b.exDate.getTime() || a.ticker.localeCompare(b.ticker),
+    (a, b) =>
+      time(a.payBy) - time(b.payBy) ||
+      (a.exDate?.getTime() ?? 0) - (b.exDate?.getTime() ?? 0) ||
+      a.ticker.localeCompare(b.ticker),
   );
 }
 
@@ -91,7 +118,14 @@ export function monthSummary(
   const receivedTotal = received
     .filter((item) => monthKeyOfTradeDate(item.paidAt) === month)
     .reduce((sum, item) => sum + item.amount, 0);
-  const upcomingTotal = upcoming.reduce((sum, item) => sum + item.amount, 0);
+  // Da B3, só o que tem pagamento previsto neste mês; os estimados seguem a regra da lista.
+  const upcomingTotal = upcoming
+    .filter(
+      (item) =>
+        item.source === "YAHOO" ||
+        (item.payBy !== null && monthKeyOfTradeDate(item.payBy) === month),
+    )
+    .reduce((sum, item) => sum + item.amount, 0);
   return {
     month,
     received: receivedTotal,

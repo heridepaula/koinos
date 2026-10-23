@@ -2,8 +2,17 @@ import { formatBRL, formatMonth } from "@/shared/lib/format";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/shared/ui/card";
 import type { DividendMonthSummary } from "../../domain/types";
 
-/** Mês atual: o que já caiu (extrato da B3), o que falta cair (anúncios do Yahoo) e a soma. */
-export function DividendMonthCards({ month }: { month: DividendMonthSummary }) {
+/**
+ * Mês atual: o que já caiu (extrato da B3), o que falta cair (a lista da B3 ou, sem ela, os
+ * anúncios do Yahoo) e a soma.
+ */
+export function DividendMonthCards({
+  month,
+  forecastAsOf,
+}: {
+  month: DividendMonthSummary;
+  forecastAsOf: Date | null;
+}) {
   return (
     // Três colunas só quando cada card tem espaço para o valor sem quebrar a linha.
     <div className="@container">
@@ -19,13 +28,15 @@ export function DividendMonthCards({ month }: { month: DividendMonthSummary }) {
         </Card>
         <Card className="card-lift">
           <CardHeader>
-            <CardDescription>A receber (estimado)</CardDescription>
+            <CardDescription>{forecastAsOf ? "A receber" : "A receber (estimado)"}</CardDescription>
             <CardTitle className="text-2xl font-semibold tabular-nums">
               {formatBRL(month.upcoming)}
             </CardTitle>
           </CardHeader>
           <CardContent className="text-sm text-muted-foreground">
-            Previsão pelo Yahoo, confirmada quando o extrato da B3 for importado.
+            {forecastAsOf
+              ? "Pela B3 (Proventos a Receber), completado com o Yahoo."
+              : "Previsão pelo Yahoo, confirmada quando o extrato da B3 for importado."}
           </CardContent>
         </Card>
         <Card className="metal-ring card-lift brushed">

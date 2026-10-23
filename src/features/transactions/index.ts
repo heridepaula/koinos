@@ -45,7 +45,9 @@ export type {
   PendingItem,
   PlannedDividend,
   PlannedDividends,
+  PlannedForecast,
   PlannedTransaction,
+  PlannedUpcoming,
   TickerPlan,
 } from "./import/b3/types";
 export {

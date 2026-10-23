@@ -1,7 +1,11 @@
 import "server-only";
 import { connection } from "next/server";
 import { getAssetSnapshots } from "@/features/market-data/server";
-import { getMyDividends, getMyTransactions } from "@/features/transactions/server";
+import {
+  getMyDividendForecast,
+  getMyDividends,
+  getMyTransactions,
+} from "@/features/transactions/server";
 import {
   addMonths,
   currentMonthKey,
@@ -21,13 +25,18 @@ import type { DividendsView } from "../domain/types";
 const CHART_MONTHS = 24;
 
 /**
- * Tela de proventos do usuário logado: recebidos (extratos da B3), a receber (anúncios do Yahoo)
- * e os agrupamentos do histórico. O resultado é um DTO sem ids internos.
+ * Tela de proventos do usuário logado: recebidos (extratos da B3), a receber (a foto do extrato de
+ * Eventos da B3, completada pelos anúncios do Yahoo) e os agrupamentos do histórico. O resultado é
+ * um DTO sem ids internos.
  */
 export async function getDividendsView(): Promise<DividendsView> {
   await connection(); // usa a hora atual: só em tempo de requisição
   const now = new Date();
-  const [transactions, received] = await Promise.all([getMyTransactions(), getMyDividends()]);
+  const [transactions, received, forecast] = await Promise.all([
+    getMyTransactions(),
+    getMyDividends(),
+    getMyDividendForecast(),
+  ]);
   const tickers = [
     ...new Set([
       ...transactions.map((entry) => entry.ticker),
@@ -43,7 +52,7 @@ export async function getDividendsView(): Promise<DividendsView> {
   const announcements = new Map(
     [...assets].map(([ticker, asset]) => [ticker, asset.dividendAnnouncements]),
   );
-  const upcoming = upcomingDividends({ now, transactions, received, announcements });
+  const upcoming = upcomingDividends({ now, transactions, received, announcements, forecast });
   const today = todayTradeDate(now);
 
   const byMonth = groupByMonth(received);
@@ -59,7 +68,7 @@ export async function getDividendsView(): Promise<DividendsView> {
     upcoming: upcoming.map((item) => ({
       ...item,
       ...meta(item.ticker),
-      payByPassed: item.payBy.getTime() < today.getTime(),
+      payByPassed: item.payBy !== null && item.payBy.getTime() < today.getTime(),
     })),
     byMonth,
     byYear: groupByYear(received),
@@ -72,5 +81,6 @@ export async function getDividendsView(): Promise<DividendsView> {
     // Sem nenhum provento importado não dá para saber o que já foi pago: todo anúncio pareceria
     // "a receber". A tela mostra só o convite para importar os extratos.
     imported: received.length > 0,
+    forecastAsOf: forecast?.asOf ?? null,
   };
 }

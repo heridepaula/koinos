@@ -148,12 +148,18 @@ export type AdjustedResult = { withDividends: number; total: number };
 
 export type UpcomingDividend = {
   ticker: string;
-  exDate: Date;
-  quantity: number;
-  perShare: number;
+  /** Data ex do anúncio do Yahoo; null nos itens da B3, que não trazem essa data. */
+  exDate: Date | null;
+  quantity: number | null;
+  perShare: number | null;
   amount: number;
-  /** Estimativa: o Yahoo não informa a data de pagamento. */
-  payBy: Date;
+  /**
+   * Pagamento: a previsão oficial da B3 ou, no estimado, a data ex + 15 dias (o Yahoo não informa
+   * a data de pagamento). Null quando a B3 ainda não informou.
+   */
+  payBy: Date | null;
+  /** "B3": extrato de Eventos (Proventos a Receber); "YAHOO": anúncio, estimado. */
+  source: "B3" | "YAHOO";
 };
 
 export type DividendMonthSummary = {
@@ -202,6 +208,8 @@ export type DividendsView = {
   since: string | null;
   /** Algum provento da B3 já foi importado. */
   imported: boolean;
+  /** Dia da foto do "a receber" da B3 (último envio do extrato de Eventos); null se nunca houve. */
+  forecastAsOf: Date | null;
 };
 
 /** Compra paga em dinheiro (negócio ou subscrição), como o relatório de reinvestimento lista. */
