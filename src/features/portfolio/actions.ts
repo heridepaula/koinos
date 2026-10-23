@@ -7,6 +7,7 @@ import { listTargetAssetsOf } from "@/features/strategy/server";
 import { computePositions } from "@/features/transactions";
 import { listTransactionsOf } from "@/features/transactions/server";
 import { currentMonthKey } from "@/shared/lib/time";
+import { isReportMonth, roundPercent } from "./domain/reinvestment";
 import { reinvestmentPercentSchema } from "./schemas";
 import { clearReinvestmentPercent, setReinvestmentPercent } from "./server/reinvestment-repo";
 
@@ -35,13 +36,14 @@ export const setReinvestmentPercentAction = authActionClient
   .inputSchema(reinvestmentPercentSchema)
   .action(async ({ parsedInput, ctx }) => {
     const { month, percent } = parsedInput;
-    if (month < "2000-01" || month > currentMonthKey(new Date())) {
+    // A mesma regra da tela (reinvestment-view): AAAA-MM, de 2000-01 até o mês atual.
+    if (!isReportMonth(month, currentMonthKey(new Date()))) {
       throw new ActionError("Escolha um mês entre 2000 e o mês atual.");
     }
     if (percent === null) {
       await clearReinvestmentPercent(ctx.tenant.portfolioId, month);
     } else {
-      await setReinvestmentPercent(ctx.tenant.portfolioId, month, Math.round(percent * 10) / 10);
+      await setReinvestmentPercent(ctx.tenant.portfolioId, month, roundPercent(percent));
     }
     refresh();
     return { ok: true as const };

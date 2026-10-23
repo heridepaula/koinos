@@ -60,7 +60,7 @@ export function ReinvestmentHistory({
                     const item = payload?.[0]?.payload as
                       ReinvestmentView["history"][number] | undefined;
                     const detail = item
-                      ? ` · total ${formatBRL(item.aporte)} · ${formatPercent(item.percent / 100, 1)}${item.isDefault ? " (padrão)" : ""}`
+                      ? ` · total ${formatBRL(item.aporte)} · ${formatPercent(item.percent / 100, 1)} reinvestido${item.isDefault ? " (padrão)" : ""}`
                       : "";
                     return `${formatMonth(String(month))}${detail}`;
                   }}

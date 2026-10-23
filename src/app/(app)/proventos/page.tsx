@@ -24,7 +24,11 @@ export default function DividendsPage() {
         title="Proventos"
         description="Recebidos, a receber e o histórico."
         actions={
-          <Button variant="outline" render={<Link href="/proventos/reinvestimento" />}>
+          <Button
+            variant="outline"
+            nativeButton={false}
+            render={<Link href="/proventos/reinvestimento" />}
+          >
             <RepeatIcon />
             Reinvestimento
           </Button>

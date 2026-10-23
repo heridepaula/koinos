@@ -4,6 +4,7 @@ import { getAssetSnapshots } from "@/features/market-data/server";
 import { getMyDividends, getMyTransactions } from "@/features/transactions/server";
 import { addMonths, currentMonthKey, monthRange } from "@/shared/lib/time";
 import {
+  isReportMonth,
   monthPurchases,
   reinvestmentHistory,
   reinvestmentMonths,
@@ -13,7 +14,6 @@ import type { ReinvestmentView } from "../domain/types";
 import { listReinvestmentPercents } from "./reinvestment-repo";
 
 const HISTORY_MONTHS = 24;
-const MONTH = /^\d{4}-(0[1-9]|1[0-2])$/;
 
 /**
  * Tela de reinvestimento do usuário logado. `requested` vem da URL (?mes=); inválido ou futuro
@@ -22,7 +22,8 @@ const MONTH = /^\d{4}-(0[1-9]|1[0-2])$/;
 export async function getReinvestmentView(requested: string | null): Promise<ReinvestmentView> {
   const tenant = await getTenant(); // chama connection(): só em tempo de requisição
   const nowMonth = currentMonthKey(new Date());
-  const month = requested && MONTH.test(requested) && requested <= nowMonth ? requested : nowMonth;
+  // A mesma regra da ação: AAAA-MM, de 2000-01 até o mês atual.
+  const month = requested && isReportMonth(requested, nowMonth) ? requested : nowMonth;
   const [transactions, received, percents] = await Promise.all([
     getMyTransactions(),
     getMyDividends(),
@@ -39,7 +40,7 @@ export async function getReinvestmentView(requested: string | null): Promise<Rei
   const [current] = reinvestmentHistory({ transactions, received, percents, months: [month] });
   return {
     month,
-    months: reinvestmentMonths(transactions, received, nowMonth),
+    months: reinvestmentMonths(transactions, received, nowMonth, month),
     current: current!,
     purchases: purchases.map((item) => ({
       ...item,

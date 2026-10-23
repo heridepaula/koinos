@@ -1,7 +1,7 @@
 "use client";
 
 import { useAction } from "next-safe-action/hooks";
-import { useState } from "react";
+import { useId, useState } from "react";
 import { toast } from "sonner";
 import { actionErrorMessage } from "@/shared/lib/action-error";
 import { formatBRL, formatPercent, formatQuantity } from "@/shared/lib/format";
@@ -10,29 +10,35 @@ import { Button } from "@/shared/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/shared/ui/card";
 import { Input } from "@/shared/ui/input";
 import { setReinvestmentPercentAction } from "../../actions";
-import { splitAporte } from "../../domain/reinvestment";
+import { DEFAULT_REINVESTMENT_PERCENT, roundPercent, splitAporte } from "../../domain/reinvestment";
 import type { ReinvestmentMonth } from "../../domain/types";
 
 /** Cards do mês: aporte, proventos, a % reinvestida (editável) e a divisão do aporte. */
 export function ReinvestmentCards({ current }: { current: ReinvestmentMonth }) {
+  const labelId = useId();
+  const hintId = useId();
   const [text, setText] = useState(numberToInput(current.percent));
   const typed = parseNumberInput(text);
   const valid = Number.isFinite(typed) && typed >= 0 && typed <= 100;
-  // A divisão acompanha o que se digita; inválido mostra a % que está valendo.
-  const split = splitAporte(current.aporte, current.dividends, valid ? typed : current.percent);
+  // A prévia usa a % como ela será gravada (uma casa decimal), para não mostrar uma divisão
+  // que o salvo não reproduz. Inválido mostra a % que está valendo.
+  const percent = valid ? roundPercent(typed) : current.percent;
+  const split = splitAporte(current.aporte, current.dividends, percent);
+  const changed = valid && percent !== current.percent;
   const save = useAction(setReinvestmentPercentAction, {
-    onSuccess: () => toast.success("% do mês salva."),
-    onError: ({ error }) => toast.error(actionErrorMessage(error)),
-  });
-  const reset = useAction(setReinvestmentPercentAction, {
-    onSuccess: () => {
-      setText(numberToInput(100));
-      toast.success("O mês voltou ao padrão (100%).");
+    onSuccess: ({ input }) => {
+      if (input.percent === null) {
+        setText(numberToInput(DEFAULT_REINVESTMENT_PERCENT));
+        toast.success(`O mês voltou ao padrão (${DEFAULT_REINVESTMENT_PERCENT}%).`);
+      } else {
+        setText(numberToInput(input.percent));
+        toast.success("% do mês salva.");
+      }
     },
     onError: ({ error }) => toast.error(actionErrorMessage(error)),
   });
-  const busy = save.isPending || reset.isPending;
-  const changed = valid && Math.round(typed * 10) / 10 !== current.percent;
+  // As duas partes somam 100% também depois do arredondamento da tela.
+  const dividendsShare = Math.round((split.dividendsShare ?? 0) * 1000) / 1000;
 
   return (
     <div className="@container">
@@ -61,18 +67,19 @@ export function ReinvestmentCards({ current }: { current: ReinvestmentMonth }) {
         </Card>
         <Card className="card-lift">
           <CardHeader>
-            <CardDescription>% dos proventos reinvestida</CardDescription>
+            <CardDescription id={labelId}>% dos proventos reinvestida</CardDescription>
           </CardHeader>
           <CardContent className="grid gap-2">
             <form
               className="flex items-center gap-2"
               onSubmit={(event) => {
                 event.preventDefault();
-                if (valid) save.execute({ month: current.month, percent: typed });
+                if (changed && !save.isPending) save.execute({ month: current.month, percent });
               }}
             >
               <Input
-                aria-label="% reinvestida"
+                aria-labelledby={labelId}
+                aria-describedby={hintId}
                 inputMode="decimal"
                 className="w-24 tabular-nums"
                 value={text}
@@ -80,26 +87,27 @@ export function ReinvestmentCards({ current }: { current: ReinvestmentMonth }) {
                 onChange={(event) => setText(event.target.value)}
               />
               <span className="text-sm text-muted-foreground">%</span>
-              <Button type="submit" size="sm" disabled={!changed || busy}>
+              <Button type="submit" size="sm" disabled={!changed || save.isPending}>
                 Salvar
               </Button>
             </form>
-            <p className="text-xs text-muted-foreground">
-              {!valid ? (
-                "Use um número de 0 a 100."
-              ) : current.isDefault ? (
-                "Padrão (100%): este mês ainda não tem % salva."
+            <div id={hintId} className="grid gap-1 text-xs text-muted-foreground">
+              {valid ? null : <p className="text-loss">Use um número de 0 a 100.</p>}
+              {current.isDefault ? (
+                <p>Padrão ({DEFAULT_REINVESTMENT_PERCENT}%): este mês ainda não tem % salva.</p>
               ) : (
-                <Button
-                  variant="link"
-                  className="h-auto p-0 text-xs"
-                  disabled={busy}
-                  onClick={() => reset.execute({ month: current.month, percent: null })}
-                >
-                  Voltar ao padrão (100%)
-                </Button>
+                <p>
+                  <Button
+                    variant="link"
+                    className="h-auto p-0 text-xs"
+                    disabled={save.isPending}
+                    onClick={() => save.execute({ month: current.month, percent: null })}
+                  >
+                    Voltar ao padrão ({DEFAULT_REINVESTMENT_PERCENT}%)
+                  </Button>
+                </p>
               )}
-            </p>
+            </div>
           </CardContent>
         </Card>
       </div>
@@ -120,14 +128,14 @@ export function ReinvestmentCards({ current }: { current: ReinvestmentMonth }) {
                   Proventos{" "}
                   <strong className="tabular-nums">{formatBRL(split.fromDividends)}</strong>
                   <span className="text-muted-foreground tabular-nums">
-                    {formatPercent(split.dividendsShare ?? 0, 1)}
+                    {formatPercent(dividendsShare, 1)}
                   </span>
                 </span>
                 <span className="flex items-center gap-2">
                   <span className="size-2.5 rounded-[2px] bg-(--chart-1)" aria-hidden="true" />
                   Bolso <strong className="tabular-nums">{formatBRL(split.fromPocket)}</strong>
                   <span className="text-muted-foreground tabular-nums">
-                    {formatPercent(1 - (split.dividendsShare ?? 0), 1)}
+                    {formatPercent(1 - dividendsShare, 1)}
                   </span>
                 </span>
               </div>

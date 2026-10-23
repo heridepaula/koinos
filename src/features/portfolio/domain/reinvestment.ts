@@ -7,6 +7,20 @@ import type { MonthPurchase, ReinvestmentMonth, ReinvestmentSplit } from "./type
 /** Mês sem % salva: no método Suno, todo provento volta para a carteira. */
 export const DEFAULT_REINVESTMENT_PERCENT = 100;
 
+/** Formato AAAA-MM dos meses do relatório. */
+export const MONTH_KEY_PATTERN = /^\d{4}-(0[1-9]|1[0-2])$/;
+const FIRST_REPORT_MONTH = "2000-01";
+
+/** Mês aceito no relatório: AAAA-MM, de 2000-01 até o mês atual. */
+export function isReportMonth(month: string, currentMonth: string): boolean {
+  return MONTH_KEY_PATTERN.test(month) && month >= FIRST_REPORT_MONTH && month <= currentMonth;
+}
+
+/** A % como ela é gravada: uma casa decimal, sem "-0". A prévia usa a mesma conta. */
+export function roundPercent(percent: number): number {
+  return Math.round(percent * 10) / 10 || 0;
+}
+
 /** Compras pagas em dinheiro. Lançamento antigo, sem `kind`, vale como negócio. */
 const isCashPurchase = (entry: LedgerEntry) =>
   entry.type === "BUY" &&
@@ -85,13 +99,17 @@ export function summarizeReinvestment(history: readonly ReinvestmentMonth[]) {
   return { aporte, fromDividends, share: aporte > 0 ? fromDividends / aporte : null };
 }
 
-/** Meses do seletor: os com compra em dinheiro ou provento, mais o atual; do mais recente ao mais antigo. */
+/**
+ * Meses do seletor: os com compra em dinheiro ou provento, mais o atual e o escolhido (que pode
+ * não ter nada, vindo de um link), do mais recente ao mais antigo.
+ */
 export function reinvestmentMonths(
   transactions: readonly LedgerEntry[],
   received: readonly DividendEntry[],
   currentMonth: string,
+  selectedMonth: string = currentMonth,
 ): string[] {
-  const months = new Set<string>([currentMonth]);
+  const months = new Set<string>([currentMonth, selectedMonth]);
   for (const entry of transactions)
     if (isCashPurchase(entry)) months.add(monthKeyOfTradeDate(entry.date));
   for (const item of received) months.add(monthKeyOfTradeDate(item.paidAt));

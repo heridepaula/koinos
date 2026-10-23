@@ -1,5 +1,6 @@
 import "server-only";
 import mongoose, { Schema, type Model, type Types } from "mongoose";
+import { MONTH_KEY_PATTERN } from "../domain/reinvestment";
 
 export interface ReinvestmentDoc {
   _id: Types.ObjectId;
@@ -15,7 +16,7 @@ export interface ReinvestmentDoc {
 const reinvestmentSchema = new Schema<ReinvestmentDoc>(
   {
     portfolioId: { type: Schema.Types.ObjectId, required: true },
-    month: { type: String, required: true, match: /^\d{4}-(0[1-9]|1[0-2])$/ },
+    month: { type: String, required: true, match: MONTH_KEY_PATTERN },
     percent: { type: Number, required: true, min: 0, max: 100 },
   },
   { timestamps: true },

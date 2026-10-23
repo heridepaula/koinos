@@ -24,8 +24,10 @@ export function EmptyPortfolio() {
         </EmptyDescription>
       </EmptyHeader>
       <EmptyContent className="flex-row flex-wrap justify-center gap-2">
-        <Button render={<Link href="/transacoes/importar" />}>Importar da B3</Button>
-        <Button variant="outline" render={<Link href="/transacoes" />}>
+        <Button nativeButton={false} render={<Link href="/transacoes/importar" />}>
+          Importar da B3
+        </Button>
+        <Button variant="outline" nativeButton={false} render={<Link href="/transacoes" />}>
           Registrar uma transação
         </Button>
       </EmptyContent>

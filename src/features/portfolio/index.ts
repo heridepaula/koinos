@@ -13,9 +13,12 @@ export {
 } from "./domain/dividends";
 export {
   DEFAULT_REINVESTMENT_PERCENT,
+  isReportMonth,
+  MONTH_KEY_PATTERN,
   monthPurchases,
   reinvestmentHistory,
   reinvestmentMonths,
+  roundPercent,
   splitAporte,
   summarizeReinvestment,
 } from "./domain/reinvestment";

@@ -17,7 +17,11 @@ export default function TransactionsPage() {
         title="Transações"
         description="Compras e vendas registradas."
         actions={
-          <Button variant="outline" render={<Link href="/transacoes/importar" />}>
+          <Button
+            variant="outline"
+            nativeButton={false}
+            render={<Link href="/transacoes/importar" />}
+          >
             <UploadIcon />
             Importar da B3
           </Button>
