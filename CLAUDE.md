@@ -15,6 +15,8 @@ Koinos is a single-owner FII (Brazilian REIT) portfolio dashboard that replaced 
 - `npm run build`: needs the server env vars. Without `.env.local`, use the dummy values in `.github/workflows/ci.yml`.
 - `npm run format` / `npm run format:check`: Prettier, with the Tailwind plugin.
 - `npm run import:b3` / `npm run import:planilha`: operator scripts for loading the B3 statements or the old spreadsheet. Users import B3 statements on the `/transacoes/importar` screen.
+  - `import:b3` also writes the dividends. Run it with `--dry-run` first.
+  - `--alvo` overwrites the Carteira Alvo with the spreadsheet's rank and ceiling. Only pass it when the owner asks.
 
 **Tests:** there is no test suite, by the owner's decision.
 
@@ -26,6 +28,9 @@ Koinos is a single-owner FII (Brazilian REIT) portfolio dashboard that replaced 
   ```
 
   The `react-server` condition is required because server modules import `server-only`.
+
+  - **`@/` aliases:** a script outside the repo can't resolve them. Import the repo's `src` through absolute `file://` URLs, or copy the script into the repo root just to run it and delete it afterwards. Never commit it.
+  - **Session DAL:** modules that reach it (the `server.ts` entry points, through `next/navigation`) don't run under tsx. Import the repository modules instead (`repo.ts`, `server/*-repo.ts`).
 
 **Database warning:** `MONGODB_URI` in `.env.local` points at the production database (`koinos`). Local dev and every script read and write real data, so use a separate database name for experiments.
 
@@ -57,6 +62,7 @@ Koinos is a single-owner FII (Brazilian REIT) portfolio dashboard that replaced 
 - Every query filters by the tenant's `portfolioId`. Updates and deletes filter by `_id` and portfolio.
 - DTOs sent to the client carry no internal ids.
 - `src/proxy.ts` (Next 16's middleware) only does an optimistic cookie redirect. The real auth and allowlist check is in the DAL.
+  - Its `matcher` lists the protected routes one by one. Add every new `(app)` route there, or the page renders its shell without a session before the DAL redirects.
 
 **Rendering:**
 
@@ -75,8 +81,14 @@ Koinos is a single-owner FII (Brazilian REIT) portfolio dashboard that replaced 
 - One `MongoClient`, shared by Better Auth (native driver) and Mongoose, lives in `shared/db/mongo.ts`.
 - `sanitizeFilter` is on, so query operators written in code must be wrapped in `mongoose.trusted(...)`.
 - Sessions and the rate limit live in Redis through Better Auth's `secondaryStorage`. Values are sealed with AES-256-GCM in `auth/server/session-storage.ts`.
+- **Session lifetime:** a session expires after 1 h without use (`expiresIn` 1 h, `updateAge` 5 min).
+  - Server Components can't set cookies.
+  - So `SessionKeepAlive` (`auth/components/session-keep-alive.tsx`) asks `/api/auth` for the session on real interaction, at most every 5 min, and that renews the cookie.
 - A distributed lock is in `shared/db/lock.ts`.
 - `shared/env.ts` validates the server env with t3-env. There are no `NEXT_PUBLIC_` variables.
+- `ALLOWED_EMAILS` is optional.
+  - Locally it restricts who can sign in.
+  - In production it stays empty: access is controlled by the Google OAuth app's test users, and Google must report the e-mail as verified.
 
 **Domain flow:**
 
@@ -126,6 +138,14 @@ Koinos is a single-owner FII (Brazilian REIT) portfolio dashboard that replaced 
 
 - **Materials:** the visual materials are Tailwind 4 `@utility` rules in `src/app/globals.css` (`glass-strong`, `card-surface`, `metal-ring`, `btn-gloss`, `tile`…). Composite materials stack through CSS variables (`--glow-layer`, `--card-texture`, `--card-fill`), not competing classes.
 - **`backdrop-filter`:** write only the unprefixed property. If `-webkit-backdrop-filter` is also written, Lightning CSS keeps only the prefixed one, which Chrome and Edge ignore.
+- **Contrast:** at `size="sm"`, the `btn-gloss` label sits under the top sheen and falls to about 3.3:1 in the light theme.
+  - A selected segment uses solid `bg-(--badge)` with white text instead.
+  - The AA text colors are `text-gain`, `text-loss` and `text-muted-foreground`.
+- **Container queries:** layouts that depend on the content width (sidebar open or closed) use `@container` with `@min-[Npx]:` steps, in px only. Tailwind emits px container sizes before the named rem ones (`@md`, `@3xl`…), so mixing the two lets the named ones win.
+- **Charts:** Recharts, through `shared/ui/chart.tsx`.
+  - Series colors come from the `--chart-*` tokens: aportes and bolso use `--chart-1` (blue), proventos use `--chart-2` (orange).
+  - Two or more series get a legend.
+- **Base UI `Button` as a link:** `render={<Link />}` needs `nativeButton={false}`. Without it, Base UI logs an error and puts `type="button"` on the `<a>`.
 - **`cn`:** the `cn` package is tailwind-merge compatible, so a later class overrides a conflicting one.
 - **`next.config.ts`:**
   - `turbopackFileSystemCacheForBuild` is off on purpose: Vercel's restored build cache shipped stale CSS.
