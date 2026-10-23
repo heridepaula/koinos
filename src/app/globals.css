@@ -159,6 +159,7 @@
   /* Azulejos do menu, como os Ajustes do iPhone. */
   --tile-blue: linear-gradient(180deg, #3a9bff, #0a6cff);
   --tile-green: linear-gradient(180deg, #4cd964, #28b44a);
+  --tile-teal: linear-gradient(180deg, #40c8e0, #0a9bb5);
   --tile-orange: linear-gradient(180deg, #ffb340, #ff8a00);
   --tile-purple: linear-gradient(180deg, #c77dff, #9b3fe0);
   --tile-app: linear-gradient(160deg, #5ac8fa, #0a7aff 60%, #5e5ce6);

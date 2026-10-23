@@ -4,6 +4,7 @@ import { cn } from "cn";
 import {
   ArrowLeftRightIcon,
   CoinsIcon,
+  HandCoinsIcon,
   LayoutDashboardIcon,
   LightbulbIcon,
   TargetIcon,
@@ -37,6 +38,12 @@ const NAV_ITEMS = [
     label: "Transações",
     icon: ArrowLeftRightIcon,
     tile: "[--tile:var(--tile-green)]",
+  },
+  {
+    href: "/proventos",
+    label: "Proventos",
+    icon: HandCoinsIcon,
+    tile: "[--tile:var(--tile-teal)]",
   },
   {
     href: "/carteira-alvo",

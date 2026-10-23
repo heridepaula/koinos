@@ -181,3 +181,23 @@ export type DividendTickerGroup = {
   payments: number;
   lastPaidAt: Date;
 };
+
+type AssetMeta = { name: string | null; logoUrl: string | null };
+
+/** Tela de proventos: o mês atual, o que está a receber e o histórico agrupado. */
+export type DividendsView = {
+  month: DividendMonthSummary;
+  upcoming: (UpcomingDividend &
+    AssetMeta & {
+      /** A data estimada de pagamento já passou e o extrato da B3 ainda não confirmou. */
+      payByPassed: boolean;
+    })[];
+  byMonth: DividendMonthGroup[];
+  byYear: DividendYearGroup[];
+  byTicker: (DividendTickerGroup & AssetMeta)[];
+  /** Os últimos 24 meses, com zero nos meses sem provento (para o gráfico). */
+  chart: { month: string; amount: number }[];
+  /** Mês (YYYY-MM) do primeiro provento recebido; null sem nenhum. */
+  since: string | null;
+  hasAny: boolean;
+};

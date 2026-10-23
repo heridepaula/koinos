@@ -17,6 +17,7 @@ export type {
   ClosedPosition,
   DividendMonthGroup,
   DividendMonthSummary,
+  DividendsView,
   DividendTickerGroup,
   DividendYearGroup,
   EvolutionPoint,
