@@ -2,6 +2,7 @@
 
 - **Data:** 2026-10-18
 - **Status:** design aprovado na conversa; este documento aguarda revisão
+- **Substituído em parte:** a tela (§8 a §11) deu lugar à página `/atualizacao-b3`, com os três extratos (`2026-10-23-atualizacao-b3-design.md`). As regras do plano (§4 a §7) continuam valendo.
 - **Ciclo:** importação pela interface, que o spec do MVP (`2026-10-17-koinos-design.md`) deixava fora do escopo
 
 ## 1. Objetivo

@@ -1,7 +1,11 @@
 # Atualização da B3 (três extratos): especificação de design
 
 - **Data:** 2026-10-23
-- **Status:** design aprovado na conversa; aguardando revisão do spec escrito.
+- **Status:** implementado em 2026-10-23 (branch feat/atualizacao-b3). Decisões tomadas na execução:
+  - o `/transacoes/importar` redireciona pelo `next.config.ts`, como o `/` → `/dashboard`, e a página antiga saiu;
+  - "Gerar prévia" libera com um arquivo: o reconhecimento é no servidor, e é ele quem diz qual extrato falta (critério 4);
+  - a prévia nunca diz "nada novo" com pendência aberta, porque o FII pendente fica fora da comparação até ser respondido;
+  - a foto do "a receber" só conta como mudança quando os itens mudam; uma data de envio mais nova sozinha não grava nada.
 - **Substitui:** a tela de importação de `2026-10-18-importacao-b3-design.md` (§8 a §11), que aceitava Negociação, Movimentação e a planilha opcional. As regras do plano (§4 a §7 daquele spec) continuam valendo.
 
 ## 1. Objetivo
