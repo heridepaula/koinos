@@ -54,6 +54,15 @@ export async function getCurrentUser(): Promise<CurrentUser> {
   };
 }
 
+/**
+ * Página de login com sessão válida (e e-mail autorizado): vai para a home. Confere a sessão de
+ * verdade, não só o cookie, para um cookie vencido não criar laço entre o login e o dashboard.
+ */
+export async function redirectIfSignedIn(): Promise<void> {
+  const session = await auth.api.getSession({ headers: await headers() });
+  if (session && isEmailAllowed(session.user.email, allowedEmails)) redirect("/dashboard");
+}
+
 /** Tenant para renderização. React.cache evita repetir a consulta na mesma requisição. */
 export const getTenant = cache(async (): Promise<Tenant> => {
   const user = await getCurrentUser();

@@ -5,6 +5,7 @@ export { auth } from "./server/auth";
 export {
   getCurrentUser,
   getTenant,
+  redirectIfSignedIn,
   requireTenant,
   UnauthorizedError,
   type CurrentUser,

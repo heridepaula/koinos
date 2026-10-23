@@ -1,6 +1,7 @@
 import { CoinsIcon } from "lucide-react";
 import type { Metadata } from "next";
 import { Suspense } from "react";
+import { redirectIfSignedIn } from "@/features/auth/server";
 import { SignInButton } from "@/features/auth/ui";
 import { Alert, AlertDescription } from "@/shared/ui/alert";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/shared/ui/card";
@@ -25,6 +26,12 @@ async function LoginError({ searchParams }: Pick<PageProps<"/login">, "searchPar
   );
 }
 
+// Quem já tem sessão válida vai para a home. Lê os cookies: fica dentro de <Suspense>.
+async function SignedInRedirect() {
+  await redirectIfSignedIn();
+  return null;
+}
+
 export default function LoginPage({ searchParams }: PageProps<"/login">) {
   return (
     <main className="flex min-h-svh items-center justify-center bg-muted/40 p-4">
@@ -37,6 +44,9 @@ export default function LoginPage({ searchParams }: PageProps<"/login">) {
           <CardDescription>Sua carteira de FIIs, com aportes pelo método Suno.</CardDescription>
         </CardHeader>
         <CardContent className="grid gap-4">
+          <Suspense fallback={null}>
+            <SignedInRedirect />
+          </Suspense>
           <Suspense fallback={null}>
             <LoginError searchParams={searchParams} />
           </Suspense>
