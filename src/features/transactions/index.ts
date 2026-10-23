@@ -31,6 +31,7 @@ export {
 export { detectB3File } from "./import/b3/detect";
 export { readNegociacao } from "./import/b3/read-negociacao";
 export { readMovimentacao } from "./import/b3/read-movimentacao";
+export { readEventos } from "./import/b3/read-eventos";
 export { B3ImportError, planB3Import, type PlanInput } from "./import/b3/plan";
 export type {
   AssetTypeInfo,
@@ -38,6 +39,8 @@ export type {
   B3ImportAnswers,
   B3ImportPlan,
   DividendCheck,
+  EventoRow,
+  EventosData,
   ExistingTransaction,
   PendingItem,
   PlannedDividend,

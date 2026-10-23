@@ -7,6 +7,7 @@ import type { B3ImportPreview } from "../../import/b3/types";
 const FILE_LABELS = {
   NEGOCIACAO: "Negociação",
   MOVIMENTACAO: "Movimentação",
+  EVENTOS: "Eventos",
   PLANILHA: "Sua planilha",
 } as const;
 const KIND_LABELS: Record<string, [string, string]> = {

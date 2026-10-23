@@ -36,6 +36,7 @@ const ZIP_SIGNATURE = [0x50, 0x4b, 0x03, 0x04];
 const FILE_LABELS: Record<B3FileKind, string> = {
   NEGOCIACAO: "Negociação",
   MOVIMENTACAO: "Movimentação",
+  EVENTOS: "Eventos",
   PLANILHA: "planilha",
 };
 

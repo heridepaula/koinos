@@ -16,6 +16,9 @@ export function detectB3File(sheets: readonly SheetInput[]): B3FileKind | null {
   if (has(header, "Entrada/Saída", "Movimentação", "Produto", "Quantidade")) {
     return "MOVIMENTACAO";
   }
+  if (has(header, "Produto", "Tipo de Evento", "Previsão de pagamento")) {
+    return "EVENTOS";
+  }
   const names = sheets.map((sheet) => normalizeHeader(sheet.sheet));
   if (names.includes("movimentacoes") && names.some((name) => name.startsWith("graficos"))) {
     return "PLANILHA";

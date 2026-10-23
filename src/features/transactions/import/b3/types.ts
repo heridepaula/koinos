@@ -8,7 +8,7 @@ import type {
 } from "../../domain/types";
 import type { RowError } from "../parse-planilha";
 
-export type B3FileKind = "NEGOCIACAO" | "MOVIMENTACAO" | "PLANILHA";
+export type B3FileKind = "NEGOCIACAO" | "MOVIMENTACAO" | "EVENTOS" | "PLANILHA";
 
 /** Uma linha do extrato de Negociação (já com o código normal no lugar do fracionário). */
 export type B3Trade = {
@@ -49,6 +49,22 @@ export type MovimentacaoData = {
   firstDate: Date | null;
   lastDate: Date | null;
 };
+
+/** Uma linha do extrato de Eventos ("Proventos a Receber"), sem interpretação. */
+export type EventoRow = {
+  row: number;
+  /** Código do produto (antes de " - "), ex.: BTLG11 ou PETR4. */
+  code: string;
+  /** Tipo do evento, como a B3 escreve (ex.: "RENDIMENTO", "Reembolso - DIVIDENDO"). */
+  eventType: string;
+  /** Previsão de pagamento; null quando a B3 ainda não informou ("-"). */
+  payDate: Date | null;
+  quantity: number | null;
+  unitPrice: number | null;
+  value: number | null;
+};
+
+export type EventosData = { rows: EventoRow[]; rowErrors: RowError[] };
 
 /** Tipo do ativo no catálogo da brapi; null quando o código não está no catálogo. */
 export type AssetTypeInfo = { type: string | null; subType: string | null };
