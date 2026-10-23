@@ -8,6 +8,7 @@ import {
   HandCoinsIcon,
   LayoutDashboardIcon,
   LightbulbIcon,
+  ReceiptTextIcon,
   RefreshCwIcon,
   TargetIcon,
 } from "lucide-react";
@@ -37,7 +38,7 @@ type NavItem = {
   icon: typeof LayoutDashboardIcon;
   tile: string;
   /** Subpáginas que aparecem no menu, abaixo do item (somem com a sidebar recolhida). */
-  children?: readonly { href: string; label: string }[];
+  children?: readonly { href: string; label: string; icon: typeof LayoutDashboardIcon }[];
 };
 
 const NAV_ITEMS: readonly NavItem[] = [
@@ -64,7 +65,7 @@ const NAV_ITEMS: readonly NavItem[] = [
     label: "Posições encerradas",
     icon: ArchiveIcon,
     tile: "[--tile:var(--tile-pink)]",
-    children: [{ href: "/encerradas/ir", label: "IR estimado" }],
+    children: [{ href: "/encerradas/ir", label: "IR estimado", icon: ReceiptTextIcon }],
   },
   {
     href: "/atualizacao-b3",
@@ -145,6 +146,7 @@ export function AppSidebar({ footer }: { footer: ReactNode }) {
                               render={<Link href={child.href} />}
                               isActive={pathname === child.href}
                             >
+                              <child.icon />
                               <span>{child.label}</span>
                             </SidebarMenuSubButton>
                           </SidebarMenuSubItem>
