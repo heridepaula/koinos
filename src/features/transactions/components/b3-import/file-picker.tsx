@@ -6,7 +6,7 @@ import { useState } from "react";
 import { Button } from "@/shared/ui/button";
 
 /** Negociação, Movimentação e Eventos: a atualização só sai com os três. */
-export const FILE_COUNT = 3;
+const FILE_COUNT = 3;
 
 /** Os três extratos .xlsx, por clique ou arrastar e soltar. O servidor reconhece cada um. */
 export function FilePicker({
@@ -28,7 +28,9 @@ export function FilePicker({
   };
 
   return (
-    <div className="grid gap-3">
+    // min-w-0 nos itens dos grids: o nome do arquivo (truncate) não pode ditar a largura mínima,
+    // senão a lista empurra o card para fora da tela no celular.
+    <div className="grid min-w-0 gap-3">
       <label
         className={cn(
           "flex cursor-pointer flex-col items-center gap-2 rounded-2xl border-2 border-dashed px-6 py-8 text-center transition-colors",
@@ -62,9 +64,12 @@ export function FilePicker({
         />
       </label>
       {files.length > 0 ? (
-        <ul className="grid gap-1.5">
+        <ul className="grid min-w-0 gap-1.5">
           {files.map((file) => (
-            <li key={`${file.name}-${file.size}`} className="flex items-center gap-2 text-sm">
+            <li
+              key={`${file.name}-${file.size}`}
+              className="flex min-w-0 items-center gap-2 text-sm"
+            >
               <FileSpreadsheetIcon
                 className="size-4 shrink-0 text-[var(--switch-on)]"
                 aria-hidden="true"

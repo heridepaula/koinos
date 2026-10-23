@@ -11,7 +11,7 @@ import { Spinner } from "@/shared/ui/spinner";
 import { confirmB3ImportAction, previewB3ImportAction } from "../../actions";
 import type { B3ImportPreview, B3ImportResult } from "../../import/b3/types";
 import { emptyDraft, toAnswers, type AnswersDraft } from "./answers";
-import { FilePicker, FILE_COUNT } from "./file-picker";
+import { FilePicker } from "./file-picker";
 import { isOpen, PendingList } from "./pending-list";
 import {
   DividendCheck,
@@ -53,6 +53,8 @@ export function B3ImportWizard() {
   const [preview, setPreview] = useState<B3ImportPreview | null>(null);
   const [dirty, setDirty] = useState(false);
   const [done, setDone] = useState<B3ImportResult | null>(null);
+  // Por que a última prévia não saiu (ex.: qual extrato falta): fica até mudar os arquivos.
+  const [problem, setProblem] = useState<string | null>(null);
 
   const toForm = () => {
     const form = new FormData();
@@ -66,14 +68,20 @@ export function B3ImportWizard() {
     setPreview(null);
     setDraft(emptyDraft());
     setDirty(false);
+    setProblem(null);
   };
   const previewAction = useAction(previewB3ImportAction, {
     onSuccess: ({ data }) => {
       if (!data) return;
       setPreview(data);
       setDirty(false);
+      setProblem(null);
     },
-    onError: ({ error }) => toast.error(actionErrorMessage(error)),
+    onError: ({ error }) => {
+      const message = actionErrorMessage(error);
+      setProblem(message);
+      toast.error(message);
+    },
   });
   const confirmAction = useAction(confirmB3ImportAction, {
     onSuccess: ({ data }) => {
@@ -90,7 +98,6 @@ export function B3ImportWizard() {
     setDirty(true);
   };
   const busy = previewAction.isPending || confirmAction.isPending;
-  const ready = files.length === FILE_COUNT;
   const divergent = (preview?.check.unexplained.length ?? 0) > 0;
   const canImport =
     preview !== null &&
@@ -122,7 +129,7 @@ export function B3ImportWizard() {
             <Button
               type="button"
               variant={preview ? "outline" : "default"}
-              disabled={!ready || busy}
+              disabled={files.length === 0 || busy}
               onClick={() => previewAction.execute(toForm())}
             >
               {previewAction.isPending ? <Spinner /> : null}
@@ -139,13 +146,10 @@ export function B3ImportWizard() {
               </Button>
             ) : null}
           </div>
-          {!ready && files.length > 0 ? (
-            <p className="text-sm text-muted-foreground">
-              A prévia só sai com os três extratos: falta{" "}
-              {FILE_COUNT - files.length === 1
-                ? "1 arquivo"
-                : `${FILE_COUNT - files.length} arquivos`}
-              .
+          {/* O servidor reconhece cada arquivo: é ele quem diz qual extrato falta ou sobra. */}
+          {problem ? (
+            <p role="alert" className="text-sm font-medium text-loss">
+              {problem}
             </p>
           ) : null}
           {preview?.nothingNew && !dirty ? (
