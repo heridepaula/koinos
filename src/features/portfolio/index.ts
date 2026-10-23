@@ -2,6 +2,13 @@
 export { buildSnapshot } from "./domain/snapshot";
 export { computeEvolution } from "./domain/evolution";
 export {
+  closedPositions,
+  estimateCapitalGainsTax,
+  FII_CAPITAL_GAINS_RATE,
+  summarizeClosedPositions,
+  type ClosedLedgerEntry,
+} from "./domain/closed-positions";
+export {
   adjustedResult,
   dividendsByTicker,
   groupByMonth,
@@ -26,6 +33,9 @@ export type {
   AdjustedResult,
   AllocationSlice,
   ClosedPosition,
+  ClosedPositionRow,
+  ClosedPositionsTotals,
+  ClosedPositionsView,
   DividendMonthGroup,
   DividendMonthSummary,
   DividendsView,

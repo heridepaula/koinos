@@ -80,15 +80,57 @@ export type StrategyRow = {
   priority: AportePriority | null;
 };
 
+/**
+ * FII que já esteve na carteira e hoje tem posição zerada: o resultado das vendas e o IR estimado.
+ * Incorporação não é venda: não entra no custo nem no vendido, porque o custo segue para o destino.
+ */
 export type ClosedPosition = {
+  ticker: string;
+  /** Dia em que a posição zerou: a última venda ou, quando foi ela que zerou, a incorporação. */
+  closedAt: Date;
+  /** Quantas vendas de verdade (negócios e leilões de fração), somando todos os ciclos. */
+  sales: number;
+  /** Custo das cotas vendidas: o preço médio de cada venda × as cotas, com as taxas de compra. */
+  costBasis: number;
+  /** Valor das vendas, sem as taxas de venda. */
+  proceeds: number;
+  /** Vendido − custo. */
+  realizedPnL: number;
+  /** Resultado sobre o custo; null sem custo (sem venda). */
+  realizedPct: number | null;
+  /** 20% do lucro, sem isenção; zero no prejuízo. Por posição, sem compensar prejuízos. */
+  estimatedTax: number;
+  /** FII que recebeu as cotas, quando foi uma incorporação que zerou a posição. */
+  incorporatedInto: string | null;
+  /** Algum preço de compra deste FII (ou do incorporado nele) foi estimado: o resultado também é. */
+  estimatedPrice: boolean;
+};
+
+/** Linha das encerradas no dashboard: o resultado das vendas mais os proventos. */
+export type ClosedPositionRow = {
   ticker: string;
   realizedPnL: number;
   /** Proventos recebidos deste FII desde sempre. */
   dividends: number;
   /** Vendas + proventos: sem cotação, porque a posição está zerada. */
   totalResult: number;
-  /** Último lançamento; null para o FII que só aparece pelos proventos (sem lançamento). */
-  lastDate: Date | null;
+  /** Dia em que a posição zerou; null para o FII que só aparece pelos proventos (sem lançamento). */
+  closedAt: Date | null;
+};
+
+/** Somas das posições encerradas. */
+export type ClosedPositionsTotals = {
+  count: number;
+  costBasis: number;
+  proceeds: number;
+  realizedPnL: number;
+  estimatedTax: number;
+  /** Soma das posições com lucro: a base do IR estimado. */
+  profit: number;
+  /** Soma das posições com prejuízo (negativa). */
+  loss: number;
+  withProfit: number;
+  withLoss: number;
 };
 
 export type PortfolioSummary = {
@@ -122,7 +164,7 @@ export type PortfolioAlert = {
 export type PortfolioSnapshot = {
   summary: PortfolioSummary;
   positions: PositionRow[];
-  closed: ClosedPosition[];
+  closed: ClosedPositionRow[];
   strategy: {
     rows: StrategyRow[];
     strategyValue: number;
@@ -254,4 +296,10 @@ export type ReinvestmentView = {
   /** Os últimos 24 meses, do mais antigo ao mais recente. */
   history: ReinvestmentMonth[];
   last12: { aporte: number; fromDividends: number; share: number | null };
+};
+
+/** Tela de posições encerradas: as posições, da mais recente para a mais antiga, e as somas. */
+export type ClosedPositionsView = {
+  rows: (ClosedPosition & AssetMeta)[];
+  totals: ClosedPositionsTotals;
 };

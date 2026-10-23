@@ -6,18 +6,14 @@ import {
   marginToCeiling,
   suggestCategory,
 } from "@/features/strategy";
-import {
-  monthlyContributions,
-  replayLedger,
-  type DividendEntry,
-  type LedgerEntry,
-} from "@/features/transactions";
+import { monthlyContributions, replayLedger, type DividendEntry } from "@/features/transactions";
 import { addMonths, currentMonthKey, monthRange } from "@/shared/lib/time";
 import { buildAlerts } from "./alerts";
 import { allocationByAsset, allocationByCategory } from "./allocation";
+import { closedPositions, type ClosedLedgerEntry } from "./closed-positions";
 import { adjustedResult, dividendsByTicker } from "./dividends";
 import type {
-  ClosedPosition,
+  ClosedPositionRow,
   PortfolioSnapshot,
   PortfolioSummary,
   PositionRow,
@@ -31,7 +27,7 @@ const CONTRIBUTION_MONTHS = 24;
 
 export type SnapshotInput = {
   now: Date;
-  transactions: readonly LedgerEntry[];
+  transactions: readonly ClosedLedgerEntry[];
   targets: readonly TargetConfig[];
   /** Proventos recebidos: só afetam o resultado ajustado, não a cascata nem a renda estimada. */
   dividends: readonly DividendEntry[];
@@ -212,20 +208,18 @@ export function buildSnapshot({
   // para o total de proventos do resumo fechar com a soma das linhas das duas tabelas.
   const ledgerTickers = new Set(positions.map((position) => position.ticker));
   const timeOf = (date: Date | null) => date?.getTime() ?? 0;
-  const closed: ClosedPosition[] = [
-    ...positions
-      .filter((position) => position.quantity === 0)
-      .map((position) => {
-        const dividendsOf = received.get(position.ticker) ?? 0;
-        return {
-          ticker: position.ticker,
-          realizedPnL: position.realizedPnL,
-          dividends: dividendsOf,
-          // Posição zerada: não há resultado de cotação, só vendas e proventos.
-          totalResult: adjustedResult(0, dividendsOf, position.realizedPnL).total,
-          lastDate: position.lastDate,
-        };
-      }),
+  const closed: ClosedPositionRow[] = [
+    ...closedPositions(transactions).map((position) => {
+      const dividendsOf = received.get(position.ticker) ?? 0;
+      return {
+        ticker: position.ticker,
+        realizedPnL: position.realizedPnL,
+        dividends: dividendsOf,
+        // Posição zerada: não há resultado de cotação, só vendas e proventos.
+        totalResult: adjustedResult(0, dividendsOf, position.realizedPnL).total,
+        closedAt: position.closedAt,
+      };
+    }),
     ...[...received]
       .filter(([ticker]) => !ledgerTickers.has(ticker))
       .map(([ticker, amount]) => ({
@@ -233,9 +227,9 @@ export function buildSnapshot({
         realizedPnL: 0,
         dividends: amount,
         totalResult: adjustedResult(0, amount, 0).total,
-        lastDate: null,
+        closedAt: null,
       })),
-  ].sort((a, b) => timeOf(b.lastDate) - timeOf(a.lastDate) || a.ticker.localeCompare(b.ticker));
+  ].sort((a, b) => timeOf(b.closedAt) - timeOf(a.closedAt) || a.ticker.localeCompare(b.ticker));
 
   const nowMonth = currentMonthKey(now);
   const quoteTickers = strategyTickers;

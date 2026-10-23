@@ -1,0 +1,64 @@
+import { ArrowLeftIcon } from "lucide-react";
+import type { Metadata } from "next";
+import Link from "next/link";
+import { Suspense } from "react";
+import { getClosedPositionsView } from "@/features/portfolio/server";
+import {
+  ClosedPositionsCards,
+  ClosedPositionsTable,
+  EmptyClosedPositions,
+} from "@/features/portfolio/ui";
+import { PageHeader } from "@/shared/components/page-header";
+import { CardSkeleton } from "@/shared/components/skeletons";
+import { Button } from "@/shared/ui/button";
+import { Skeleton } from "@/shared/ui/skeleton";
+
+export const metadata: Metadata = { title: "Posições encerradas" };
+
+// O cabeçalho vai no shell estático; tudo o que depende da sessão chega por streaming.
+export default function ClosedPositionsPage() {
+  return (
+    <>
+      <PageHeader
+        title="Posições encerradas"
+        description="Os FIIs com posição zerada: o resultado das vendas e o IR estimado."
+        actions={
+          <Button variant="outline" nativeButton={false} render={<Link href="/dashboard" />}>
+            <ArrowLeftIcon />
+            Dashboard
+          </Button>
+        }
+      />
+      <Suspense fallback={<ClosedPositionsSkeleton />}>
+        <ClosedPositionsContent />
+      </Suspense>
+    </>
+  );
+}
+
+async function ClosedPositionsContent() {
+  const view = await getClosedPositionsView();
+  if (view.rows.length === 0) return <EmptyClosedPositions />;
+  return (
+    <div className="grid gap-6">
+      <ClosedPositionsCards totals={view.totals} />
+      <ClosedPositionsTable rows={view.rows} totals={view.totals} />
+    </div>
+  );
+}
+
+/** No formato da página (cards e tabela), para não pular ao carregar. */
+function ClosedPositionsSkeleton() {
+  return (
+    <div className="grid gap-6" aria-busy="true" aria-label="Carregando as posições encerradas">
+      <div className="@container">
+        <div className="grid gap-4 @min-[720px]:grid-cols-3">
+          <Skeleton className="h-36" />
+          <Skeleton className="h-36" />
+          <Skeleton className="h-36" />
+        </div>
+      </div>
+      <CardSkeleton height="h-96" />
+    </div>
+  );
+}

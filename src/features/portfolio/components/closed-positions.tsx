@@ -1,11 +1,13 @@
-import { ChevronDownIcon } from "lucide-react";
+import { ArrowRightIcon, ChevronDownIcon } from "lucide-react";
+import Link from "next/link";
 import { Delta } from "@/shared/components/delta";
 import { formatBRL, formatTradeDate } from "@/shared/lib/format";
+import { Button } from "@/shared/ui/button";
 import { Card, CardContent } from "@/shared/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/shared/ui/table";
-import type { ClosedPosition } from "../domain/types";
+import type { ClosedPositionRow } from "../domain/types";
 
-export function ClosedPositions({ rows }: { rows: readonly ClosedPosition[] }) {
+export function ClosedPositions({ rows }: { rows: readonly ClosedPositionRow[] }) {
   if (rows.length === 0) return null;
   const sales = rows.reduce((sum, row) => sum + row.realizedPnL, 0);
   const dividends = rows.reduce((sum, row) => sum + row.dividends, 0);
@@ -38,7 +40,7 @@ export function ClosedPositions({ rows }: { rows: readonly ClosedPosition[] }) {
             <TableHeader>
               <TableRow>
                 <TableHead className="pl-0">FII</TableHead>
-                <TableHead className="hidden @min-[500px]:table-cell">Última venda</TableHead>
+                <TableHead className="hidden @min-[500px]:table-cell">Encerrada em</TableHead>
                 <TableHead className="hidden text-right @min-[400px]:table-cell">Vendas</TableHead>
                 <TableHead className="text-right">Proventos</TableHead>
                 <TableHead className="pr-0 text-right">Total</TableHead>
@@ -50,7 +52,7 @@ export function ClosedPositions({ rows }: { rows: readonly ClosedPosition[] }) {
                   <TableCell className="pl-0 font-medium">{row.ticker}</TableCell>
                   <TableCell className="hidden text-muted-foreground @min-[500px]:table-cell">
                     {/* Sem data: o FII só aparece pelos proventos, sem lançamento na carteira. */}
-                    {row.lastDate ? formatTradeDate(row.lastDate) : "—"}
+                    {row.closedAt ? formatTradeDate(row.closedAt) : "—"}
                   </TableCell>
                   <TableCell className="hidden text-right @min-[400px]:table-cell">
                     <Delta value={row.realizedPnL} />
@@ -65,6 +67,17 @@ export function ClosedPositions({ rows }: { rows: readonly ClosedPosition[] }) {
               ))}
             </TableBody>
           </Table>
+          {/* Outline, não link: o azul do link fica abaixo de 4,5:1 sobre o card. */}
+          <Button
+            variant="outline"
+            size="sm"
+            className="mt-3"
+            nativeButton={false}
+            render={<Link href="/dashboard/encerradas" />}
+          >
+            Custo, vendas e IR estimado
+            <ArrowRightIcon />
+          </Button>
         </details>
       </CardContent>
     </Card>
