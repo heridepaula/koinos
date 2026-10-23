@@ -2,8 +2,9 @@
 
 Dashboard pessoal de FIIs que substitui a planilha. As posições saem dos lançamentos, as cotações vêm da B3 e o motor de aportes segue o método Suno: ranking até a % sugerida, só abaixo do preço teto, rebalanceando com aportes (nunca com vendas).
 
-- **Dashboard:** patrimônio, L/P, DY 12 meses, alertas, evolução, aportes por mês, composição e posições.
-- **Transações:** compras e vendas com filtros. Uma venda que quebra o histórico é recusada.
+- **Dashboard:** patrimônio, L/P, proventos recebidos e o resultado com proventos, DY 12 meses, alertas, evolução, aportes por mês, composição e posições.
+- **Transações:** compras e vendas com filtros e paginação. Uma venda que quebra o histórico é recusada.
+- **Proventos:** recebido, a receber e total do mês, e o histórico por mês, ano ou papel.
 - **Carteira Alvo:** ranking Suno, preço teto, % sugerida e categoria, editados na própria tabela.
 - **Recomendações:** "Quanto vou aportar hoje?" vira ordens de compra exatas, com o motivo de cada uma.
 
@@ -76,7 +77,7 @@ Use o Redis Cloud (plano gratuito) e copie a URL `redis://default:SENHA@host:por
 
 ## Importando os extratos da B3
 
-Na Área do Investidor da B3, baixe em Excel os extratos de **Negociação** e de **Movimentação**, desde 11/2019. Por enquanto a importação roda pelo script; a tela de upload é o próximo passo.
+Na Área do Investidor da B3, baixe em Excel os extratos de **Negociação** e de **Movimentação**, desde 11/2019, e envie na tela **Transações → Importar da B3** (`/transacoes/importar`), junto com a sua planilha. O script abaixo faz o mesmo pelo terminal.
 
 ```bash
 npm run import:b3 -- --negociacao negociacao.xlsx --movimentacao movimentacao.xlsx --planilha "FII's.xlsx" --dry-run
@@ -90,6 +91,8 @@ npm run import:b3 -- --negociacao negociacao.xlsx --movimentacao movimentacao.xl
 - **Respostas:** o `respostas.json` responde as pendências pelos ids que o dry-run mostra. O formato está no topo de `scripts/import-b3.ts`.
 - **Quando grava:** só sem pendência aberta e sem divergência inexplicada na conferência.
 - **A B3 manda:** no período dos extratos, os lançamentos de FII dão lugar aos do extrato. Os lançamentos B3 ficam travados em Transações; para corrigir, rode de novo.
+- **Proventos:** os créditos de Rendimento e Reembolso de FIIs do extrato de Movimentação vão para a coleção `dividends`. No período do extrato, eles são trocados FII por FII, na mesma transação dos lançamentos. Proventos de ações, JCP e o aluguel de cotas ficam de fora.
+- **Reenvio:** mande a planilha junto. Os preços de subscrição que vieram dela não ficam guardados como resposta e, sem ela, voltam como pendência.
 - **`--alvo`:** preenche a Carteira Alvo com o rank e o preço teto da planilha.
 - **Regras completas:** [spec da importação](docs/superpowers/specs/2026-10-18-importacao-b3-design.md).
 
@@ -110,7 +113,7 @@ npm run import:b3 -- --negociacao negociacao.xlsx --movimentacao movimentacao.xl
 - **Cotações:** brapi.dev primeiro (todos os fundos numa requisição só), com o Yahoo Finance de reserva.
 - **Validade das cotações:** durante o pregão (10h às 18h30 de Brasília, já contando o atraso da brapi), uma cotação vale 30 minutos. Fora do pregão, vale a do último fechamento e não gasta cota. Feriados não são tratados.
 - **Atualização:** as páginas atualizam em segundo plano o que estiver vencido, e o botão ao lado do horário força a atualização.
-- **Histórico mensal e proventos** (DY 12 meses e último rendimento) vêm do Yahoo. Cada mês fechado é buscado uma vez; os proventos, no máximo a cada 20 horas.
+- **Histórico mensal e proventos** (DY 12 meses, último rendimento e os anúncios dos últimos 90 dias, que alimentam o "a receber") vêm do Yahoo. Cada mês fechado é buscado uma vez; os proventos, no máximo a cada 20 horas. Os proventos recebidos vêm só dos extratos da B3.
 - **Cron diário** (`vercel.json`, `0 22 * * 1-5`): às 19h de Brasília, nos dias úteis, atualiza fechamento, proventos, histórico e o catálogo de tickers.
 
 ## Arquitetura

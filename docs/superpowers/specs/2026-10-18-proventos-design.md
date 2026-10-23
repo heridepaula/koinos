@@ -1,7 +1,7 @@
 # Proventos: especificação de design (ciclo 1)
 
 - **Data:** 2026-10-18
-- **Status:** design aprovado na conversa; aguardando revisão do spec escrito.
+- **Status:** implementado em 2026-10-23 (branch feat/proventos). As decisões tomadas na execução estão registradas nas seções abaixo.
 - **Ciclos:**
   - **Ciclo 1 (este spec):** proventos recebidos vindos da B3, previsão do mês pelo Yahoo, tela `/proventos` e resultado ajustado.
   - **Ciclo 2 (outro spec):** relatório de aportes × proventos (reinvestimento).
@@ -63,7 +63,7 @@ Coleção nova `dividends` em `transactions/server/dividend.model.ts`:
 - No ativo (`market-data/server/models.ts`), o campo novo `dividendAnnouncements: { exDate, perShare }[]` guarda os anúncios dos últimos 90 dias.
 - Ele é preenchido pelo `refreshDividends` na mesma busca que já calcula `lastDividend`.
 - Continua rodando no cron diário (`/api/cron/daily`) e no refresh sob demanda da tela.
-- O `AssetSnapshot` e o `PriceInfo` passam a expor esses anúncios.
+- O `AssetSnapshot` passa a expor esses anúncios. O `PriceInfo` do snapshot não os leva, porque só a tela de proventos usa.
 
 ## 4. Regras (puras)
 
@@ -76,9 +76,9 @@ Para cada anúncio com data ex até hoje:
 - **Cotas:** as que o usuário tinha no fim do dia anterior à data ex, calculadas pelo `replayLedger` até essa data.
 - **Valor estimado:** cotas × valor por cota. Se as cotas forem zero, o anúncio não entra.
 - **Já recebido:** um anúncio sai do "a receber" quando existe um provento da B3 do mesmo ticker com `paidAt` na data ex ou depois dela.
-- **Pagamento estimado:** "~ até" data ex + 15 dias.
+- **Pagamento estimado:** "~ até" data ex + 15 dias. Quando essa data já passou e o extrato ainda não confirmou, a tela mostra "a confirmar".
 
-Só entram anúncios cuja data ex cai no mês atual ou no anterior, desde que ainda não tenham sido recebidos. Assim, um provento com data ex no fim do mês passado e pagamento neste mês aparece.
+Só entram anúncios cuja data ex cai no mês atual ou no anterior, desde que ainda não tenham sido recebidos. Do mês anterior, só os que têm pagamento estimado neste mês. Assim, um provento com data ex no fim do mês passado e pagamento neste mês aparece, mas um que vencia no mês passado não infla o total deste mês.
 
 ### 4.2 Totais do mês atual
 
@@ -122,7 +122,7 @@ A página é nova, com o item "Proventos" no menu lateral, depois de "Transaçõ
   - **Mês:** gráfico de barras dos últimos 24 meses e uma tabela por mês que se expande por FII;
   - **Ano:** tabela com total e média mensal;
   - **Papel:** tabela com total, número de pagamentos e último pagamento.
-- **Sem proventos importados:** aviso com o botão "Importar da B3".
+- **Sem proventos importados:** só o aviso com o botão "Importar da B3". Sem nenhum extrato importado não dá para saber o que já foi pago: todo anúncio pareceria "a receber".
 
 A estrutura segue as outras páginas: Server Components, a casca estática e as partes da sessão em `<Suspense>`. Só as abas e o gráfico são Client Components (`ui.ts`). Os materiais visuais são os de `globals.css`.
 
@@ -134,7 +134,7 @@ A estrutura segue as outras páginas: Server Components, a casca estática e as 
   - Em cima vem o resultado com proventos; embaixo, em letra menor, os proventos recebidos ("prov. R$ …").
   - O tooltip mostra a conta: cotação, + proventos, = com proventos, + vendas, = resultado total.
   - Duas colunas separadas empurravam "% carteira" e "Prioridade" para fora da tela em 1440 px. Com uma coluna e um respiro menor nas colunas do meio, a tabela volta a caber.
-- **Posições encerradas:** viram uma tabela com FII, Última venda, Vendas, Proventos e Total. O resumo mostra os três totais.
+- **Posições encerradas:** viram uma tabela com FII, Última venda, Vendas, Proventos e Total. O resumo mostra os três totais. Um FII que só aparece pelos proventos, sem nenhum lançamento, entra aqui com "—" na última venda, para o total de proventos do resumo fechar com a soma das linhas.
 - **Renda mensal estimada (`monthlyIncome`):** não muda.
 
 ## 6. Arquitetura

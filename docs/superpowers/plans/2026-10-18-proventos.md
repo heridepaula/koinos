@@ -909,6 +909,8 @@ git commit -m "feat(import): persist B3 dividends in the import transaction with
 
 ### Task 4: anúncios de proventos do Yahoo
 
+> **Executado (2026-10-19):** commit 414d507. O `PriceInfo` não leva os anúncios: só o `AssetSnapshot` os expõe, porque só a tela de proventos usa.
+
 **Goal:** o `refreshDividends` passa a guardar no ativo os anúncios dos últimos 90 dias, e o snapshot os recebe pelo `PriceInfo`.
 
 **Files:**
@@ -1006,6 +1008,15 @@ git commit -m "feat(market-data): keep recent Yahoo dividend announcements per a
 ---
 
 ### Task 5: resultado ajustado no snapshot e no Dashboard
+
+> **Executado (2026-10-23):** commits 3e20586, 89f2ff2, 91c3fa6, 2928e7a e f651072. Depois das capturas de tela, o layout mudou:
+> - uma coluna "c/ proventos" em vez de duas;
+> - cards por container query;
+> - encerradas em tabela;
+> - a conta do resultado em popover acessível por toque e teclado;
+> - "R$ 0,00" sem sinal para os resíduos.
+>
+> O spec §5.2 registra essas decisões.
 
 **Goal:** cada posição (aberta ou encerrada) e o resumo da carteira passam a ter proventos, resultado com proventos e resultado total. O Dashboard mostra esses números.
 
@@ -1219,6 +1230,12 @@ git commit -m "feat(portfolio): dividends and adjusted results on positions and 
 ---
 
 ### Task 6: tela `/proventos`
+
+> **Executado (2026-10-23):** commits 110d452 e c2141a2.
+> - `getDividendsView` fica em `server/dividends-view.ts`.
+> - Os anos do histórico recolhem.
+> - O segmento escolhido é azul sólido (`--badge`), por contraste.
+> - Pagamento estimado vencido aparece como "a confirmar".
 
 **Goal:** criar a página `/proventos`, com os cards do mês, a lista "A receber" e o histórico com as abas Mês | Ano | Papel, mais o item no menu lateral.
 
@@ -1735,6 +1752,13 @@ git commit -m "feat(dividends): /proventos page with month totals, upcoming list
 ---
 
 ### Task 7: verificação ponta a ponta na preview isolada
+
+> **Executado (2026-10-23):** ensaio do reenvio numa cópia isolada da produção.
+> - **1º upload:** com os 3 arquivos, deu "0 lançamentos novos · 0 saem · 581 já iguais" e "1.284 proventos novos".
+> - **2º upload:** "Nada mudou".
+> - **Sem a planilha:** 10 pendências de subscrição.
+> - **Banco:** 1.280 RENDIMENTO (R$ 290.553,26) e 4 REEMBOLSO (R$ 2.334,41).
+> - **Contraste WCAG:** 0 falhas nos dois temas.
 
 **Goal:** conferir na preview isolada (`koinos_preview`), com os extratos reais, os critérios de sucesso do spec. Isso inclui a tela de upload, o reenvio sem mudança, a tela `/proventos` e o Dashboard.
 
