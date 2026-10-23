@@ -19,12 +19,12 @@ export function EmptyPortfolio() {
         </EmptyMedia>
         <EmptyTitle>Sua carteira ainda está vazia</EmptyTitle>
         <EmptyDescription>
-          Importe os extratos da B3 (Negociação e Movimentação) ou registre as compras e vendas uma
-          a uma.
+          Importe os extratos da B3 (Negociação, Movimentação e Eventos) ou registre as compras e
+          vendas uma a uma.
         </EmptyDescription>
       </EmptyHeader>
       <EmptyContent className="flex-row flex-wrap justify-center gap-2">
-        <Button nativeButton={false} render={<Link href="/transacoes/importar" />}>
+        <Button nativeButton={false} render={<Link href="/atualizacao-b3" />}>
           Importar da B3
         </Button>
         <Button variant="outline" nativeButton={false} render={<Link href="/transacoes" />}>

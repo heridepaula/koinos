@@ -54,6 +54,8 @@ const nextConfig: NextConfig = {
           ]
         : []),
       { source: "/", destination: "/dashboard", permanent: false },
+      // A importação da B3 virou a página da atualização, com os três extratos.
+      { source: "/transacoes/importar", destination: "/atualizacao-b3", permanent: false },
     ];
   },
 };

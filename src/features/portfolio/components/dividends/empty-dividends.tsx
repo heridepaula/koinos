@@ -24,7 +24,7 @@ export function EmptyDividends() {
         </EmptyDescription>
       </EmptyHeader>
       <EmptyContent>
-        <Button nativeButton={false} render={<Link href="/transacoes/importar" />}>
+        <Button nativeButton={false} render={<Link href="/atualizacao-b3" />}>
           Importar da B3
         </Button>
       </EmptyContent>

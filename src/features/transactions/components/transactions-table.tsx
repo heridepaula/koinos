@@ -235,7 +235,8 @@ export function TransactionsTable({ rows }: { rows: TransactionRow[] }) {
                           />
                         </TooltipTrigger>
                         <TooltipContent>
-                          Veio do extrato da B3. Para corrigir, envie o extrato de novo.
+                          Veio do extrato da B3. Para corrigir, envie os extratos de novo em
+                          Atualização B3.
                         </TooltipContent>
                       </Tooltip>
                     ) : (

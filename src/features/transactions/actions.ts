@@ -39,7 +39,7 @@ function toInput(form: TransactionFormInput): TransactionInput {
 }
 
 const B3_LOCKED =
-  "Este lançamento veio do extrato da B3. Para corrigir, envie o extrato de novo em Importar da B3.";
+  "Este lançamento veio do extrato da B3. Para corrigir, envie os extratos de novo em Atualização B3.";
 
 /** Rejeita qualquer gravação que deixe uma venda maior que a posição na data. */
 function assertConsistentHistory(entries: readonly LedgerEntry[]) {
@@ -99,12 +99,12 @@ export const deleteTransactionAction = authActionClient
     return { ok: true as const };
   });
 
-/** Prévia da importação da B3: nada é gravado. */
+/** Prévia da atualização pela B3 (os três extratos): nada é gravado. */
 export const previewB3ImportAction = authActionClient
   .inputSchema(b3ImportFormSchema)
   .action(async ({ parsedInput, ctx }) => previewB3Import(ctx.tenant, parsedInput));
 
-/** Importa os extratos da B3: recalcula a prévia com as respostas e grava. */
+/** Atualiza pela B3: recalcula a prévia com as respostas e grava só a diferença. */
 export const confirmB3ImportAction = authActionClient
   .inputSchema(b3ImportFormSchema)
   .action(async ({ parsedInput, ctx }) => {

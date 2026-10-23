@@ -7,6 +7,7 @@ import {
   HandCoinsIcon,
   LayoutDashboardIcon,
   LightbulbIcon,
+  RefreshCwIcon,
   TargetIcon,
 } from "lucide-react";
 import Link from "next/link";
@@ -44,6 +45,12 @@ const NAV_ITEMS = [
     label: "Proventos",
     icon: HandCoinsIcon,
     tile: "[--tile:var(--tile-teal)]",
+  },
+  {
+    href: "/atualizacao-b3",
+    label: "Atualização B3",
+    icon: RefreshCwIcon,
+    tile: "[--tile:var(--tile-indigo)]",
   },
   {
     href: "/carteira-alvo",
