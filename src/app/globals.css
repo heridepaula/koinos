@@ -163,6 +163,7 @@
   --tile-orange: linear-gradient(180deg, #ffb340, #ff8a00);
   --tile-purple: linear-gradient(180deg, #c77dff, #9b3fe0);
   --tile-indigo: linear-gradient(180deg, #7d7aff, #5856d6);
+  --tile-pink: linear-gradient(180deg, #ff6482, #e0304e);
   --tile-app: linear-gradient(160deg, #5ac8fa, #0a7aff 60%, #5e5ce6);
 }
 
@@ -413,6 +414,16 @@
   h3 {
     font-family: var(--font-heading);
     letter-spacing: -0.015em;
+  }
+  /* Select nativo: o fundo do campo é translúcido, e a lista aberta (desenhada pelo sistema)
+     herdava o texto claro do tema escuro sobre fundo claro. Opções com fundo e texto sólidos. */
+  select {
+    color: var(--foreground);
+  }
+  select option,
+  select optgroup {
+    background-color: var(--card);
+    color: var(--foreground);
   }
 }
 
