@@ -1,4 +1,4 @@
-import { ArrowLeftIcon } from "lucide-react";
+import { ReceiptTextIcon } from "lucide-react";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { Suspense } from "react";
@@ -21,11 +21,11 @@ export default function ClosedPositionsPage() {
     <>
       <PageHeader
         title="Posições encerradas"
-        description="Os FIIs com posição zerada: o resultado das vendas e o IR estimado."
+        description="Os FIIs com posição zerada: o custo, o vendido e o resultado das vendas."
         actions={
-          <Button variant="outline" nativeButton={false} render={<Link href="/dashboard" />}>
-            <ArrowLeftIcon />
-            Dashboard
+          <Button variant="outline" nativeButton={false} render={<Link href="/encerradas/ir" />}>
+            <ReceiptTextIcon />
+            IR estimado
           </Button>
         }
       />

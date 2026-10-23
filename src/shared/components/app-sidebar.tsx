@@ -2,6 +2,7 @@
 
 import { cn } from "cn";
 import {
+  ArchiveIcon,
   ArrowLeftRightIcon,
   CoinsIcon,
   HandCoinsIcon,
@@ -24,10 +25,22 @@ import {
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
+  SidebarMenuSub,
+  SidebarMenuSubButton,
+  SidebarMenuSubItem,
   SidebarRail,
 } from "@/shared/ui/sidebar";
 
-const NAV_ITEMS = [
+type NavItem = {
+  href: string;
+  label: string;
+  icon: typeof LayoutDashboardIcon;
+  tile: string;
+  /** Subpáginas que aparecem no menu, abaixo do item (somem com a sidebar recolhida). */
+  children?: readonly { href: string; label: string }[];
+};
+
+const NAV_ITEMS: readonly NavItem[] = [
   {
     href: "/dashboard",
     label: "Dashboard",
@@ -47,6 +60,13 @@ const NAV_ITEMS = [
     tile: "[--tile:var(--tile-teal)]",
   },
   {
+    href: "/encerradas",
+    label: "Posições encerradas",
+    icon: ArchiveIcon,
+    tile: "[--tile:var(--tile-pink)]",
+    children: [{ href: "/encerradas/ir", label: "IR estimado" }],
+  },
+  {
     href: "/atualizacao-b3",
     label: "Atualização B3",
     icon: RefreshCwIcon,
@@ -64,7 +84,7 @@ const NAV_ITEMS = [
     icon: LightbulbIcon,
     tile: "[--tile:var(--tile-purple)]",
   },
-] as const;
+];
 
 // Item ativo: vidro claro com brilho interno (o aro de titânio vem do metal-ring).
 const ACTIVE_ITEM =
@@ -117,6 +137,20 @@ export function AppSidebar({ footer }: { footer: ReactNode }) {
                       </span>
                       <span>{item.label}</span>
                     </SidebarMenuButton>
+                    {item.children ? (
+                      <SidebarMenuSub>
+                        {item.children.map((child) => (
+                          <SidebarMenuSubItem key={child.href}>
+                            <SidebarMenuSubButton
+                              render={<Link href={child.href} />}
+                              isActive={pathname === child.href}
+                            >
+                              <span>{child.label}</span>
+                            </SidebarMenuSubButton>
+                          </SidebarMenuSubItem>
+                        ))}
+                      </SidebarMenuSub>
+                    ) : null}
                   </SidebarMenuItem>
                 );
               })}

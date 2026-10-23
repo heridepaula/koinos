@@ -15,6 +15,7 @@ export const config = {
     "/dashboard/:path*",
     "/transacoes/:path*",
     "/proventos/:path*",
+    "/encerradas/:path*",
     "/atualizacao-b3/:path*",
     "/carteira-alvo/:path*",
     "/recomendacoes/:path*",

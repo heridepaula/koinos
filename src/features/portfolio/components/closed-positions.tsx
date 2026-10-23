@@ -73,7 +73,7 @@ export function ClosedPositions({ rows }: { rows: readonly ClosedPositionRow[] }
             size="sm"
             className="mt-3"
             nativeButton={false}
-            render={<Link href="/dashboard/encerradas" />}
+            render={<Link href="/encerradas" />}
           >
             Custo, vendas e IR estimado
             <ArrowRightIcon />
