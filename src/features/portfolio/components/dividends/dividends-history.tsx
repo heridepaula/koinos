@@ -1,7 +1,6 @@
 "use client";
 
-import { ChevronDownIcon } from "lucide-react";
-import { parseAsStringLiteral, useQueryState } from "nuqs";
+import { parseAsString, parseAsStringLiteral, useQueryState } from "nuqs";
 import { Bar, BarChart, CartesianGrid, XAxis, YAxis } from "recharts";
 import { AssetLabel } from "@/shared/components/asset-label";
 import { formatBRL, formatCompactBRL, formatMonth, formatTradeDate } from "@/shared/lib/format";
@@ -84,14 +83,6 @@ export function DividendsHistory(view: HistoryData) {
 }
 
 function ByMonth({ view }: { view: HistoryData }) {
-  // Os meses (do mais recente ao mais antigo) ficam agrupados sob o ano, com o total do ano.
-  const years = new Map<string, DividendsView["byMonth"]>();
-  for (const group of view.byMonth) {
-    const year = group.month.slice(0, 4);
-    years.set(year, [...(years.get(year) ?? []), group]);
-  }
-  const yearTotals = new Map(view.byYear.map((row) => [row.year, row.total]));
-
   return (
     <div className="grid gap-6">
       <ChartContainer config={config} className="aspect-auto h-64 w-full">
@@ -128,51 +119,136 @@ function ByMonth({ view }: { view: HistoryData }) {
           <Bar dataKey="amount" fill="var(--color-amount)" radius={[4, 4, 0, 0]} maxBarSize={24} />
         </BarChart>
       </ChartContainer>
-      {/* Cada ano recolhe, com o total sempre à vista; só o mais recente começa aberto. O grupo
-          do ano tem nome (group/year) para não girar as setas dos meses, que usam o group simples. */}
-      <div className="grid gap-3">
-        {[...years].map(([year, months], index) => (
-          <details key={year} open={index === 0} className="group/year">
-            <summary className="flex cursor-pointer list-none items-center gap-2 rounded-md px-2 py-1 text-sm font-semibold">
-              <ChevronDownIcon
-                className="size-4 shrink-0 transition-transform group-open/year:rotate-180"
-                aria-hidden="true"
-              />
-              {year}
-              <span className="ml-auto font-normal text-muted-foreground tabular-nums">
-                {formatBRL(yearTotals.get(year) ?? 0)}
-              </span>
-            </summary>
-            <ul className="mt-1 grid gap-0.5 text-sm">
-              {months.map((group) => (
-                <li key={group.month}>
-                  <details className="group rounded-md px-2 py-1.5 open:bg-muted/40">
-                    <summary className="flex cursor-pointer list-none items-center gap-2">
-                      <ChevronDownIcon
-                        className="size-4 shrink-0 transition-transform group-open:rotate-180"
-                        aria-hidden="true"
-                      />
-                      <span className="font-medium">{formatMonth(group.month)}</span>
-                      <span className="text-muted-foreground">
-                        {group.byTicker.length} {group.byTicker.length === 1 ? "FII" : "FIIs"}
-                      </span>
-                      <span className="ml-auto tabular-nums">{formatBRL(group.total)}</span>
-                    </summary>
-                    <ul className="mt-2 grid gap-1 pl-6">
-                      {group.byTicker.map((item) => (
-                        <li key={item.ticker} className="flex text-muted-foreground">
-                          <span>{item.ticker}</span>
-                          <span className="ml-auto tabular-nums">{formatBRL(item.amount)}</span>
-                        </li>
-                      ))}
-                    </ul>
-                  </details>
-                </li>
-              ))}
-            </ul>
-          </details>
-        ))}
-      </div>
+      <MonthMatrix view={view} />
+    </div>
+  );
+}
+
+const MONTH_HEADERS = [
+  "jan",
+  "fev",
+  "mar",
+  "abr",
+  "mai",
+  "jun",
+  "jul",
+  "ago",
+  "set",
+  "out",
+  "nov",
+  "dez",
+];
+const wholeReais = new Intl.NumberFormat("pt-BR", { maximumFractionDigits: 0 });
+const longMonth = new Intl.DateTimeFormat("pt-BR", {
+  month: "long",
+  year: "numeric",
+  timeZone: "UTC",
+});
+const capitalize = (text: string) => text.charAt(0).toUpperCase() + text.slice(1);
+const monthName = (monthKey: string) => {
+  const [year, month] = monthKey.split("-").map(Number);
+  return longMonth.format(new Date(Date.UTC(year, month - 1, 1)));
+};
+
+/**
+ * Matriz ano × mês: uma linha por ano (do mais recente ao mais antigo), os 12 meses e o total.
+ * A cor da célula cresce com o valor (laranja dos proventos, até 40% sobre o card, para o texto
+ * manter o contraste). Clicar num mês mostra os FIIs dele abaixo; o mês escolhido fica na URL.
+ * A tabela rola dentro do card nas telas estreitas, com o ano fixo à esquerda.
+ */
+function MonthMatrix({ view }: { view: HistoryData }) {
+  const byMonth = new Map(view.byMonth.map((group) => [group.month, group]));
+  const max = Math.max(0, ...view.byMonth.map((group) => group.total));
+  const [requested, setMonth] = useQueryState(
+    "mes",
+    parseAsString.withOptions({ history: "replace", scroll: false }),
+  );
+  const selected = (requested ? byMonth.get(requested) : undefined) ?? view.byMonth[0];
+
+  return (
+    <div className="grid gap-4">
+      <Table className="text-xs">
+        <TableHeader>
+          <TableRow>
+            <TableHead className="sticky left-0 z-10 bg-card">Ano</TableHead>
+            {MONTH_HEADERS.map((label) => (
+              <TableHead key={label} className="px-1 text-center capitalize">
+                {label}
+              </TableHead>
+            ))}
+            <TableHead className="text-right">Total</TableHead>
+          </TableRow>
+        </TableHeader>
+        <TableBody>
+          {view.byYear.map((year) => (
+            <TableRow key={year.year} className="hover:bg-transparent">
+              <TableCell className="sticky left-0 z-10 bg-card font-semibold">
+                {year.year}
+              </TableCell>
+              {MONTH_HEADERS.map((label, index) => {
+                const key = `${year.year}-${String(index + 1).padStart(2, "0")}`;
+                const group = byMonth.get(key);
+                if (!group) {
+                  return (
+                    <TableCell key={key} className="px-1 text-center text-muted-foreground">
+                      <span aria-label={`${monthName(key)}: sem provento`}>—</span>
+                    </TableCell>
+                  );
+                }
+                const strength = max > 0 ? Math.round(8 + 32 * (group.total / max)) : 8;
+                const active = selected?.month === key;
+                return (
+                  <TableCell key={key} className="p-0.5">
+                    <button
+                      type="button"
+                      aria-pressed={active}
+                      aria-label={`${monthName(key)}: ${formatBRL(group.total)}`}
+                      onClick={() => void setMonth(key)}
+                      className={cn(
+                        "w-full min-w-14 cursor-pointer rounded-md px-1.5 py-1.5 text-center tabular-nums outline-none hover:ring-2 hover:ring-ring/40 focus-visible:ring-3 focus-visible:ring-ring/50",
+                        active && "font-semibold ring-2 ring-ring",
+                      )}
+                      style={{
+                        backgroundColor: `color-mix(in oklab, var(--chart-2) ${strength}%, transparent)`,
+                      }}
+                    >
+                      {wholeReais.format(group.total)}
+                    </button>
+                  </TableCell>
+                );
+              })}
+              <TableCell className="text-right font-semibold tabular-nums">
+                {formatBRL(year.total)}
+              </TableCell>
+            </TableRow>
+          ))}
+        </TableBody>
+      </Table>
+      <p className="text-xs text-muted-foreground">
+        Valores em reais, sem os centavos. Cor mais forte, mês maior. Clique num mês para ver os
+        FIIs.
+      </p>
+      {selected ? (
+        <section aria-live="polite" className="grid gap-3 rounded-lg border p-4">
+          <h3 className="flex flex-wrap items-baseline gap-x-2 text-sm font-semibold">
+            <span>{capitalize(monthName(selected.month))}</span>
+            <span className="font-normal text-muted-foreground">
+              {selected.byTicker.length} {selected.byTicker.length === 1 ? "FII" : "FIIs"}
+            </span>
+            <span className="ml-auto tabular-nums">{formatBRL(selected.total)}</span>
+          </h3>
+          <ul className="grid gap-x-8 gap-y-1 text-sm sm:grid-cols-2 lg:grid-cols-3">
+            {selected.byTicker.map((item) => (
+              <li key={item.ticker} className="flex gap-2">
+                <span>{item.ticker}</span>
+                <span className="ml-auto text-muted-foreground tabular-nums">
+                  {formatBRL(item.amount)}
+                </span>
+              </li>
+            ))}
+          </ul>
+        </section>
+      ) : null}
     </div>
   );
 }
