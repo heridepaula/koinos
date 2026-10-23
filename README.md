@@ -4,7 +4,8 @@ Dashboard pessoal de FIIs que substitui a planilha. As posições saem dos lanç
 
 - **Dashboard:** patrimônio, L/P, proventos recebidos e o resultado com proventos, DY 12 meses, alertas, evolução, aportes por mês, composição e posições.
 - **Transações:** compras e vendas com filtros e paginação. Uma venda que quebra o histórico é recusada.
-- **Proventos:** recebido, a receber e total do mês, e o histórico por mês, ano ou papel.
+- **Proventos:** recebido, a receber (pela lista da B3, completada pelo Yahoo) e total do mês, e o histórico por mês, ano ou papel.
+- **Atualização da B3:** os três extratos da Área do Investidor (Negociação, Movimentação e Eventos), com a prévia do que é novo e das inconsistências. Só grava o que mudou.
 - **Carteira Alvo:** ranking Suno, preço teto, % sugerida e categoria, editados na própria tabela.
 - **Recomendações:** "Quanto vou aportar hoje?" vira ordens de compra exatas, com o motivo de cada uma.
 
@@ -75,9 +76,18 @@ Use o Redis Cloud (plano gratuito) e copie a URL `redis://default:SENHA@host:por
 - O script grava no banco do `.env.local`. Para importar em produção, use o `MONGODB_URI` de produção.
 - Planilhas nunca entram no Git: `*.xlsx` está no `.gitignore`.
 
-## Importando os extratos da B3
+## Atualizando pela B3
 
-Na Área do Investidor da B3, baixe em Excel os extratos de **Negociação** e de **Movimentação**, desde 11/2019, e envie na tela **Transações → Importar da B3** (`/transacoes/importar`), junto com a sua planilha. O script abaixo faz o mesmo pelo terminal.
+Na Área do Investidor da B3, em Extratos, baixe em Excel os três extratos do mesmo dia: **Negociação**, **Movimentação** e **Eventos** (a aba Proventos a Receber). Envie os três na página **Atualização B3** (`/atualizacao-b3`).
+
+- **Só com os três:** com um ou dois arquivos, a página diz qual extrato falta e não grava nada. A planilha não é mais aceita ali.
+- **Prévia:** para lançamentos, proventos recebidos e a receber, ela mostra o que é novo, o que a B3 substitui (a linha gravada e a do extrato) e o que já está igual. Também lista as inconsistências e o que fica de fora.
+- **Só o que é novo:** o que já está gravado igual fica como está, com o mesmo id. Reenviar os mesmos arquivos dá "Nada novo".
+- **A B3 tem prioridade:** no período dos extratos, onde o extrato diverge do que está gravado, vale o extrato.
+- **A receber:** a lista do extrato de Eventos vira a foto do "a receber" em Proventos, com a data oficial de pagamento. Cada envio troca a foto inteira, e o Yahoo só completa com o que foi anunciado depois do envio.
+- **Regras completas:** [spec da atualização](docs/superpowers/specs/2026-10-23-atualizacao-b3-design.md).
+
+O script abaixo é a ferramenta de terminal da carga inicial. Ele lê Negociação e Movimentação, desde 11/2019, com a planilha como complemento, e usa o mesmo plano da página.
 
 ```bash
 npm run import:b3 -- --negociacao negociacao.xlsx --movimentacao movimentacao.xlsx --planilha "FII's.xlsx" --dry-run
@@ -92,7 +102,7 @@ npm run import:b3 -- --negociacao negociacao.xlsx --movimentacao movimentacao.xl
 - **Quando grava:** só sem pendência aberta e sem divergência inexplicada na conferência.
 - **A B3 manda:** no período dos extratos, os lançamentos de FII dão lugar aos do extrato. Os lançamentos B3 ficam travados em Transações; para corrigir, rode de novo.
 - **Proventos:** os créditos de Rendimento e Reembolso de FIIs do extrato de Movimentação vão para a coleção `dividends`. No período do extrato, eles são trocados FII por FII, na mesma transação dos lançamentos. Proventos de ações, JCP e o aluguel de cotas ficam de fora.
-- **Reenvio:** mande a planilha junto. Os preços de subscrição que vieram dela não ficam guardados como resposta e, sem ela, voltam como pendência.
+- **Preços de subscrição:** os que vieram da planilha num envio anterior valem como resposta. Por isso a página não pede a planilha.
 - **`--alvo`:** preenche a Carteira Alvo com o rank e o preço teto da planilha.
 - **Regras completas:** [spec da importação](docs/superpowers/specs/2026-10-18-importacao-b3-design.md).
 
@@ -106,14 +116,15 @@ npm run import:b3 -- --negociacao negociacao.xlsx --movimentacao movimentacao.xl
 | `npm run typecheck`                       | Tipos das rotas (`next typegen`) e `tsc`.                |
 | `npm run format` / `npm run format:check` | Prettier.                                                |
 | `npm run import:planilha`                 | Importador da planilha (acima).                          |
-| `npm run import:b3`                       | Importador dos extratos da B3 (acima).                   |
+| `npm run import:b3`                       | Carga dos extratos da B3 pelo terminal (acima).          |
 
 ## Cotações e dados de mercado
 
 - **Cotações:** brapi.dev primeiro (todos os fundos numa requisição só), com o Yahoo Finance de reserva.
 - **Validade das cotações:** durante o pregão (10h às 18h30 de Brasília, já contando o atraso da brapi), uma cotação vale 30 minutos. Fora do pregão, vale a do último fechamento e não gasta cota. Feriados não são tratados.
 - **Atualização:** as páginas atualizam em segundo plano o que estiver vencido, e o botão ao lado do horário força a atualização.
-- **Histórico mensal e proventos** (DY 12 meses, último rendimento e os anúncios dos últimos 90 dias, que alimentam o "a receber") vêm do Yahoo. Cada mês fechado é buscado uma vez; os proventos, no máximo a cada 20 horas. Os proventos recebidos vêm só dos extratos da B3.
+- **Histórico mensal e proventos** (DY 12 meses, último rendimento e os anúncios dos últimos 90 dias) vêm do Yahoo. Cada mês fechado é buscado uma vez; os proventos, no máximo a cada 20 horas.
+- **Proventos da B3:** os recebidos vêm só do extrato de Movimentação, e o "a receber" vem do extrato de Eventos. Os anúncios do Yahoo completam o "a receber" com o que saiu depois do último envio (ou tudo, se o Eventos nunca foi enviado).
 - **Cron diário** (`vercel.json`, `0 22 * * 1-5`): às 19h de Brasília, nos dias úteis, atualiza fechamento, proventos, histórico e o catálogo de tickers.
 
 ## Arquitetura

@@ -14,7 +14,7 @@ Koinos is a single-owner FII (Brazilian REIT) portfolio dashboard that replaced 
   - In a fresh checkout, a bare `tsc` fails on `PageProps`/`LayoutProps`, because those types are generated.
 - `npm run build`: needs the server env vars. Without `.env.local`, use the dummy values in `.github/workflows/ci.yml`.
 - `npm run format` / `npm run format:check`: Prettier, with the Tailwind plugin.
-- `npm run import:b3` / `npm run import:planilha`: operator scripts for loading the B3 statements or the old spreadsheet. Users import B3 statements on the `/transacoes/importar` screen.
+- `npm run import:b3` / `npm run import:planilha`: operator scripts for loading the B3 statements or the old spreadsheet. Users update from B3 on the `/atualizacao-b3` page, with the three statements (`/transacoes/importar` redirects there from `next.config.ts`).
   - `import:b3` also writes the dividends. Run it with `--dry-run` first.
   - `--alvo` overwrites the Carteira Alvo with the spreadsheet's rank and ceiling. Only pass it when the owner asks.
 
@@ -96,8 +96,9 @@ Koinos is a single-owner FII (Brazilian REIT) portfolio dashboard that replaced 
 2. `portfolio/domain/snapshot.ts` (`buildSnapshot`) builds positions, allocation, alerts and the cascade input. It also adds the dividends received per FII and the adjusted results: "com proventos" (quote result + dividends) and "total" (+ realized sales).
 3. `smart-buy/domain/suno-cascade.ts` turns that into the buy recommendations. Dividends never reach the cascade input.
 4. `portfolio/domain/dividends.ts` is pure and feeds `/proventos` (`portfolio/server/dividends-view.ts`):
-   - "a receber": Yahoo announcements × the shares held on the day before the ex-date, until a B3 dividend paid on or after the ex-date confirms it;
-   - the month totals;
+   - "a receber": the B3 snapshot from the Eventos statement (`dividend_forecasts`), with the official pay date and source "B3";
+   - plus Yahoo announcements × the shares held on the day before the ex-date, until a B3 dividend paid on or after the ex-date confirms it. With a snapshot, only announcements with an ex-date after its `asOf` count, as "estimado";
+   - the month totals: B3 items count only when they pay in the current month;
    - the groupings by month, year or FII.
 5. `portfolio/domain/reinvestment.ts` is pure and feeds `/proventos/reinvestimento?mes=AAAA-MM` (`portfolio/server/reinvestment-view.ts`):
    - each month's cash purchases (negócios and subscrições, with fees) are split into money from dividends and money from the pocket;
@@ -111,17 +112,28 @@ Koinos is a single-owner FII (Brazilian REIT) portfolio dashboard that replaced 
 - `refreshDividends` keeps the last 90 days of Yahoo dividend announcements on each asset (`dividendAnnouncements`), with the ex-date normalized to the São Paulo trade date at UTC midnight. It skips assets fetched in the last 20 h.
 - The brapi free plan has no dividends, and Yahoo has no FII dividends between 2018 and early 2022.
 
-**B3 statements import:**
+**B3 update (`/atualizacao-b3`):**
 
-- The parsing and the plan are pure: `transactions/import/b3`, with `detectB3File`, the two readers and `planB3Import`.
-- The service is `transactions/server/b3-import.ts`. It validates the upload in memory, takes a per-portfolio lock, writes in one Mongo transaction and compares old and new entries, so re-uploading the same files changes nothing.
-- The screen and `scripts/import-b3.ts` share the same plan.
+- The parsing and the plan are pure: `transactions/import/b3`, with `detectB3File`, the three readers (Negociação, Movimentação, Eventos) and `planB3Import`.
+- The diff is pure too: `import/b3/changes.ts` (`diffLedger`, `diffDividends`, `sameForecast`).
+  - A stored B3 entry equal to a planned one stays, with the same `_id`. Repeats count, as a multiset.
+  - The rest of what the plan replaces is deleted by id, and the rest of the plan is inserted.
+  - For the preview, each deleted row is paired with the first inserted row of the same FII, type and date.
+- The service is `transactions/server/b3-import.ts`.
+  - It requires exactly the three statements and refuses the spreadsheet.
+  - It validates the upload in memory, takes a per-portfolio lock and writes only the difference in one Mongo transaction (`applyB3Update` in `transaction-repo.ts`).
+  - Re-uploading the same files writes nothing, and the preview says "Nada novo".
+- `scripts/import-b3.ts` shares the plan but still takes Negociação and Movimentação (plus the optional spreadsheet). It writes through `applyTransactionChanges`, which swaps the whole period.
 - "A B3 manda": inside the statements' period, FII entries are replaced by B3's, and B3-sourced entries are locked in the Transações UI.
+- **A receber:** the Eventos statement's FII "Rendimento" and "Reembolso - Rendimento" rows become the snapshot in `dividend_forecasts` (one document per portfolio, `asOf` = upload day).
+  - Every write replaces the whole snapshot.
+  - Only a change in the items counts as new, not a later `asOf`.
+  - An item whose quantity differs from the position is only a warning.
 - **Dividends:**
   - The plan also extracts the Rendimento and Reembolso credits of FIIs from the Movimentação statement into the `dividends` collection (`transactions/server/dividend.model.ts`). Stocks' dividends, JCP and lending fees stay out.
   - Inside the Movimentação period they are replaced FII by FII. The scope is the FIIs with status OK plus the FIIs that only appear through dividend rows; FORA, PENDENTE and excluded FIIs keep what they have.
-  - The write happens in the same transaction as the ledger, and a category with no changes is not rewritten.
-- **Re-upload with the spreadsheet:** subscription prices that came from the user's spreadsheet (`PLANILHA`) are not stored as answers. Re-uploading without the spreadsheet brings them back as open pendências.
+  - The write happens in the same transaction as the ledger, and only the difference is written.
+- **Subscription prices:** a stored subscription with `priceSource` PLANILHA counts as a previous answer, like USUARIO and ESTIMADO. So uploading the full history without the spreadsheet opens no pendências.
 
 ## Product rules
 
