@@ -42,6 +42,17 @@ Koinos is a single-owner FII (Brazilian REIT) portfolio dashboard that replaced 
 - `src/shared`: `db`, `env`, `lib`, `ui`, `components`. `ui` is shadcn "base-nova" on Base UI, so components take a `render` prop instead of `asChild`.
 - `src/app`: the `(app)` group (authenticated), `(public)/login`, and `api/{auth,cron/daily,tickers}`.
 
+**Pages** (`src/app/(app)`): each one renders a static header and streams a `<Suspense>` section that awaits a DAL view from `portfolio/server.ts` or `transactions/server.ts`.
+
+- `/dashboard`: `getPortfolioSnapshot` (summary, alerts, monthly aportes, allocation, positions and the closed card), plus `getEvolution` in its own `<Suspense>` (Domain flow, item 7).
+  - `/dashboard/encerradas`: `getClosedPositionsView` (item 6), linked from the closed card.
+- `/transacoes`: `getMyTransactions`, with filters, pagination and the create, edit and delete actions.
+- `/proventos`: `getDividendsView` (item 4). Its subpage `/proventos/reinvestimento?mes=AAAA-MM` uses `getReinvestmentView` (item 5).
+- `/atualizacao-b3`: the client `B3ImportWizard`, which calls the preview and confirm actions (see B3 update).
+- `/carteira-alvo`: the snapshot's strategy rows, edited in the table through `strategy/actions.ts`.
+- `/recomendacoes`: the snapshot's `cascadeInput`. The cascade runs in the browser (`AporteCalculator`), with the amount and the cap in the URL (`?valor=&limite=`).
+- **A new top-level page** also needs a `proxy.ts` matcher entry (see Tenancy) and an item in the sidebar (`shared/components/app-sidebar.tsx`). Subpages need neither: the matcher's `:path*` covers them, and the sidebar highlights the parent by prefix.
+
 **Public entry points per feature.** `eslint.config.mjs` enforces these with `no-restricted-imports`:
 
 - `index.ts`: pure domain, types and Zod schemas, safe on client and server.
@@ -62,13 +73,15 @@ Koinos is a single-owner FII (Brazilian REIT) portfolio dashboard that replaced 
 - Every query filters by the tenant's `portfolioId`. Updates and deletes filter by `_id` and portfolio.
 - DTOs sent to the client carry no internal ids.
 - `src/proxy.ts` (Next 16's middleware) only does an optimistic cookie redirect. The real auth and allowlist check is in the DAL.
-  - Its `matcher` lists the protected routes one by one. Add every new `(app)` route there, or the page renders its shell without a session before the DAL redirects.
+  - Its `matcher` lists each top-level `(app)` route as `/<route>/:path*`, which also covers its subpages. Add every new top-level route there, or the page renders its shell without a session before the DAL redirects.
 
 **Rendering:**
 
 - `cacheComponents` and `partialPrefetching` are on. Pages render a static shell and stream session-dependent parts inside `<Suspense>`.
 - `getCurrentUser` uses `'use cache: private'`.
 - `getTenant` calls `connection()` before touching the database. Any new database path reached from rendering must go through `getTenant` or call `await connection()` first. Otherwise prerendering fails on the Mongo driver's internal `new Date()`.
+- The DAL readers (`getMyTransactions`, `getMyDividends`, `getPortfolioSnapshot`…) are wrapped in React `cache`, so several `<Suspense>` sections of one page can call them and each query runs once per request.
+- Client state that should survive a reload or a shared link lives in the URL through `nuqs`: the tables' filters, page and sort (`shared/hooks/use-sort-state.ts`), the dividends grouping, and the aporte amount and cap. The reinvestment month uses `shallow: false`, because the server reads it.
 
 **Mutations:**
 
@@ -93,6 +106,8 @@ Koinos is a single-owner FII (Brazilian REIT) portfolio dashboard that replaced 
 **Domain flow:**
 
 1. The transaction ledger feeds `transactions/domain`: `replayLedger` computes positions and lists each sale with its cost at the average price (`sales`), and `findOversells` makes the app reject any write that would let a sale exceed the position.
+   - The ledger only knows BUY and SELL. `kind` says where an entry came from: a subscrição is a buy, a desdobro is a buy at price 0, a posição anterior is a buy for what was held before the first statement, a leilão de fração is a sale, and an incorporation is a sale of the origin plus a buy of the destination at the same cost (`relatedTicker` names the other side). An entry without `kind` counts as a negócio.
+   - Each view picks its kinds: the Dashboard's monthly aportes skip the incorporation buy, reinvestment counts only negócios and subscrições, and closed positions skip the incorporation sale.
 2. `portfolio/domain/snapshot.ts` (`buildSnapshot`) builds positions, allocation, alerts and the cascade input. It also adds the dividends received per FII and the adjusted results: "com proventos" (quote result + dividends) and "total" (+ realized sales).
 3. `smart-buy/domain/suno-cascade.ts` turns that into the buy recommendations. Dividends never reach the cascade input.
 4. `portfolio/domain/dividends.ts` is pure and feeds `/proventos` (`portfolio/server/dividends-view.ts`):
@@ -107,15 +122,23 @@ Koinos is a single-owner FII (Brazilian REIT) portfolio dashboard that replaced 
 6. `portfolio/domain/closed-positions.ts` is pure and feeds `/dashboard/encerradas` (`portfolio/server/closed-positions-view.ts`) and the Dashboard's closed card:
    - a closed position is a FII with zero quantity today. It sums the real sales of every cycle (negócios and leilões de fração), each at its day's average price;
    - an incorporation's exit leg is not a sale: its cost moves to the destination, with no result;
-   - the estimated tax is 20% of each position's profit (FII sales have no exemption) and zero on a loss. It doesn't offset losses across positions or months;
-   - a FII with an `ESTIMADO` buy price, directly or through an incorporation, is flagged, because its result is an estimate too.
+   - the closing date is the day the position reached zero: the last sale or, when it zeroed the position, the incorporation;
+   - the estimated tax is 20% of each position's profit (FII sales have no exemption) and zero on a loss. It's a per-position estimate, not the monthly apuração: it doesn't offset losses across positions or months and ignores the 0.005% IRRF;
+   - a FII with an `ESTIMADO` buy price, directly or through an incorporation, is flagged, because its result is an estimate too. So the input entries carry `priceSource` and `relatedTicker` (`ClosedLedgerEntry`);
+   - the Dashboard's card also lists the FIIs that only appear through dividends (no entries, `closedAt` null), so its dividends plus the positions table's add up to the summary's total.
+7. `portfolio/domain/evolution.ts` (`computeEvolution`) feeds the Dashboard's evolution chart through `getEvolution`:
+   - patrimony and invested at each month's end, from the first entry to the current month;
+   - each month is priced at its monthly close (the current month at today's quote), or else at the last known close. A FII with no close at all uses its average price, and the month is flagged `estimated`;
+   - `getEvolution` first fills the missing closes from Yahoo (`ensureMonthlyCloses`), once per month and ticker.
 
 **Market data** (`market-data`):
 
-- Quotes come from brapi first, with Yahoo as the fallback. Pages refresh stale quotes in the background.
+- Quotes come from brapi first, with Yahoo as the fallback. Pages refresh stale quotes in the background: `QuoteRefresher` calls `refreshMyQuotesAction`, which also refreshes the held FIIs' dividends.
+  - A quote goes stale after 30 min during the session (10:00 to 18:30 in São Paulo, counting brapi's delay). Outside it, the last close holds and no quota is spent. Holidays aren't handled (`market-data/domain/market-hours.ts`).
+  - brapi requests are counted per month in Mongo (`server/usage.ts`). Above 90% of `BRAPI_MONTHLY_QUOTA`, only Yahoo is used until the month turns.
 - The daily Vercel cron (`/api/cron/daily`, bearer `CRON_SECRET`, see `vercel.json`) refreshes closes, dividends, monthly history and the ticker catalog.
 - `refreshDividends` keeps the last 90 days of Yahoo dividend announcements on each asset (`dividendAnnouncements`), with the ex-date normalized to the São Paulo trade date at UTC midnight. It skips assets fetched in the last 20 h.
-- The brapi free plan has no dividends, and Yahoo has no FII dividends between 2018 and early 2022.
+- The brapi free plan has no dividends, and Yahoo has no FII dividends between 2018 and early 2022. Yahoo also has no monthly history for delisted FIIs (MALL11, IRDM11), so the evolution chart estimates those months.
 
 **B3 update (`/atualizacao-b3`):**
 
@@ -158,7 +181,9 @@ Koinos is a single-owner FII (Brazilian REIT) portfolio dashboard that replaced 
 - **Contrast:** at `size="sm"`, the `btn-gloss` label sits under the top sheen and falls to about 3.3:1 in the light theme.
   - A selected segment uses solid `bg-(--badge)` with white text instead.
   - The AA text colors are `text-gain`, `text-loss` and `text-muted-foreground`.
+  - `variant="link"` (`text-primary`) measured 3.9:1 on a card, so buttons that navigate use `variant="outline"`.
 - **Container queries:** layouts that depend on the content width (sidebar open or closed) use `@container` with `@min-[Npx]:` steps, in px only. Tailwind emits px container sizes before the named rem ones (`@md`, `@3xl`…), so mixing the two lets the named ones win.
+  - Wide tables scroll inside their card (`shared/ui/table.tsx` wraps them in `overflow-x-auto`, and `SidebarInset` has `min-w-0`). The closed-positions table instead adds columns at container steps (480 to 840 px), so it fits a phone without scrolling sideways.
 - **Charts:** Recharts, through `shared/ui/chart.tsx`.
   - Series colors come from the `--chart-*` tokens: aportes and bolso use `--chart-1` (blue), proventos use `--chart-2` (orange).
   - Two or more series get a legend.
