@@ -45,13 +45,13 @@ Koinos is a single-owner FII (Brazilian REIT) portfolio dashboard that replaced 
 **Pages** (`src/app/(app)`): each one renders a static header and streams a `<Suspense>` section that awaits a DAL view from `portfolio/server.ts` or `transactions/server.ts`.
 
 - `/dashboard`: `getPortfolioSnapshot` (summary, alerts, monthly aportes, allocation, positions and the closed card), plus `getEvolution` in its own `<Suspense>` (Domain flow, item 7).
-  - `/dashboard/encerradas`: `getClosedPositionsView` (item 6), linked from the closed card.
 - `/transacoes`: `getMyTransactions`, with filters, pagination and the create, edit and delete actions.
+- `/encerradas`: `getClosedPositionsView` (item 6): cost, proceeds and result per closed FII. Its subpage `/encerradas/ir` shows the estimated tax from the same view, and the sidebar lists it as a sub-item. The Dashboard's closed card links here, and `/dashboard/encerradas` redirects here from `next.config.ts`.
 - `/proventos`: `getDividendsView` (item 4). Its subpage `/proventos/reinvestimento?mes=AAAA-MM` uses `getReinvestmentView` (item 5).
 - `/atualizacao-b3`: the client `B3ImportWizard`, which calls the preview and confirm actions (see B3 update).
 - `/carteira-alvo`: the snapshot's strategy rows, edited in the table through `strategy/actions.ts`.
 - `/recomendacoes`: the snapshot's `cascadeInput`. The cascade runs in the browser (`AporteCalculator`), with the amount and the cap in the URL (`?valor=&limite=`).
-- **A new top-level page** also needs a `proxy.ts` matcher entry (see Tenancy) and an item in the sidebar (`shared/components/app-sidebar.tsx`). Subpages need neither: the matcher's `:path*` covers them, and the sidebar highlights the parent by prefix.
+- **A new top-level page** also needs a `proxy.ts` matcher entry (see Tenancy) and an item in the sidebar (`shared/components/app-sidebar.tsx`). Subpages need neither: the matcher's `:path*` covers them, and the sidebar highlights the parent by prefix. A subpage that should appear in the menu goes in the item's `children`.
 
 **Public entry points per feature.** `eslint.config.mjs` enforces these with `no-restricted-imports`:
 
@@ -73,6 +73,7 @@ Koinos is a single-owner FII (Brazilian REIT) portfolio dashboard that replaced 
 - Every query filters by the tenant's `portfolioId`. Updates and deletes filter by `_id` and portfolio.
 - DTOs sent to the client carry no internal ids.
 - `src/proxy.ts` (Next 16's middleware) only does an optimistic cookie redirect. The real auth and allowlist check is in the DAL.
+  - `/login` with a valid session redirects to `/dashboard` (`redirectIfSignedIn`). It checks the real session, not the cookie, so an expired cookie doesn't loop between the two.
   - Its `matcher` lists each top-level `(app)` route as `/<route>/:path*`, which also covers its subpages. Add every new top-level route there, or the page renders its shell without a session before the DAL redirects.
 
 **Rendering:**
@@ -81,7 +82,7 @@ Koinos is a single-owner FII (Brazilian REIT) portfolio dashboard that replaced 
 - `getCurrentUser` uses `'use cache: private'`.
 - `getTenant` calls `connection()` before touching the database. Any new database path reached from rendering must go through `getTenant` or call `await connection()` first. Otherwise prerendering fails on the Mongo driver's internal `new Date()`.
 - The DAL readers (`getMyTransactions`, `getMyDividends`, `getPortfolioSnapshot`…) are wrapped in React `cache`, so several `<Suspense>` sections of one page can call them and each query runs once per request.
-- Client state that should survive a reload or a shared link lives in the URL through `nuqs`: the tables' filters, page and sort (`shared/hooks/use-sort-state.ts`), the dividends grouping, and the aporte amount and cap. The reinvestment month uses `shallow: false`, because the server reads it.
+- Client state that should survive a reload or a shared link lives in the URL through `nuqs`: the tables' filters, page and sort (`shared/hooks/use-sort-state.ts`), the dividends grouping and month (`?agrupar=&mes=`), and the aporte amount and cap. The reinvestment month uses `shallow: false`, because the server reads it.
 
 **Mutations:**
 
@@ -114,12 +115,12 @@ Koinos is a single-owner FII (Brazilian REIT) portfolio dashboard that replaced 
    - "a receber": the B3 snapshot from the Eventos statement (`dividend_forecasts`), with the official pay date and source "B3";
    - plus Yahoo announcements × the shares held on the day before the ex-date, until a B3 dividend paid on or after the ex-date confirms it. With a snapshot, only announcements with an ex-date after its `asOf` count, as "estimado";
    - the month totals: B3 items count only when they pay in the current month;
-   - the groupings by month, year or FII.
+   - the groupings by month (a year × month matrix: clicking a month lists its FIIs), year or FII.
 5. `portfolio/domain/reinvestment.ts` is pure and feeds `/proventos/reinvestimento?mes=AAAA-MM` (`portfolio/server/reinvestment-view.ts`):
    - each month's cash purchases (negócios and subscrições, with fees) are split into money from dividends and money from the pocket;
    - the % reinvested is saved per month in `reinvestments` (`setReinvestmentPercentAction`), and a month without one uses 100%;
    - the stored % has one decimal (`roundPercent`), and the preview uses the same rounding.
-6. `portfolio/domain/closed-positions.ts` is pure and feeds `/dashboard/encerradas` (`portfolio/server/closed-positions-view.ts`) and the Dashboard's closed card:
+6. `portfolio/domain/closed-positions.ts` is pure and feeds `/encerradas` and `/encerradas/ir` (`portfolio/server/closed-positions-view.ts`) and the Dashboard's closed card:
    - a closed position is a FII with zero quantity today. It sums the real sales of every cycle (negócios and leilões de fração), each at its day's average price;
    - an incorporation's exit leg is not a sale: its cost moves to the destination, with no result;
    - the closing date is the day the position reached zero: the last sale or, when it zeroed the position, the incorporation;
@@ -182,8 +183,9 @@ Koinos is a single-owner FII (Brazilian REIT) portfolio dashboard that replaced 
   - A selected segment uses solid `bg-(--badge)` with white text instead.
   - The AA text colors are `text-gain`, `text-loss` and `text-muted-foreground`.
   - `variant="link"` (`text-primary`) measured 3.9:1 on a card, so buttons that navigate use `variant="outline"`.
+  - Native `<select>` fields have a translucent background, and the system draws their open list. So `globals.css` gives `option` a solid `--card` background and `--foreground` text; without it, the dark theme showed light text on a light list.
 - **Container queries:** layouts that depend on the content width (sidebar open or closed) use `@container` with `@min-[Npx]:` steps, in px only. Tailwind emits px container sizes before the named rem ones (`@md`, `@3xl`…), so mixing the two lets the named ones win.
-  - Wide tables scroll inside their card (`shared/ui/table.tsx` wraps them in `overflow-x-auto`, and `SidebarInset` has `min-w-0`). The closed-positions table instead adds columns at container steps (480 to 840 px), so it fits a phone without scrolling sideways.
+  - Wide tables scroll inside their card (`shared/ui/table.tsx` wraps them in `overflow-x-auto`, and `SidebarInset` has `min-w-0`). The closed-positions and IR tables instead add columns at container steps (480 to 840 px), so it fits a phone without scrolling sideways.
 - **Charts:** Recharts, through `shared/ui/chart.tsx`.
   - Series colors come from the `--chart-*` tokens: aportes and bolso use `--chart-1` (blue), proventos use `--chart-2` (orange).
   - Two or more series get a legend.

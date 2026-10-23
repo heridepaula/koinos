@@ -5,6 +5,7 @@
   - o tipo `ClosedPosition` e o card "Posições encerradas" do Dashboard já existiam; o tipo ganhou os campos novos, em inglês como o resto do código, e o do card virou `ClosedPositionRow`;
   - não existe `/carteira`: a página fica em `/dashboard/encerradas`, como `/proventos/reinvestimento`, e o `proxy.ts` já cobre a rota por `/dashboard/:path*`;
   - o `replayLedger` passou a devolver cada venda, para o custo das encerradas sair do mesmo cálculo do preço médio.
+- **Atualização (2026-10-23):** a pedido do usuário, a tela saiu do Dashboard e ganhou menu próprio. `/encerradas` mostra custo, vendido e resultado; o IR estimado foi para o subitem `/encerradas/ir` (cards de IR, lucro tributável e prejuízo, e a tabela FII | data | resultado | IR). `/dashboard/encerradas` redireciona para `/encerradas`. As seções abaixo descrevem a primeira versão, com o IR na mesma página.
 
 ## 1. Objetivo
 
