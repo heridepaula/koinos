@@ -69,6 +69,8 @@ export async function getDividendsView(): Promise<DividendsView> {
       amount: totals.get(month) ?? 0,
     })),
     since: first ? monthKeyOfTradeDate(first) : null,
-    hasAny: received.length > 0 || upcoming.length > 0,
+    // Sem nenhum provento importado não dá para saber o que já foi pago: todo anúncio pareceria
+    // "a receber". A tela mostra só o convite para importar os extratos.
+    imported: received.length > 0,
   };
 }

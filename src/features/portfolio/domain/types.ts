@@ -87,7 +87,8 @@ export type ClosedPosition = {
   dividends: number;
   /** Vendas + proventos: sem cotação, porque a posição está zerada. */
   totalResult: number;
-  lastDate: Date;
+  /** Último lançamento; null para o FII que só aparece pelos proventos (sem lançamento). */
+  lastDate: Date | null;
 };
 
 export type PortfolioSummary = {
@@ -199,5 +200,6 @@ export type DividendsView = {
   chart: { month: string; amount: number }[];
   /** Mês (YYYY-MM) do primeiro provento recebido; null sem nenhum. */
   since: string | null;
-  hasAny: boolean;
+  /** Algum provento da B3 já foi importado. */
+  imported: boolean;
 };

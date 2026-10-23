@@ -38,8 +38,11 @@ const config = { amount: { label: "Proventos", color: "var(--chart-2)" } } satis
 const SELECTED =
   "aria-pressed:border-transparent aria-pressed:bg-(--badge) aria-pressed:text-white aria-pressed:hover:bg-(--badge) aria-pressed:hover:text-white dark:aria-pressed:border-transparent dark:aria-pressed:bg-(--badge) dark:aria-pressed:hover:bg-(--badge)";
 
+/** Só o que o histórico usa: o "a receber" e o mês atual ficam fora do componente do cliente. */
+type HistoryData = Pick<DividendsView, "since" | "chart" | "byMonth" | "byYear" | "byTicker">;
+
 /** Histórico dos proventos recebidos, agrupado por mês, ano ou papel (a escolha fica na URL). */
-export function DividendsHistory({ view }: { view: DividendsView }) {
+export function DividendsHistory(view: HistoryData) {
   const [grouping, setGrouping] = useQueryState(
     "agrupar",
     parseAsStringLiteral(GROUPINGS).withDefault("mes").withOptions({ history: "replace" }),
@@ -80,7 +83,7 @@ export function DividendsHistory({ view }: { view: DividendsView }) {
   );
 }
 
-function ByMonth({ view }: { view: DividendsView }) {
+function ByMonth({ view }: { view: HistoryData }) {
   // Os meses (do mais recente ao mais antigo) ficam agrupados sob o ano, com o total do ano.
   const years = new Map<string, DividendsView["byMonth"]>();
   for (const group of view.byMonth) {

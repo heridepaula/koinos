@@ -1,5 +1,11 @@
 import { sortLedger, type DividendEntry, type LedgerEntry } from "@/features/transactions";
-import { addMonths, currentMonthKey, monthKeyOfTradeDate, todayTradeDate } from "@/shared/lib/time";
+import {
+  addMonths,
+  currentMonthKey,
+  monthKeyOfTradeDate,
+  parseTradeDate,
+  todayTradeDate,
+} from "@/shared/lib/time";
 import type {
   AdjustedResult,
   DividendMonthGroup,
@@ -33,7 +39,8 @@ export function quantityBefore(
 
 /**
  * Proventos anunciados e ainda não recebidos: data ex no mês atual ou no anterior, até hoje,
- * sem provento da B3 do mesmo FII pago na data ex ou depois.
+ * sem provento da B3 do mesmo FII pago na data ex ou depois. Do mês anterior, só o que tinha
+ * pagamento previsto para este mês: o que vencia no mês passado é daquele mês, não deste.
  */
 export function upcomingDividends(input: {
   now: Date;
@@ -45,12 +52,15 @@ export function upcomingDividends(input: {
   const firstMonth = addMonths(month, -1);
   // Datas ex são datas de negócio (meia-noite UTC): compara com o dia de hoje em São Paulo.
   const today = todayTradeDate(input.now);
+  const monthStart = parseTradeDate(`${month}-01`);
   const result: UpcomingDividend[] = [];
   for (const [ticker, list] of input.announcements) {
     for (const announcement of list) {
       const exMonth = monthKeyOfTradeDate(announcement.exDate);
       if (exMonth < firstMonth || exMonth > month) continue;
       if (announcement.exDate.getTime() > today.getTime()) continue;
+      const payBy = new Date(announcement.exDate.getTime() + PAY_WINDOW_DAYS * DAY);
+      if (exMonth < month && payBy.getTime() < monthStart.getTime()) continue;
       const paid = input.received.some(
         (item) => item.ticker === ticker && item.paidAt.getTime() >= announcement.exDate.getTime(),
       );
@@ -63,7 +73,7 @@ export function upcomingDividends(input: {
         quantity,
         perShare: announcement.perShare,
         amount: quantity * announcement.perShare,
-        payBy: new Date(announcement.exDate.getTime() + PAY_WINDOW_DAYS * DAY),
+        payBy,
       });
     }
   }

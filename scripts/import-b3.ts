@@ -108,7 +108,7 @@ async function main() {
   console.log(`Por tipo (todos os FIIs): ${JSON.stringify(plan.totals)}`);
   const dividendsTotal = plan.dividends.inserts.reduce((sum, item) => sum + item.amount, 0);
   console.log(
-    `Proventos: ${plan.dividends.inserts.length} (${formatBRL(dividendsTotal)}) em ${plan.dividends.tickers.length} FIIs`,
+    `Proventos: ${plan.dividends.inserts.length} (${formatBRL(dividendsTotal)}) em ${new Set(plan.dividends.inserts.map((item) => item.ticker)).size} FIIs · trocados em ${plan.dividends.tickers.length} FIIs`,
   );
 
   console.log("\nFII       situação   cotas      preço médio  L/P realizado   lançamentos");

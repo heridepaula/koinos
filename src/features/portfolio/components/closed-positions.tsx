@@ -49,7 +49,8 @@ export function ClosedPositions({ rows }: { rows: readonly ClosedPosition[] }) {
                 <TableRow key={row.ticker}>
                   <TableCell className="pl-0 font-medium">{row.ticker}</TableCell>
                   <TableCell className="hidden text-muted-foreground @min-[500px]:table-cell">
-                    {formatTradeDate(row.lastDate)}
+                    {/* Sem data: o FII só aparece pelos proventos, sem lançamento na carteira. */}
+                    {row.lastDate ? formatTradeDate(row.lastDate) : "—"}
                   </TableCell>
                   <TableCell className="hidden text-right @min-[400px]:table-cell">
                     <Delta value={row.realizedPnL} />

@@ -17,6 +17,7 @@ import { buildAlerts } from "./alerts";
 import { allocationByAsset, allocationByCategory } from "./allocation";
 import { adjustedResult, dividendsByTicker } from "./dividends";
 import type {
+  ClosedPosition,
   PortfolioSnapshot,
   PortfolioSummary,
   PositionRow,
@@ -207,16 +208,12 @@ export function buildSnapshot({
         a.ticker.localeCompare(b.ticker),
     );
 
-  const nowMonth = currentMonthKey(now);
-  const quoteTickers = strategyTickers;
-  const fetchedTimes = quoteTickers
-    .map((ticker) => prices.get(ticker)?.quoteFetchedAt?.getTime())
-    .filter((time): time is number => time !== undefined);
-
-  return {
-    summary,
-    positions: positionRows,
-    closed: positions
+  // Encerradas: as posições zeradas e os FIIs que só aparecem pelos proventos (sem lançamento),
+  // para o total de proventos do resumo fechar com a soma das linhas das duas tabelas.
+  const ledgerTickers = new Set(positions.map((position) => position.ticker));
+  const timeOf = (date: Date | null) => date?.getTime() ?? 0;
+  const closed: ClosedPosition[] = [
+    ...positions
       .filter((position) => position.quantity === 0)
       .map((position) => {
         const dividendsOf = received.get(position.ticker) ?? 0;
@@ -228,8 +225,28 @@ export function buildSnapshot({
           totalResult: adjustedResult(0, dividendsOf, position.realizedPnL).total,
           lastDate: position.lastDate,
         };
-      })
-      .sort((a, b) => b.lastDate.getTime() - a.lastDate.getTime()),
+      }),
+    ...[...received]
+      .filter(([ticker]) => !ledgerTickers.has(ticker))
+      .map(([ticker, amount]) => ({
+        ticker,
+        realizedPnL: 0,
+        dividends: amount,
+        totalResult: adjustedResult(0, amount, 0).total,
+        lastDate: null,
+      })),
+  ].sort((a, b) => timeOf(b.lastDate) - timeOf(a.lastDate) || a.ticker.localeCompare(b.ticker));
+
+  const nowMonth = currentMonthKey(now);
+  const quoteTickers = strategyTickers;
+  const fetchedTimes = quoteTickers
+    .map((ticker) => prices.get(ticker)?.quoteFetchedAt?.getTime())
+    .filter((time): time is number => time !== undefined);
+
+  return {
+    summary,
+    positions: positionRows,
+    closed,
     strategy: { rows: strategyRows, strategyValue, sumOfSuggested, weightsWarning },
     cascadeInput,
     allocation: {
