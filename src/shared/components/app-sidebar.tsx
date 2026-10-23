@@ -10,6 +10,7 @@ import {
   LightbulbIcon,
   ReceiptTextIcon,
   RefreshCwIcon,
+  RepeatIcon,
   TargetIcon,
 } from "lucide-react";
 import Link from "next/link";
@@ -59,6 +60,7 @@ const NAV_ITEMS: readonly NavItem[] = [
     label: "Proventos",
     icon: HandCoinsIcon,
     tile: "[--tile:var(--tile-teal)]",
+    children: [{ href: "/proventos/reinvestimento", label: "Reinvestimento", icon: RepeatIcon }],
   },
   {
     href: "/encerradas",

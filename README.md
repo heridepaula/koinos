@@ -5,7 +5,7 @@ Dashboard pessoal de FIIs que substitui a planilha. As posições saem dos lanç
 - **Dashboard:** patrimônio, L/P, proventos recebidos e o resultado com proventos, DY 12 meses, alertas, evolução, aportes por mês, composição e posições.
 - **Posições encerradas:** os FIIs com posição zerada, com o custo pelo preço médio, o vendido, o resultado e o IR estimado (20% do lucro de cada um, sem compensar prejuízos). Tem menu próprio (`/encerradas`), com o IR no subitem **IR estimado** (`/encerradas/ir`).
 - **Transações:** compras e vendas com filtros e paginação. Uma venda que quebra o histórico é recusada.
-- **Proventos:** recebido, a receber (pela lista da B3, completada pelo Yahoo) e total do mês, e o histórico por mês (uma matriz ano × mês; clicar num mês mostra os FIIs), ano ou papel.
+- **Proventos:** recebido, a receber (pela lista da B3, completada pelo Yahoo) e total do mês, e o histórico por mês (uma matriz ano × mês; clicar num mês mostra os FIIs), ano ou papel. O subitem **Reinvestimento** (`/proventos/reinvestimento`) divide o aporte de cada mês entre proventos reinvestidos e dinheiro do bolso.
 - **Atualização da B3:** os três extratos da Área do Investidor (Negociação, Movimentação e Eventos), com a prévia do que é novo e das inconsistências. Só grava o que mudou.
 - **Carteira Alvo:** ranking Suno, preço teto, % sugerida e categoria, editados na própria tabela.
 - **Recomendações:** "Quanto vou aportar hoje?" vira ordens de compra exatas, com o motivo de cada uma.

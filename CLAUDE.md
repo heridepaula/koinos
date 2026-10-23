@@ -47,11 +47,11 @@ Koinos is a single-owner FII (Brazilian REIT) portfolio dashboard that replaced 
 - `/dashboard`: `getPortfolioSnapshot` (summary, alerts, monthly aportes, allocation, positions and the closed card), plus `getEvolution` in its own `<Suspense>` (Domain flow, item 7).
 - `/transacoes`: `getMyTransactions`, with filters, pagination and the create, edit and delete actions.
 - `/encerradas`: `getClosedPositionsView` (item 6): cost, proceeds and result per closed FII. Its subpage `/encerradas/ir` shows the estimated tax from the same view, and the sidebar lists it as a sub-item. The Dashboard's closed card links here, and `/dashboard/encerradas` redirects here from `next.config.ts`.
-- `/proventos`: `getDividendsView` (item 4). Its subpage `/proventos/reinvestimento?mes=AAAA-MM` uses `getReinvestmentView` (item 5).
+- `/proventos`: `getDividendsView` (item 4). Its subpage `/proventos/reinvestimento?mes=AAAA-MM` uses `getReinvestmentView` (item 5), and the sidebar lists it as a sub-item, like the IR under `/encerradas`.
 - `/atualizacao-b3`: the client `B3ImportWizard`, which calls the preview and confirm actions (see B3 update).
 - `/carteira-alvo`: the snapshot's strategy rows, edited in the table through `strategy/actions.ts`.
 - `/recomendacoes`: the snapshot's `cascadeInput`. The cascade runs in the browser (`AporteCalculator`), with the amount and the cap in the URL (`?valor=&limite=`).
-- **A new top-level page** also needs a `proxy.ts` matcher entry (see Tenancy) and an item in the sidebar (`shared/components/app-sidebar.tsx`). Subpages need neither: the matcher's `:path*` covers them, and the sidebar highlights the parent by prefix. A subpage that should appear in the menu goes in the item's `children`.
+- **A new top-level page** also needs a `proxy.ts` matcher entry (see Tenancy) and an item in the sidebar (`shared/components/app-sidebar.tsx`). Subpages need neither: the matcher's `:path*` covers them, and the sidebar highlights the parent by prefix. A subpage that should appear in the menu goes in the item's `children`, with its own icon, and its page header keeps a button back to the parent.
 
 **Public entry points per feature.** `eslint.config.mjs` enforces these with `no-restricted-imports`:
 

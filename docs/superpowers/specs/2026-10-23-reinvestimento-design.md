@@ -1,7 +1,8 @@
 # Reinvestimento de proventos: especificação de design (ciclo 2)
 
 - **Data:** 2026-10-23
-- **Status:** design aprovado na conversa; aguardando revisão do spec escrito.
+- **Status:** implementado em 2026-10-23.
+- **Atualização (2026-10-23):** a pedido do usuário, o relatório também virou subitem "Reinvestimento" de Proventos no menu lateral, como o IR estimado nas posições encerradas. O botão no cabeçalho de `/proventos` continua, e o menu marca Proventos e o subitem.
 - **Ciclo:** segundo ciclo dos proventos. O primeiro, `2026-10-18-proventos-design.md`, guardou os proventos da B3 e criou `/proventos`.
 
 ## 1. Objetivo
