@@ -3,6 +3,7 @@
 Dashboard pessoal de FIIs que substitui a planilha. As posições saem dos lançamentos, as cotações vêm da B3 e o motor de aportes segue o método Suno: ranking até a % sugerida, só abaixo do preço teto, rebalanceando com aportes (nunca com vendas).
 
 - **Dashboard:** patrimônio, L/P, proventos recebidos e o resultado com proventos, DY 12 meses, alertas, evolução, aportes por mês, composição e posições.
+- **Posições encerradas:** os FIIs com posição zerada, com o custo pelo preço médio, o vendido, o resultado e o IR estimado (20% do lucro de cada um, sem compensar prejuízos). Fica em `/dashboard/encerradas`, a partir do card do Dashboard.
 - **Transações:** compras e vendas com filtros e paginação. Uma venda que quebra o histórico é recusada.
 - **Proventos:** recebido, a receber (pela lista da B3, completada pelo Yahoo) e total do mês, e o histórico por mês, ano ou papel.
 - **Atualização da B3:** os três extratos da Área do Investidor (Negociação, Movimentação e Eventos), com a prévia do que é novo e das inconsistências. Só grava o que mudou.

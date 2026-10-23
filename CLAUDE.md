@@ -92,7 +92,7 @@ Koinos is a single-owner FII (Brazilian REIT) portfolio dashboard that replaced 
 
 **Domain flow:**
 
-1. The transaction ledger feeds `transactions/domain`: `replayLedger` computes positions, and `findOversells` makes the app reject any write that would let a sale exceed the position.
+1. The transaction ledger feeds `transactions/domain`: `replayLedger` computes positions and lists each sale with its cost at the average price (`sales`), and `findOversells` makes the app reject any write that would let a sale exceed the position.
 2. `portfolio/domain/snapshot.ts` (`buildSnapshot`) builds positions, allocation, alerts and the cascade input. It also adds the dividends received per FII and the adjusted results: "com proventos" (quote result + dividends) and "total" (+ realized sales).
 3. `smart-buy/domain/suno-cascade.ts` turns that into the buy recommendations. Dividends never reach the cascade input.
 4. `portfolio/domain/dividends.ts` is pure and feeds `/proventos` (`portfolio/server/dividends-view.ts`):
@@ -104,6 +104,11 @@ Koinos is a single-owner FII (Brazilian REIT) portfolio dashboard that replaced 
    - each month's cash purchases (negócios and subscrições, with fees) are split into money from dividends and money from the pocket;
    - the % reinvested is saved per month in `reinvestments` (`setReinvestmentPercentAction`), and a month without one uses 100%;
    - the stored % has one decimal (`roundPercent`), and the preview uses the same rounding.
+6. `portfolio/domain/closed-positions.ts` is pure and feeds `/dashboard/encerradas` (`portfolio/server/closed-positions-view.ts`) and the Dashboard's closed card:
+   - a closed position is a FII with zero quantity today. It sums the real sales of every cycle (negócios and leilões de fração), each at its day's average price;
+   - an incorporation's exit leg is not a sale: its cost moves to the destination, with no result;
+   - the estimated tax is 20% of each position's profit (FII sales have no exemption) and zero on a loss. It doesn't offset losses across positions or months;
+   - a FII with an `ESTIMADO` buy price, directly or through an incorporation, is flagged, because its result is an estimate too.
 
 **Market data** (`market-data`):
 
