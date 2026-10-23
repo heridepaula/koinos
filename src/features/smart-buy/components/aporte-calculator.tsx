@@ -2,15 +2,13 @@
 
 import { CopyIcon, LayersIcon } from "lucide-react";
 import { parseAsFloat, parseAsNumberLiteral, useQueryState } from "nuqs";
-import { useState } from "react";
 import { toast } from "sonner";
 import { AssetLabel } from "@/shared/components/asset-label";
+import { MoneyInput } from "@/shared/components/money-input";
 import { formatBRL, formatPercent, formatQuantity } from "@/shared/lib/format";
-import { numberToInput, parseNumberInput } from "@/shared/lib/parse-number";
 import { Badge } from "@/shared/ui/badge";
 import { Button } from "@/shared/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/shared/ui/card";
-import { Input } from "@/shared/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/shared/ui/table";
 import {
   DEFAULT_MAX_SHARE_PERCENT,
@@ -80,7 +78,6 @@ export function AporteCalculator({ assets, meta }: { assets: CascadeAsset[]; met
       .withDefault(DEFAULT_MAX_SHARE_PERCENT)
       .withOptions({ history: "replace" }),
   );
-  const [text, setText] = useState(amount > 0 ? numberToInput(amount) : "");
   const metaByTicker = new Map(meta.map((item) => [item.ticker, item]));
 
   const result = amount > 0 ? sunoCascade(amount, assets, { maxSharePercent: maxShare }) : null;
@@ -116,23 +113,13 @@ export function AporteCalculator({ assets, meta }: { assets: CascadeAsset[]; met
             className="flex flex-wrap items-center gap-2"
             onSubmit={(event) => event.preventDefault()}
           >
-            <div className="relative">
-              <span className="pointer-events-none absolute top-1/2 left-3 -translate-y-1/2 text-sm text-muted-foreground">
-                R$
-              </span>
-              <Input
-                aria-label="Valor do aporte em reais"
-                inputMode="decimal"
-                className="h-10 w-48 pl-9 text-lg tabular-nums"
-                placeholder="14.000,00"
-                value={text}
-                onChange={(event) => {
-                  setText(event.target.value);
-                  const parsed = parseNumberInput(event.target.value);
-                  void setAmount(Number.isFinite(parsed) && parsed > 0 ? parsed : null);
-                }}
-              />
-            </div>
+            <MoneyInput
+              aria-label="Valor do aporte em reais"
+              className="h-10 w-48 text-lg"
+              placeholder="14.000,00"
+              defaultValue={amount > 0 ? amount : null}
+              onValueChange={(value) => void setAmount(value !== null && value > 0 ? value : null)}
+            />
             <label className="flex items-center gap-2 text-sm text-muted-foreground">
               Máximo por FII
               <select

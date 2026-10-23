@@ -189,6 +189,7 @@ Koinos is a single-owner FII (Brazilian REIT) portfolio dashboard that replaced 
 - **Charts:** Recharts, through `shared/ui/chart.tsx`.
   - Series colors come from the `--chart-*` tokens: aportes and bolso use `--chart-1` (blue), proventos use `--chart-2` (orange).
   - Two or more series get a legend.
+- **Money fields:** `MoneyInput` (`shared/components/money-input.tsx`) masks while typing ("14.000,50"), so read its text with `parseMoneyInput`. `parseNumberInput` takes a dot without a comma as the decimal point and would read "14.000" as 14.
 - **Base UI `Button` as a link:** `render={<Link />}` needs `nativeButton={false}`. Without it, Base UI logs an error and puts `type="button"` on the `<a>`.
 - **`cn`:** the `cn` package is tailwind-merge compatible, so a later class overrides a conflicting one.
 - **`next.config.ts`:**
