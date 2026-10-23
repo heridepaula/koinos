@@ -1,4 +1,6 @@
+import { RepeatIcon } from "lucide-react";
 import type { Metadata } from "next";
+import Link from "next/link";
 import { Suspense } from "react";
 import { getDividendsView } from "@/features/portfolio/server";
 import {
@@ -9,6 +11,7 @@ import {
 } from "@/features/portfolio/ui";
 import { PageHeader } from "@/shared/components/page-header";
 import { CardSkeleton } from "@/shared/components/skeletons";
+import { Button } from "@/shared/ui/button";
 import { Skeleton } from "@/shared/ui/skeleton";
 
 export const metadata: Metadata = { title: "Proventos" };
@@ -17,7 +20,16 @@ export const metadata: Metadata = { title: "Proventos" };
 export default function DividendsPage() {
   return (
     <>
-      <PageHeader title="Proventos" description="Recebidos, a receber e o histórico." />
+      <PageHeader
+        title="Proventos"
+        description="Recebidos, a receber e o histórico."
+        actions={
+          <Button variant="outline" render={<Link href="/proventos/reinvestimento" />}>
+            <RepeatIcon />
+            Reinvestimento
+          </Button>
+        }
+      />
       <Suspense fallback={<DividendsSkeleton />}>
         <DividendsContent />
       </Suspense>

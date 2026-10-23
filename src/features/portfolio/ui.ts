@@ -12,3 +12,8 @@ export { EvolutionChart } from "./components/evolution-chart";
 export { PositionsTable } from "./components/positions-table";
 export { QuoteRefresher } from "./components/quote-refresher";
 export { SummaryCards } from "./components/summary-cards";
+
+export { MonthPicker } from "./components/reinvestment/month-picker";
+export { PurchasesTable } from "./components/reinvestment/purchases-table";
+export { ReinvestmentCards } from "./components/reinvestment/reinvestment-cards";
+export { ReinvestmentHistory } from "./components/reinvestment/reinvestment-history";
