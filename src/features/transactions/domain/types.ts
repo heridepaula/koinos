@@ -56,6 +56,20 @@ export type Oversell = {
   heldQuantity: number;
 };
 
+/** Venda processada pelo preço médio vigente: o que entrou e o custo que saiu da posição. */
+export type RealizedSale = {
+  entryId: string;
+  ticker: string;
+  date: Date;
+  kind: TransactionKind;
+  /** Cotas baixadas: numa venda maior que a posição, só as que existiam. */
+  quantity: number;
+  /** Quantidade × preço, menos as taxas proporcionais às cotas baixadas. */
+  proceeds: number;
+  /** Quantidade × preço médio vigente. */
+  cost: number;
+};
+
 /** Provento recebido, como a B3 informa no extrato de Movimentação. */
 export const DIVIDEND_KINDS = ["RENDIMENTO", "REEMBOLSO"] as const;
 export type DividendKind = (typeof DIVIDEND_KINDS)[number];

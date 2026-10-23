@@ -7,6 +7,7 @@ export type {
   LedgerEntry,
   Oversell,
   Position,
+  RealizedSale,
   TransactionType,
 } from "./domain/types";
 export {

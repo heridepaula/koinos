@@ -1,4 +1,4 @@
-import type { LedgerEntry, Oversell, Position } from "./types";
+import type { LedgerEntry, Oversell, Position, RealizedSale } from "./types";
 
 const EPSILON = 1e-9;
 
@@ -28,13 +28,16 @@ type TickerState = {
  * - venda baixa a posição pelo preço médio vigente, sem alterá-lo, e gera lucro realizado;
  * - posição zerada zera o custo.
  * Vendas maiores que a posição viram `oversells`; o cálculo segue com o que existia.
+ * `sales` traz cada venda na ordem do processamento, com as pernas de saída das incorporações.
  */
 export function replayLedger(entries: readonly LedgerEntry[]): {
   positions: Position[];
   oversells: Oversell[];
+  sales: RealizedSale[];
 } {
   const states = new Map<string, TickerState>();
   const oversells: Oversell[] = [];
+  const sales: RealizedSale[] = [];
 
   for (const entry of sortLedger(entries)) {
     let state = states.get(entry.ticker);
@@ -65,8 +68,19 @@ export function replayLedger(entries: readonly LedgerEntry[]): {
 
     const averagePrice = state.cost / state.quantity;
     const fees = entry.fees * (sellQuantity / entry.quantity);
-    state.realized += sellQuantity * entry.unitPrice - fees - sellQuantity * averagePrice;
-    state.cost -= sellQuantity * averagePrice;
+    const proceeds = sellQuantity * entry.unitPrice - fees;
+    const cost = sellQuantity * averagePrice;
+    sales.push({
+      entryId: entry.id,
+      ticker: entry.ticker,
+      date: entry.date,
+      kind: entry.kind ?? "NEGOCIO",
+      quantity: sellQuantity,
+      proceeds,
+      cost,
+    });
+    state.realized += proceeds - cost;
+    state.cost -= cost;
     state.quantity -= sellQuantity;
     if (Math.abs(state.quantity) < EPSILON) {
       state.quantity = 0;
@@ -86,7 +100,7 @@ export function replayLedger(entries: readonly LedgerEntry[]): {
     }))
     .sort((a, b) => a.ticker.localeCompare(b.ticker));
 
-  return { positions, oversells };
+  return { positions, oversells, sales };
 }
 
 export function computePositions(entries: readonly LedgerEntry[]): Position[] {
