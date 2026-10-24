@@ -39,6 +39,7 @@ npm run dev                  # http://localhost:3000
 | `CRON_SECRET`                               | 16+ caracteres. Protege `/api/cron/daily`; obrigatório em produção.                                                                                                                            |
 | `OTEL_EXPORTER_OTLP_ENDPOINT`               | Opcional. Para onde vão os traces do APM (em produção, a New Relic: `https://otlp.nr-data.net:4318`). Sem ele, nada sai do servidor.                                                           |
 | `OTEL_EXPORTER_OTLP_HEADERS`                | Opcional. Cabeçalho do envio, no formato `api-key=<chave de ingestão>`. É segredo: na Vercel, marque como Sensitive.                                                                           |
+| `OTEL_EXPORTER_OTLP_LOGS_HEADERS`           | Opcional. Uma chave só para os logs, no mesmo formato. Sem ela, os logs usam a de cima.                                                                                                        |
 
 ### Login com Google
 
@@ -144,9 +145,10 @@ O ESLint impede importar o interior de outra feature e mantém `domain/` puro. A
 
 ## Observabilidade (APM)
 
-O app manda traces OpenTelemetry (`@vercel/otel`) para a New Relic: os Web Vitals do navegador, as requisições, os carregadores de cada tela, as Server Actions, a atualização B3, o MongoDB, o Redis e as travas, a brapi, o Yahoo e o Google, cada etapa do cron diário e os erros que o Next captura. Sem `OTEL_EXPORTER_OTLP_ENDPOINT`, nada sai do servidor.
+O app manda traces e logs OpenTelemetry (`@vercel/otel`) para a New Relic: os Web Vitals do navegador, as requisições, os carregadores de cada tela, as Server Actions, a atualização B3, o MongoDB, o Redis e as travas, a brapi, o Yahoo e o Google, cada etapa do cron diário e os erros que o Next captura. Sem `OTEL_EXPORTER_OTLP_ENDPOINT`, nada sai do servidor.
 
-- **Privacidade:** as URLs vão sem query string, as queries do MongoDB sem os valores, o Redis só com o nome do comando, as mensagens de erro sem números nem e-mails, e das entradas das actions só o ticker, o tipo e o mês.
+- **Privacidade:** as URLs vão sem query string, as queries do MongoDB sem os valores, o Redis só com o nome do comando, as mensagens de erro e os logs sem números nem e-mails (os tickers ficam), e das entradas das actions só o ticker, o tipo e o mês.
+- **Logs:** o que o app escreve no console também vai para a New Relic, ligado ao trace da requisição, com uma chave própria (`OTEL_EXPORTER_OTLP_LOGS_HEADERS`).
 - **Dashboard e alertas:** importe [`docs/observability/new-relic-dashboard.json`](docs/observability/new-relic-dashboard.json) (10 páginas) seguindo [o guia](docs/observability/new-relic.md), que também traz a análise de cobertura e os alertas sugeridos (brapi lenta, cron que não rodou, falhas, página lenta).
 - **Desligar:** `OTEL_SDK_DISABLED=true`, no próximo deploy.
 

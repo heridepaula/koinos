@@ -146,7 +146,7 @@ Koinos is a single-owner FII (Brazilian REIT) portfolio dashboard that replaced 
 - `src/instrumentation.ts` loads `instrumentation.node.ts` on Node: the `fetch` instrumentation (brapi, Yahoo, Google), MongoDB (the driver, so Better Auth and Mongoose) and ioredis. Without `OTEL_EXPORTER_OTLP_ENDPOINT` nothing is exported; `OTEL_SDK_DISABLED=true` turns it off.
 - **Versions move together:** the OTel packages stay on the 0.223 line, because `@vercel/otel` 2.1.3 peers `@opentelemetry/instrumentation <0.300`.
 - **External packages:** `ioredis` is in `serverExternalPackages`. A package bundled by Turbopack can't be instrumented; `mongodb` and `mongoose` are external by default.
-- **Privacy:** `RedactionSpanProcessor` (`shared/lib/telemetry-redaction.ts`) runs before the exporter. It strips query strings from span names and URL attributes, and numbers, e-mails and query strings from exception messages.
+- **Privacy:** `RedactionSpanProcessor` (`shared/lib/telemetry-redaction.ts`) runs before the exporter. It strips query strings from span names and URL attributes, and numbers, e-mails and query strings from exception messages and logs. B3 tickers (`HGLG11`) stay, since they are already an allowed field.
   - MongoDB statements go with `?` for every value; Redis spans carry only the command name.
   - Action inputs go only for the fields in `TRACEABLE_INPUT_FIELDS` (`ticker`, `type`, `month`) in `auth/server/action-client.ts`. Adding one is a privacy decision.
 - **Server Actions:** every action needs `.metadata({ actionName })`, because the metadata schema requires it. The first middleware wraps the action in `action <name>` with `koinos.action.outcome` and, on failure, `error.type` and `koinos.action.error_kind` (`expected` for `ActionError` and `UnauthorizedError`).
@@ -158,6 +158,10 @@ Koinos is a single-owner FII (Brazilian REIT) portfolio dashboard that replaced 
 - **Web Vitals:** `WebVitals` (`shared/components/web-vitals.tsx`, in the `(app)` layout) batches `useReportWebVitals` measures and beacons them to `/api/vitals`, which records one `web-vitals` span each.
   - The route only takes same-origin requests with a session cookie, and only the app's routes (anything else becomes `other`).
   - The New Relic key never reaches the browser.
+- **Logs** (`shared/lib/telemetry-logs.ts`): what the app, Next and the libraries write to the console (`log`, `info`, `warn`, `error`) also becomes OTel logs, linked to the request's trace and scrubbed like exceptions, and go out over OTLP with `OTEL_EXPORTER_OTLP_LOGS_HEADERS` (its own key) or the traces' headers.
+  - `FlushLogsWithSpans` empties the log queue in the same `waitUntil` that `@vercel/otel` uses for spans. Without it, a serverless instance could freeze before the batch timer fires.
+  - OTel's own diagnostics (`OTEL_LOG_LEVEL`) are routed to the original console, so a failed export ("connect ECONNREFUSED…") never comes back through the bridge as a log and loops.
+  - Vercel's edge and build logs need Log Drains, a Pro feature; they don't reach New Relic.
 - **The dashboard depends on these names:** renaming a span or a `koinos.*` attribute breaks its widgets and alerts (list in `docs/observability/new-relic.md`).
 - **Local check:** point the endpoint at a throwaway receiver with `OTEL_EXPORTER_OTLP_PROTOCOL=http/json` and read the spans as JSON.
 

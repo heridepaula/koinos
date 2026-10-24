@@ -99,3 +99,30 @@ Verificação: o segundo ensaio, com páginas, Web Vitals, prévia e importaçã
 O dashboard passou a ter 10 páginas e 90 widgets. As consultas usam 70 atributos, todos vistos nos ensaios, menos `vcs.ref.head.revision` e `vercel.region`, que só existem na Vercel.
 
 Continuam de fora, com o caminho em `docs/observability/new-relic.md`: logs pelo OpenTelemetry, um monitor Synthetics, as metas de serviço (SLO), as marcas de deploy (Change tracking) e as métricas de runtime.
+
+## 9. Logs e o diagnóstico do "sem dados" (mesmo dia)
+
+**"Sem dados no dashboard".** Com `OTEL_LOG_LEVEL=debug` em produção por alguns minutos, o log da Vercel mostrou três coisas:
+
+- os traces vão direto para a New Relic (`Configure trace exporter: http/protobuf https://otlp.nr-data.net:4318/v1/traces`), e não para o coletor da Vercel;
+- cada envio é aceito (`onSuccess 200 OK`);
+- um lote real mandado à mão, com `service.name` de diagnóstico, voltou com `{}`, sem `partialSuccess`.
+
+A API de eventos (`/v1/accounts/{id}/events`) recusa com 403 uma chave de outra conta. Por ela, as duas chaves que o usuário passou são da conta 6563675. O `OTEL_LOG_LEVEL` ficou em `warn`, para que um envio que falhe apareça no log da Vercel.
+
+**Logs:** o usuário pediu para levar os logs da Vercel para a New Relic e mandou uma chave própria.
+
+- **Por que não pela Vercel:** os Log Drains são do plano Pro. No Hobby, os logs das funções saem pelo próprio app.
+- **A ponte do console:** `bridgeConsoleToLogs` faz o `console.log`, o `info`, o `warn` e o `error` virarem logs OpenTelemetry. A saída na Vercel continua igual.
+- **Envio:** `OTLPLogExporter` (http/json, `@opentelemetry/exporter-logs-otlp-http` 0.223.0), com `OTEL_EXPORTER_OTLP_LOGS_HEADERS` e o mesmo endpoint dos traces. `FlushLogsWithSpans` esvazia a fila no `waitUntil` dos spans.
+- **Laço:** o diagnóstico do OpenTelemetry vai para o console original, porque um "connect ECONNREFUSED" passaria pelo filtro de palavras e voltaria como log.
+- **Limpeza:** a mesma das exceções. A partir daqui, os tickers da B3 ficam nas mensagens ("Venda de # cotas de BTLG11…"), porque já são campo liberado e dizem de qual FII é o erro.
+
+Verificação local:
+
+- os logs chegaram com a chave própria, ligados ao trace da requisição (4 de 4) e sem e-mail, `token=` nem quantidades;
+- com o endpoint de logs numa porta morta, a saída não cresceu e o servidor seguiu respondendo;
+- uma mensagem do `diag` com "ECONNREFUSED" saiu no console e não virou log;
+- os 10 casos de limpeza passaram com a regra dos tickers, e nenhum segredo do `.env` apareceu.
+
+O dashboard ganhou a página **Logs**: 11 páginas e 97 widgets, todos com a conta 6563675.

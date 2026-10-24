@@ -1,6 +1,6 @@
 {
   "name": "Koinos · APM",
-  "description": "OpenTelemetry do Koinos (Next.js na Vercel): requisições, Web Vitals, páginas, Server Actions, atualização B3, MongoDB, Redis, APIs externas, cron e plataforma.",
+  "description": "OpenTelemetry do Koinos (Next.js na Vercel): requisições, Web Vitals, páginas, Server Actions, atualização B3, MongoDB, Redis, APIs externas, cron, logs e plataforma.",
   "permissions": "PUBLIC_READ_WRITE",
   "pages": [
     {
@@ -2494,6 +2494,217 @@
             ],
             "platformOptions": {
               "ignoreTimeRange": true
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Logs",
+      "description": "O que o app, o Next e as bibliotecas escrevem no console (log, info, warn e error), ligado ao trace da requisição. Mensagens limpas: sem e-mails, sem query strings e sem números (os tickers ficam).",
+      "widgets": [
+        {
+          "title": "Erros",
+          "layout": {
+            "column": 1,
+            "row": 1,
+            "width": 3,
+            "height": 3
+          },
+          "linkedEntityGuids": null,
+          "visualization": {
+            "id": "viz.billboard"
+          },
+          "rawConfiguration": {
+            "facet": {
+              "showOtherSeries": false
+            },
+            "nrqlQueries": [
+              {
+                "accountIds": [6563675],
+                "query": "SELECT count(*) AS 'Erros' FROM Log WHERE service.name = 'koinos' AND severity.text = 'ERROR' COMPARE WITH 1 week ago"
+              }
+            ],
+            "platformOptions": {
+              "ignoreTimeRange": false
+            },
+            "thresholds": [
+              {
+                "alertSeverity": "WARNING",
+                "value": 1
+              },
+              {
+                "alertSeverity": "CRITICAL",
+                "value": 10
+              }
+            ]
+          }
+        },
+        {
+          "title": "Avisos",
+          "layout": {
+            "column": 4,
+            "row": 1,
+            "width": 3,
+            "height": 3
+          },
+          "linkedEntityGuids": null,
+          "visualization": {
+            "id": "viz.billboard"
+          },
+          "rawConfiguration": {
+            "facet": {
+              "showOtherSeries": false
+            },
+            "nrqlQueries": [
+              {
+                "accountIds": [6563675],
+                "query": "SELECT count(*) AS 'Avisos' FROM Log WHERE service.name = 'koinos' AND severity.text = 'WARN' COMPARE WITH 1 week ago"
+              }
+            ],
+            "platformOptions": {
+              "ignoreTimeRange": false
+            }
+          }
+        },
+        {
+          "title": "Logs ligados a um trace",
+          "layout": {
+            "column": 7,
+            "row": 1,
+            "width": 3,
+            "height": 3
+          },
+          "linkedEntityGuids": null,
+          "visualization": {
+            "id": "viz.billboard"
+          },
+          "rawConfiguration": {
+            "facet": {
+              "showOtherSeries": false
+            },
+            "nrqlQueries": [
+              {
+                "accountIds": [6563675],
+                "query": "SELECT percentage(count(*), WHERE trace.id IS NOT NULL) AS '% com trace' FROM Log WHERE service.name = 'koinos'"
+              }
+            ],
+            "platformOptions": {
+              "ignoreTimeRange": false
+            }
+          }
+        },
+        {
+          "title": "Logs por nível",
+          "layout": {
+            "column": 10,
+            "row": 1,
+            "width": 3,
+            "height": 3
+          },
+          "linkedEntityGuids": null,
+          "visualization": {
+            "id": "viz.billboard"
+          },
+          "rawConfiguration": {
+            "facet": {
+              "showOtherSeries": false
+            },
+            "nrqlQueries": [
+              {
+                "accountIds": [6563675],
+                "query": "SELECT count(*) FROM Log WHERE service.name = 'koinos' FACET severity.text"
+              }
+            ],
+            "platformOptions": {
+              "ignoreTimeRange": false
+            }
+          }
+        },
+        {
+          "title": "Logs ao longo do tempo",
+          "layout": {
+            "column": 1,
+            "row": 4,
+            "width": 12,
+            "height": 3
+          },
+          "linkedEntityGuids": null,
+          "visualization": {
+            "id": "viz.stacked-bar"
+          },
+          "rawConfiguration": {
+            "facet": {
+              "showOtherSeries": false
+            },
+            "nrqlQueries": [
+              {
+                "accountIds": [6563675],
+                "query": "SELECT count(*) FROM Log WHERE service.name = 'koinos' FACET severity.text TIMESERIES AUTO"
+              }
+            ],
+            "platformOptions": {
+              "ignoreTimeRange": false
+            },
+            "legend": {
+              "enabled": true
+            },
+            "yAxisLeft": {
+              "zero": true
+            }
+          }
+        },
+        {
+          "title": "Mensagens mais frequentes",
+          "layout": {
+            "column": 1,
+            "row": 7,
+            "width": 12,
+            "height": 4
+          },
+          "linkedEntityGuids": null,
+          "visualization": {
+            "id": "viz.table"
+          },
+          "rawConfiguration": {
+            "facet": {
+              "showOtherSeries": false
+            },
+            "nrqlQueries": [
+              {
+                "accountIds": [6563675],
+                "query": "SELECT count(*) AS 'Vezes', latest(timestamp) AS 'Última' FROM Log WHERE service.name = 'koinos' FACET severity.text, message LIMIT 30"
+              }
+            ],
+            "platformOptions": {
+              "ignoreTimeRange": false
+            }
+          }
+        },
+        {
+          "title": "Últimos erros e avisos",
+          "layout": {
+            "column": 1,
+            "row": 11,
+            "width": 12,
+            "height": 5
+          },
+          "linkedEntityGuids": null,
+          "visualization": {
+            "id": "viz.table"
+          },
+          "rawConfiguration": {
+            "facet": {
+              "showOtherSeries": false
+            },
+            "nrqlQueries": [
+              {
+                "accountIds": [6563675],
+                "query": "SELECT severity.text AS 'Nível', message AS 'Mensagem', trace.id FROM Log WHERE service.name = 'koinos' AND severity.text IN ('ERROR', 'WARN') LIMIT 100"
+              }
+            ],
+            "platformOptions": {
+              "ignoreTimeRange": false
             }
           }
         }
