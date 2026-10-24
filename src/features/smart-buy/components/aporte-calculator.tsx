@@ -116,7 +116,6 @@ export function AporteCalculator({ assets, meta }: { assets: CascadeAsset[]; met
             <MoneyInput
               aria-label="Valor do aporte em reais"
               className="h-10 w-48 text-lg"
-              placeholder="14.000,00"
               defaultValue={amount > 0 ? amount : null}
               onValueChange={(value) => void setAmount(value !== null && value > 0 ? value : null)}
             />
