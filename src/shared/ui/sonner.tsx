@@ -9,14 +9,19 @@ import {
   OctagonXIcon,
   Loader2Icon,
 } from "lucide-react";
+import { useIsMobile } from "@/shared/hooks/use-mobile";
 
 const Toaster = ({ ...props }: ToasterProps) => {
   const { theme = "system" } = useTheme();
+  // No iPhone, os avisos descem do topo, como as notificações (embaixo, cobririam a tab bar).
+  const mobile = useIsMobile();
 
   return (
     <Sonner
       theme={theme as ToasterProps["theme"]}
       className="toaster group"
+      position={mobile ? "top-center" : "bottom-right"}
+      mobileOffset={{ top: "calc(env(safe-area-inset-top, 0px) + 0.5rem)" }}
       icons={{
         success: <CircleCheckIcon className="size-4" />,
         info: <InfoIcon className="size-4" />,

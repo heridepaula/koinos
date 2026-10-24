@@ -324,6 +324,21 @@
   --tile-indigo: linear-gradient(180deg, #7d7aff, #5856d6);
   --tile-pink: linear-gradient(180deg, #ff6482, #e0304e);
   --tile-app: linear-gradient(160deg, #5ac8fa, #0a7aff 60%, #5e5ce6);
+  /*
+   * iPhone: áreas seguras (notch, Dynamic Island e home indicator; só valem com viewport-fit=cover)
+   * e as medidas das barras. A tab bar flutua 12 px abaixo da área segura de baixo, como no iOS 26,
+   * e o conteúdo reserva o espaço dela; a barra de navegação tem 48 px além da área segura de cima.
+   */
+  --safe-top: env(safe-area-inset-top, 0px);
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
+  --safe-left: env(safe-area-inset-left, 0px);
+  --safe-right: env(safe-area-inset-right, 0px);
+  --tab-bar-height: 62px;
+  /* Vidro da tab bar: mais denso que o da toolbar, porque o texto dos cards passa por baixo. */
+  --tab-bar-tint: rgb(255 255 255 / 0.58);
+  --tab-bar-bottom: max(0.5rem, calc(var(--safe-bottom) - 0.75rem));
+  --tab-bar-space: calc(var(--tab-bar-height) + var(--tab-bar-bottom) + 1.5rem);
+  --nav-bar-height: calc(var(--safe-top) + 3rem);
 }
 
 .dark {
@@ -412,6 +427,7 @@
   --wallpaper-1: rgb(10 100 255 / 0.55);
   --wallpaper-2: rgb(140 70 220 / 0.45);
   --wallpaper-3: rgb(220 60 120 / 0.3);
+  --tab-bar-tint: rgb(36 36 48 / 0.62);
 }
 
 /* Material de vidro (Liquid Glass): translúcido, com desfoque, borda clara e brilho no topo. */
@@ -585,12 +601,21 @@
   }
   [data-slot="dialog-content"],
   [data-slot="alert-dialog-content"],
-  [data-slot="sheet-content"][data-side="bottom"] {
+  [data-slot="sheet-content"][data-side="bottom"],
+  [data-slot="drawer-popup"] {
     border-radius: 34px;
     corner-shape: squircle;
   }
   .metal-ring::before {
     corner-shape: inherit;
+  }
+}
+
+/* Rolagem lateral sem barra, como as listas do iOS (o toque já mostra que rola). */
+@utility scrollbar-hide {
+  scrollbar-width: none;
+  &::-webkit-scrollbar {
+    display: none;
   }
 }
 
@@ -610,6 +635,23 @@
     @apply font-sans;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
+    /* Sem o realce cinza do WebKit no toque: cada controle tem o próprio estado :active. */
+    -webkit-tap-highlight-color: transparent;
+  }
+  /* Toque direto, sem esperar o toque duplo; controles não abrem o menu de link nem selecionam. */
+  a,
+  button,
+  [role="button"],
+  [role="radio"],
+  [role="tab"],
+  label,
+  summary {
+    touch-action: manipulation;
+  }
+  button,
+  [role="button"],
+  [role="radio"] {
+    -webkit-touch-callout: none;
   }
   body {
     @apply text-foreground;
@@ -674,7 +716,8 @@
   }
   [data-slot="dialog-content"],
   [data-slot="alert-dialog-content"],
-  [data-slot="sheet-content"] {
+  [data-slot="sheet-content"],
+  [data-slot="drawer-popup"] {
     background-color: var(--popover);
     backdrop-filter: blur(32px) saturate(180%);
   }

@@ -28,6 +28,7 @@ export default function ClosedPositionsPage() {
             IR estimado
           </Button>
         }
+        mobileActions={false}
       />
       <Suspense fallback={<ClosedPositionsSkeleton />}>
         <ClosedPositionsContent />

@@ -1,23 +1,26 @@
 "use client";
 
+import { PlusIcon } from "lucide-react";
 import { useAction } from "next-safe-action/hooks";
-import { useState, type ReactElement } from "react";
+import { useId, useState, type ReactElement } from "react";
 import { toast } from "sonner";
+import { useTabBarAction } from "@/shared/components/tab-bar-action";
 import { actionErrorMessage } from "@/shared/lib/action-error";
 import { numberToInput, parseNumberInput } from "@/shared/lib/parse-number";
 import { toIsoDate } from "@/shared/lib/time";
 import { Button } from "@/shared/ui/button";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "@/shared/ui/dialog";
 import { Field, FieldError, FieldGroup, FieldLabel, FieldTitle } from "@/shared/ui/field";
 import { Input } from "@/shared/ui/input";
+import {
+  ResponsiveDialog,
+  ResponsiveDialogBody,
+  ResponsiveDialogContent,
+  ResponsiveDialogDescription,
+  ResponsiveDialogFooter,
+  ResponsiveDialogHeader,
+  ResponsiveDialogTitle,
+  ResponsiveDialogTrigger,
+} from "@/shared/ui/responsive-dialog";
 import { SegmentedControl } from "@/shared/ui/segmented-control";
 import { Spinner } from "@/shared/ui/spinner";
 import { createTransactionAction, updateTransactionAction } from "../actions";
@@ -77,14 +80,22 @@ function draftFrom(row: TransactionRow): Draft {
   };
 }
 
+/**
+ * Formulário de lançamento: a folha macOS na mesa e, no iPhone, a folha de baixo do iOS, com o
+ * botão de registrar fixo embaixo (o formulário rola entre o título e ele).
+ */
 export function TransactionDialog({
   transaction,
   trigger,
+  tabBarAction = false,
 }: {
   /** Sem `transaction`, cria um lançamento novo. */
   transaction?: TransactionRow;
   trigger: ReactElement;
+  /** Também abre pelo botão redondo ao lado da tab bar do iPhone (a ação principal da página). */
+  tabBarAction?: boolean;
 }) {
+  const formId = useId();
   const [open, setOpen] = useState(false);
   // Em branco até abrir (o abrir preenche, com a data de hoje): o botão de novo lançamento fica no
   // cabeçalho, que é pré-renderizado, e lá não pode haver `new Date()`.
@@ -110,6 +121,12 @@ export function TransactionDialog({
     }
     setOpen(next);
   }
+
+  useTabBarAction(
+    tabBarAction
+      ? { label: "Novo lançamento", icon: PlusIcon, onPress: () => handleOpenChange(true) }
+      : null,
+  );
 
   function set<K extends keyof Draft>(key: K, value: Draft[K]) {
     setDraft((current) => ({ ...current, [key]: value }));
@@ -141,99 +158,103 @@ export function TransactionDialog({
   }
 
   return (
-    <Dialog open={open} onOpenChange={handleOpenChange}>
-      <DialogTrigger render={trigger} />
-      <DialogContent className="sm:max-w-md">
-        <DialogHeader>
-          <DialogTitle>{transaction ? "Editar lançamento" : "Novo lançamento"}</DialogTitle>
-          <DialogDescription>
+    <ResponsiveDialog open={open} onOpenChange={handleOpenChange}>
+      <ResponsiveDialogTrigger render={trigger} />
+      <ResponsiveDialogContent className="sm:max-w-md">
+        <ResponsiveDialogHeader>
+          <ResponsiveDialogTitle>
+            {transaction ? "Editar lançamento" : "Novo lançamento"}
+          </ResponsiveDialogTitle>
+          <ResponsiveDialogDescription>
             O preço médio é recalculado pelo método da Receita. Vendas maiores que a posição na data
             são recusadas.
-          </DialogDescription>
-        </DialogHeader>
-        <form onSubmit={submit} className="grid gap-4" noValidate>
-          <FieldGroup className="grid grid-cols-2 gap-4">
-            <Field data-invalid={Boolean(errors.ticker) || undefined}>
-              <FieldLabel htmlFor="tx-ticker">Ativo</FieldLabel>
-              <TickerInput
-                id="tx-ticker"
-                value={draft.ticker}
-                onChange={(value) => set("ticker", value)}
-                invalid={Boolean(errors.ticker)}
-              />
-              <FieldError>{errors.ticker}</FieldError>
-            </Field>
+          </ResponsiveDialogDescription>
+        </ResponsiveDialogHeader>
+        <ResponsiveDialogBody>
+          <form id={formId} onSubmit={submit} className="grid gap-4" noValidate>
+            <FieldGroup className="grid grid-cols-2 gap-4">
+              <Field data-invalid={Boolean(errors.ticker) || undefined}>
+                <FieldLabel htmlFor="tx-ticker">Ativo</FieldLabel>
+                <TickerInput
+                  id="tx-ticker"
+                  value={draft.ticker}
+                  onChange={(value) => set("ticker", value)}
+                  invalid={Boolean(errors.ticker)}
+                />
+                <FieldError>{errors.ticker}</FieldError>
+              </Field>
+              <Field>
+                <FieldTitle id="tx-type">Tipo</FieldTitle>
+                <SegmentedControl
+                  label="Tipo"
+                  value={draft.type}
+                  options={TYPE_OPTIONS}
+                  onChange={(next) => set("type", next)}
+                  className="w-full"
+                />
+              </Field>
+              <Field data-invalid={Boolean(errors.date) || undefined}>
+                <FieldLabel htmlFor="tx-date">Data</FieldLabel>
+                <Input
+                  id="tx-date"
+                  type="date"
+                  value={draft.date}
+                  max={today}
+                  onChange={(event) => set("date", event.target.value)}
+                />
+                <FieldError>{errors.date}</FieldError>
+              </Field>
+              <Field data-invalid={Boolean(errors.quantity) || undefined}>
+                <FieldLabel htmlFor="tx-quantity">Quantidade</FieldLabel>
+                <Input
+                  id="tx-quantity"
+                  inputMode="decimal"
+                  value={draft.quantity}
+                  onChange={(event) => set("quantity", event.target.value)}
+                  placeholder="10"
+                />
+                <FieldError>{errors.quantity}</FieldError>
+              </Field>
+              <Field data-invalid={Boolean(errors.unitPrice) || undefined}>
+                <FieldLabel htmlFor="tx-price">Preço unitário (R$)</FieldLabel>
+                <Input
+                  id="tx-price"
+                  inputMode="decimal"
+                  value={draft.unitPrice}
+                  onChange={(event) => set("unitPrice", event.target.value)}
+                  placeholder="98,50"
+                />
+                <FieldError>{errors.unitPrice}</FieldError>
+              </Field>
+              <Field data-invalid={Boolean(errors.fees) || undefined}>
+                <FieldLabel htmlFor="tx-fees">Taxas (R$)</FieldLabel>
+                <Input
+                  id="tx-fees"
+                  inputMode="decimal"
+                  value={draft.fees}
+                  onChange={(event) => set("fees", event.target.value)}
+                />
+                <FieldError>{errors.fees}</FieldError>
+              </Field>
+            </FieldGroup>
             <Field>
-              <FieldTitle id="tx-type">Tipo</FieldTitle>
-              <SegmentedControl
-                label="Tipo"
-                value={draft.type}
-                options={TYPE_OPTIONS}
-                onChange={(next) => set("type", next)}
-                className="w-full"
-              />
-            </Field>
-            <Field data-invalid={Boolean(errors.date) || undefined}>
-              <FieldLabel htmlFor="tx-date">Data</FieldLabel>
+              <FieldLabel htmlFor="tx-notes">Observação (opcional)</FieldLabel>
               <Input
-                id="tx-date"
-                type="date"
-                value={draft.date}
-                max={today}
-                onChange={(event) => set("date", event.target.value)}
+                id="tx-notes"
+                value={draft.notes}
+                maxLength={500}
+                onChange={(event) => set("notes", event.target.value)}
               />
-              <FieldError>{errors.date}</FieldError>
             </Field>
-            <Field data-invalid={Boolean(errors.quantity) || undefined}>
-              <FieldLabel htmlFor="tx-quantity">Quantidade</FieldLabel>
-              <Input
-                id="tx-quantity"
-                inputMode="decimal"
-                value={draft.quantity}
-                onChange={(event) => set("quantity", event.target.value)}
-                placeholder="10"
-              />
-              <FieldError>{errors.quantity}</FieldError>
-            </Field>
-            <Field data-invalid={Boolean(errors.unitPrice) || undefined}>
-              <FieldLabel htmlFor="tx-price">Preço unitário (R$)</FieldLabel>
-              <Input
-                id="tx-price"
-                inputMode="decimal"
-                value={draft.unitPrice}
-                onChange={(event) => set("unitPrice", event.target.value)}
-                placeholder="98,50"
-              />
-              <FieldError>{errors.unitPrice}</FieldError>
-            </Field>
-            <Field data-invalid={Boolean(errors.fees) || undefined}>
-              <FieldLabel htmlFor="tx-fees">Taxas (R$)</FieldLabel>
-              <Input
-                id="tx-fees"
-                inputMode="decimal"
-                value={draft.fees}
-                onChange={(event) => set("fees", event.target.value)}
-              />
-              <FieldError>{errors.fees}</FieldError>
-            </Field>
-          </FieldGroup>
-          <Field>
-            <FieldLabel htmlFor="tx-notes">Observação (opcional)</FieldLabel>
-            <Input
-              id="tx-notes"
-              value={draft.notes}
-              maxLength={500}
-              onChange={(event) => set("notes", event.target.value)}
-            />
-          </Field>
-          <DialogFooter>
-            <Button type="submit" disabled={pending}>
-              {pending ? <Spinner /> : null}
-              {transaction ? "Salvar" : "Registrar"}
-            </Button>
-          </DialogFooter>
-        </form>
-      </DialogContent>
-    </Dialog>
+          </form>
+        </ResponsiveDialogBody>
+        <ResponsiveDialogFooter>
+          <Button type="submit" form={formId} disabled={pending}>
+            {pending ? <Spinner /> : null}
+            {transaction ? "Salvar" : "Registrar"}
+          </Button>
+        </ResponsiveDialogFooter>
+      </ResponsiveDialogContent>
+    </ResponsiveDialog>
   );
 }

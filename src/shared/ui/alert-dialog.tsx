@@ -71,8 +71,10 @@ function AlertDialogFooter({ className, ...props }: React.ComponentProps<"div">)
   return (
     <div
       data-slot="alert-dialog-footer"
+      // No celular, os botões lado a lado e da mesma largura, como num alerta do iOS
+      // (Cancelar à esquerda); a partir de 640 px, à direita, como no macOS.
       className={cn(
-        "flex flex-col-reverse gap-2 group-data-[size=sm]/alert-dialog-content:grid group-data-[size=sm]/alert-dialog-content:grid-cols-2 sm:flex-row sm:justify-end",
+        "grid auto-cols-fr grid-flow-col gap-2 sm:flex sm:flex-row sm:justify-end",
         className,
       )}
       {...props}

@@ -32,9 +32,10 @@ export function QuoteRefresher({
 
   const fresh = !isPending && staleCount === 0 && lastFetchedAt !== null;
   // Selo de status em vidro: ponto verde com as cotações em dia, âmbar pulsando enquanto atualiza.
-  // A cápsula tem 40 px e o botão 32 (52 e 44 no toque), concêntricos: 4 px de anel.
+  // A cápsula tem 40 px e o botão 32 (52 e 44 no toque), concêntricos: 4 px de anel. No iPhone,
+  // sem a cápsula: uma linha de status sob o título grande, como o "Atualizado agora" do Mail.
   return (
-    <div className="flex h-10 items-center gap-2 rounded-full glass py-1 pr-1 pl-3 text-footnote text-muted-foreground">
+    <div className="flex items-center gap-2 text-footnote text-muted-foreground max-md:-my-2.5 md:h-10 md:rounded-full md:glass md:py-1 md:pr-1 md:pl-3">
       <span
         aria-hidden="true"
         className={cn(

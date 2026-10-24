@@ -13,27 +13,11 @@ import {
 } from "@/shared/ui/dropdown-menu";
 import { SidebarMenu, SidebarMenuButton, SidebarMenuItem } from "@/shared/ui/sidebar";
 import { Skeleton } from "@/shared/ui/skeleton";
-import { authClient } from "../auth-client";
+import { initials, signOutAndLeave } from "./sign-out";
 
 export type UserMenuUser = { name: string; email: string; image: string | null };
 
-function initials(name: string) {
-  const letters = name
-    .split(/\s+/)
-    .filter(Boolean)
-    .slice(0, 2)
-    .map((part) => part[0]!.toUpperCase());
-  return letters.join("") || "?";
-}
-
 export function UserMenu({ user }: { user: UserMenuUser }) {
-  async function signOut() {
-    await authClient.signOut();
-    // Navegação completa (não router.push) de propósito: descarta o cache do router
-    // e o cache privado da sessão, para nada do usuário anterior ficar na memória.
-    window.location.assign(new URL("/login", window.location.origin));
-  }
-
   return (
     <SidebarMenu>
       <SidebarMenuItem>
@@ -56,7 +40,7 @@ export function UserMenu({ user }: { user: UserMenuUser }) {
               <DropdownMenuLabel className="truncate">{user.email}</DropdownMenuLabel>
             </DropdownMenuGroup>
             <DropdownMenuSeparator />
-            <DropdownMenuItem onClick={signOut}>
+            <DropdownMenuItem onClick={signOutAndLeave}>
               <LogOutIcon />
               Sair
             </DropdownMenuItem>

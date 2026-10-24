@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Geist_Mono, Inter } from "next/font/google";
 import { NuqsAdapter } from "nuqs/adapters/next/app";
 import { ThemeProvider } from "@/shared/components/theme-provider";
@@ -15,6 +15,18 @@ export const metadata: Metadata = {
   description: "Carteira de FIIs com aportes pelo método Suno.",
   // App pessoal: nada de indexação por buscadores.
   robots: { index: false, follow: false },
+  // Na tela de início do iPhone abre como app, em tela cheia: a barra de status fica sobre o
+  // papel de parede, e as barras do app descontam as áreas seguras.
+  appleWebApp: { capable: true, title: "Koinos", statusBarStyle: "black-translucent" },
+};
+
+// viewport-fit=cover libera as áreas seguras (env(safe-area-inset-*)) no iPhone.
+export const viewport: Viewport = {
+  viewportFit: "cover",
+  themeColor: [
+    { media: "(prefers-color-scheme: light)", color: "#eef1fb" },
+    { media: "(prefers-color-scheme: dark)", color: "#0a0b14" },
+  ],
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {

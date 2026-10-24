@@ -24,6 +24,7 @@ export default function ClosedTaxPage() {
             Posições encerradas
           </Button>
         }
+        mobileActions={false}
       />
       <Suspense fallback={<ClosedTaxSkeleton />}>
         <ClosedTaxContent />

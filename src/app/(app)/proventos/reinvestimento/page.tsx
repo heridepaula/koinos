@@ -28,6 +28,7 @@ export default function ReinvestmentPage({ searchParams }: PageProps<"/proventos
             Proventos
           </Button>
         }
+        mobileActions={false}
       />
       {/* searchParams é dado da requisição: fica dentro de <Suspense>, como no login. */}
       <Suspense fallback={<ReinvestmentSkeleton />}>

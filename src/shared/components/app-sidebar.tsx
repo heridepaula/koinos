@@ -1,21 +1,11 @@
 "use client";
 
 import { cn } from "@/shared/lib/utils";
-import {
-  ArchiveIcon,
-  ArrowLeftRightIcon,
-  CoinsIcon,
-  HandCoinsIcon,
-  LayoutDashboardIcon,
-  LightbulbIcon,
-  ReceiptTextIcon,
-  RefreshCwIcon,
-  RepeatIcon,
-  TargetIcon,
-} from "lucide-react";
+import { CoinsIcon } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import type { ReactNode } from "react";
+import { NAV_ITEMS, isWithin } from "./nav-items";
 import {
   Sidebar,
   SidebarContent,
@@ -33,62 +23,6 @@ import {
   SidebarRail,
   useSidebar,
 } from "@/shared/ui/sidebar";
-
-type NavItem = {
-  href: string;
-  label: string;
-  icon: typeof LayoutDashboardIcon;
-  tile: string;
-  /** Subpáginas que aparecem no menu, abaixo do item (somem com a sidebar recolhida). */
-  children?: readonly { href: string; label: string; icon: typeof LayoutDashboardIcon }[];
-};
-
-const NAV_ITEMS: readonly NavItem[] = [
-  {
-    href: "/dashboard",
-    label: "Dashboard",
-    icon: LayoutDashboardIcon,
-    tile: "[--tile:var(--tile-blue)]",
-  },
-  {
-    href: "/transacoes",
-    label: "Transações",
-    icon: ArrowLeftRightIcon,
-    tile: "[--tile:var(--tile-green)]",
-  },
-  {
-    href: "/proventos",
-    label: "Proventos",
-    icon: HandCoinsIcon,
-    tile: "[--tile:var(--tile-teal)]",
-    children: [{ href: "/proventos/reinvestimento", label: "Reinvestimento", icon: RepeatIcon }],
-  },
-  {
-    href: "/encerradas",
-    label: "Posições encerradas",
-    icon: ArchiveIcon,
-    tile: "[--tile:var(--tile-pink)]",
-    children: [{ href: "/encerradas/ir", label: "IR estimado", icon: ReceiptTextIcon }],
-  },
-  {
-    href: "/atualizacao-b3",
-    label: "Atualização B3",
-    icon: RefreshCwIcon,
-    tile: "[--tile:var(--tile-indigo)]",
-  },
-  {
-    href: "/carteira-alvo",
-    label: "Carteira Alvo",
-    icon: TargetIcon,
-    tile: "[--tile:var(--tile-orange)]",
-  },
-  {
-    href: "/recomendacoes",
-    label: "Recomendações",
-    icon: LightbulbIcon,
-    tile: "[--tile:var(--tile-purple)]",
-  },
-];
 
 // Item ativo: vidro claro com brilho interno (o aro de titânio vem do metal-ring).
 const ACTIVE_ITEM =
@@ -130,7 +64,7 @@ export function AppSidebar({ footer }: { footer: ReactNode }) {
               {NAV_ITEMS.map((item) => {
                 const childActive =
                   item.children?.some((child) => pathname === child.href) ?? false;
-                const active = pathname.startsWith(item.href) && !childActive;
+                const active = isWithin(item.href, pathname) && !childActive;
                 return (
                   <SidebarMenuItem key={item.href}>
                     <SidebarMenuButton

@@ -18,6 +18,7 @@ export default function TransactionsPage() {
         title="Transações"
         description="Compras e vendas registradas."
         actions={<NewTransactionButton />}
+        mobileActions={false}
       />
       <Suspense fallback={<TableSkeleton />}>
         <TransactionsContent />
