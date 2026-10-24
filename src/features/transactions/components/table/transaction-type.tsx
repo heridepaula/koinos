@@ -2,7 +2,7 @@ import { Badge } from "@/shared/ui/badge";
 import type { TransactionKind } from "../../domain/types";
 import type { TransactionRow } from "../types";
 
-const KIND_LABELS: Record<Exclude<TransactionKind, "NEGOCIO">, string> = {
+export const KIND_LABELS: Record<Exclude<TransactionKind, "NEGOCIO">, string> = {
   SUBSCRICAO: "Subscrição",
   DESDOBRO: "Desdobro",
   INCORPORACAO: "Incorporação",

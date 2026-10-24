@@ -22,7 +22,17 @@ import { Spinner } from "@/shared/ui/spinner";
 import { deleteTransactionAction } from "../actions";
 import type { TransactionRow } from "./types";
 
-export function DeleteTransactionButton({ transaction }: { transaction: TransactionRow }) {
+/**
+ * Excluir com confirmação: o ícone de lixeira na linha da tabela ou, na folha de edição do
+ * celular, o botão largo vermelho no rodapé. A confirmação é o alerta do iOS, centrado.
+ */
+export function DeleteTransactionButton({
+  transaction,
+  variant = "icon",
+}: {
+  transaction: TransactionRow;
+  variant?: "icon" | "sheet";
+}) {
   const [open, setOpen] = useState(false);
   const { execute, isPending } = useAction(deleteTransactionAction, {
     onSuccess: () => {
@@ -34,11 +44,18 @@ export function DeleteTransactionButton({ transaction }: { transaction: Transact
 
   return (
     <AlertDialog open={open} onOpenChange={setOpen}>
-      <AlertDialogTrigger
-        render={<Button variant="ghost" size="icon-sm" aria-label="Excluir lançamento" />}
-      >
-        <Trash2Icon />
-      </AlertDialogTrigger>
+      {variant === "sheet" ? (
+        <AlertDialogTrigger render={<Button variant="ghost" className="text-loss" />}>
+          <Trash2Icon />
+          Excluir lançamento
+        </AlertDialogTrigger>
+      ) : (
+        <AlertDialogTrigger
+          render={<Button variant="ghost" size="icon-sm" aria-label="Excluir lançamento" />}
+        >
+          <Trash2Icon />
+        </AlertDialogTrigger>
+      )}
       <AlertDialogContent>
         <AlertDialogHeader>
           <AlertDialogTitle>Excluir lançamento?</AlertDialogTitle>

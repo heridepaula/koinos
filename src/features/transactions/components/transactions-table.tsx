@@ -35,8 +35,8 @@ const PAGE_SIZES = [10, 50, 100] as const;
 
 /**
  * Lançamentos com filtros, ordenação e páginas (tudo na URL). A partir de 640 px de card é uma
- * tabela; abaixo disso, a lista de células do celular. O "Novo lançamento" fica no cabeçalho da
- * página.
+ * tabela; abaixo disso, a lista de células do celular, sem páginas. O "Novo lançamento" fica no
+ * cabeçalho da página (no iPhone, no botão ao lado da tab bar).
  */
 export function TransactionsTable({ rows }: { rows: TransactionRow[] }) {
   const [filters, setFilters] = useQueryStates(
@@ -74,7 +74,8 @@ export function TransactionsTable({ rows }: { rows: TransactionRow[] }) {
     <Card className="@container">
       <CardHeader className="flex flex-wrap items-end justify-between gap-x-6 gap-y-4">
         <div className="grid gap-1">
-          <CardTitle>Lançamentos</CardTitle>
+          {/* No celular, o título grande da página já diz o que é: fica só a contagem. */}
+          <CardTitle className="hidden @min-[640px]:block">Lançamentos</CardTitle>
           <CardDescription>
             {filtered.length === rows.length
               ? `${rows.length} lançamentos`
@@ -86,6 +87,7 @@ export function TransactionsTable({ rows }: { rows: TransactionRow[] }) {
           type={filters.tipo}
           year={filters.ano}
           years={years}
+          resultCount={filtered.length}
           onChange={(patch) => void setFilters({ ...patch, pagina: 1 })}
         />
       </CardHeader>
@@ -96,8 +98,13 @@ export function TransactionsTable({ rows }: { rows: TransactionRow[] }) {
           </p>
         ) : (
           <>
+            {/* A lista do celular rola sem páginas ("Mostrar mais"); volta ao começo a cada filtro. */}
             <div className="@min-[640px]:hidden">
-              <TransactionsList rows={pageRows} total={total} />
+              <TransactionsList
+                key={`${tickerFilter}|${filters.tipo}|${filters.ano}|${sortKey}|${direction}`}
+                rows={sorted}
+                total={total}
+              />
             </div>
             <Table className="hidden @min-[640px]:table">
               <TableHeader>
@@ -180,18 +187,20 @@ export function TransactionsTable({ rows }: { rows: TransactionRow[] }) {
                 ))}
               </TableBody>
             </Table>
-            <Pagination
-              page={page}
-              pageCount={pageCount}
-              pageSize={filters.por}
-              pageSizes={PAGE_SIZES}
-              total={sorted.length}
-              firstIndex={firstIndex}
-              shown={pageRows.length}
-              itemLabel="Lançamentos"
-              onPage={(next) => void setFilters({ pagina: next })}
-              onPageSize={(size) => void setFilters({ por: size, pagina: 1 })}
-            />
+            <div className="hidden @min-[640px]:block">
+              <Pagination
+                page={page}
+                pageCount={pageCount}
+                pageSize={filters.por}
+                pageSizes={PAGE_SIZES}
+                total={sorted.length}
+                firstIndex={firstIndex}
+                shown={pageRows.length}
+                itemLabel="Lançamentos"
+                onPage={(next) => void setFilters({ pagina: next })}
+                onPageSize={(size) => void setFilters({ por: size, pagina: 1 })}
+              />
+            </div>
           </>
         )}
       </CardContent>

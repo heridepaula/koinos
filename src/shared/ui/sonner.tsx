@@ -43,6 +43,8 @@ const Toaster = ({ ...props }: ToasterProps) => {
         },
       }}
       {...props}
+      // Sem o "×" no celular: como as notificações do iOS, o aviso some ao deslizar para cima.
+      closeButton={mobile ? false : props.closeButton}
     />
   );
 };

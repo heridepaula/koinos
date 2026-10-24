@@ -10,12 +10,15 @@ import { cn } from "@/shared/lib/utils";
 export function InsetGroup({
   title,
   footer,
+  listRole,
   className,
   children,
 }: {
   title?: string;
   /** Nota em texto secundário embaixo do bloco, como o rodapé das seções dos Ajustes. */
   footer?: ReactNode;
+  /** "radiogroup" quando as células são as opções de uma escolha (com o check do iOS). */
+  listRole?: "radiogroup";
   className?: string;
   children: ReactNode;
 }) {
@@ -24,7 +27,11 @@ export function InsetGroup({
       {title ? (
         <h3 className="px-4 text-footnote font-medium text-muted-foreground">{title}</h3>
       ) : null}
-      <div className="grid divide-y divide-border overflow-hidden rounded-2xl bg-card/80 dark:bg-white/6">
+      <div
+        role={listRole}
+        aria-label={listRole ? title : undefined}
+        className="grid divide-y divide-border overflow-hidden rounded-2xl bg-card/80 dark:bg-white/6"
+      >
         {children}
       </div>
       {footer ? <p className="px-4 text-footnote text-muted-foreground">{footer}</p> : null}

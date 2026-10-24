@@ -24,6 +24,7 @@ import {
 import { SegmentedControl } from "@/shared/ui/segmented-control";
 import { Spinner } from "@/shared/ui/spinner";
 import { createTransactionAction, updateTransactionAction } from "../actions";
+import { DeleteTransactionButton } from "./delete-transaction-button";
 import { transactionFormSchema } from "../schemas";
 import { TickerInput } from "./ticker-input";
 import type { TransactionRow } from "./types";
@@ -88,12 +89,15 @@ export function TransactionDialog({
   transaction,
   trigger,
   tabBarAction = false,
+  deletable = false,
 }: {
   /** Sem `transaction`, cria um lançamento novo. */
   transaction?: TransactionRow;
   trigger: ReactElement;
   /** Também abre pelo botão redondo ao lado da tab bar do iPhone (a ação principal da página). */
   tabBarAction?: boolean;
+  /** Com o Excluir no rodapé (a lista do celular, que não tem os botões da linha). */
+  deletable?: boolean;
 }) {
   const formId = useId();
   const [open, setOpen] = useState(false);
@@ -253,6 +257,9 @@ export function TransactionDialog({
             {pending ? <Spinner /> : null}
             {transaction ? "Salvar" : "Registrar"}
           </Button>
+          {deletable && transaction ? (
+            <DeleteTransactionButton transaction={transaction} variant="sheet" />
+          ) : null}
         </ResponsiveDialogFooter>
       </ResponsiveDialogContent>
     </ResponsiveDialog>
