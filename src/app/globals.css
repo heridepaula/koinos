@@ -557,6 +557,28 @@
   }
 }
 
+/*
+ * Cantos contínuos (superelipse), como os ícones e os painéis do iOS, onde o navegador suporta
+ * corner-shape (Chrome e Edge). A curva começa antes, então o raio cresce para o mesmo tamanho
+ * aparente: azulejos 30% do lado; cards e sidebar 28 px. O aro de titânio acompanha.
+ * Sem suporte, ficam os raios circulares de sempre.
+ */
+@supports (corner-shape: squircle) {
+  .tile {
+    border-radius: 30%;
+    corner-shape: squircle;
+  }
+  [data-slot="card"],
+  [data-slot="sidebar-inner"],
+  [data-slot="sidebar"][data-mobile] {
+    border-radius: 28px;
+    corner-shape: squircle;
+  }
+  .metal-ring::before {
+    corner-shape: inherit;
+  }
+}
+
 /* Botão da chave em metal. */
 @utility knob-metal {
   background: radial-gradient(circle at 32% 28%, #ffffff, #d3d5db 55%, #9ea1a9);

@@ -46,7 +46,7 @@ export function AutoHideHeader({
     <header
       data-hidden={hidden || undefined}
       className={cn(
-        "transition-transform duration-300 ease-out motion-reduce:transition-none",
+        "transition-transform duration-420 ease-snappy motion-reduce:transition-none",
         "data-hidden:-translate-y-[calc(100%+1rem)] data-hidden:focus-within:translate-y-0",
         className,
       )}
