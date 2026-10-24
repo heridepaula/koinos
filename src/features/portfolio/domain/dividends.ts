@@ -17,6 +17,7 @@ import type {
   DividendMonthSummary,
   DividendTickerGroup,
   DividendYearGroup,
+  UndisclosedDividend,
   UpcomingDividend,
 } from "./types";
 
@@ -107,6 +108,45 @@ export function upcomingDividends(input: {
       (a.exDate?.getTime() ?? 0) - (b.exDate?.getTime() ?? 0) ||
       a.ticker.localeCompare(b.ticker),
   );
+}
+
+/**
+ * FIIs da carteira que pagam todo mês e ainda não divulgaram o provento deste mês: receberam nos
+ * dois meses anteriores, têm cotas hoje e, neste mês, não receberam, não estão no "a receber" e
+ * não têm anúncio do Yahoo com data ex no mês. `lastAmount` é o que pagaram no mês passado.
+ */
+export function undisclosedDividends(input: {
+  now: Date;
+  transactions: readonly LedgerEntry[];
+  received: readonly DividendEntry[];
+  announcements: ReadonlyMap<string, readonly { exDate: Date }[]>;
+  upcoming: readonly UpcomingDividend[];
+}): UndisclosedDividend[] {
+  const month = currentMonthKey(input.now);
+  const previous = addMonths(month, -1);
+  const beforePrevious = addMonths(month, -2);
+  const tomorrow = new Date(todayTradeDate(input.now).getTime() + DAY);
+  const paidIn = new Map<string, Map<string, number>>();
+  for (const item of input.received) {
+    const byMonth = paidIn.get(item.ticker) ?? new Map<string, number>();
+    const key = monthKeyOfTradeDate(item.paidAt);
+    byMonth.set(key, (byMonth.get(key) ?? 0) + item.amount);
+    paidIn.set(item.ticker, byMonth);
+  }
+  const listed = new Set(input.upcoming.map((item) => item.ticker));
+  const result: UndisclosedDividend[] = [];
+  for (const [ticker, byMonth] of paidIn) {
+    const lastAmount = byMonth.get(previous);
+    if (lastAmount === undefined || !byMonth.has(beforePrevious) || byMonth.has(month)) continue;
+    if (listed.has(ticker)) continue;
+    const announced = (input.announcements.get(ticker) ?? []).some(
+      (announcement) => monthKeyOfTradeDate(announcement.exDate) === month,
+    );
+    if (announced) continue;
+    if (quantityBefore(input.transactions, ticker, tomorrow) <= 0) continue;
+    result.push({ ticker, lastAmount });
+  }
+  return result.sort((a, b) => a.ticker.localeCompare(b.ticker));
 }
 
 export function monthSummary(

@@ -47,7 +47,11 @@ async function DividendsContent() {
   return (
     <div className="grid gap-6">
       <DividendMonthCards month={view.month} forecastAsOf={view.forecastAsOf} />
-      <UpcomingDividends rows={view.upcoming} forecastAsOf={view.forecastAsOf} />
+      <UpcomingDividends
+        rows={view.upcoming}
+        undisclosed={view.undisclosed}
+        forecastAsOf={view.forecastAsOf}
+      />
       <DividendsHistory
         since={view.since}
         chart={view.chart}

@@ -1,3 +1,4 @@
+import { CircleAlertIcon } from "lucide-react";
 import { AssetLabel } from "@/shared/components/asset-label";
 import { formatBRL, formatQuantity, formatTradeDate } from "@/shared/lib/format";
 import { Badge } from "@/shared/ui/badge";
@@ -23,12 +24,27 @@ function PayBy({ row }: { row: Row }) {
   );
 }
 
+function NotDisclosedBadge() {
+  return (
+    <Badge
+      variant="outline"
+      className="gap-1 border-warn/40 bg-warn/10 text-warn"
+      title="Paga todo mês, mas ainda não divulgou o provento deste mês."
+    >
+      <CircleAlertIcon aria-hidden />
+      não divulgado
+    </Badge>
+  );
+}
+
 /** Proventos a receber: a lista da B3 (extrato de Eventos) e os anúncios do Yahoo depois dela. */
 export function UpcomingDividends({
   rows,
+  undisclosed,
   forecastAsOf,
 }: {
   rows: DividendsView["upcoming"];
+  undisclosed: DividendsView["undisclosed"];
   forecastAsOf: Date | null;
 }) {
   return (
@@ -41,19 +57,22 @@ export function UpcomingDividends({
               B3: a lista Proventos a Receber do envio de {formatTradeDate(forecastAsOf)}, com a
               data oficial de pagamento. Estimado: anúncio do Yahoo depois desse envio, sobre as
               cotas da véspera da data ex; a data de pagamento é uma estimativa. Quando a data passa
-              sem o extrato da B3 confirmar, aparece &quot;a confirmar&quot;.
+              sem o extrato da B3 confirmar, aparece &quot;a confirmar&quot;. Não divulgado: FII que
+              paga todo mês e ainda não anunciou o deste; o valor é o do mês passado.
             </>
           ) : (
             <>
               Cotas na véspera da data ex × valor anunciado. A data de pagamento é uma estimativa;
-              quando ela passa sem o extrato da B3 confirmar, aparece &quot;a confirmar&quot;.
+              quando ela passa sem o extrato da B3 confirmar, aparece &quot;a confirmar&quot;. Não
+              divulgado: FII que paga todo mês e ainda não anunciou o deste; o valor é o do mês
+              passado.
             </>
           )}
         </CardDescription>
       </CardHeader>
       {/* As colunas de detalhe saem pela largura do card: FII, valor e pagamento ficam sempre. */}
       <CardContent className="@container px-0">
-        {rows.length === 0 ? (
+        {rows.length === 0 && undisclosed.length === 0 ? (
           <p className="px-6 text-sm text-muted-foreground">Nenhum provento anunciado a receber.</p>
         ) : (
           <Table>
@@ -100,6 +119,32 @@ export function UpcomingDividends({
                   </TableCell>
                   <TableCell className="pr-6 text-right whitespace-nowrap text-muted-foreground tabular-nums">
                     <PayBy row={row} />
+                  </TableCell>
+                </TableRow>
+              ))}
+              {undisclosed.map((row) => (
+                <TableRow key={`${row.ticker}-nao-divulgado`}>
+                  <TableCell className="pl-6">
+                    <AssetLabel ticker={row.ticker} name={row.name} logoUrl={row.logoUrl} />
+                  </TableCell>
+                  <TableCell className="hidden @min-[400px]:table-cell">
+                    <NotDisclosedBadge />
+                  </TableCell>
+                  <TableCell className="hidden @min-[520px]:table-cell">—</TableCell>
+                  <TableCell className="hidden text-right @min-[640px]:table-cell">—</TableCell>
+                  <TableCell className="hidden text-right @min-[640px]:table-cell">—</TableCell>
+                  <TableCell
+                    className="text-right text-muted-foreground tabular-nums"
+                    title="Pago no mês passado, como referência."
+                  >
+                    {formatBRL(row.lastAmount)}
+                  </TableCell>
+                  <TableCell className="pr-6 text-right whitespace-nowrap text-muted-foreground">
+                    {/* Na tela estreita a coluna Origem some: o aviso fica aqui. */}
+                    <span className="@min-[400px]:hidden">
+                      <NotDisclosedBadge />
+                    </span>
+                    <span className="hidden @min-[400px]:inline">não divulgado</span>
                   </TableCell>
                 </TableRow>
               ))}

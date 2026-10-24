@@ -18,6 +18,7 @@ import {
   groupByTicker,
   groupByYear,
   monthSummary,
+  undisclosedDividends,
   upcomingDividends,
 } from "../domain/dividends";
 import { traced } from "@/shared/lib/tracing";
@@ -56,6 +57,13 @@ export const getDividendsView = traced(
       [...assets].map(([ticker, asset]) => [ticker, asset.dividendAnnouncements]),
     );
     const upcoming = upcomingDividends({ now, transactions, received, announcements, forecast });
+    const undisclosed = undisclosedDividends({
+      now,
+      transactions,
+      received,
+      announcements,
+      upcoming,
+    });
     const today = todayTradeDate(now);
 
     const byMonth = groupByMonth(received);
@@ -73,6 +81,7 @@ export const getDividendsView = traced(
         ...meta(item.ticker),
         payByPassed: item.payBy !== null && item.payBy.getTime() < today.getTime(),
       })),
+      undisclosed: undisclosed.map((item) => ({ ...item, ...meta(item.ticker) })),
       byMonth,
       byYear: groupByYear(received),
       byTicker: groupByTicker(received).map((item) => ({ ...item, ...meta(item.ticker) })),
@@ -89,6 +98,7 @@ export const getDividendsView = traced(
   },
   (view) => ({
     "koinos.view.upcoming": view.upcoming.length,
+    "koinos.view.undisclosed": view.undisclosed.length,
     "koinos.view.months": view.byMonth.length,
     "koinos.view.fiis": view.byTicker.length,
   }),

@@ -204,6 +204,13 @@ export type UpcomingDividend = {
   source: "B3" | "YAHOO";
 };
 
+/** FII que paga todo mês e ainda não divulgou o provento deste mês. */
+export type UndisclosedDividend = {
+  ticker: string;
+  /** Total pago no mês passado, como referência. */
+  lastAmount: number;
+};
+
 export type DividendMonthSummary = {
   month: string;
   received: number;
@@ -241,6 +248,8 @@ export type DividendsView = {
       /** A data estimada de pagamento já passou e o extrato da B3 ainda não confirmou. */
       payByPassed: boolean;
     })[];
+  /** FIIs mensais da carteira sem provento divulgado neste mês. */
+  undisclosed: (UndisclosedDividend & AssetMeta)[];
   byMonth: DividendMonthGroup[];
   byYear: DividendYearGroup[];
   byTicker: (DividendTickerGroup & AssetMeta)[];

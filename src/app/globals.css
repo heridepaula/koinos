@@ -23,6 +23,7 @@
   --color-sidebar: var(--sidebar);
   --color-gain: var(--gain);
   --color-loss: var(--loss);
+  --color-warn: var(--warn);
   --color-chart-8: var(--chart-8);
   --color-chart-7: var(--chart-7);
   --color-chart-6: var(--chart-6);
@@ -95,6 +96,8 @@
   /* Verde acessível: 4,5:1 sobre o card fosco. */
   --gain: #1d7a33;
   --loss: #d70015;
+  /* Âmbar escuro: 5,9:1 sobre o card claro. */
+  --warn: #8a5a00;
   --radius: 0.75rem;
   --sidebar: rgb(246 246 248 / 0.7);
   --sidebar-foreground: #1d1d1f;
@@ -198,6 +201,7 @@
   --gain: #30d158;
   /* Vermelho mais claro: 4,5:1 sobre o card escuro. */
   --loss: #ff6961;
+  --warn: #ffd60a;
   --sidebar: rgb(40 40 42 / 0.66);
   --sidebar-foreground: #f5f5f7;
   --sidebar-primary: #0a84ff;

@@ -115,6 +115,7 @@ Koinos is a single-owner FII (Brazilian REIT) portfolio dashboard that replaced 
    - "a receber": the B3 snapshot from the Eventos statement (`dividend_forecasts`), with the official pay date and source "B3";
    - plus Yahoo announcements × the shares held on the day before the ex-date, until a B3 dividend paid on or after the ex-date confirms it. With a snapshot, only announcements with an ex-date after its `asOf` count, as "estimado";
    - the month totals: B3 items count only when they pay in the current month;
+   - "não divulgado" (`undisclosedDividends`): a held FII that was paid in each of the two previous months but has nothing this month (no receipt, no "a receber" item, no Yahoo ex-date in the month) is listed with last month's amount as a reference. It never enters the totals;
    - the groupings by month (a year × month matrix: clicking a month lists its FIIs), year or FII.
 5. `portfolio/domain/reinvestment.ts` is pure and feeds `/proventos/reinvestimento?mes=AAAA-MM` (`portfolio/server/reinvestment-view.ts`):
    - each month's cash purchases (negócios and subscrições, with fees) are split into money from dividends and money from the pocket;
