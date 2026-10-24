@@ -14,13 +14,19 @@ export type TargetPatch = {
   category?: Category | null;
 };
 
-/** Salvar um campo e remover o ativo: as mesmas ações na linha da tabela e na folha do celular. */
-export function useTargetRow(ticker: string) {
+/**
+ * Salvar um campo e remover o ativo: as mesmas ações na linha da tabela e na folha do celular.
+ * `onRemoved` fecha a folha: o ativo removido (sem posição) some da lista.
+ */
+export function useTargetRow(ticker: string, { onRemoved }: { onRemoved?: () => void } = {}) {
   const update = useAction(updateTargetAssetAction, {
     onError: ({ error }) => toast.error(actionErrorMessage(error)),
   });
   const remove = useAction(removeTargetAssetAction, {
-    onSuccess: () => toast.success(`${ticker} removido da Carteira Alvo.`),
+    onSuccess: () => {
+      toast.success(`${ticker} removido da Carteira Alvo.`);
+      onRemoved?.();
+    },
     onError: ({ error }) => toast.error(actionErrorMessage(error)),
   });
   return {

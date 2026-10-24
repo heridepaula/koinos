@@ -1,6 +1,7 @@
 "use client";
 
 import type { StrategyRow as StrategyRowData } from "@/features/portfolio";
+import { InfoSheet } from "@/shared/components/info-sheet";
 import { formatBRL, formatPercent } from "@/shared/lib/format";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/shared/ui/card";
 import { Table, TableBody, TableHead, TableHeader, TableRow } from "@/shared/ui/table";
@@ -10,10 +11,15 @@ import { PercentFixPanel } from "./table/percent-fix-panel";
 import { StrategyList } from "./table/strategy-list";
 import { StrategyRow } from "./table/strategy-row";
 
+const EXPLANATION =
+  "Ranking, preço teto e % sugerida pela Suno. Os campos salvam ao sair. Sem teto, o ativo não recebe aporte.";
+
 /**
  * Carteira Alvo: a partir de 900 px de card, a tabela editável; abaixo disso, a lista do celular,
  * em que cada ativo abre uma folha de edição. O painel de ajuste aparece quando as % não fecham
- * 100%; com ele à vista, o rodapé não repete o aviso.
+ * 100%; com ele à vista, o rodapé não repete o aviso. No iPhone, o título e a explicação saem
+ * (o título grande da página já diz o que é; a explicação vai para o ⓘ), fica a contagem, e o
+ * "Adicionar" vai para o "+" ao lado da tab bar.
  */
 export function StrategyTable({
   rows,
@@ -35,12 +41,16 @@ export function StrategyTable({
   return (
     <Card className="@container">
       <CardHeader className="flex flex-wrap items-end justify-between gap-x-6 gap-y-4">
-        <div className="grid gap-1">
+        <div className="grid gap-1 max-md:hidden">
           <CardTitle>Carteira Alvo</CardTitle>
-          <CardDescription>
-            Ranking, preço teto e % sugerida pela Suno. Os campos salvam ao sair. Sem teto, o ativo
-            não recebe aporte.
-          </CardDescription>
+          <CardDescription>{EXPLANATION}</CardDescription>
+        </div>
+        <div className="flex w-full items-center justify-between gap-3 md:hidden">
+          <CardDescription>{members.length} ativos na estratégia</CardDescription>
+          <InfoSheet title="Carteira Alvo" label="Sobre a Carteira Alvo">
+            <p>{EXPLANATION}</p>
+            <p>Toque num ativo para editar o rank, o teto, a % sugerida e a categoria.</p>
+          </InfoSheet>
         </div>
         <AddAssetForm />
       </CardHeader>
@@ -86,7 +96,7 @@ export function StrategyTable({
           </>
         )}
         <div className="flex flex-wrap gap-x-6 gap-y-1 border-t px-(--card-spacing) pt-4 text-sm text-muted-foreground">
-          <span>{members.length} ativos na estratégia</span>
+          <span className="max-md:hidden">{members.length} ativos na estratégia</span>
           <span>
             Soma das % sugeridas:{" "}
             <span className="text-foreground tabular-nums">
