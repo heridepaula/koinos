@@ -1,6 +1,6 @@
 "use client";
 
-import { cn } from "cn";
+import { cn } from "@/shared/lib/utils";
 import { useEffect, useState, type ReactNode } from "react";
 
 /** Abaixo disso a barra fica sempre à mostra; o passo evita piscar com o tremido do trackpad. */

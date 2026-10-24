@@ -165,7 +165,7 @@ export function PositionsTable({ rows }: { rows: PositionRow[] }) {
                 active={sortKey === "ativo"}
                 direction={direction}
                 onSort={() => toggle("ativo")}
-                className="sticky left-0 z-10 bg-card pl-6"
+                className="sticky left-0 z-10 bg-card pl-(--card-spacing)"
               >
                 Ativo
               </SortableHead>
@@ -185,7 +185,7 @@ export function PositionsTable({ rows }: { rows: PositionRow[] }) {
                 active={sortKey === "prioridade"}
                 direction={direction}
                 onSort={() => toggle("prioridade")}
-                className="pr-6"
+                className="pr-(--card-spacing)"
                 title="Prioridade de aporte pelo método Suno"
               >
                 Prioridade
@@ -195,7 +195,7 @@ export function PositionsTable({ rows }: { rows: PositionRow[] }) {
           <TableBody>
             {sorted.map((row) => (
               <TableRow key={row.ticker}>
-                <TableCell className="sticky left-0 z-10 bg-card pl-6">
+                <TableCell className="sticky left-0 z-10 bg-card pl-(--card-spacing)">
                   <AssetLabel ticker={row.ticker} name={row.name} logoUrl={row.logoUrl} />
                 </TableCell>
                 <TableCell className="text-right tabular-nums">
@@ -228,7 +228,7 @@ export function PositionsTable({ rows }: { rows: PositionRow[] }) {
                 <TableCell className="text-right tabular-nums">
                   {formatPercent(row.portfolioWeight, 1)}
                 </TableCell>
-                <TableCell className="pr-6">
+                <TableCell className="pr-(--card-spacing)">
                   <PriorityBadge priority={row.priority} />
                 </TableCell>
               </TableRow>

@@ -209,6 +209,12 @@ Koinos is a single-owner FII (Brazilian REIT) portfolio dashboard that replaced 
 
 - **Materials:** the visual materials are Tailwind 4 `@utility` rules in `src/app/globals.css` (`glass-strong`, `card-surface`, `metal-ring`, `btn-gloss`, `tile`…). Composite materials stack through CSS variables (`--glow-layer`, `--card-texture`, `--card-fill`), not competing classes.
 - **Motion:** every `[data-slot="card"]` rises on mount (`card-appear`: opacity and `translate`, staggered by sibling) and, where `animation-timeline: view()` exists, again as it scrolls in (`card-scroll-rise`, on `transform`). They use different properties so they don't fight, and `card-lift` keeps `translate` for the hover. All of it is off with reduced motion. The page view transition only fades, since the cards already rise. The top bar (`AutoHideHeader`) hides while scrolling down.
+- **Design tokens** (`globals.css`, HIG):
+  - type scale `text-display`, `text-title-1`…`3`, `text-headline`, `text-subheadline`, `text-footnote`, `text-caption`, each with its line height, tracking and weight;
+  - integer radii: controls 8, panels and menu items 12, popovers 16, cards and glass 20;
+  - spring easings `ease-snappy`, `ease-bouncy` and `ease-smooth` (`linear()` curves of SwiftUI springs);
+  - spacing on the 4 px grid. Cards pad 20 px (24 from `md`), and table edges use `pl-(--card-spacing)`/`pr-(--card-spacing)` to line up with the card title;
+  - buttons press with `press-spring` and grow to 44 px on touch screens (`pointer-coarse:`).
 - **`backdrop-filter`:** write only the unprefixed property. If `-webkit-backdrop-filter` is also written, Lightning CSS keeps only the prefixed one, which Chrome and Edge ignore.
 - **Contrast:** at `size="sm"`, the `btn-gloss` label sits under the top sheen and falls to about 3.3:1 in the light theme.
   - A selected segment uses solid `bg-(--badge)` with white text instead.
@@ -223,7 +229,7 @@ Koinos is a single-owner FII (Brazilian REIT) portfolio dashboard that replaced 
 - **Money fields:** `MoneyInput` (`shared/components/money-input.tsx`) fills from the cents, like an ATM: it starts at "0,00", and typing 1, 2, 0, 0, 0, 0, 0 shows 0,01, 0,12, 1,20… 12.000,00. New digits always go at the end, and a paste is read in reais. Read its text with `parseMoneyInput`: `parseNumberInput` takes a dot without a comma as the decimal point and would read "14.000" as 14.
 - **Base UI `Button` as a link:** `render={<Link />}` needs `nativeButton={false}`. Without it, Base UI logs an error and puts `type="button"` on the `<a>`.
 - **Mongoose models in dev:** the models are reused from `mongoose.models` across hot reloads, so a field added to a schema is silently dropped (strict mode) until the dev server restarts.
-- **`cn`:** the `cn` package is tailwind-merge compatible, so a later class overrides a conflicting one.
+- **`cn`:** import it from `@/shared/lib/utils`, never from `"cn"`. The project's `createCn` knows the type tokens (`text-headline`…); the package's own `cn` takes them for colors and drops them next to a `text-*` color. A later class overrides a conflicting one.
 - **`next.config.ts`:**
   - `turbopackFileSystemCacheForBuild` is off on purpose: Vercel's restored build cache shipped stale CSS.
   - `serverActions.bodySizeLimit` is `4mb`, for the statement uploads; Vercel caps a request at 4.5 MB.

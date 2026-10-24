@@ -48,13 +48,162 @@
   --color-popover: var(--popover);
   --color-card-foreground: var(--card-foreground);
   --color-card: var(--card);
-  --radius-sm: calc(var(--radius) * 0.6);
-  --radius-md: calc(var(--radius) * 0.8);
-  --radius-lg: var(--radius);
-  --radius-xl: calc(var(--radius) * 1.4);
-  --radius-2xl: calc(var(--radius) * 1.8);
-  --radius-3xl: calc(var(--radius) * 2.2);
-  --radius-4xl: calc(var(--radius) * 2.6);
+  /*
+   * Raios inteiros e concêntricos: controles 8, painéis e itens de menu 12, popovers 16,
+   * cards, sidebar e barras de vidro 20. Um elemento dentro de outro usa o raio de fora menos o
+   * respiro entre os dois (20 − 8 = 12 no item ativo da sidebar).
+   */
+  --radius-xs: 4px;
+  --radius-sm: 6px;
+  --radius-md: 8px;
+  --radius-lg: 12px;
+  --radius-xl: 16px;
+  --radius-2xl: 20px;
+  --radius-3xl: 24px;
+  --radius-4xl: 28px;
+  /*
+   * Escala tipográfica da Apple (HIG): cada tamanho traz entrelinha, tracking e peso. Os grandes
+   * fecham o tracking, como o SF Pro Display; os pequenos ficam neutros.
+   */
+  --text-display: 3rem;
+  --text-display--line-height: 3.25rem;
+  --text-display--letter-spacing: -0.025em;
+  --text-display--font-weight: 700;
+  --text-title-1: 1.75rem;
+  --text-title-1--line-height: 2.125rem;
+  --text-title-1--letter-spacing: -0.02em;
+  --text-title-1--font-weight: 700;
+  --text-title-2: 1.375rem;
+  --text-title-2--line-height: 1.75rem;
+  --text-title-2--letter-spacing: -0.015em;
+  --text-title-2--font-weight: 700;
+  --text-title-3: 1.25rem;
+  --text-title-3--line-height: 1.5rem;
+  --text-title-3--letter-spacing: -0.01em;
+  --text-title-3--font-weight: 600;
+  --text-headline: 1.0625rem;
+  --text-headline--line-height: 1.375rem;
+  --text-headline--letter-spacing: -0.01em;
+  --text-headline--font-weight: 600;
+  --text-subheadline: 0.9375rem;
+  --text-subheadline--line-height: 1.25rem;
+  --text-footnote: 0.8125rem;
+  --text-footnote--line-height: 1.125rem;
+  --text-caption: 0.75rem;
+  --text-caption--line-height: 1rem;
+}
+
+/*
+ * Molas, como o spring(response:dampingFraction:) do SwiftUI, em linear() (gerador no histórico do
+ * ciclo de design): snappy (0,30 s; 0,86) assenta em 420 ms quase sem passar; bouncy (0,42 s; 0,68)
+ * passa 5% e volta em 690 ms; smooth (0,45 s; 1) é criticamente amortecida, 660 ms.
+ */
+@theme {
+  --ease-snappy: linear(
+    0,
+    0.032,
+    0.109,
+    0.211,
+    0.321,
+    0.43,
+    0.532,
+    0.623,
+    0.703,
+    0.77,
+    0.826,
+    0.871,
+    0.907,
+    0.935,
+    0.956,
+    0.972,
+    0.983,
+    0.992,
+    0.997,
+    1.001,
+    1.003,
+    1.004,
+    1.005,
+    1.005,
+    1.005,
+    1.004,
+    1.004,
+    1.003,
+    1.003,
+    1.002,
+    1.002,
+    1.001,
+    1
+  );
+  --ease-bouncy: linear(
+    0,
+    0.045,
+    0.154,
+    0.296,
+    0.446,
+    0.589,
+    0.716,
+    0.821,
+    0.904,
+    0.966,
+    1.008,
+    1.035,
+    1.049,
+    1.054,
+    1.053,
+    1.048,
+    1.04,
+    1.032,
+    1.024,
+    1.017,
+    1.011,
+    1.006,
+    1.003,
+    1,
+    0.998,
+    0.997,
+    0.997,
+    0.997,
+    0.997,
+    0.998,
+    0.998,
+    0.999,
+    1
+  );
+  --ease-smooth: linear(
+    0,
+    0.034,
+    0.114,
+    0.215,
+    0.321,
+    0.423,
+    0.516,
+    0.599,
+    0.671,
+    0.732,
+    0.783,
+    0.825,
+    0.86,
+    0.888,
+    0.911,
+    0.93,
+    0.944,
+    0.956,
+    0.966,
+    0.973,
+    0.979,
+    0.983,
+    0.987,
+    0.99,
+    0.992,
+    0.994,
+    0.995,
+    0.996,
+    0.997,
+    0.998,
+    0.998,
+    0.999,
+    1
+  );
 }
 
 /*
@@ -307,11 +456,11 @@
   );
 }
 
-/* Elevação ao passar o mouse: só nos cards de número. */
+/* Elevação ao passar o mouse: só nos cards de número. Sobe e assenta com a mola snappy. */
 @utility card-lift {
   transition:
-    translate 200ms ease,
-    box-shadow 200ms ease;
+    translate 420ms var(--ease-snappy),
+    box-shadow 420ms var(--ease-snappy);
   @media (hover: hover) and (prefers-reduced-motion: no-preference) {
     &:hover {
       translate: 0 -2px;
@@ -340,6 +489,28 @@
       linear-gradient(#000 0 0);
     mask-composite: exclude;
     pointer-events: none;
+  }
+}
+
+/*
+ * Toque macio com mola (todos os botões): afunda rápido no toque (90 ms) e volta com a mola bouncy,
+ * que passa um pouco e assenta. As cores mudam em 150 ms, sem mola.
+ */
+@utility press-spring {
+  transition:
+    transform 690ms var(--ease-bouncy),
+    background-color 150ms ease,
+    border-color 150ms ease,
+    color 150ms ease,
+    box-shadow 200ms ease,
+    filter 150ms ease,
+    opacity 150ms ease;
+  @media (prefers-reduced-motion: no-preference) {
+    &:active:not([aria-haspopup]):not(:disabled) {
+      transform: scale(0.97);
+      transition-duration: 90ms;
+      transition-timing-function: ease-out;
+    }
   }
 }
 

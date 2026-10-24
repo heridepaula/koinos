@@ -1,6 +1,6 @@
 "use client";
 
-import { cn } from "cn";
+import { cn } from "@/shared/lib/utils";
 import { FileSpreadsheetIcon, UploadIcon, XIcon } from "lucide-react";
 import { useState } from "react";
 import { Button } from "@/shared/ui/button";

@@ -73,12 +73,14 @@ export function UpcomingDividends({
       {/* As colunas de detalhe saem pela largura do card: FII, valor e pagamento ficam sempre. */}
       <CardContent className="@container px-0">
         {rows.length === 0 && undisclosed.length === 0 ? (
-          <p className="px-6 text-sm text-muted-foreground">Nenhum provento anunciado a receber.</p>
+          <p className="px-(--card-spacing) text-sm text-muted-foreground">
+            Nenhum provento anunciado a receber.
+          </p>
         ) : (
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead className="pl-6">FII</TableHead>
+                <TableHead className="pl-(--card-spacing)">FII</TableHead>
                 <TableHead className="hidden @min-[400px]:table-cell">Origem</TableHead>
                 <TableHead className="hidden @min-[520px]:table-cell">Data ex</TableHead>
                 <TableHead className="hidden text-right @min-[640px]:table-cell">Cotas</TableHead>
@@ -86,7 +88,7 @@ export function UpcomingDividends({
                   Por cota
                 </TableHead>
                 <TableHead className="text-right">Valor</TableHead>
-                <TableHead className="pr-6 text-right">Pagamento</TableHead>
+                <TableHead className="pr-(--card-spacing) text-right">Pagamento</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -95,7 +97,7 @@ export function UpcomingDividends({
                 <TableRow
                   key={`${row.ticker}-${row.source}-${(row.exDate ?? row.payBy)?.toISOString() ?? "sem-data"}-${index}`}
                 >
-                  <TableCell className="pl-6">
+                  <TableCell className="pl-(--card-spacing)">
                     <AssetLabel ticker={row.ticker} name={row.name} logoUrl={row.logoUrl} />
                   </TableCell>
                   <TableCell className="hidden @min-[400px]:table-cell">
@@ -117,14 +119,14 @@ export function UpcomingDividends({
                   <TableCell className="text-right font-medium tabular-nums">
                     {formatBRL(row.amount)}
                   </TableCell>
-                  <TableCell className="pr-6 text-right whitespace-nowrap text-muted-foreground tabular-nums">
+                  <TableCell className="pr-(--card-spacing) text-right whitespace-nowrap text-muted-foreground tabular-nums">
                     <PayBy row={row} />
                   </TableCell>
                 </TableRow>
               ))}
               {undisclosed.map((row) => (
                 <TableRow key={`${row.ticker}-nao-divulgado`}>
-                  <TableCell className="pl-6">
+                  <TableCell className="pl-(--card-spacing)">
                     <AssetLabel ticker={row.ticker} name={row.name} logoUrl={row.logoUrl} />
                   </TableCell>
                   <TableCell className="hidden @min-[400px]:table-cell">
@@ -139,7 +141,7 @@ export function UpcomingDividends({
                   >
                     {formatBRL(row.lastAmount)}
                   </TableCell>
-                  <TableCell className="pr-6 text-right whitespace-nowrap text-muted-foreground">
+                  <TableCell className="pr-(--card-spacing) text-right whitespace-nowrap text-muted-foreground">
                     {/* Na tela estreita a coluna Origem some: o aviso fica aqui. */}
                     <span className="@min-[400px]:hidden">
                       <NotDisclosedBadge />

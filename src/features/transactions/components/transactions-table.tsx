@@ -140,7 +140,7 @@ export function TransactionsTable({ rows }: { rows: TransactionRow[] }) {
                 active={sortKey === "data"}
                 direction={direction}
                 onSort={() => sortBy("data")}
-                className="pl-6"
+                className="pl-(--card-spacing)"
               >
                 Data
               </SortableHead>
@@ -177,7 +177,7 @@ export function TransactionsTable({ rows }: { rows: TransactionRow[] }) {
               >
                 Total
               </SortableHead>
-              <TableHead className="pr-6 text-right">Ações</TableHead>
+              <TableHead className="pr-(--card-spacing) text-right">Ações</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -190,7 +190,9 @@ export function TransactionsTable({ rows }: { rows: TransactionRow[] }) {
             ) : (
               pageRows.map((row) => (
                 <TableRow key={row.id}>
-                  <TableCell className="pl-6 tabular-nums">{formatTradeDate(row.date)}</TableCell>
+                  <TableCell className="pl-(--card-spacing) tabular-nums">
+                    {formatTradeDate(row.date)}
+                  </TableCell>
                   <TableCell className="font-medium">
                     {row.ticker}
                     {row.notes ? (
@@ -224,7 +226,7 @@ export function TransactionsTable({ rows }: { rows: TransactionRow[] }) {
                   </TableCell>
                   <TableCell className="text-right tabular-nums">{formatBRL(row.fees)}</TableCell>
                   <TableCell className="text-right tabular-nums">{formatBRL(total(row))}</TableCell>
-                  <TableCell className="pr-6 text-right">
+                  <TableCell className="pr-(--card-spacing) text-right">
                     {row.source === "B3" ? (
                       // A B3 manda: corrige-se reenviando o extrato, não editando aqui.
                       <Tooltip>
@@ -259,7 +261,7 @@ export function TransactionsTable({ rows }: { rows: TransactionRow[] }) {
           </TableBody>
         </Table>
         {sorted.length > 0 ? (
-          <div className="flex flex-wrap items-center justify-between gap-3 px-6 pt-4 text-sm text-muted-foreground">
+          <div className="flex flex-wrap items-center justify-between gap-3 px-(--card-spacing) pt-4 text-sm text-muted-foreground">
             <label className="flex items-center gap-2">
               Mostrar
               <select

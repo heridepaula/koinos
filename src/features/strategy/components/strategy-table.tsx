@@ -96,7 +96,7 @@ function StrategyTableRow({ row }: { row: StrategyRow }) {
 
   return (
     <TableRow className={row.inStrategy ? undefined : "text-muted-foreground"}>
-      <TableCell className="sticky left-0 z-10 bg-card pl-6">
+      <TableCell className="sticky left-0 z-10 bg-card pl-(--card-spacing)">
         <AssetLabel ticker={row.ticker} name={row.name} logoUrl={row.logoUrl} />
       </TableCell>
       <TableCell>
@@ -172,7 +172,7 @@ function StrategyTableRow({ row }: { row: StrategyRow }) {
       <TableCell>
         <PriorityBadge priority={row.priority} />
       </TableCell>
-      <TableCell className="pr-6 text-right">
+      <TableCell className="pr-(--card-spacing) text-right">
         {row.configured ? (
           <Button
             variant="ghost"
@@ -310,7 +310,9 @@ export function StrategyTable({
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead className="sticky left-0 z-10 bg-card pl-6">Ativo</TableHead>
+              <TableHead className="sticky left-0 z-10 bg-card pl-(--card-spacing)">
+                Ativo
+              </TableHead>
               <TableHead>Estratégia</TableHead>
               <TableHead>Rank</TableHead>
               <TableHead>Teto (R$)</TableHead>
@@ -324,7 +326,7 @@ export function StrategyTable({
                 Peso / meta
               </TableHead>
               <TableHead title="Prioridade de aporte pelo método Suno">Prioridade</TableHead>
-              <TableHead className="pr-6" />
+              <TableHead className="pr-(--card-spacing)" />
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -339,7 +341,7 @@ export function StrategyTable({
             )}
           </TableBody>
         </Table>
-        <div className="flex flex-wrap gap-x-6 gap-y-1 border-t px-6 pt-4 text-sm text-muted-foreground">
+        <div className="flex flex-wrap gap-x-6 gap-y-1 border-t px-(--card-spacing) pt-4 text-sm text-muted-foreground">
           <span>{members.length} ativos na estratégia</span>
           <span>
             Soma das % sugeridas:{" "}

@@ -300,19 +300,19 @@ function ByYear({ rows }: { rows: DividendsView["byYear"] }) {
     <Table>
       <TableHeader>
         <TableRow>
-          <TableHead className="pl-6">Ano</TableHead>
+          <TableHead className="pl-(--card-spacing)">Ano</TableHead>
           <TableHead className="text-right">Total</TableHead>
           <TableHead className="text-right">Meses com provento</TableHead>
-          <TableHead className="pr-6 text-right">Média mensal</TableHead>
+          <TableHead className="pr-(--card-spacing) text-right">Média mensal</TableHead>
         </TableRow>
       </TableHeader>
       <TableBody>
         {rows.map((row) => (
           <TableRow key={row.year}>
-            <TableCell className="pl-6 font-medium">{row.year}</TableCell>
+            <TableCell className="pl-(--card-spacing) font-medium">{row.year}</TableCell>
             <TableCell className="text-right tabular-nums">{formatBRL(row.total)}</TableCell>
             <TableCell className="text-right tabular-nums">{row.months}</TableCell>
-            <TableCell className="pr-6 text-right tabular-nums">
+            <TableCell className="pr-(--card-spacing) text-right tabular-nums">
               {formatBRL(row.monthlyAverage)}
             </TableCell>
           </TableRow>
@@ -327,21 +327,21 @@ function ByTicker({ rows }: { rows: DividendsView["byTicker"] }) {
     <Table>
       <TableHeader>
         <TableRow>
-          <TableHead className="pl-6">FII</TableHead>
+          <TableHead className="pl-(--card-spacing)">FII</TableHead>
           <TableHead className="text-right">Total</TableHead>
           <TableHead className="text-right">Pagamentos</TableHead>
-          <TableHead className="pr-6 text-right">Último</TableHead>
+          <TableHead className="pr-(--card-spacing) text-right">Último</TableHead>
         </TableRow>
       </TableHeader>
       <TableBody>
         {rows.map((row) => (
           <TableRow key={row.ticker}>
-            <TableCell className="pl-6">
+            <TableCell className="pl-(--card-spacing)">
               <AssetLabel ticker={row.ticker} name={row.name} logoUrl={row.logoUrl} />
             </TableCell>
             <TableCell className="text-right tabular-nums">{formatBRL(row.total)}</TableCell>
             <TableCell className="text-right tabular-nums">{row.payments}</TableCell>
-            <TableCell className="pr-6 text-right tabular-nums">
+            <TableCell className="pr-(--card-spacing) text-right tabular-nums">
               {formatTradeDate(row.lastPaidAt)}
             </TableCell>
           </TableRow>

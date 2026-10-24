@@ -187,7 +187,7 @@ export function AporteCalculator({ assets, meta }: { assets: CascadeAsset[]; met
             </CardHeader>
             <CardContent className="px-0">
               {result.orders.length === 0 ? (
-                <p className="px-6 text-sm text-muted-foreground">
+                <p className="px-(--card-spacing) text-sm text-muted-foreground">
                   Nenhuma compra atende às regras com esse valor. Veja abaixo o motivo de cada
                   ativo.
                 </p>
@@ -195,13 +195,13 @@ export function AporteCalculator({ assets, meta }: { assets: CascadeAsset[]; met
                 <Table>
                   <TableHeader>
                     <TableRow>
-                      <TableHead className="pl-6">Ativo</TableHead>
+                      <TableHead className="pl-(--card-spacing)">Ativo</TableHead>
                       <TableHead className="text-right">Cotas</TableHead>
                       <TableHead className="text-right">Preço</TableHead>
                       <TableHead className="text-right">Total</TableHead>
                       <TableHead className="text-right">% antes → depois</TableHead>
                       <TableHead className="text-right">% meta</TableHead>
-                      <TableHead className="pr-6">Por quê</TableHead>
+                      <TableHead className="pr-(--card-spacing)">Por quê</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -209,7 +209,7 @@ export function AporteCalculator({ assets, meta }: { assets: CascadeAsset[]; met
                       const info = metaByTicker.get(order.ticker);
                       return (
                         <TableRow key={order.ticker}>
-                          <TableCell className="pl-6">
+                          <TableCell className="pl-(--card-spacing)">
                             <AssetLabel
                               ticker={order.ticker}
                               name={info?.name}
@@ -233,7 +233,7 @@ export function AporteCalculator({ assets, meta }: { assets: CascadeAsset[]; met
                             {formatPercent(order.targetWeight, 1)}
                           </TableCell>
                           {/* A explicação quebra linha: a tabela cabe em telas menores. */}
-                          <TableCell className="min-w-64 pr-6 text-xs whitespace-normal text-muted-foreground">
+                          <TableCell className="min-w-64 pr-(--card-spacing) text-xs whitespace-normal text-muted-foreground">
                             {explain(order, result.maxSharePercent)}
                           </TableCell>
                         </TableRow>

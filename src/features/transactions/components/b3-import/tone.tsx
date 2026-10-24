@@ -1,4 +1,4 @@
-import { cn } from "cn";
+import { cn } from "@/shared/lib/utils";
 import { CircleAlertIcon, CircleCheckIcon, CircleXIcon, type LucideIcon } from "lucide-react";
 import type { ReactNode } from "react";
 import { Badge } from "@/shared/ui/badge";

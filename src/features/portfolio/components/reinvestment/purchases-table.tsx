@@ -25,23 +25,27 @@ export function PurchasesTable({ rows }: { rows: ReinvestmentView["purchases"] }
       </CardHeader>
       <CardContent className="@container px-0">
         {rows.length === 0 ? (
-          <p className="px-6 text-sm text-muted-foreground">Nenhuma compra no mês.</p>
+          <p className="px-(--card-spacing) text-sm text-muted-foreground">
+            Nenhuma compra no mês.
+          </p>
         ) : (
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead className="pl-6">Data</TableHead>
+                <TableHead className="pl-(--card-spacing)">Data</TableHead>
                 <TableHead>FII</TableHead>
                 <TableHead className="hidden @min-[560px]:table-cell">Tipo</TableHead>
                 <TableHead className="hidden text-right @min-[480px]:table-cell">Qtd.</TableHead>
                 <TableHead className="hidden text-right @min-[640px]:table-cell">Preço</TableHead>
-                <TableHead className="pr-6 text-right">Total</TableHead>
+                <TableHead className="pr-(--card-spacing) text-right">Total</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {rows.map((row, index) => (
                 <TableRow key={`${row.ticker}-${row.date.toISOString()}-${index}`}>
-                  <TableCell className="pl-6 tabular-nums">{formatTradeDate(row.date)}</TableCell>
+                  <TableCell className="pl-(--card-spacing) tabular-nums">
+                    {formatTradeDate(row.date)}
+                  </TableCell>
                   <TableCell>
                     <AssetLabel ticker={row.ticker} name={row.name} logoUrl={row.logoUrl} />
                   </TableCell>
@@ -54,7 +58,7 @@ export function PurchasesTable({ rows }: { rows: ReinvestmentView["purchases"] }
                   <TableCell className="hidden text-right tabular-nums @min-[640px]:table-cell">
                     {formatBRL(row.unitPrice)}
                   </TableCell>
-                  <TableCell className="pr-6 text-right font-medium tabular-nums">
+                  <TableCell className="pr-(--card-spacing) text-right font-medium tabular-nums">
                     {formatBRL(row.total)}
                   </TableCell>
                 </TableRow>
@@ -62,13 +66,13 @@ export function PurchasesTable({ rows }: { rows: ReinvestmentView["purchases"] }
             </TableBody>
             <TableFooter>
               <TableRow>
-                <TableCell className="pl-6 font-medium" colSpan={2}>
+                <TableCell className="pl-(--card-spacing) font-medium" colSpan={2}>
                   Total
                 </TableCell>
                 <TableCell className="hidden @min-[560px]:table-cell" />
                 <TableCell className="hidden @min-[480px]:table-cell" />
                 <TableCell className="hidden @min-[640px]:table-cell" />
-                <TableCell className="pr-6 text-right font-semibold tabular-nums">
+                <TableCell className="pr-(--card-spacing) text-right font-semibold tabular-nums">
                   {formatBRL(total)}
                 </TableCell>
               </TableRow>

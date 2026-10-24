@@ -6,7 +6,10 @@ import type { SortDirection } from "@/shared/lib/sort";
 import { cn } from "@/shared/lib/utils";
 import { TableHead } from "@/shared/ui/table";
 
-/** Cabeçalho ordenável. Como no Finder, só a coluna ordenada mostra a seta. */
+/**
+ * Cabeçalho ordenável. Como no Finder, só a coluna ordenada mostra a seta. O botão ocupa a altura
+ * do cabeçalho (40 px; 44 no toque), para o alvo não ser só o texto.
+ */
 export function SortableHead({
   active,
   direction,
@@ -35,7 +38,7 @@ export function SortableHead({
         onClick={onSort}
         title={title}
         className={cn(
-          "inline-flex items-center gap-0.5 whitespace-nowrap hover:text-foreground",
+          "inline-flex h-10 items-center gap-1 rounded-sm whitespace-nowrap outline-none hover:text-foreground focus-visible:ring-3 focus-visible:ring-ring/50 pointer-coarse:h-11",
           align === "right" && "flex-row-reverse",
           active && "text-foreground",
         )}

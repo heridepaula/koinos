@@ -1,6 +1,6 @@
 "use client";
 
-import { cn } from "cn";
+import { cn } from "@/shared/lib/utils";
 import {
   ArchiveIcon,
   ArrowLeftRightIcon,

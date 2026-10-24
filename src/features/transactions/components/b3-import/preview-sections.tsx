@@ -40,7 +40,7 @@ const STATUS: Record<B3ImportPreview["tickers"][number]["status"], { label: stri
     FORA: { label: "de fora", tone: "bad" },
   };
 // A primeira e a última célula de cada linha encostam na margem do card.
-const ROW_EDGES = "[&>td:first-child]:pl-6 [&>td:last-child]:pr-6";
+const ROW_EDGES = "[&>td:first-child]:pl-(--card-spacing) [&>td:last-child]:pr-(--card-spacing)";
 
 /** "1 novo" ou "N novos", com o separador de milhar em pt-BR. */
 export const novos = (count: number) =>
@@ -195,13 +195,13 @@ function SummaryBanner({
 function EntryHead({ label }: { label?: string }) {
   return (
     <TableRow>
-      {label ? <TableHead className="pl-6">{label}</TableHead> : null}
-      <TableHead className={label ? undefined : "pl-6"}>Data</TableHead>
+      {label ? <TableHead className="pl-(--card-spacing)">{label}</TableHead> : null}
+      <TableHead className={label ? undefined : "pl-(--card-spacing)"}>Data</TableHead>
       <TableHead>FII</TableHead>
       <TableHead className="hidden @min-[480px]:table-cell">Tipo</TableHead>
       <TableHead className="hidden text-right @min-[600px]:table-cell">Cotas</TableHead>
       <TableHead className="hidden text-right @min-[600px]:table-cell">Preço</TableHead>
-      <TableHead className="pr-6 text-right">Valor</TableHead>
+      <TableHead className="pr-(--card-spacing) text-right">Valor</TableHead>
     </TableRow>
   );
 }
@@ -228,12 +228,12 @@ function EntryCells({ entry }: { entry: PlannedTransaction }) {
 function DividendHead({ label }: { label?: string }) {
   return (
     <TableRow>
-      {label ? <TableHead className="pl-6">{label}</TableHead> : null}
-      <TableHead className={label ? undefined : "pl-6"}>Pagamento</TableHead>
+      {label ? <TableHead className="pl-(--card-spacing)">{label}</TableHead> : null}
+      <TableHead className={label ? undefined : "pl-(--card-spacing)"}>Pagamento</TableHead>
       <TableHead>FII</TableHead>
       <TableHead className="hidden @min-[480px]:table-cell">Tipo</TableHead>
       <TableHead className="hidden text-right @min-[600px]:table-cell">Cotas</TableHead>
-      <TableHead className="pr-6 text-right">Valor</TableHead>
+      <TableHead className="pr-(--card-spacing) text-right">Valor</TableHead>
     </TableRow>
   );
 }
@@ -395,21 +395,21 @@ export function UpcomingPreview({ preview }: { preview: B3ImportPreview }) {
       </CardHeader>
       <CardContent className="@container px-0">
         {upcoming.items.length === 0 ? (
-          <p className="px-6 text-sm text-muted-foreground">
+          <p className="px-(--card-spacing) text-sm text-muted-foreground">
             A B3 não lista nenhum rendimento de FII a receber.
           </p>
         ) : (
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead className="pl-6">FII</TableHead>
+                <TableHead className="pl-(--card-spacing)">FII</TableHead>
                 <TableHead className="hidden @min-[480px]:table-cell">Tipo</TableHead>
                 <TableHead className="hidden text-right @min-[600px]:table-cell">Cotas</TableHead>
                 <TableHead className="hidden text-right @min-[600px]:table-cell">
                   Por cota
                 </TableHead>
                 <TableHead className="text-right">Valor</TableHead>
-                <TableHead className="pr-6 text-right">Pagamento</TableHead>
+                <TableHead className="pr-(--card-spacing) text-right">Pagamento</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -498,17 +498,17 @@ export function TickerTable({ preview }: { preview: B3ImportPreview }) {
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead className="pl-6">FII</TableHead>
+              <TableHead className="pl-(--card-spacing)">FII</TableHead>
               <TableHead>Situação</TableHead>
               <TableHead className="text-right">Cotas</TableHead>
               <TableHead className="text-right">Preço médio</TableHead>
-              <TableHead className="pr-6">Observações</TableHead>
+              <TableHead className="pr-(--card-spacing)">Observações</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {preview.tickers.map((item) => (
               <TableRow key={item.ticker}>
-                <TableCell className="pl-6 font-medium">{item.ticker}</TableCell>
+                <TableCell className="pl-(--card-spacing) font-medium">{item.ticker}</TableCell>
                 <TableCell>
                   <ToneBadge tone={STATUS[item.status].tone}>{STATUS[item.status].label}</ToneBadge>
                 </TableCell>
@@ -518,7 +518,7 @@ export function TickerTable({ preview }: { preview: B3ImportPreview }) {
                 <TableCell className="text-right tabular-nums">
                   {item.quantity > 0 ? formatBRL(item.averagePrice) : "—"}
                 </TableCell>
-                <TableCell className="min-w-56 pr-6 text-xs whitespace-normal text-muted-foreground">
+                <TableCell className="min-w-56 pr-(--card-spacing) text-xs whitespace-normal text-muted-foreground">
                   {[
                     ...item.reasons,
                     item.outOfCatalog ? "Fora do catálogo da bolsa." : null,
