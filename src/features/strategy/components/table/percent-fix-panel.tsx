@@ -28,7 +28,7 @@ export function PercentFixPanel({ rows, fixes }: { rows: StrategyRow[]; fixes: P
   const fillsMissing = fixes.every((fix) => fix.from === null);
 
   return (
-    <div className="mx-(--card-spacing) mb-4 grid gap-3 rounded-xl border border-warn/30 bg-warn/8 p-4 text-sm">
+    <div className="mx-(--card-spacing) mb-4 grid gap-3 rounded-xl border border-warn/30 bg-warn/8 p-4 text-sm dark:bg-warn/5">
       <p className="flex items-start gap-3">
         <TriangleAlertIcon className="mt-0.5 size-4 shrink-0 text-warn" aria-hidden="true" />
         <span>
