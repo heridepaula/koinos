@@ -2,7 +2,8 @@ import type { ReadableSpan, Span, SpanProcessor } from "@opentelemetry/sdk-trace
 
 // O que sai do servidor para o APM. A query string fica de fora porque a volta do login do
 // Google traz `?code=`, o Yahoo traz `crumb=` e as páginas guardam valores da carteira na URL
-// (`?valor=`). As mensagens de erro vão sem e-mails e sem números (quantidades, preços, datas).
+// (`?valor=`). As mensagens de erro e os logs vão sem e-mails e sem números (quantidades,
+// preços, datas), menos os tickers: eles já são campos liberados e dizem de qual FII é o erro.
 
 /** Atributos que carregam uma URL inteira: só o caminho segue. */
 const URL_ATTRIBUTES = ["http.target", "http.url", "url.full"];
@@ -11,7 +12,9 @@ const QUERY_ATTRIBUTES = ["url.query"];
 
 const EMAIL = /[^\s@"'<>()[\]{}]+@[^\s@"'<>()[\]{}]+\.[a-z]{2,}/gi;
 const URL_WITH_QUERY = /(https?:\/\/[^\s?#"'<>]+)\?[^\s"'<>]*/gi;
-const NUMBER = /\d+(?:[.,]\d+)*/g;
+/** Um ticker da B3 (HGLG11, PETR4, MALL11.SA) ou um número: o ticker fica, o número vira "#". */
+const TICKER_OR_NUMBER = /\b[A-Z]{4}\d{1,2}[A-Z]?\b|\d+(?:[.,]\d+)*/g;
+const TICKER = /^[A-Z]{4}\d/;
 const STACK_FRAME = /^\s+at /;
 
 /** URL sem a query string (e sem o fragmento). */
@@ -20,9 +23,12 @@ export function stripQuery(url: string): string {
   return end === -1 ? url : url.slice(0, end);
 }
 
-/** Mensagem de erro sem e-mails, sem query strings e sem números: o tipo do problema fica. */
+/** Mensagem sem e-mails, sem query strings e sem números (os tickers ficam): o problema fica. */
 export function scrubMessage(message: string): string {
-  return message.replace(EMAIL, "[e-mail]").replace(URL_WITH_QUERY, "$1").replace(NUMBER, "#");
+  return message
+    .replace(EMAIL, "[e-mail]")
+    .replace(URL_WITH_QUERY, "$1")
+    .replace(TICKER_OR_NUMBER, (match) => (TICKER.test(match) ? match : "#"));
 }
 
 /** Pilha com as linhas da mensagem limpas; as linhas "at ..." (código, não dados) ficam. */
