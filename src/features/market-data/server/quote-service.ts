@@ -2,6 +2,7 @@ import "server-only";
 import mongoose from "mongoose";
 import { connectMongo } from "@/shared/db/mongo";
 import { env } from "@/shared/env";
+import { withSpan } from "@/shared/lib/tracing";
 import { createBrapiClient } from "../adapters/brapi";
 import { yahooProvider } from "../adapters/yahoo";
 import { isQuoteStale } from "../domain/market-hours";
@@ -56,20 +57,43 @@ export async function refreshQuotes(
     const collected = new Map<string, { quote: Quote; source: QuoteSource }>();
     let pending = stale;
 
-    if ((await brapiRequestsThisMonth(now)) < env.BRAPI_MONTHLY_QUOTA * BRAPI_QUOTA_SAFETY) {
-      const brapi = createBrapiClient({
-        token: env.BRAPI_TOKEN,
-        onRequest: () => recordBrapiRequest(now),
-      });
-      const batch = await brapi.getQuotes(pending);
-      batch.quotes.forEach((quote, ticker) => collected.set(ticker, { quote, source: "brapi" }));
-      pending = pending.filter((ticker) => !collected.has(ticker));
-    }
+    // Um span por fonte: o APM mostra a latência da brapi e quando o Yahoo precisou cobrir.
+    const brapiUsed = await brapiRequestsThisMonth(now);
+    const brapiAllowed = brapiUsed < env.BRAPI_MONTHLY_QUOTA * BRAPI_QUOTA_SAFETY;
+    await withSpan(
+      "quotes.brapi",
+      {
+        "koinos.quotes.requested": pending.length,
+        "koinos.brapi.month_requests": brapiUsed,
+        "koinos.brapi.month_quota": env.BRAPI_MONTHLY_QUOTA,
+        "koinos.brapi.skipped": !brapiAllowed,
+      },
+      async (span) => {
+        if (!brapiAllowed) return;
+        const brapi = createBrapiClient({
+          token: env.BRAPI_TOKEN,
+          onRequest: () => recordBrapiRequest(now),
+        });
+        const batch = await brapi.getQuotes(pending);
+        batch.quotes.forEach((quote, ticker) => collected.set(ticker, { quote, source: "brapi" }));
+        pending = pending.filter((ticker) => !collected.has(ticker));
+        span.setAttribute("koinos.quotes.resolved", batch.quotes.size);
+      },
+    );
 
     if (pending.length > 0) {
-      const batch = await yahooProvider.getQuotes(pending);
-      batch.quotes.forEach((quote, ticker) => collected.set(ticker, { quote, source: "yahoo" }));
-      pending = pending.filter((ticker) => !collected.has(ticker));
+      await withSpan(
+        "quotes.yahoo-fallback",
+        { "koinos.quotes.requested": pending.length },
+        async (span) => {
+          const batch = await yahooProvider.getQuotes(pending);
+          batch.quotes.forEach((quote, ticker) =>
+            collected.set(ticker, { quote, source: "yahoo" }),
+          );
+          pending = pending.filter((ticker) => !collected.has(ticker));
+          span.setAttribute("koinos.quotes.resolved", batch.quotes.size);
+        },
+      );
     }
 
     if (collected.size > 0) {

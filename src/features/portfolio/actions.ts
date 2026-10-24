@@ -15,24 +15,27 @@ import { clearReinvestmentPercent, setReinvestmentPercent } from "./server/reinv
  * Atualiza as cotações vencidas dos ativos do usuário (em carteira + Carteira Alvo).
  * Os tickers saem do servidor, nunca do cliente; só cotações vencidas gastam cota.
  */
-export const refreshMyQuotesAction = authActionClient.action(async ({ ctx }) => {
-  const [transactions, targets] = await Promise.all([
-    listTransactionsOf(ctx.tenant),
-    listTargetAssetsOf(ctx.tenant),
-  ]);
-  const held = computePositions(transactions)
-    .filter((position) => position.quantity > 0)
-    .map((position) => position.ticker);
-  const result = await refreshQuotes([...held, ...targets.map((target) => target.ticker)]);
-  // DY e último rendimento também sob demanda (antes só no cron): quem acabou de importar
-  // já vê o DY. refreshDividends pula o que foi buscado nas últimas 20 h.
-  const dividends = await refreshDividends(held);
-  if ((result.status === "done" && result.updated > 0) || dividends.updated > 0) refresh();
-  return result;
-});
+export const refreshMyQuotesAction = authActionClient
+  .metadata({ actionName: "refreshMyQuotes" })
+  .action(async ({ ctx }) => {
+    const [transactions, targets] = await Promise.all([
+      listTransactionsOf(ctx.tenant),
+      listTargetAssetsOf(ctx.tenant),
+    ]);
+    const held = computePositions(transactions)
+      .filter((position) => position.quantity > 0)
+      .map((position) => position.ticker);
+    const result = await refreshQuotes([...held, ...targets.map((target) => target.ticker)]);
+    // DY e último rendimento também sob demanda (antes só no cron): quem acabou de importar
+    // já vê o DY. refreshDividends pula o que foi buscado nas últimas 20 h.
+    const dividends = await refreshDividends(held);
+    if ((result.status === "done" && result.updated > 0) || dividends.updated > 0) refresh();
+    return result;
+  });
 
 /** Salva a % reinvestida de um mês; `null` volta o mês ao padrão (100%). */
 export const setReinvestmentPercentAction = authActionClient
+  .metadata({ actionName: "setReinvestmentPercent", traceInput: ["month"] })
   .inputSchema(reinvestmentPercentSchema)
   .action(async ({ parsedInput, ctx }) => {
     const { month, percent } = parsedInput;

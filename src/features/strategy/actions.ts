@@ -9,6 +9,7 @@ import { deleteTargetAsset, upsertTargetAsset } from "./server/target-asset-repo
 
 /** Adiciona um ativo à Carteira Alvo, já na estratégia, com categoria sugerida pelo subtipo. */
 export const addTargetAssetAction = authActionClient
+  .metadata({ actionName: "addTargetAsset", traceInput: ["ticker"] })
   .inputSchema(targetTickerSchema)
   .action(async ({ parsedInput, ctx }) => {
     const category = suggestCategory(await getCatalogSubType(parsedInput.ticker));
@@ -27,6 +28,7 @@ export const addTargetAssetAction = authActionClient
 
 /** Edita campos da configuração. Um ativo em carteira ainda sem configuração nasce fora da estratégia. */
 export const updateTargetAssetAction = authActionClient
+  .metadata({ actionName: "updateTargetAsset", traceInput: ["ticker"] })
   .inputSchema(targetPatchSchema)
   .action(async ({ parsedInput, ctx }) => {
     const { ticker, ...patch } = parsedInput;
@@ -36,6 +38,7 @@ export const updateTargetAssetAction = authActionClient
   });
 
 export const removeTargetAssetAction = authActionClient
+  .metadata({ actionName: "removeTargetAsset", traceInput: ["ticker"] })
   .inputSchema(targetTickerSchema)
   .action(async ({ parsedInput, ctx }) => {
     if (!(await deleteTargetAsset(ctx.tenant.portfolioId, parsedInput.ticker))) {
