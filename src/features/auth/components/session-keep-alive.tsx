@@ -2,7 +2,6 @@
 
 import { useRouter } from "next/navigation";
 import { useEffect } from "react";
-import { authClient } from "../auth-client";
 
 const RENEW_EVERY_MS = 5 * 60_000;
 const ACTIVITY_EVENTS = ["pointerdown", "keydown", "scroll"] as const;
@@ -20,6 +19,8 @@ export function SessionKeepAlive() {
     const onActivity = async () => {
       if (Date.now() - last < RENEW_EVERY_MS) return;
       last = Date.now();
+      // O cliente do Better Auth só carrega aqui: fica fora do bundle de todas as páginas.
+      const { authClient } = await import("../auth-client");
       const { data } = await authClient.getSession();
       if (!data) router.replace("/login");
     };

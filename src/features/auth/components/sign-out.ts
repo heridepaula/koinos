@@ -1,10 +1,10 @@
-import { authClient } from "../auth-client";
-
 /**
  * Sai e vai para o login. Navegação completa (não router.push) de propósito: descarta o cache do
  * router e o cache privado da sessão, para nada do usuário anterior ficar na memória.
  */
 export async function signOutAndLeave() {
+  // O cliente do Better Auth só carrega ao sair: fica fora do bundle de todas as páginas.
+  const { authClient } = await import("../auth-client");
   await authClient.signOut();
   window.location.assign(new URL("/login", window.location.origin));
 }

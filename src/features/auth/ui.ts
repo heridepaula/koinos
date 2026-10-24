@@ -1,5 +1,4 @@
-// Componentes e cliente de autenticação para o navegador.
-export { authClient } from "./auth-client";
+// Componentes de autenticação para o navegador.
 export { AccountSection, AccountSectionSkeleton } from "./components/account-section";
 export { SessionKeepAlive } from "./components/session-keep-alive";
 export { SignInButton } from "./components/sign-in-button";
