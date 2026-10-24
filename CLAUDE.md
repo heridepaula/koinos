@@ -220,7 +220,7 @@ Koinos is a single-owner FII (Brazilian REIT) portfolio dashboard that replaced 
   - number cards use `MetricCard` with `StatList`/`StatRow` (`shared/components/metric.tsx`): tile and label, the value in Title 1 at a fixed height, then the detail rows, so rows line up from card to card. A variation in a capsule is `DeltaChip`; its tint stays at 6% (light) and 8% (dark), because 10% took the text under 4.5:1.
 - **`backdrop-filter`:** write only the unprefixed property. If `-webkit-backdrop-filter` is also written, Lightning CSS keeps only the prefixed one, which Chrome and Edge ignore.
 - **Contrast:** at `size="sm"`, the `btn-gloss` label sits under the top sheen and falls to about 3.3:1 in the light theme.
-  - A selected segment uses solid `bg-(--badge)` with white text instead.
+  - Segment choices use `SegmentedControl` (dark text on a light thumb), not a `btn-gloss` button.
   - The AA text colors are `text-gain`, `text-loss` and `text-muted-foreground`.
   - `variant="link"` (`text-primary`) measured 3.9:1 on a card, so buttons that navigate use `variant="outline"`.
   - Native `<select>` fields have a translucent background, and the system draws their open list. So `globals.css` gives `option` a solid `--card` background and `--foreground` text; without it, the dark theme showed light text on a light list.

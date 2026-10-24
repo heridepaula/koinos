@@ -12,37 +12,28 @@ import {
   formatTradeDate,
 } from "@/shared/lib/format";
 import { cn } from "@/shared/lib/utils";
-import { Button } from "@/shared/ui/button";
-import {
-  Card,
-  CardAction,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/shared/ui/card";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/shared/ui/card";
 import {
   ChartContainer,
   ChartTooltip,
   ChartTooltipContent,
   type ChartConfig,
 } from "@/shared/ui/chart";
+import { SegmentedControl } from "@/shared/ui/segmented-control";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/shared/ui/table";
 import type { DividendsView } from "../../domain/types";
 import { ChartTooltipRow } from "../chart-tooltip-row";
 
 const GROUPINGS = ["mes", "ano", "papel"] as const;
 type Grouping = (typeof GROUPINGS)[number];
-const LABELS: Record<Grouping, string> = { mes: "Mês", ano: "Ano", papel: "Papel" };
+const GROUPING_OPTIONS = [
+  { value: "mes", label: "Mês" },
+  { value: "ano", label: "Ano" },
+  { value: "papel", label: "Papel" },
+] as const satisfies readonly { value: Grouping; label: string }[];
 
 // Uma série só: o título nomeia o gráfico, sem legenda. Cor validada contra o card nos dois temas.
 const config = { amount: { label: "Proventos", color: "var(--chart-2)" } } satisfies ChartConfig;
-
-// Segmento escolhido em azul sólido (--badge, 5,9:1 com o texto branco). O botão com brilho
-// (btn-gloss) não serve aqui: no tamanho sm o texto fica sob o brilho e o contraste cai para 3,3:1.
-// O dark: repete as classes porque tem a mesma especificidade do aria-pressed: no outline.
-const SELECTED =
-  "aria-pressed:border-transparent aria-pressed:bg-(--badge) aria-pressed:text-white aria-pressed:hover:bg-(--badge) aria-pressed:hover:text-white dark:aria-pressed:border-transparent dark:aria-pressed:bg-(--badge) dark:aria-pressed:hover:bg-(--badge)";
 
 /** Só o que o histórico usa: o "a receber" e o mês atual ficam fora do componente do cliente. */
 type HistoryData = Pick<DividendsView, "since" | "chart" | "byMonth" | "byYear" | "byTicker">;
@@ -56,29 +47,22 @@ export function DividendsHistory(view: HistoryData) {
 
   return (
     <Card>
-      <CardHeader>
-        <CardTitle>Histórico de proventos</CardTitle>
-        <CardDescription>
-          {view.since
-            ? `Recebidos, pelos extratos da B3, desde ${formatMonth(view.since)}.`
-            : "Recebidos, pelos extratos da B3."}
-        </CardDescription>
-        <CardAction>
-          <div role="group" aria-label="Agrupar por" className="flex gap-1">
-            {GROUPINGS.map((key) => (
-              <Button
-                key={key}
-                size="sm"
-                variant="outline"
-                className={SELECTED}
-                aria-pressed={grouping === key}
-                onClick={() => void setGrouping(key)}
-              >
-                {LABELS[key]}
-              </Button>
-            ))}
-          </div>
-        </CardAction>
+      {/* O controle segmentado fica à direita do título; em card estreito, desce para a linha de baixo. */}
+      <CardHeader className="flex flex-wrap items-start justify-between gap-x-6 gap-y-4">
+        <div className="grid gap-1">
+          <CardTitle>Histórico de proventos</CardTitle>
+          <CardDescription>
+            {view.since
+              ? `Recebidos, pelos extratos da B3, desde ${formatMonth(view.since)}.`
+              : "Recebidos, pelos extratos da B3."}
+          </CardDescription>
+        </div>
+        <SegmentedControl
+          label="Agrupar por"
+          value={grouping}
+          options={GROUPING_OPTIONS}
+          onChange={(next) => void setGrouping(next)}
+        />
       </CardHeader>
       <CardContent className={cn(grouping !== "mes" && "px-0")}>
         {grouping === "mes" ? <ByMonth view={view} /> : null}
@@ -267,11 +251,11 @@ function MonthMatrix({ view }: { view: HistoryData }) {
           ))}
         </TableBody>
       </Table>
-      <p className="text-xs text-muted-foreground">
+      <p className="text-caption text-muted-foreground">
         Cor mais forte, mês maior. Clique num mês para ver os FIIs.
       </p>
       {selected ? (
-        <section aria-live="polite" className="grid gap-3 rounded-lg border p-4">
+        <section aria-live="polite" className="grid gap-3 rounded-xl bg-secondary/60 p-4">
           <h3 className="flex flex-wrap items-baseline gap-x-2 text-sm font-semibold">
             <span>{capitalize(monthName(selected.month))}</span>
             <span className="font-normal text-muted-foreground">

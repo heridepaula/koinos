@@ -1,4 +1,5 @@
 import { CircleAlertIcon } from "lucide-react";
+import type { ReactNode } from "react";
 import { AssetLabel } from "@/shared/components/asset-label";
 import { formatBRL, formatQuantity, formatTradeDate } from "@/shared/lib/format";
 import { Badge } from "@/shared/ui/badge";
@@ -37,6 +38,58 @@ function NotDisclosedBadge() {
   );
 }
 
+/**
+ * Legenda no pé da lista, só com o que aparece nela: o que cada origem quer dizer e quando surge o
+ * "a confirmar". Substitui o parágrafo longo que explicava tudo de uma vez no cabeçalho.
+ */
+function UpcomingLegend({ rows, undisclosed }: { rows: Row[]; undisclosed: boolean }) {
+  const items: { key: string; term: ReactNode; text: string }[] = [];
+  if (rows.some((row) => row.source === "B3")) {
+    items.push({
+      key: "b3",
+      term: <Badge variant="secondary">B3</Badge>,
+      text: "data oficial de pagamento",
+    });
+  }
+  if (rows.some((row) => row.source === "YAHOO")) {
+    items.push({
+      key: "yahoo",
+      term: <Badge variant="outline">estimado</Badge>,
+      text: "anúncio do Yahoo; a data de pagamento é uma estimativa",
+    });
+  }
+  if (undisclosed) {
+    items.push({
+      key: "nao-divulgado",
+      term: <NotDisclosedBadge />,
+      text: "paga todo mês e ainda não anunciou; o valor é o do mês passado",
+    });
+  }
+  if (rows.some((row) => row.payByPassed)) {
+    items.push({
+      key: "a-confirmar",
+      term: <span className="font-medium whitespace-nowrap text-foreground">a confirmar</span>,
+      text: "a data passou sem o extrato da B3 confirmar",
+    });
+  }
+  if (items.length === 0) return null;
+  // No celular, uma grade (termo | explicação) para as explicações não ziguezaguearem; em card
+  // largo, os pares seguem em linha.
+  return (
+    <dl className="grid grid-cols-[auto_1fr] items-center gap-x-3 gap-y-2 px-(--card-spacing) pt-4 text-footnote text-muted-foreground @min-[640px]:flex @min-[640px]:flex-wrap @min-[640px]:gap-x-6">
+      {items.map((item) => (
+        <div
+          key={item.key}
+          className="contents @min-[640px]:flex @min-[640px]:items-center @min-[640px]:gap-2"
+        >
+          <dt className="justify-self-start">{item.term}</dt>
+          <dd>{item.text}</dd>
+        </div>
+      ))}
+    </dl>
+  );
+}
+
 /** Proventos a receber: a lista da B3 (extrato de Eventos) e os anúncios do Yahoo depois dela. */
 export function UpcomingDividends({
   rows,
@@ -52,22 +105,9 @@ export function UpcomingDividends({
       <CardHeader>
         <CardTitle>A receber</CardTitle>
         <CardDescription>
-          {forecastAsOf ? (
-            <>
-              B3: a lista Proventos a Receber do envio de {formatTradeDate(forecastAsOf)}, com a
-              data oficial de pagamento. Estimado: anúncio do Yahoo depois desse envio, sobre as
-              cotas da véspera da data ex; a data de pagamento é uma estimativa. Quando a data passa
-              sem o extrato da B3 confirmar, aparece &quot;a confirmar&quot;. Não divulgado: FII que
-              paga todo mês e ainda não anunciou o deste; o valor é o do mês passado.
-            </>
-          ) : (
-            <>
-              Cotas na véspera da data ex × valor anunciado. A data de pagamento é uma estimativa;
-              quando ela passa sem o extrato da B3 confirmar, aparece &quot;a confirmar&quot;. Não
-              divulgado: FII que paga todo mês e ainda não anunciou o deste; o valor é o do mês
-              passado.
-            </>
-          )}
+          {forecastAsOf
+            ? `Da lista Proventos a Receber da B3 (envio de ${formatTradeDate(forecastAsOf)}) e dos anúncios do Yahoo depois dela.`
+            : "Pelos anúncios do Yahoo, sobre as cotas da véspera da data ex."}
         </CardDescription>
       </CardHeader>
       {/* As colunas de detalhe saem pela largura do card: FII, valor e pagamento ficam sempre. */}
@@ -153,6 +193,7 @@ export function UpcomingDividends({
             </TableBody>
           </Table>
         )}
+        <UpcomingLegend rows={rows} undisclosed={undisclosed.length > 0} />
       </CardContent>
     </Card>
   );
