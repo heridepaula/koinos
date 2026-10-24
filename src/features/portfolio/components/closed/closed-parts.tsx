@@ -1,5 +1,8 @@
+import type { ReactNode } from "react";
 import { AssetLabel } from "@/shared/components/asset-label";
-import { formatPercent } from "@/shared/lib/format";
+import { Delta } from "@/shared/components/delta";
+import { formatBRL, formatPercent, formatTradeDate } from "@/shared/lib/format";
+import { cn } from "@/shared/lib/utils";
 import { Badge } from "@/shared/ui/badge";
 import { FII_CAPITAL_GAINS_RATE } from "../../domain/closed-positions";
 import type { ClosedPositionsView } from "../../domain/types";
@@ -38,12 +41,86 @@ const Term = ({ children }: { children: string }) => (
   <strong className="font-medium text-foreground">{children}</strong>
 );
 
-/** Notas de rodapé das tabelas: só as que se aplicam às linhas mostradas. */
-export function ClosedNotes({ rows, tax }: { rows: readonly Row[]; tax: boolean }) {
+/**
+ * Celular (card abaixo de 480 px): cada FII numa célula, sem cabeçalho de tabela nem selos: o
+ * ativo e, embaixo, a data e as marcas em texto secundário; à direita, o resultado (e, no IR, o
+ * imposto). O total fecha a lista.
+ */
+export function ClosedList({
+  rows,
+  total,
+  tax,
+}: {
+  rows: readonly Row[];
+  total: ReactNode;
+  tax: boolean;
+}) {
+  return (
+    <ul className="divide-y divide-border @min-[480px]:hidden">
+      {rows.map((row) => {
+        // A data curta e as marcas: o detalhe de cada uma está na nota do ⓘ.
+        const marks = [
+          row.closedAt ? formatTradeDate(row.closedAt) : null,
+          row.incorporatedInto ? `→ ${row.incorporatedInto}` : null,
+          row.estimatedPrice ? "estimado" : null,
+        ].filter(Boolean);
+        return (
+          <li key={row.ticker} className="flex items-center gap-3 px-(--card-spacing) py-3">
+            <div className="grid min-w-0 flex-1 gap-1">
+              <AssetLabel ticker={row.ticker} logoUrl={row.logoUrl} />
+              {marks.length > 0 ? (
+                <p className="text-footnote text-muted-foreground tabular-nums">
+                  {marks.join(" · ")}
+                </p>
+              ) : null}
+            </div>
+            <div className="grid justify-items-end gap-0.5 text-right">
+              {row.sales > 0 ? (
+                <Delta
+                  value={row.realizedPnL}
+                  pct={tax ? undefined : row.realizedPct}
+                  stacked={!tax}
+                  className="text-subheadline"
+                />
+              ) : (
+                <span className="text-footnote text-muted-foreground">sem venda</span>
+              )}
+              {tax ? (
+                <span className="text-footnote text-muted-foreground tabular-nums">
+                  {row.estimatedTax > 0 ? `IR ${formatBRL(row.estimatedTax)}` : "sem IR"}
+                </span>
+              ) : null}
+            </div>
+          </li>
+        );
+      })}
+      <li className="flex items-center justify-between gap-3 px-(--card-spacing) pt-3 font-semibold">
+        <span>Total</span>
+        {total}
+      </li>
+    </ul>
+  );
+}
+
+/** Notas de rodapé das tabelas: só as que se aplicam às linhas mostradas (no celular, no ⓘ). */
+export function ClosedNotes({
+  rows,
+  tax,
+  inSheet = false,
+}: {
+  rows: readonly Row[];
+  tax: boolean;
+  inSheet?: boolean;
+}) {
   const incorporated = rows.some((row) => row.incorporatedInto !== null);
   const estimated = rows.some((row) => row.estimatedPrice);
   return (
-    <ul className="mt-4 grid gap-2 px-(--card-spacing) text-footnote text-muted-foreground">
+    <ul
+      className={cn(
+        "grid gap-2 text-muted-foreground",
+        inSheet ? "gap-3 text-subheadline" : "mt-4 px-(--card-spacing) text-footnote",
+      )}
+    >
       {tax ? (
         <li>
           <Term>IR estimado:</Term> {formatPercent(FII_CAPITAL_GAINS_RATE, 0)} do lucro de cada FII,

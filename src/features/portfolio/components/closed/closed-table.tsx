@@ -1,6 +1,14 @@
 import { Delta } from "@/shared/components/delta";
+import { InfoSheet } from "@/shared/components/info-sheet";
 import { formatBRL, formatTradeDate } from "@/shared/lib/format";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/shared/ui/card";
+import {
+  Card,
+  CardAction,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/shared/ui/card";
 import {
   Table,
   TableBody,
@@ -11,7 +19,7 @@ import {
   TableRow,
 } from "@/shared/ui/table";
 import type { ClosedPositionsView } from "../../domain/types";
-import { ClosedNotes, ClosedTickerCell } from "./closed-parts";
+import { ClosedList, ClosedNotes, ClosedTickerCell } from "./closed-parts";
 
 /**
  * Uma linha por FII zerado: custo, vendido e resultado (o IR fica na página própria). As colunas
@@ -21,6 +29,7 @@ import { ClosedNotes, ClosedTickerCell } from "./closed-parts";
  *   600 px      + data
  *   720 px      + custo
  *   840 px      selos longos
+ * No celular, a lista de células (ClosedList) e as notas no ⓘ.
  */
 export function ClosedPositionsTable({ rows, totals }: ClosedPositionsView) {
   return (
@@ -28,9 +37,15 @@ export function ClosedPositionsTable({ rows, totals }: ClosedPositionsView) {
       <CardHeader>
         <CardTitle>Por FII</CardTitle>
         <CardDescription>Da encerrada mais recente para a mais antiga.</CardDescription>
+        <CardAction className="md:hidden">
+          <InfoSheet title="Como a conta é feita" label="Como a conta é feita">
+            <ClosedNotes rows={rows} tax={false} inSheet />
+          </InfoSheet>
+        </CardAction>
       </CardHeader>
       <CardContent className="@container px-0">
-        <Table>
+        <ClosedList rows={rows} tax={false} total={<Delta value={totals.realizedPnL} />} />
+        <Table className="hidden @min-[480px]:table">
           <TableHeader>
             <TableRow>
               <TableHead className="pl-(--card-spacing)">FII</TableHead>
@@ -83,7 +98,9 @@ export function ClosedPositionsTable({ rows, totals }: ClosedPositionsView) {
             </TableRow>
           </TableFooter>
         </Table>
-        <ClosedNotes rows={rows} tax={false} />
+        <div className="max-md:hidden">
+          <ClosedNotes rows={rows} tax={false} />
+        </div>
       </CardContent>
     </Card>
   );
