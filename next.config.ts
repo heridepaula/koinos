@@ -22,6 +22,9 @@ const nextConfig: NextConfig = {
   partialPrefetching: true,
   reactCompiler: true,
   poweredByHeader: false,
+  // Fora do bundle para a instrumentação do OpenTelemetry alcançar o pacote no require (o
+  // mongodb e o mongoose o Next já deixa de fora).
+  serverExternalPackages: ["ioredis"],
   experimental: {
     // Sem o cache em disco do Turbopack no build: na Vercel, com o cache restaurado do deploy
     // anterior, o CSS saiu com o conteúdo antigo. O build fica uns segundos mais lento, mas
