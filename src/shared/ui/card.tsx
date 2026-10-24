@@ -33,12 +33,14 @@ function CardHeader({ className, ...props }: React.ComponentProps<"div">) {
   );
 }
 
+// Título e descrição presos à 1ª coluna: com um CardAction escondido por breakpoint (o ⓘ do
+// celular), a grade segue com duas colunas, e a descrição pulava para a segunda.
 function CardTitle({ className, ...props }: React.ComponentProps<"div">) {
   return (
     <div
       data-slot="card-title"
       className={cn(
-        "font-heading text-headline group-data-[size=sm]/card:text-subheadline group-data-[size=sm]/card:font-semibold",
+        "col-start-1 font-heading text-headline group-data-[size=sm]/card:text-subheadline group-data-[size=sm]/card:font-semibold",
         className,
       )}
       {...props}
@@ -50,7 +52,7 @@ function CardDescription({ className, ...props }: React.ComponentProps<"div">) {
   return (
     <div
       data-slot="card-description"
-      className={cn("text-sm text-muted-foreground", className)}
+      className={cn("col-start-1 text-sm text-muted-foreground", className)}
       {...props}
     />
   );

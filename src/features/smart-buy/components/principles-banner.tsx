@@ -6,8 +6,9 @@ import {
   ShieldCheckIcon,
 } from "lucide-react";
 
-// Princípios de aporte da Suno, sempre à vista na tela de recomendações.
-const PRINCIPLES = [
+// Princípios de aporte da Suno: à vista na tela de recomendações da mesa; no iPhone, na folha ⓘ
+// da calculadora, para o campo do valor subir.
+export const PRINCIPLES = [
   { icon: CalendarCheckIcon, text: "Aporte todo mês" },
   { icon: ShieldCheckIcon, text: "Só abaixo do preço teto" },
   { icon: ListOrderedIcon, text: "Siga o ranking até a % sugerida" },
@@ -17,7 +18,7 @@ const PRINCIPLES = [
 
 export function PrinciplesBanner() {
   return (
-    <ul className="flex flex-wrap items-center gap-x-6 gap-y-2 rounded-2xl glass px-4 py-3 text-sm">
+    <ul className="flex flex-wrap items-center gap-x-6 gap-y-2 rounded-2xl glass px-4 py-3 text-sm max-md:hidden">
       {PRINCIPLES.map(({ icon: Icon, text }) => (
         <li key={text} className="flex items-center gap-2">
           <Icon className="size-4 text-primary" aria-hidden="true" />

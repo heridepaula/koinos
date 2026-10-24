@@ -1,5 +1,19 @@
+"use client";
+
+import { ChevronRightIcon } from "lucide-react";
+import { useState } from "react";
 import { AssetLabel } from "@/shared/components/asset-label";
+import { InsetGroup, InsetValueRow } from "@/shared/components/inset-list";
 import { formatBRL, formatPercent, formatQuantity } from "@/shared/lib/format";
+import {
+  createDrawerHandle,
+  Drawer,
+  DrawerBody,
+  DrawerContent,
+  DrawerHeader,
+  DrawerTitle,
+  DrawerTrigger,
+} from "@/shared/ui/drawer";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/shared/ui/table";
 import type { CascadeOrder } from "../../domain/suno-cascade";
 import { explain } from "./explain";
@@ -61,37 +75,105 @@ export function OrdersTable({ orders, meta, maxSharePercent }: OrdersProps) {
 }
 
 /**
- * Celular: cada ordem numa célula de três linhas, como uma tabela do iOS: o ativo e o total; as
- * cotas × preço e, à direita, o peso antes → depois; a meta e o porquê em texto secundário.
+ * Celular: cada ordem numa célula de duas linhas, como uma tabela do iOS: o ativo e o total; as
+ * cotas × preço e o peso antes → depois. O porquê (ranking, teto, meta, limite) sai da lista e
+ * abre numa folha ao tocar, com o chevron dizendo que há mais.
  */
 export function OrdersList({ orders, meta, maxSharePercent }: OrdersProps) {
+  const [sheet] = useState(() => createDrawerHandle<CascadeOrder>());
   return (
-    <ul className="divide-y divide-border">
-      {orders.map((order) => {
-        const info = meta.get(order.ticker);
-        return (
-          <li key={order.ticker} className="grid gap-1 px-(--card-spacing) py-3">
-            <div className="flex items-center justify-between gap-3">
-              <AssetLabel ticker={order.ticker} name={info?.name} logoUrl={info?.logoUrl} />
-              <span className="text-subheadline font-semibold tabular-nums">
-                {formatBRL(order.total)}
-              </span>
-            </div>
-            <p className="flex justify-between gap-3 pl-8 text-footnote tabular-nums">
-              <span>
-                {formatQuantity(order.quantity)} {order.quantity === 1 ? "cota" : "cotas"} ×{" "}
-                {formatBRL(order.price)}
-              </span>
-              <span className="whitespace-nowrap text-muted-foreground">
-                {formatPercent(order.weightBefore, 1)} → {formatPercent(order.weightAfter, 1)}
-              </span>
-            </p>
-            <p className="pl-8 text-footnote text-muted-foreground">
-              Meta {formatPercent(order.targetWeight, 1)} · {explain(order, maxSharePercent)}
-            </p>
-          </li>
-        );
-      })}
-    </ul>
+    <>
+      <ul className="divide-y divide-border">
+        {orders.map((order) => {
+          const info = meta.get(order.ticker);
+          return (
+            <li key={order.ticker}>
+              <DrawerTrigger
+                handle={sheet}
+                payload={order}
+                className="flex w-full items-center gap-3 px-(--card-spacing) py-3 text-left outline-none select-none [-webkit-touch-callout:none] focus-visible:bg-foreground/5 active:bg-foreground/8"
+              >
+                <div className="grid min-w-0 flex-1 gap-1">
+                  <div className="flex items-center justify-between gap-3">
+                    <AssetLabel ticker={order.ticker} name={info?.name} logoUrl={info?.logoUrl} />
+                    <span className="text-headline whitespace-nowrap tabular-nums">
+                      {formatBRL(order.total)}
+                    </span>
+                  </div>
+                  <p className="flex justify-between gap-3 text-footnote text-muted-foreground tabular-nums">
+                    <span>
+                      {formatQuantity(order.quantity)} {order.quantity === 1 ? "cota" : "cotas"} ×{" "}
+                      {formatBRL(order.price)}
+                    </span>
+                    <span className="whitespace-nowrap">
+                      {formatPercent(order.weightBefore, 1)} → {formatPercent(order.weightAfter, 1)}
+                    </span>
+                  </p>
+                </div>
+                <ChevronRightIcon
+                  className="size-4 shrink-0 text-muted-foreground"
+                  aria-hidden="true"
+                />
+              </DrawerTrigger>
+            </li>
+          );
+        })}
+      </ul>
+      <Drawer handle={sheet}>
+        {({ payload }) =>
+          payload ? (
+            <OrderSheet
+              order={payload}
+              info={meta.get(payload.ticker)}
+              maxSharePercent={maxSharePercent}
+            />
+          ) : null
+        }
+      </Drawer>
+    </>
+  );
+}
+
+function OrderSheet({
+  order,
+  info,
+  maxSharePercent,
+}: {
+  order: CascadeOrder;
+  info: AssetMeta | undefined;
+  maxSharePercent: number;
+}) {
+  return (
+    <DrawerContent>
+      <DrawerHeader className="justify-items-start pr-16 pl-5 text-left">
+        <DrawerTitle>
+          <AssetLabel ticker={order.ticker} name={info?.name} logoUrl={info?.logoUrl} size="lg" />
+        </DrawerTitle>
+      </DrawerHeader>
+      <DrawerBody className="grid content-start gap-5">
+        <div className="grid justify-items-start gap-1 px-1">
+          <p className="text-footnote text-muted-foreground">Comprar</p>
+          <p className="text-title-1 tabular-nums">{formatBRL(order.total)}</p>
+          <p className="text-subheadline text-muted-foreground tabular-nums">
+            {formatQuantity(order.quantity)} {order.quantity === 1 ? "cota" : "cotas"} × ~
+            {formatBRL(order.price)}
+          </p>
+        </div>
+        <InsetGroup title="Peso na carteira">
+          <InsetValueRow label="Antes" value={formatPercent(order.weightBefore, 1)} />
+          <InsetValueRow label="Depois" value={formatPercent(order.weightAfter, 1)} />
+          <InsetValueRow label="Meta" value={formatPercent(order.targetWeight, 1)} />
+        </InsetGroup>
+        <InsetGroup title="Por quê">
+          {explain(order, maxSharePercent)
+            .split(" · ")
+            .map((reason) => (
+              <div key={reason} className="flex min-h-11 items-center px-4 py-2 text-subheadline">
+                {reason.charAt(0).toUpperCase() + reason.slice(1)}
+              </div>
+            ))}
+        </InsetGroup>
+      </DrawerBody>
+    </DrawerContent>
   );
 }

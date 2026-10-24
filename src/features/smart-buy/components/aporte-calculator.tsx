@@ -3,11 +3,20 @@
 import { CopyIcon, LayersIcon, PiggyBankIcon, ShoppingCartIcon, WalletIcon } from "lucide-react";
 import { parseAsFloat, parseAsNumberLiteral, useQueryState } from "nuqs";
 import { toast } from "sonner";
+import { InfoSheet } from "@/shared/components/info-sheet";
 import { MetricCard, StatList, StatRow } from "@/shared/components/metric";
 import { MoneyInput } from "@/shared/components/money-input";
+import { useTabBarAction } from "@/shared/components/tab-bar-action";
 import { formatBRL, formatQuantity } from "@/shared/lib/format";
 import { Button } from "@/shared/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/shared/ui/card";
+import {
+  Card,
+  CardAction,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/shared/ui/card";
 import { NativeSelect } from "@/shared/ui/native-select";
 import {
   DEFAULT_MAX_SHARE_PERCENT,
@@ -19,9 +28,13 @@ import {
 } from "../domain/suno-cascade";
 import { ExcludedCard } from "./aporte/excluded-card";
 import { limitLabel } from "./aporte/explain";
+import { PRINCIPLES } from "./principles-banner";
 import { OrdersList, OrdersTable, type AssetMeta } from "./aporte/orders";
 
 export type { AssetMeta };
+
+const CALCULATION_NOTE =
+  "O cálculo usa as cotações atuais e a configuração da Carteira Alvo. O máximo por FII monta cada posição aos poucos: o preço médio se forma em várias compras.";
 
 /**
  * Calculadora de aporte pelo método Suno. O valor é a ação principal da página: entra num campo
@@ -59,15 +72,32 @@ export function AporteCalculator({ assets, meta }: { assets: CascadeAsset[]; met
     toast.success("Ordens copiadas.");
   }
 
+  // No iPhone, copiar as ordens é a ação principal depois do cálculo: fica ao lado da tab bar.
+  const hasOrders = (result?.orders.length ?? 0) > 0;
+  useTabBarAction(
+    hasOrders ? { label: "Copiar ordens", icon: CopyIcon, onPress: () => void copyOrders() } : null,
+  );
+
   return (
     <div className="grid gap-4 md:gap-6">
       <Card>
         <CardHeader>
           <CardTitle>Quanto vou aportar hoje?</CardTitle>
-          <CardDescription>
-            O cálculo usa as cotações atuais e a configuração da Carteira Alvo. O máximo por FII
-            monta cada posição aos poucos: o preço médio se forma em várias compras.
-          </CardDescription>
+          <CardDescription className="max-md:hidden">{CALCULATION_NOTE}</CardDescription>
+          {/* No iPhone, a explicação e os princípios ficam na folha ⓘ: o valor é o que importa. */}
+          <CardAction className="md:hidden">
+            <InfoSheet title="Como o aporte é calculado" label="Como o aporte é calculado">
+              <p>{CALCULATION_NOTE}</p>
+              <ul className="grid gap-3 text-foreground">
+                {PRINCIPLES.map(({ icon: Icon, text }) => (
+                  <li key={text} className="flex items-center gap-3">
+                    <Icon className="size-5 text-info" aria-hidden="true" />
+                    {text}
+                  </li>
+                ))}
+              </ul>
+            </InfoSheet>
+          </CardAction>
         </CardHeader>
         <CardContent>
           <form
@@ -96,8 +126,13 @@ export function AporteCalculator({ assets, meta }: { assets: CascadeAsset[]; met
                 ))}
               </NativeSelect>
             </label>
-            {result && result.orders.length > 0 ? (
-              <Button type="button" variant="outline" onClick={copyOrders}>
+            {hasOrders ? (
+              <Button
+                type="button"
+                variant="outline"
+                onClick={copyOrders}
+                className="max-md:hidden"
+              >
                 <CopyIcon />
                 Copiar ordens
               </Button>
@@ -146,7 +181,8 @@ export function AporteCalculator({ assets, meta }: { assets: CascadeAsset[]; met
             <CardHeader>
               <CardTitle>Ordens de compra</CardTitle>
               <CardDescription>
-                Na ordem do ranking. Os preços são de referência: confira na corretora.
+                <span className="max-md:hidden">Na ordem do ranking. </span>Os preços são de
+                referência: confira na corretora.
               </CardDescription>
               {limitedAny ? (
                 <p className="mt-2 flex items-start gap-3 text-sm">
