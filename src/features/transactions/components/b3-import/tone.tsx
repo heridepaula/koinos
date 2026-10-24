@@ -13,17 +13,17 @@ const TONES: Record<Tone, { icon: LucideIcon; text: string; surface: string }> =
   ok: {
     icon: CircleCheckIcon,
     text: "text-gain",
-    surface: "border-gain/40 bg-gain/10 text-gain",
+    surface: "border-gain/30 bg-gain/4 text-gain dark:bg-gain/8",
   },
   warn: {
     icon: CircleAlertIcon,
     text: "text-warn",
-    surface: "border-warn/40 bg-warn/10 text-warn",
+    surface: "border-warn/30 bg-warn/4 text-warn dark:bg-warn/8",
   },
   bad: {
     icon: CircleXIcon,
     text: "text-loss",
-    surface: "border-loss/40 bg-loss/10 text-loss",
+    surface: "border-loss/30 bg-loss/4 text-loss dark:bg-loss/8",
   },
 };
 

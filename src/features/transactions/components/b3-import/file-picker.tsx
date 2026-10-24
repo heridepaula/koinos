@@ -33,8 +33,10 @@ export function FilePicker({
     <div className="grid min-w-0 gap-3">
       <label
         className={cn(
-          "flex cursor-pointer flex-col items-center gap-2 rounded-2xl border-2 border-dashed px-6 py-8 text-center transition-colors",
-          dragging ? "border-primary bg-primary/5" : "border-border hover:border-primary/60",
+          "flex cursor-pointer flex-col items-center gap-3 rounded-2xl border-2 border-dashed px-6 py-10 text-center transition-[border-color,background-color,scale] duration-420 ease-snappy motion-reduce:transition-none",
+          dragging
+            ? "border-info bg-info/5 motion-safe:scale-[1.01]"
+            : "border-border hover:border-info/50 hover:bg-info/3",
         )}
         onDragOver={(event) => {
           event.preventDefault();
@@ -47,9 +49,20 @@ export function FilePicker({
           add(event.dataTransfer.files);
         }}
       >
-        <UploadIcon className="size-6 text-primary" aria-hidden="true" />
-        <span className="font-medium">Arraste os arquivos .xlsx aqui ou clique para escolher</span>
-        <span className="max-w-xl text-sm text-muted-foreground">
+        {/* O azulejo da Atualização B3 no menu: a área de soltar é a ação desta página. */}
+        <span className="tile size-12 rounded-lg [--tile:var(--tile-indigo)]">
+          <UploadIcon className="size-6" aria-hidden="true" />
+        </span>
+        {/* No toque não há arrastar: o convite muda pelo tipo de ponteiro. */}
+        <span className="text-headline">
+          <span className="pointer-coarse:hidden">
+            Arraste os arquivos .xlsx aqui ou clique para escolher
+          </span>
+          <span className="hidden pointer-coarse:inline">
+            Toque para escolher os arquivos .xlsx
+          </span>
+        </span>
+        <span className="max-w-xl text-footnote text-muted-foreground">
           Os três extratos da Área do Investidor da B3: Negociação, Movimentação e Eventos.
         </span>
         <input
@@ -82,7 +95,7 @@ export function FilePicker({
                 type="button"
                 className="shrink-0"
                 variant="ghost"
-                size="icon-xs"
+                size="icon-sm"
                 aria-label={`Tirar ${file.name}`}
                 onClick={() => onChange(files.filter((item) => item !== file))}
               >

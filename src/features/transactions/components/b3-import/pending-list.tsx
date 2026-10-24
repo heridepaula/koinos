@@ -22,14 +22,32 @@ const PRICE_ORIGIN: Record<string, string> = {
 export const isOpen = (item: Pending) =>
   item.type === "CONVERSAO" ? item.source === null : item.price === null;
 
-function question(item: Pending, priorDate: Date): string {
+/** A pergunta de cada pendência: o fato com o ticker em destaque e a pergunta em texto secundário. */
+function Question({ item, priorDate }: { item: Pending; priorDate: Date }) {
+  const ticker = <strong className="font-semibold">{item.ticker}</strong>;
+  const quantity = formatQuantity(item.quantity);
   if (item.type === "PRECO_SUBSCRICAO") {
-    return `Subscrição de ${item.ticker}: ${formatQuantity(item.quantity)} cotas em ${formatTradeDate(item.date)}. Qual foi o preço por cota?`;
+    return (
+      <>
+        Subscrição de {ticker}: {quantity} cotas em {formatTradeDate(item.date)}.{" "}
+        <span className="text-muted-foreground">Qual foi o preço por cota?</span>
+      </>
+    );
   }
   if (item.type === "POSICAO_ANTERIOR") {
-    return `${item.ticker} já tinha ${formatQuantity(item.quantity)} cotas antes do extrato (em ${formatTradeDate(priorDate)}). Qual era o preço médio?`;
+    return (
+      <>
+        {ticker} já tinha {quantity} cotas antes do extrato (em {formatTradeDate(priorDate)}).{" "}
+        <span className="text-muted-foreground">Qual era o preço médio?</span>
+      </>
+    );
   }
-  return `${item.ticker} recebeu ${formatQuantity(item.quantity)} cotas em ${formatTradeDate(item.date)} sem compra. Vieram de qual FII?`;
+  return (
+    <>
+      {ticker} recebeu {quantity} cotas em {formatTradeDate(item.date)} sem compra.{" "}
+      <span className="text-muted-foreground">Vieram de qual FII?</span>
+    </>
+  );
 }
 
 /** Pendências da prévia: o que a B3 não informa e só o usuário sabe. */
@@ -63,9 +81,11 @@ export function PendingList({
         return (
           <li
             key={item.id}
-            className="grid gap-2 border-b border-border pb-4 last:border-0 last:pb-0"
+            className="grid gap-3 border-b border-border pb-4 last:border-0 last:pb-0"
           >
-            <p className="text-sm">{question(item, preview.priorDate)}</p>
+            <p className="text-sm">
+              <Question item={item} priorDate={preview.priorDate} />
+            </p>
             <div className="flex flex-wrap items-center gap-3">
               {item.type === "CONVERSAO" ? (
                 <NativeSelect
@@ -93,13 +113,13 @@ export function PendingList({
                 </NativeSelect>
               ) : (
                 <div className="relative">
-                  <span className="pointer-events-none absolute top-1/2 left-2.5 -translate-y-1/2 text-sm text-muted-foreground">
+                  <span className="pointer-events-none absolute top-1/2 left-3 -translate-y-1/2 text-sm text-muted-foreground dark:text-foreground/70">
                     R$
                   </span>
                   <Input
                     aria-label={`Preço de ${item.ticker}`}
                     inputMode="decimal"
-                    className="w-36 pl-8 tabular-nums"
+                    className="w-36 pl-9 tabular-nums"
                     disabled={out}
                     placeholder="0,00"
                     value={
@@ -121,8 +141,13 @@ export function PendingList({
                   {formatBRL(item.price ?? 0)}
                 </Badge>
               ) : null}
-              <label className="flex items-center gap-2 text-sm text-muted-foreground">
-                <input type="checkbox" checked={out} onChange={() => toggleExclude(item.ticker)} />
+              <label className="flex cursor-pointer items-center gap-2 text-sm text-muted-foreground">
+                <input
+                  type="checkbox"
+                  className="size-4 cursor-pointer accent-(--primary)"
+                  checked={out}
+                  onChange={() => toggleExclude(item.ticker)}
+                />
                 Deixar {item.ticker} de fora
               </label>
             </div>

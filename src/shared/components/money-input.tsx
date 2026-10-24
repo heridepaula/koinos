@@ -88,7 +88,7 @@ export function MoneyInput({
     <div className="relative">
       <span
         className={cn(
-          "pointer-events-none absolute top-1/2 -translate-y-1/2 text-muted-foreground",
+          "pointer-events-none absolute top-1/2 -translate-y-1/2 text-muted-foreground dark:text-foreground/70",
           size === "lg" ? "left-5 text-headline font-normal" : "left-3 text-sm",
         )}
       >
