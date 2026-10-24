@@ -48,3 +48,49 @@ export function Delta({
     </span>
   );
 }
+
+/**
+ * Variação em cápsula tingida (verde, vermelha ou neutra), como os selos do app Bolsa: seta, valor
+ * e/ou %, e um sufixo opcional ("hoje"). O texto fica na cor de ganho ou perda, com 4,5:1.
+ */
+export function DeltaChip({
+  value,
+  pct,
+  suffix,
+  showIcon = true,
+  className,
+}: {
+  value?: number | null;
+  pct?: number | null;
+  suffix?: string;
+  /** Sem a seta quando o valor ao lado já tem a sua (a cor e o sinal continuam). */
+  showIcon?: boolean;
+  className?: string;
+}) {
+  const amount =
+    value === undefined || value === null ? null : Math.abs(value) < ZERO_BELOW ? 0 : value;
+  const reference = amount ?? pct ?? 0;
+  const Icon = reference > 0 ? ArrowUpRightIcon : reference < 0 ? ArrowDownRightIcon : MinusIcon;
+  const parts = [
+    amount === null ? null : `${amount > 0 ? "+" : ""}${formatBRL(amount)}`,
+    pct === undefined || pct === null ? null : formatSignedPercent(pct),
+  ].filter(Boolean);
+  return (
+    <span
+      className={cn(
+        "inline-flex h-7 w-fit items-center gap-1 rounded-full px-3 text-footnote font-semibold whitespace-nowrap tabular-nums",
+        // Tinta leve (6% no claro, 8% no escuro): com 10%, o texto caía para 4,2:1 no claro.
+        reference > 0
+          ? "bg-gain/6 text-gain dark:bg-gain/8"
+          : reference < 0
+            ? "bg-loss/6 text-loss dark:bg-loss/8"
+            : "bg-muted text-muted-foreground",
+        className,
+      )}
+    >
+      {showIcon ? <Icon className="size-3.5 shrink-0" aria-hidden="true" /> : null}
+      {parts.join(" · ")}
+      {suffix ? <span className="font-normal">{suffix}</span> : null}
+    </span>
+  );
+}

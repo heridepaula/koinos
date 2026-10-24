@@ -48,13 +48,13 @@ async function DashboardContent() {
   if (snapshot.positions.length === 0 && snapshot.closed.length === 0) return <EmptyPortfolio />;
 
   return (
-    <div className="grid gap-6">
+    <div className="grid gap-4 md:gap-6">
       <SummaryCards summary={snapshot.summary} />
       <Suspense fallback={<CardSkeleton />}>
         <PeriodSection />
       </Suspense>
       <AlertsPanel alerts={snapshot.alerts} />
-      <div className="grid gap-6 xl:grid-cols-2">
+      <div className="grid gap-4 md:gap-6 xl:grid-cols-2">
         <Suspense fallback={<CardSkeleton />}>
           <EvolutionSection />
         </Suspense>

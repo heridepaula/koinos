@@ -12,6 +12,7 @@ export const cn = createCn({
         {
           text: [
             "display",
+            "large-title",
             "title-1",
             "title-2",
             "title-3",

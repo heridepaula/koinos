@@ -15,19 +15,20 @@ export function CardSkeleton({ height = "h-72" }: { height?: string }) {
   );
 }
 
+/** Esqueleto do dashboard com a mesma geometria do conteúdo: patrimônio, três cards e um gráfico. */
 export function DashboardSkeleton() {
   return (
-    <div className="grid gap-6" aria-busy="true" aria-label="Carregando dados da carteira">
-      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-        <Skeleton className="h-36 md:col-span-2" />
-        <Skeleton className="h-36" />
-        <Skeleton className="h-36" />
+    <div className="grid gap-4 md:gap-6" aria-busy="true" aria-label="Carregando dados da carteira">
+      <Skeleton className="h-40 rounded-2xl" />
+      <div className="grid gap-4 md:gap-6 xl:grid-cols-3">
+        <Skeleton className="h-56 rounded-2xl" />
+        <Skeleton className="h-56 rounded-2xl" />
+        <Skeleton className="h-56 rounded-2xl" />
       </div>
-      <div className="grid gap-6 xl:grid-cols-2">
+      <div className="grid gap-4 md:gap-6 xl:grid-cols-2">
         <CardSkeleton />
         <CardSkeleton />
       </div>
-      <CardSkeleton height="h-96" />
     </div>
   );
 }

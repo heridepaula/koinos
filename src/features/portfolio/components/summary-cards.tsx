@@ -1,113 +1,103 @@
-import { Delta } from "@/shared/components/delta";
+import { HandCoinsIcon, PercentIcon, TrendingUpIcon } from "lucide-react";
+import { Delta, DeltaChip } from "@/shared/components/delta";
+import { MetricCard, Stat, StatList, StatRow } from "@/shared/components/metric";
 import { formatBRL, formatPercent } from "@/shared/lib/format";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/shared/ui/card";
+import { Card, CardContent } from "@/shared/ui/card";
 import type { PortfolioSummary } from "../domain/types";
 import { ResultBreakdown } from "./result-breakdown";
 
+/**
+ * Topo do dashboard: o patrimônio (o número principal, em titânio escovado) e três cards de
+ * número com a mesma estrutura: azulejo e rótulo, valor em Title 1 e a lista de detalhes no pé.
+ */
 export function SummaryCards({ summary }: { summary: PortfolioSummary }) {
   const { year } = summary.dividendPace;
   return (
-    // Os quatro blocos se arrumam pela largura da área do conteúdo (container query), com a sidebar
-    // aberta ou recolhida, e as linhas ficam sempre completas. Cada card precisa de uns 250 px: é o
-    // que o L/P exige para o sinal não se separar do número. Todos os passos são @min-[...] em px:
-    // o Tailwind emite os tamanhos de container em px antes dos nomeados em rem (@md, @3xl...), e
-    // misturar os dois faria os nomeados vencerem. As regras por largura de tela (md:, xl:) saem
-    // antes das de container, por isso não competem com estas.
-    //   até 519 px  1 coluna
-    //   520 px      2 colunas: patrimônio | L/P + proventos | rendimento
-    //   784 px      3 colunas: patrimônio inteiro | L/P + proventos + rendimento
-    //   1320 px     5 colunas: patrimônio (2) + L/P + proventos + rendimento
-    <div className="@container">
-      <div className="grid gap-4 @min-[520px]:grid-cols-2 @min-[784px]:grid-cols-3 @min-[1320px]:grid-cols-5">
-        {/* Número principal do dashboard: o patrimônio, em titânio escovado. */}
-        <Card className="metal-ring card-lift brushed @min-[520px]:col-span-2 @min-[784px]:col-span-3 @min-[1320px]:col-span-2">
-          <CardHeader>
-            <CardDescription>Patrimônio</CardDescription>
-            <CardTitle className="text-4xl font-semibold tracking-tight tabular-nums md:text-5xl">
-              {formatBRL(summary.patrimony)}
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="flex flex-wrap gap-x-6 gap-y-1 text-sm text-muted-foreground">
-            <span>
-              Hoje <Delta value={summary.dayChange} pct={summary.dayChangePct} />
-            </span>
-            <span>
-              Investido{" "}
-              <span className="text-foreground tabular-nums">{formatBRL(summary.invested)}</span>
-            </span>
-            <span>{summary.positionsCount} ativos</span>
-          </CardContent>
-        </Card>
-
-        <Card className="card-lift">
-          <CardHeader>
-            <CardDescription>Lucro/Prejuízo (posições abertas)</CardDescription>
-            <CardTitle className="text-2xl font-semibold">
-              <Delta value={summary.pnl} />
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="grid gap-1 text-sm text-muted-foreground">
-            <span>
-              Rentabilidade <Delta pct={summary.pnlPct} />
-            </span>
-            <span>
-              Realizado (vendas) <Delta value={summary.realizedPnL} />
-            </span>
-          </CardContent>
-        </Card>
-
-        <Card className="card-lift">
-          <CardHeader>
-            <CardDescription>Proventos recebidos</CardDescription>
-            <CardTitle className="text-2xl font-semibold tabular-nums">
-              {formatBRL(summary.dividendsReceived)}
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="grid gap-1 text-sm text-muted-foreground">
-            <span>
-              Média por mês (12 meses){" "}
-              <span className="text-foreground tabular-nums">
-                {formatBRL(summary.dividendPace.monthlyAverage12m)}
-              </span>
-            </span>
-            <span>
-              Em {year}{" "}
-              <span className="text-foreground tabular-nums">
-                {formatBRL(summary.dividendPace.thisYear)}
-              </span>
-              {" · "}em {year - 1}{" "}
-              <span className="text-foreground tabular-nums">
-                {formatBRL(summary.dividendPace.lastYear)}
-              </span>
-            </span>
-            <span>
-              L/P c/ proventos <Delta value={summary.pnlWithDividends} />
-            </span>
-            <span>
-              <ResultBreakdown
-                pnl={summary.pnl}
-                dividends={summary.dividendsReceived}
-                withDividends={summary.pnlWithDividends}
-                realized={summary.realizedPnL}
-                total={summary.totalResult}
+    <div className="grid gap-4 md:gap-6">
+      <PatrimonyCard summary={summary} />
+      {/* Três colunas só quando cada card tem uns 300 px: o valor de 28 px não pode quebrar. */}
+      <div className="@container">
+        <div className="grid gap-4 md:gap-6 @min-[960px]:grid-cols-3">
+          <MetricCard
+            icon={TrendingUpIcon}
+            tile="[--tile:var(--tile-blue)]"
+            label="Lucro/Prejuízo das posições abertas"
+            value={<Delta value={summary.pnl} />}
+          >
+            <StatList>
+              <StatRow label="Rentabilidade" value={<Delta pct={summary.pnlPct} />} />
+              <StatRow label="Realizado nas vendas" value={<Delta value={summary.realizedPnL} />} />
+            </StatList>
+          </MetricCard>
+          <MetricCard
+            icon={HandCoinsIcon}
+            tile="[--tile:var(--tile-teal)]"
+            label="Proventos recebidos"
+            value={formatBRL(summary.dividendsReceived)}
+          >
+            <StatList>
+              <StatRow
+                label="Média por mês (12 meses)"
+                value={formatBRL(summary.dividendPace.monthlyAverage12m)}
               />
-            </span>
-          </CardContent>
-        </Card>
-
-        <Card className="card-lift @min-[520px]:col-span-2 @min-[784px]:col-span-1">
-          <CardHeader>
-            <CardDescription>Dividend yield 12 meses</CardDescription>
-            <CardTitle className="text-2xl font-semibold tabular-nums">
-              {summary.dy12m === null ? "—" : formatPercent(summary.dy12m)}
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="text-sm text-muted-foreground">
-            Renda mensal estimada{" "}
-            <span className="text-foreground tabular-nums">{formatBRL(summary.monthlyIncome)}</span>
-          </CardContent>
-        </Card>
+              <StatRow label={`Em ${year}`} value={formatBRL(summary.dividendPace.thisYear)} />
+              <StatRow label={`Em ${year - 1}`} value={formatBRL(summary.dividendPace.lastYear)} />
+              <StatRow
+                label="L/P com proventos"
+                value={<Delta value={summary.pnlWithDividends} />}
+              />
+              <StatRow
+                label={
+                  <ResultBreakdown
+                    pnl={summary.pnl}
+                    dividends={summary.dividendsReceived}
+                    withDividends={summary.pnlWithDividends}
+                    realized={summary.realizedPnL}
+                    total={summary.totalResult}
+                  />
+                }
+                value={<Delta value={summary.totalResult} />}
+              />
+            </StatList>
+          </MetricCard>
+          <MetricCard
+            icon={PercentIcon}
+            tile="[--tile:var(--tile-indigo)]"
+            label="Dividend yield em 12 meses"
+            value={summary.dy12m === null ? "—" : formatPercent(summary.dy12m)}
+          >
+            <StatList>
+              <StatRow label="Renda mensal estimada" value={formatBRL(summary.monthlyIncome)} />
+            </StatList>
+          </MetricCard>
+        </div>
       </div>
     </div>
+  );
+}
+
+/**
+ * O patrimônio: rótulo, o número em Display (Large Title em cards estreitos) e a variação do dia
+ * numa cápsula tingida. À direita, o investido e o número de ativos, alinhados pela base.
+ */
+function PatrimonyCard({ summary }: { summary: PortfolioSummary }) {
+  return (
+    <Card className="metal-ring card-lift brushed">
+      <CardContent className="@container">
+        <div className="flex flex-wrap items-end justify-between gap-x-12 gap-y-6">
+          <div className="grid gap-2">
+            <p className="text-subheadline text-muted-foreground">Patrimônio</p>
+            <p className="text-large-title tabular-nums @min-[560px]:text-display">
+              {formatBRL(summary.patrimony)}
+            </p>
+            <DeltaChip value={summary.dayChange} pct={summary.dayChangePct} suffix="hoje" />
+          </div>
+          <dl className="grid grid-cols-2 gap-x-10 gap-y-4">
+            <Stat label="Investido" value={formatBRL(summary.invested)} />
+            <Stat label="Ativos" value={summary.positionsCount} />
+          </dl>
+        </div>
+      </CardContent>
+    </Card>
   );
 }

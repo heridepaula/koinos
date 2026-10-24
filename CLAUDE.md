@@ -215,6 +215,7 @@ Koinos is a single-owner FII (Brazilian REIT) portfolio dashboard that replaced 
   - spring easings `ease-snappy`, `ease-bouncy` and `ease-smooth` (`linear()` curves of SwiftUI springs);
   - spacing on the 4 px grid. Cards pad 20 px (24 from `md`), and table edges use `pl-(--card-spacing)`/`pr-(--card-spacing)` to line up with the card title;
   - buttons press with `press-spring` and grow to 44 px on touch screens (`pointer-coarse:`).
+  - number cards use `MetricCard` with `StatList`/`StatRow` (`shared/components/metric.tsx`): tile and label, the value in Title 1 at a fixed height, then the detail rows, so rows line up from card to card. A variation in a capsule is `DeltaChip`; its tint stays at 6% (light) and 8% (dark), because 10% took the text under 4.5:1.
 - **`backdrop-filter`:** write only the unprefixed property. If `-webkit-backdrop-filter` is also written, Lightning CSS keeps only the prefixed one, which Chrome and Edge ignore.
 - **Contrast:** at `size="sm"`, the `btn-gloss` label sits under the top sheen and falls to about 3.3:1 in the light theme.
   - A selected segment uses solid `bg-(--badge)` with white text instead.

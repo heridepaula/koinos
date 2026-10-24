@@ -69,6 +69,10 @@
   --text-display--line-height: 3.25rem;
   --text-display--letter-spacing: -0.025em;
   --text-display--font-weight: 700;
+  --text-large-title: 2.125rem;
+  --text-large-title--line-height: 2.5rem;
+  --text-large-title--letter-spacing: -0.022em;
+  --text-large-title--font-weight: 700;
   --text-title-1: 1.75rem;
   --text-title-1--line-height: 2.125rem;
   --text-title-1--letter-spacing: -0.02em;
@@ -625,9 +629,12 @@
 }
 
 @layer components {
-  /* Card com tabela: fundo mais denso, para a coluna fixa (bg-card) não destoar. */
+  /*
+   * Card com tabela: fundo opaco, da mesma cor da coluna fixa (bg-card). Com o fundo translúcido,
+   * a coluna fixa aparecia como uma faixa de outro tom.
+   */
   [data-slot="card"]:has(table) {
-    --card-fill: var(--card-fill-dense);
+    --card-fill: var(--card);
   }
   /* Texto secundário da sidebar mais escuro: o vidro forte deixa passar a cor do fundo. */
   [data-slot="sidebar-inner"] {

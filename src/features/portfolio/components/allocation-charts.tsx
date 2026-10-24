@@ -105,7 +105,7 @@ export function AllocationCharts({
   byAsset: AllocationSlice[];
 }) {
   return (
-    <div className="grid gap-6 xl:grid-cols-2">
+    <div className="grid gap-4 md:gap-6 xl:grid-cols-2">
       <Donut
         title="Por categoria"
         description="Defina as categorias na Carteira Alvo"
