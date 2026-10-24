@@ -1,15 +1,14 @@
 "use client";
 
+import dynamic from "next/dynamic";
 import { useState } from "react";
-import { Pie, PieChart } from "recharts";
+import { ChartPlaceholder } from "@/shared/components/chart-placeholder";
 import { formatBRL, formatPercent } from "@/shared/lib/format";
 import { cn } from "@/shared/lib/utils";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/shared/ui/card";
-import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/shared/ui/chart";
 import { SegmentedControl } from "@/shared/ui/segmented-control";
 import { OTHERS_KEY, UNCATEGORIZED_KEY } from "../domain/allocation";
 import type { AllocationSlice } from "../domain/types";
-import { ChartTooltipRow } from "./chart-tooltip-row";
 
 // A cor segue a entidade: cada categoria tem sempre o mesmo slot da paleta.
 const CATEGORY_SLOT: Record<string, number> = {
@@ -23,6 +22,14 @@ const CATEGORY_SLOT: Record<string, number> = {
   OUTRO: 8,
 };
 const NEUTRAL = "var(--muted-foreground)";
+
+const DONUT_SIZE = "mx-auto aspect-square w-full max-w-48";
+
+// O recharts fica fora do bundle inicial: chega depois da hidratação, no lugar da caixa vazia.
+const AllocationDonut = dynamic(
+  () => import("./allocation-donut").then((mod) => mod.AllocationDonut),
+  { ssr: false, loading: () => <ChartPlaceholder className={DONUT_SIZE} /> },
+);
 
 type Mode = "category" | "asset";
 
@@ -71,34 +78,7 @@ function Donut({
         />
       </CardHeader>
       <CardContent className="grid items-center gap-4 sm:grid-cols-[minmax(0,12rem)_1fr]">
-        <ChartContainer config={{}} className="mx-auto aspect-square w-full max-w-48">
-          <PieChart>
-            <ChartTooltip
-              content={
-                <ChartTooltipContent
-                  hideLabel
-                  formatter={(value, name, item) => (
-                    <ChartTooltipRow
-                      color={String(item.payload?.fill ?? NEUTRAL)}
-                      label={name}
-                      value={`${formatBRL(Number(value))} · ${formatPercent(Number(item.payload?.share ?? 0), 1)}`}
-                    />
-                  )}
-                />
-              }
-            />
-            {/* O traço na cor do card é o vão de 2px entre as fatias. */}
-            <Pie
-              data={data}
-              dataKey="value"
-              nameKey="label"
-              innerRadius="58%"
-              outerRadius="100%"
-              stroke="var(--card)"
-              strokeWidth={2}
-            />
-          </PieChart>
-        </ChartContainer>
+        <AllocationDonut data={data} className={DONUT_SIZE} />
         {/* Legenda com valores visíveis: a identidade nunca depende só da cor. */}
         <ul className="grid gap-1.5 text-sm">
           {data.map((slice) => (

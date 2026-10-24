@@ -1,39 +1,20 @@
 "use client";
 
-import {
-  ArrowDownIcon,
-  ArrowUpIcon,
-  ChevronLeftIcon,
-  ChevronRightIcon,
-  MinusIcon,
-} from "lucide-react";
+import { ChevronLeftIcon, ChevronRightIcon } from "lucide-react";
+import dynamic from "next/dynamic";
 import { parseAsString, parseAsStringLiteral, useQueryState } from "nuqs";
 import { useState, type ReactNode } from "react";
-import { Bar, BarChart, CartesianGrid, XAxis, YAxis } from "recharts";
+import { ChartPlaceholder } from "@/shared/components/chart-placeholder";
 import { AssetLabel } from "@/shared/components/asset-label";
 import { InsetGroup, InsetValueRow } from "@/shared/components/inset-list";
-import {
-  formatBRL,
-  formatCompactBRL,
-  formatCompactNumber,
-  formatMonth,
-  formatSignedPercent,
-  formatTradeDate,
-} from "@/shared/lib/format";
+import { formatBRL, formatCompactNumber, formatMonth, formatTradeDate } from "@/shared/lib/format";
 import { cn } from "@/shared/lib/utils";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/shared/ui/card";
-import {
-  ChartContainer,
-  ChartTooltip,
-  ChartTooltipContent,
-  type ChartConfig,
-} from "@/shared/ui/chart";
 import { Button } from "@/shared/ui/button";
 import { Drawer, DrawerBody, DrawerContent, DrawerHeader, DrawerTitle } from "@/shared/ui/drawer";
 import { SegmentedControl } from "@/shared/ui/segmented-control";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/shared/ui/table";
 import type { DividendsView } from "../../domain/types";
-import { ChartTooltipRow } from "../chart-tooltip-row";
 
 const GROUPINGS = ["mes", "ano", "papel"] as const;
 type Grouping = (typeof GROUPINGS)[number];
@@ -43,8 +24,13 @@ const GROUPING_OPTIONS = [
   { value: "papel", label: "Papel" },
 ] as const satisfies readonly { value: Grouping; label: string }[];
 
-// Uma série só: o título nomeia o gráfico, sem legenda. Cor validada contra o card nos dois temas.
-const config = { amount: { label: "Proventos", color: "var(--chart-2)" } } satisfies ChartConfig;
+const PLOT_SIZE = "aspect-auto h-52 w-full md:h-64";
+
+// O recharts fica fora do bundle inicial: chega depois da hidratação, no lugar da caixa vazia.
+const DividendsPlot = dynamic(() => import("./dividends-plot").then((mod) => mod.DividendsPlot), {
+  ssr: false,
+  loading: () => <ChartPlaceholder className={PLOT_SIZE} />,
+});
 
 /** Só o que o histórico usa: o "a receber" e o mês atual ficam fora do componente do cliente. */
 type HistoryData = Pick<DividendsView, "since" | "chart" | "byMonth" | "byYear" | "byTicker">;
@@ -86,80 +72,10 @@ export function DividendsHistory(view: HistoryData) {
 }
 
 function ByMonth({ view }: { view: HistoryData }) {
-  // Os meses do gráfico são seguidos: o anterior de cada barra é a barra à esquerda.
-  const previousAmount = new Map(
-    view.chart.slice(1).map((point, index) => [point.month, view.chart[index].amount]),
-  );
   return (
     <div className="grid gap-6">
-      <ChartContainer config={config} className="aspect-auto h-52 w-full md:h-64">
-        <BarChart data={view.chart} margin={{ left: 4, right: 12, top: 8 }}>
-          <CartesianGrid vertical={false} />
-          <XAxis
-            dataKey="month"
-            tickFormatter={formatMonth}
-            tickLine={false}
-            axisLine={false}
-            minTickGap={16}
-          />
-          <YAxis
-            tickFormatter={(value: number) => formatCompactBRL(value)}
-            tickLine={false}
-            axisLine={false}
-            width={72}
-          />
-          <ChartTooltip
-            cursor={false}
-            content={
-              <ChartTooltipContent
-                labelFormatter={(month) => formatMonth(String(month))}
-                formatter={(value, _name, item) => (
-                  <div className="grid w-full gap-1">
-                    <ChartTooltipRow
-                      color="var(--color-amount)"
-                      label="Proventos"
-                      value={formatBRL(Number(value))}
-                    />
-                    <MonthDelta
-                      amount={Number(value)}
-                      previous={previousAmount.get(String(item.payload?.month))}
-                    />
-                  </div>
-                )}
-              />
-            }
-          />
-          <Bar dataKey="amount" fill="var(--color-amount)" radius={[4, 4, 0, 0]} maxBarSize={24} />
-        </BarChart>
-      </ChartContainer>
+      <DividendsPlot chart={view.chart} className={PLOT_SIZE} />
       <MonthMatrix view={view} />
-    </div>
-  );
-}
-
-/** Diferença para o mês anterior no tooltip: seta e valor em verde (subiu) ou vermelho (caiu). */
-function MonthDelta({ amount, previous }: { amount: number; previous: number | undefined }) {
-  if (previous === undefined) return null;
-  const delta = amount - previous;
-  if (Math.abs(delta) < 0.005) {
-    return (
-      <div className="flex items-center gap-1 text-muted-foreground">
-        <MinusIcon className="size-3.5" aria-hidden />
-        Igual ao mês anterior
-      </div>
-    );
-  }
-  const up = delta > 0;
-  const Icon = up ? ArrowUpIcon : ArrowDownIcon;
-  return (
-    <div className={cn("flex items-center gap-1 tabular-nums", up ? "text-gain" : "text-loss")}>
-      <Icon className="size-3.5" aria-hidden />
-      <span>
-        {up ? "+" : "−"}
-        {formatBRL(Math.abs(delta))}
-        {previous > 0 ? ` (${formatSignedPercent(delta / previous, 1)})` : null}
-      </span>
-      <span className="text-muted-foreground">vs. mês anterior</span>
     </div>
   );
 }
