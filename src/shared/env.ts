@@ -2,6 +2,16 @@ import "server-only";
 import { createEnv } from "@t3-oss/env-nextjs";
 import { z } from "zod";
 
+/** Cabeçalhos do OTLP no formato chave=valor, separados por vírgula (ex.: api-key=...). */
+const otlpHeaders = (name: string) =>
+  z
+    .string()
+    .regex(
+      /^[^=,\s]+=[^,]+(,[^=,\s]+=[^,]+)*$/,
+      `${name} deve ter o formato chave=valor (ex.: api-key=...)`,
+    )
+    .optional();
+
 // Variáveis de ambiente do servidor, validadas na inicialização.
 // Nada aqui chega ao navegador: não existe nenhuma variável NEXT_PUBLIC_.
 export const env = createEnv({
@@ -23,15 +33,11 @@ export const env = createEnv({
     BRAPI_MONTHLY_QUOTA: z.coerce.number().int().positive().default(15000),
     CRON_SECRET: z.string().min(16).optional(),
     // APM (OpenTelemetry → New Relic). O SDK lê estas variáveis direto do ambiente; aqui só o
-    // formato é conferido. Sem o endpoint, nenhum span sai do servidor.
+    // formato é conferido. Sem o endpoint, nenhum span nem log sai do servidor.
     OTEL_EXPORTER_OTLP_ENDPOINT: z.url().optional(),
-    OTEL_EXPORTER_OTLP_HEADERS: z
-      .string()
-      .regex(
-        /^[^=,\s]+=[^,]+(,[^=,\s]+=[^,]+)*$/,
-        "OTEL_EXPORTER_OTLP_HEADERS deve ter o formato chave=valor (ex.: api-key=...)",
-      )
-      .optional(),
+    OTEL_EXPORTER_OTLP_HEADERS: otlpHeaders("OTEL_EXPORTER_OTLP_HEADERS"),
+    // Chave própria para os logs; sem ela, os logs usam a de OTEL_EXPORTER_OTLP_HEADERS.
+    OTEL_EXPORTER_OTLP_LOGS_HEADERS: otlpHeaders("OTEL_EXPORTER_OTLP_LOGS_HEADERS"),
     OTEL_SERVICE_NAME: z.string().min(1).optional(),
   },
   client: {},
