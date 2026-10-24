@@ -30,7 +30,8 @@ export function MonthPicker({ month, months }: { month: string; months: readonly
   // 32 (52 e 44 no toque), concêntricos; o select fica sem borda, só o texto e o chevron.
   return (
     <div className="flex items-center gap-2" aria-busy={loading}>
-      <div className="flex h-10 w-fit items-center gap-1 rounded-full glass p-1 pointer-coarse:h-13">
+      {/* No iPhone, a cápsula ocupa a largura toda, com o mês no meio, como o seletor do Saúde. */}
+      <div className="flex h-10 w-fit items-center gap-1 rounded-full glass p-1 max-md:flex-1 max-md:justify-between pointer-coarse:h-13">
         <Button
           variant="ghost"
           size="icon-sm"

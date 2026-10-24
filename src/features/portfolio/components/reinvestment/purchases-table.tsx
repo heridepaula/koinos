@@ -14,7 +14,10 @@ import type { ReinvestmentView } from "../../domain/types";
 
 const KIND_LABELS = { NEGOCIO: "Negócio", SUBSCRICAO: "Subscrição" } as const;
 
-/** Compras em dinheiro do mês. As colunas de detalhe saem pela largura do card. */
+/**
+ * Compras em dinheiro do mês. As colunas de detalhe saem pela largura do card; abaixo de 480 px
+ * (o celular), uma lista de células: o FII e o total, e embaixo a data, cotas × preço e o tipo.
+ */
 export function PurchasesTable({ rows }: { rows: ReinvestmentView["purchases"] }) {
   const total = rows.reduce((sum, row) => sum + row.total, 0);
   return (
@@ -29,55 +32,81 @@ export function PurchasesTable({ rows }: { rows: ReinvestmentView["purchases"] }
             Nenhuma compra no mês.
           </p>
         ) : (
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead className="pl-(--card-spacing)">Data</TableHead>
-                <TableHead>FII</TableHead>
-                <TableHead className="hidden @min-[560px]:table-cell">Tipo</TableHead>
-                <TableHead className="hidden text-right @min-[480px]:table-cell">Qtd.</TableHead>
-                <TableHead className="hidden text-right @min-[640px]:table-cell">Preço</TableHead>
-                <TableHead className="pr-(--card-spacing) text-right">Total</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
+          <>
+            <ul className="divide-y divide-border @min-[480px]:hidden">
               {rows.map((row, index) => (
-                <TableRow key={`${row.ticker}-${row.date.toISOString()}-${index}`}>
-                  <TableCell className="pl-(--card-spacing) tabular-nums">
-                    {formatTradeDate(row.date)}
-                  </TableCell>
-                  <TableCell>
+                <li
+                  key={`${row.ticker}-${row.date.toISOString()}-${index}`}
+                  className="grid gap-1 px-(--card-spacing) py-3"
+                >
+                  <div className="flex items-center justify-between gap-3">
                     <AssetLabel ticker={row.ticker} name={row.name} logoUrl={row.logoUrl} />
-                  </TableCell>
-                  <TableCell className="hidden @min-[560px]:table-cell">
-                    {KIND_LABELS[row.kind]}
-                  </TableCell>
-                  <TableCell className="hidden text-right tabular-nums @min-[480px]:table-cell">
-                    {formatQuantity(row.quantity)}
-                  </TableCell>
-                  <TableCell className="hidden text-right tabular-nums @min-[640px]:table-cell">
+                    <span className="text-headline font-normal whitespace-nowrap tabular-nums">
+                      {formatBRL(row.total)}
+                    </span>
+                  </div>
+                  <p className="truncate text-footnote text-muted-foreground tabular-nums">
+                    {formatTradeDate(row.date)} · {formatQuantity(row.quantity)} ×{" "}
                     {formatBRL(row.unitPrice)}
+                    {row.kind === "SUBSCRICAO" ? " · subscrição" : ""}
+                  </p>
+                </li>
+              ))}
+              <li className="flex items-center justify-between gap-3 px-(--card-spacing) pt-3 font-semibold">
+                <span>Total</span>
+                <span className="tabular-nums">{formatBRL(total)}</span>
+              </li>
+            </ul>
+            <Table className="hidden @min-[480px]:table">
+              <TableHeader>
+                <TableRow>
+                  <TableHead className="pl-(--card-spacing)">Data</TableHead>
+                  <TableHead>FII</TableHead>
+                  <TableHead className="hidden @min-[560px]:table-cell">Tipo</TableHead>
+                  <TableHead className="hidden text-right @min-[480px]:table-cell">Qtd.</TableHead>
+                  <TableHead className="hidden text-right @min-[640px]:table-cell">Preço</TableHead>
+                  <TableHead className="pr-(--card-spacing) text-right">Total</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {rows.map((row, index) => (
+                  <TableRow key={`${row.ticker}-${row.date.toISOString()}-${index}`}>
+                    <TableCell className="pl-(--card-spacing) tabular-nums">
+                      {formatTradeDate(row.date)}
+                    </TableCell>
+                    <TableCell>
+                      <AssetLabel ticker={row.ticker} name={row.name} logoUrl={row.logoUrl} />
+                    </TableCell>
+                    <TableCell className="hidden @min-[560px]:table-cell">
+                      {KIND_LABELS[row.kind]}
+                    </TableCell>
+                    <TableCell className="hidden text-right tabular-nums @min-[480px]:table-cell">
+                      {formatQuantity(row.quantity)}
+                    </TableCell>
+                    <TableCell className="hidden text-right tabular-nums @min-[640px]:table-cell">
+                      {formatBRL(row.unitPrice)}
+                    </TableCell>
+                    <TableCell className="pr-(--card-spacing) text-right font-medium tabular-nums">
+                      {formatBRL(row.total)}
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+              <TableFooter>
+                <TableRow>
+                  <TableCell className="pl-(--card-spacing) font-medium" colSpan={2}>
+                    Total
                   </TableCell>
-                  <TableCell className="pr-(--card-spacing) text-right font-medium tabular-nums">
-                    {formatBRL(row.total)}
+                  <TableCell className="hidden @min-[560px]:table-cell" />
+                  <TableCell className="hidden @min-[480px]:table-cell" />
+                  <TableCell className="hidden @min-[640px]:table-cell" />
+                  <TableCell className="pr-(--card-spacing) text-right font-semibold tabular-nums">
+                    {formatBRL(total)}
                   </TableCell>
                 </TableRow>
-              ))}
-            </TableBody>
-            <TableFooter>
-              <TableRow>
-                <TableCell className="pl-(--card-spacing) font-medium" colSpan={2}>
-                  Total
-                </TableCell>
-                <TableCell className="hidden @min-[560px]:table-cell" />
-                <TableCell className="hidden @min-[480px]:table-cell" />
-                <TableCell className="hidden @min-[640px]:table-cell" />
-                <TableCell className="pr-(--card-spacing) text-right font-semibold tabular-nums">
-                  {formatBRL(total)}
-                </TableCell>
-              </TableRow>
-            </TableFooter>
-          </Table>
+              </TableFooter>
+            </Table>
+          </>
         )}
       </CardContent>
     </Card>

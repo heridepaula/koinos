@@ -15,7 +15,10 @@ import { setReinvestmentPercentAction } from "../../actions";
 import { DEFAULT_REINVESTMENT_PERCENT, roundPercent, splitAporte } from "../../domain/reinvestment";
 import type { ReinvestmentMonth } from "../../domain/types";
 
-/** Cards do mês: aporte, proventos, a % reinvestida (editável) e a divisão do aporte. */
+/**
+ * Cards do mês: aporte, proventos, a % reinvestida (editável) e a divisão do aporte. No card
+ * estreito (o celular), o aporte, a divisão e os proventos viram um card só, e a % fica no seu.
+ */
 export function ReinvestmentCards({ current }: { current: ReinvestmentMonth }) {
   const labelId = useId();
   const hintId = useId();
@@ -43,13 +46,54 @@ export function ReinvestmentCards({ current }: { current: ReinvestmentMonth }) {
   const dividendsShare = Math.round((split.dividendsShare ?? 0) * 1000) / 1000;
 
   return (
-    <div className="@container grid gap-4 md:gap-6">
-      <div className="grid gap-4 md:gap-6 @min-[720px]:grid-cols-3">
+    <div className="@container/reinv grid gap-4 md:gap-6">
+      <MetricCard
+        icon={WalletIcon}
+        tile="[--tile:var(--tile-blue)]"
+        label="Aporte no mês"
+        value={formatBRL(current.aporte)}
+        className="@min-[720px]/reinv:hidden"
+      >
+        <div className="grid gap-3">
+          {current.aporte > 0 ? (
+            <SplitBar fromDividends={split.fromDividends} fromPocket={split.fromPocket} />
+          ) : null}
+          <StatList>
+            <StatRow
+              label={
+                <span className="flex items-center gap-2">
+                  <span className="size-2.5 rounded-[2px] bg-(--chart-2)" aria-hidden="true" />
+                  Dos proventos · {formatPercent(dividendsShare, 0)}
+                </span>
+              }
+              value={formatBRL(split.fromDividends)}
+            />
+            <StatRow
+              label={
+                <span className="flex items-center gap-2">
+                  <span className="size-2.5 rounded-[2px] bg-(--chart-1)" aria-hidden="true" />
+                  Do bolso · {formatPercent(1 - dividendsShare, 0)}
+                </span>
+              }
+              value={formatBRL(split.fromPocket)}
+            />
+            <StatRow label="Proventos recebidos" value={formatBRL(current.dividends)} />
+            <StatRow label="Compras" value={formatQuantity(current.purchaseCount)} />
+          </StatList>
+          {split.unspent > 0.005 ? (
+            <p className="text-footnote text-muted-foreground">
+              {formatBRL(split.unspent)} dos proventos ficaram sem compra no mês.
+            </p>
+          ) : null}
+        </div>
+      </MetricCard>
+      <div className="grid gap-4 md:gap-6 @min-[720px]/reinv:grid-cols-3">
         <MetricCard
           icon={WalletIcon}
           tile="[--tile:var(--tile-blue)]"
           label="Aporte no mês"
           value={formatBRL(current.aporte)}
+          className="hidden @min-[720px]/reinv:flex"
         >
           <StatList>
             <StatRow label="Compras" value={formatQuantity(current.purchaseCount)} />
@@ -60,6 +104,7 @@ export function ReinvestmentCards({ current }: { current: ReinvestmentMonth }) {
           tile="[--tile:var(--tile-teal)]"
           label="Proventos recebidos no mês"
           value={formatBRL(current.dividends)}
+          className="hidden @min-[720px]/reinv:flex"
         >
           <StatList>
             <StatRow label="Origem" value="extrato da B3" />
@@ -115,7 +160,7 @@ export function ReinvestmentCards({ current }: { current: ReinvestmentMonth }) {
           </div>
         </MetricCard>
       </div>
-      <Card>
+      <Card className="hidden @min-[720px]/reinv:flex">
         <CardHeader>
           <CardTitle>De onde veio o aporte</CardTitle>
           <CardDescription>Proventos reinvestidos e dinheiro do bolso no mês.</CardDescription>
