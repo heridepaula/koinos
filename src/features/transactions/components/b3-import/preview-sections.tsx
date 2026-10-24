@@ -1,5 +1,4 @@
 import { formatBRL, formatQuantity, formatTradeDate } from "@/shared/lib/format";
-import { Badge } from "@/shared/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/shared/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/shared/ui/table";
 import type { DividendKind, TransactionKind } from "../../domain/types";
@@ -10,6 +9,7 @@ import type {
   StoredLedgerRow,
 } from "../../import/b3/types";
 import { isOpen } from "./pending-list";
+import { ToneBadge, ToneBanner, ToneIcon, ToneTitle, type Tone } from "./tone";
 
 const FILE_LABELS = {
   NEGOCIACAO: "Negociação",
@@ -33,11 +33,12 @@ const SOURCE_LABELS: Record<StoredLedgerRow["source"], string> = {
   PLANILHA: "da planilha",
   B3: "da B3",
 };
-const STATUS = {
-  OK: { label: "ok", variant: "secondary" },
-  PENDENTE: { label: "pendente", variant: "default" },
-  FORA: { label: "de fora", variant: "outline" },
-} as const;
+const STATUS: Record<B3ImportPreview["tickers"][number]["status"], { label: string; tone: Tone }> =
+  {
+    OK: { label: "ok", tone: "ok" },
+    PENDENTE: { label: "pendente", tone: "warn" },
+    FORA: { label: "de fora", tone: "bad" },
+  };
 // A primeira e a última célula de cada linha encostam na margem do card.
 const ROW_EDGES = "[&>td:first-child]:pl-6 [&>td:last-child]:pr-6";
 
@@ -74,21 +75,26 @@ export function PreviewSummary({ preview }: { preview: B3ImportPreview }) {
     outside.length +
     mismatches.length;
   const unconfirmed = preview.tickers.filter((item) => item.unconfirmed > 0);
-  const rows = [
+  const open = preview.pending.filter(isOpen).length;
+  const rows: { label: string; value: string; tone: Tone }[] = [
     {
       label: "Lançamentos",
+      tone: "ok",
       value: `${novos(entries.added.length)} · ${substituidos(entries.replaced.length)} · ${iguais(entries.unchanged)}`,
     },
     {
       label: "Proventos recebidos",
+      tone: "ok",
       value: `${novos(dividends.added.length)} · ${substituidos(dividends.replaced.length)} · ${iguais(dividends.unchanged)}`,
     },
     {
       label: "A receber",
+      tone: mismatches.length > 0 ? "warn" : "ok",
       value: `${itens(upcoming.items.length)} · ${formatBRL(upcoming.total)} · ${upcoming.changed ? "passa a valer em Proventos" : "igual ao que já está gravado"}`,
     },
     {
       label: "Inconsistências",
+      tone: inconsistencies === 0 ? "ok" : "warn",
       value: inconsistencies === 0 ? "nenhuma" : `${formatQuantity(inconsistencies)}: veja abaixo`,
     },
   ];
@@ -104,29 +110,85 @@ export function PreviewSummary({ preview }: { preview: B3ImportPreview }) {
         </CardDescription>
       </CardHeader>
       <CardContent className="grid gap-4 text-sm">
+        <SummaryBanner
+          nothingNew={preview.nothingNew}
+          open={open}
+          divergences={preview.check.unexplained.length}
+          warnings={outside.length + mismatches.length}
+        />
         <div className="flex flex-wrap gap-2">
           {preview.files.map((kind) => (
-            <Badge key={kind} variant="secondary">
-              {FILE_LABELS[kind]} ✓
-            </Badge>
+            <ToneBadge key={kind} tone="ok">
+              {FILE_LABELS[kind]}
+            </ToneBadge>
           ))}
         </div>
         <dl className="grid gap-2 sm:grid-cols-[auto_1fr] sm:gap-x-6">
           {rows.map((row) => (
             <div key={row.label} className="contents">
-              <dt className="font-medium">{row.label}</dt>
+              <dt className="flex items-center gap-2 font-medium">
+                <ToneIcon tone={row.tone} />
+                {row.label}
+              </dt>
               <dd className="text-muted-foreground tabular-nums">{row.value}</dd>
             </div>
           ))}
         </dl>
         {unconfirmed.length > 0 ? (
-          <p className="text-muted-foreground">
+          <p className="flex items-start gap-2 text-muted-foreground">
+            <ToneIcon tone="bad" className="mt-0.5" />
             Sem confirmação da B3 no período (saem):{" "}
             {unconfirmed.map((item) => `${item.ticker} (${item.unconfirmed})`).join(", ")}
           </p>
         ) : null}
       </CardContent>
     </Card>
+  );
+}
+
+const plural = (count: number, one: string, many: string) =>
+  `${formatQuantity(count)} ${count === 1 ? one : many}`;
+
+/** A situação da prévia num relance: o que impede, o que vale conferir ou que está tudo certo. */
+function SummaryBanner({
+  nothingNew,
+  open,
+  divergences,
+  warnings,
+}: {
+  nothingNew: boolean;
+  open: number;
+  divergences: number;
+  warnings: number;
+}) {
+  if (open > 0) {
+    return (
+      <ToneBanner tone="bad" title={`${plural(open, "pendência", "pendências")} sem resposta`}>
+        Responda abaixo (ou deixe o FII de fora) para liberar a importação.
+      </ToneBanner>
+    );
+  }
+  if (divergences > 0 || warnings > 0) {
+    const parts = [
+      divergences > 0
+        ? `${plural(divergences, "divergência", "divergências")} nos rendimentos`
+        : null,
+      warnings > 0 ? plural(warnings, "aviso", "avisos") : null,
+    ].filter(Boolean);
+    return (
+      <ToneBanner tone="warn" title={`Vale conferir: ${parts.join(" e ")}`}>
+        {divergences > 0
+          ? "Revise as divergências e confirme na conferência pelos rendimentos para importar."
+          : "Os avisos não bloqueiam a importação."}
+      </ToneBanner>
+    );
+  }
+  return nothingNew ? (
+    <ToneBanner tone="ok" title="Nada novo: a carteira já está igual aos extratos" />
+  ) : (
+    <ToneBanner tone="ok" title="Tudo certo nos extratos">
+      Nenhuma pendência, divergência ou aviso: dá para importar.
+    </ToneBanner>
   );
 }
 
@@ -198,7 +260,9 @@ export function NewRows({ preview }: { preview: B3ImportPreview }) {
       {entries.added.length > 0 ? (
         <Card>
           <CardHeader>
-            <CardTitle>Lançamentos novos</CardTitle>
+            <CardTitle>
+              <ToneTitle tone="ok">Lançamentos novos</ToneTitle>
+            </CardTitle>
             <CardDescription>Entram na carteira com a origem B3.</CardDescription>
           </CardHeader>
           <CardContent className="@container px-0">
@@ -220,7 +284,9 @@ export function NewRows({ preview }: { preview: B3ImportPreview }) {
       {dividends.added.length > 0 ? (
         <Card>
           <CardHeader>
-            <CardTitle>Proventos novos</CardTitle>
+            <CardTitle>
+              <ToneTitle tone="ok">Proventos novos</ToneTitle>
+            </CardTitle>
             <CardDescription>
               Rendimentos e reembolsos que a Movimentação mostra como pagos.
             </CardDescription>
@@ -250,14 +316,18 @@ export function Replacements({ preview }: { preview: B3ImportPreview }) {
   const { entries, dividends } = preview;
   if (entries.replaced.length === 0 && dividends.replaced.length === 0) return null;
   const gone = (columns: number) => (
-    <TableCell colSpan={columns} className="text-muted-foreground">
-      A B3 não mostra mais: sai.
+    <TableCell colSpan={columns} className="text-loss">
+      <span className="flex items-center gap-2">
+        <ToneIcon tone="bad" />A B3 não mostra mais: sai.
+      </span>
     </TableCell>
   );
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Substituídos pela B3</CardTitle>
+        <CardTitle>
+          <ToneTitle tone="warn">Substituídos pela B3</ToneTitle>
+        </CardTitle>
         <CardDescription>
           Onde o extrato diverge do que está gravado, vale o extrato: a linha gravada sai e a do
           extrato entra.
@@ -278,7 +348,7 @@ export function Replacements({ preview }: { preview: B3ImportPreview }) {
                   <EntryCells entry={before} />
                 </TableRow>,
                 <TableRow key={`${index}-extrato`} className={ROW_EDGES}>
-                  <TableCell className="font-medium">Extrato</TableCell>
+                  <TableCell className="font-medium text-gain">Extrato</TableCell>
                   {after ? <EntryCells entry={after} /> : gone(6)}
                 </TableRow>,
               ])}
@@ -297,7 +367,7 @@ export function Replacements({ preview }: { preview: B3ImportPreview }) {
                   <DividendCells item={before} />
                 </TableRow>,
                 <TableRow key={`${index}-extrato`} className={ROW_EDGES}>
-                  <TableCell className="font-medium">Extrato</TableCell>
+                  <TableCell className="font-medium text-gain">Extrato</TableCell>
                   {after ? <DividendCells item={after} /> : gone(5)}
                 </TableRow>,
               ])}
@@ -378,28 +448,36 @@ export function Inconsistencies({ preview }: { preview: B3ImportPreview }) {
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Inconsistências</CardTitle>
+        <CardTitle>
+          <ToneTitle tone="warn">Inconsistências</ToneTitle>
+        </CardTitle>
         <CardDescription>Não bloqueiam a atualização, mas valem uma conferência.</CardDescription>
       </CardHeader>
       <CardContent className="text-sm">
         <ul className="grid gap-2">
           {outside.map((item) => (
-            <li key={`fora-${item.ticker}`}>
-              <span className="font-medium">{item.ticker}</span> fica de fora:{" "}
-              {item.reasons.join(" ")}{" "}
-              <span className="text-muted-foreground">
-                O que ele já tem na carteira continua como está.
+            <li key={`fora-${item.ticker}`} className="flex items-start gap-2">
+              <ToneIcon tone="bad" className="mt-0.5" />
+              <span>
+                <span className="font-medium">{item.ticker}</span> fica de fora:{" "}
+                {item.reasons.join(" ")}{" "}
+                <span className="text-muted-foreground">
+                  O que ele já tem na carteira continua como está.
+                </span>
               </span>
             </li>
           ))}
           {mismatches.map((item, index) => (
-            <li key={`receber-${item.ticker}-${index}`}>
-              <span className="font-medium">{item.ticker}</span>:{" "}
-              {item.held < 1e-6
-                ? "a B3 lista um provento a receber, mas a carteira não tem cotas dele."
-                : `a B3 lista ${formatQuantity(item.quantity ?? 0)} cotas a receber, e a carteira tem ${formatQuantity(item.held)}.`}{" "}
-              <span className="text-muted-foreground">
-                Confira: pode ser compra ou venda depois da data com.
+            <li key={`receber-${item.ticker}-${index}`} className="flex items-start gap-2">
+              <ToneIcon tone="warn" className="mt-0.5" />
+              <span>
+                <span className="font-medium">{item.ticker}</span>:{" "}
+                {item.held < 1e-6
+                  ? "a B3 lista um provento a receber, mas a carteira não tem cotas dele."
+                  : `a B3 lista ${formatQuantity(item.quantity ?? 0)} cotas a receber, e a carteira tem ${formatQuantity(item.held)}.`}{" "}
+                <span className="text-muted-foreground">
+                  Confira: pode ser compra ou venda depois da data com.
+                </span>
               </span>
             </li>
           ))}
@@ -432,7 +510,7 @@ export function TickerTable({ preview }: { preview: B3ImportPreview }) {
               <TableRow key={item.ticker}>
                 <TableCell className="pl-6 font-medium">{item.ticker}</TableCell>
                 <TableCell>
-                  <Badge variant={STATUS[item.status].variant}>{STATUS[item.status].label}</Badge>
+                  <ToneBadge tone={STATUS[item.status].tone}>{STATUS[item.status].label}</ToneBadge>
                 </TableCell>
                 <TableCell className="text-right tabular-nums">
                   {formatQuantity(item.quantity)}
@@ -503,7 +581,11 @@ export function DividendCheck({
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Conferência pelos rendimentos</CardTitle>
+        <CardTitle>
+          <ToneTitle tone={check.unexplained.length > 0 && !accepted ? "warn" : "ok"}>
+            Conferência pelos rendimentos
+          </ToneTitle>
+        </CardTitle>
         <CardDescription>
           {formatQuantity(check.matched)} de {formatQuantity(check.months)} meses batem com as cotas
           em que a B3 pagou rendimento · {formatQuantity(check.explained.length)} diferenças
@@ -514,9 +596,12 @@ export function DividendCheck({
         <CardContent className="grid gap-2 text-sm">
           <ul className="grid gap-1">
             {check.unexplained.map((item) => (
-              <li key={`${item.ticker}-${item.month}`}>
-                {item.ticker} em {item.month}: a B3 pagou sobre {formatQuantity(item.official)}{" "}
-                cotas, e a importação chega a {formatQuantity(item.rebuilt)}.
+              <li key={`${item.ticker}-${item.month}`} className="flex items-start gap-2">
+                <ToneIcon tone="warn" className="mt-0.5" />
+                <span>
+                  {item.ticker} em {item.month}: a B3 pagou sobre {formatQuantity(item.official)}{" "}
+                  cotas, e a importação chega a {formatQuantity(item.rebuilt)}.
+                </span>
               </li>
             ))}
           </ul>

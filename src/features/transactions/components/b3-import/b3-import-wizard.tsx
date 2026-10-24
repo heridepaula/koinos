@@ -13,6 +13,7 @@ import type { B3ImportPreview, B3ImportResult } from "../../import/b3/types";
 import { emptyDraft, toAnswers, type AnswersDraft } from "./answers";
 import { FilePicker } from "./file-picker";
 import { isOpen, PendingList } from "./pending-list";
+import { ToneBanner, ToneTitle } from "./tone";
 import {
   DividendCheck,
   IgnoredAndWarnings,
@@ -147,13 +148,9 @@ export function B3ImportWizard() {
             ) : null}
           </div>
           {/* O servidor reconhece cada arquivo: é ele quem diz qual extrato falta ou sobra. */}
-          {problem ? (
-            <p role="alert" className="text-sm font-medium text-loss">
-              {problem}
-            </p>
-          ) : null}
+          {problem ? <ToneBanner role="alert" tone="bad" title={problem} /> : null}
           {preview?.nothingNew && !dirty ? (
-            <p className="text-sm font-medium">Nada novo: a carteira já está igual aos extratos.</p>
+            <ToneBanner tone="ok" title="Nada novo: a carteira já está igual aos extratos." />
           ) : null}
           {preview && dirty ? (
             <p className="text-sm text-muted-foreground">
@@ -161,9 +158,10 @@ export function B3ImportWizard() {
             </p>
           ) : null}
           {preview?.blocked && !dirty ? (
-            <p className="text-sm text-muted-foreground">
-              Responda as pendências (ou deixe o FII de fora) para liberar a importação.
-            </p>
+            <ToneBanner
+              tone="bad"
+              title="Responda as pendências (ou deixe o FII de fora) para liberar a importação."
+            />
           ) : null}
         </CardContent>
       </Card>
@@ -171,7 +169,9 @@ export function B3ImportWizard() {
       {done && !preview ? (
         <Card>
           <CardHeader>
-            <CardTitle>Atualização gravada</CardTitle>
+            <CardTitle>
+              <ToneTitle tone="ok">Atualização gravada</ToneTitle>
+            </CardTitle>
             <CardDescription>{updatedMessage(done)}</CardDescription>
           </CardHeader>
           <CardContent className="flex flex-wrap gap-2">
@@ -191,7 +191,11 @@ export function B3ImportWizard() {
           {preview.pending.length > 0 ? (
             <Card>
               <CardHeader>
-                <CardTitle>Pendências</CardTitle>
+                <CardTitle>
+                  <ToneTitle tone={preview.pending.some(isOpen) ? "bad" : "ok"}>
+                    Pendências
+                  </ToneTitle>
+                </CardTitle>
                 <CardDescription>
                   O que a B3 não informa e só você sabe. {preview.pending.filter(isOpen).length} sem
                   resposta; as demais já vêm preenchidas de um envio anterior e podem ser
