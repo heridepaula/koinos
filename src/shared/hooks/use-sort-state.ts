@@ -20,13 +20,20 @@ export function useSortState<const K extends string>(
     { history: "replace" },
   );
 
+  const defaultDirectionOf = (key: K) => (ascendingByDefault.includes(key) ? "asc" : "desc");
+
   function toggle(key: K) {
     if (key === ordem) {
       void setSort({ dir: dir === "asc" ? "desc" : "asc" });
     } else {
-      void setSort({ ordem: key, dir: ascendingByDefault.includes(key) ? "asc" : "desc" });
+      void setSort({ ordem: key, dir: defaultDirectionOf(key) });
     }
   }
 
-  return { sortKey: ordem as K, direction: dir as SortDirection, toggle };
+  /** Escolhe a coluna na direção padrão dela (o seletor de ordem das listas do celular). */
+  function choose(key: K) {
+    void setSort({ ordem: key, dir: defaultDirectionOf(key) });
+  }
+
+  return { sortKey: ordem as K, direction: dir as SortDirection, toggle, choose };
 }

@@ -16,13 +16,16 @@ import { Button } from "@/shared/ui/button";
 /** Curva da folha do iOS: sobe rápido e assenta devagar. */
 const SHEET_EASE = "ease-[cubic-bezier(0.32,0.72,0,1)]";
 
-function Drawer(props: DrawerPrimitive.Root.Props) {
+function Drawer<Payload = unknown>(props: DrawerPrimitive.Root.Props<Payload>) {
   return <DrawerPrimitive.Root data-slot="drawer" {...props} />;
 }
 
-function DrawerTrigger(props: DrawerPrimitive.Trigger.Props) {
+function DrawerTrigger<Payload = unknown>(props: DrawerPrimitive.Trigger.Props<Payload>) {
   return <DrawerPrimitive.Trigger data-slot="drawer-trigger" {...props} />;
 }
+
+/** Uma folha para muitos gatilhos (as linhas de uma lista): cada um leva a sua carga. */
+const createDrawerHandle = DrawerPrimitive.createHandle;
 
 function DrawerClose(props: DrawerPrimitive.Close.Props) {
   return <DrawerPrimitive.Close data-slot="drawer-close" {...props} />;
@@ -150,6 +153,7 @@ function DrawerDescription({ className, ...props }: DrawerPrimitive.Description.
 }
 
 export {
+  createDrawerHandle,
   Drawer,
   DrawerBody,
   DrawerClose,

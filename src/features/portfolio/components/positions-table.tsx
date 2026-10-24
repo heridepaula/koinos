@@ -8,11 +8,20 @@ import { SortableHead } from "@/shared/components/sortable-head";
 import { useSortState } from "@/shared/hooks/use-sort-state";
 import { formatBRL, formatPercent, formatQuantity } from "@/shared/lib/format";
 import { sortRows } from "@/shared/lib/sort";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/shared/ui/card";
+import {
+  Card,
+  CardAction,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/shared/ui/card";
+import { NativeSelect } from "@/shared/ui/native-select";
 import { Popover, PopoverContent, PopoverTitle, PopoverTrigger } from "@/shared/ui/popover";
 import { Table, TableBody, TableCell, TableHeader, TableRow } from "@/shared/ui/table";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/shared/ui/tooltip";
 import type { PositionRow } from "../domain/types";
+import { PositionsList } from "./positions-list";
 
 const SORT_KEYS = [
   "ativo",
@@ -139,8 +148,23 @@ function AdjustedCell({ row }: { row: PositionRow }) {
   );
 }
 
+/** As ordens que a lista do celular oferece no seletor (as colunas que mais importam). */
+const LIST_SORTS: { key: SortKey; label: string }[] = [
+  { key: "valor", label: "Valor" },
+  { key: "lp", label: "L/P" },
+  { key: "ajustado", label: "L/P + prov." },
+  { key: "peso", label: "% carteira" },
+  { key: "rank", label: "Rank" },
+  { key: "prioridade", label: "Prioridade" },
+  { key: "ativo", label: "Ativo" },
+];
+
+/**
+ * As posições: a tabela de 12 colunas a partir de 900 px de card; abaixo disso (o celular), a
+ * lista do app Bolsa, com a ordem num seletor nativo (no iPhone, a roleta do sistema).
+ */
 export function PositionsTable({ rows }: { rows: PositionRow[] }) {
-  const { sortKey, direction, toggle } = useSortState(SORT_KEYS, "valor", "desc", [
+  const { sortKey, direction, toggle, choose } = useSortState(SORT_KEYS, "valor", "desc", [
     "ativo",
     "rank",
     "prioridade",
@@ -148,17 +172,34 @@ export function PositionsTable({ rows }: { rows: PositionRow[] }) {
   const sorted = sortRows(rows, SORT_VALUE[sortKey], direction);
 
   return (
-    <Card>
+    <Card className="@container">
       <CardHeader>
         <CardTitle>Posições</CardTitle>
-        <CardDescription>
+        <CardDescription className="hidden @min-[900px]:block">
           Preço médio pelo método da Receita. Clique no título de uma coluna para ordenar.
         </CardDescription>
+        <CardAction className="@min-[900px]:hidden">
+          <NativeSelect
+            aria-label="Ordenar as posições por"
+            value={LIST_SORTS.some((sort) => sort.key === sortKey) ? sortKey : "valor"}
+            onChange={(event) => choose(event.target.value as SortKey)}
+            className="h-9 border-transparent bg-secondary dark:bg-secondary pointer-coarse:h-9"
+          >
+            {LIST_SORTS.map((sort) => (
+              <option key={sort.key} value={sort.key}>
+                {sort.label}
+              </option>
+            ))}
+          </NativeSelect>
+        </CardAction>
       </CardHeader>
       <CardContent className="px-0">
+        <div className="@min-[900px]:hidden">
+          <PositionsList rows={sorted} />
+        </div>
         {/* Colunas do meio mais coladas (px-1) só nesta tabela: com os proventos são 12 colunas e,
             com a sidebar aberta, em 1440 px elas só cabem sem rolagem com o espaçamento reduzido. */}
-        <Table className="[&_td:not(:first-child):not(:last-child)]:px-1 [&_th:not(:first-child):not(:last-child)]:px-1">
+        <Table className="hidden @min-[900px]:table [&_td:not(:first-child):not(:last-child)]:px-1 [&_th:not(:first-child):not(:last-child)]:px-1">
           <TableHeader>
             <TableRow>
               <SortableHead

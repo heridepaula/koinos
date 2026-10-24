@@ -29,7 +29,7 @@ export function ContributionsChart({ data }: { data: MonthlyContribution[] }) {
         </CardDescription>
       </CardHeader>
       <CardContent>
-        <ChartContainer config={config} className="aspect-auto h-72 w-full">
+        <ChartContainer config={config} className="aspect-auto h-56 w-full md:h-72">
           <BarChart data={data} margin={{ left: 4, right: 12, top: 8 }}>
             <CartesianGrid vertical={false} />
             <XAxis

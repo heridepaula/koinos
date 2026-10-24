@@ -31,7 +31,13 @@ export function Delta({
 
   if (stacked && money && percent) {
     return (
-      <span className={cn("inline-flex flex-col items-end tabular-nums", tone, className)}>
+      <span
+        className={cn(
+          "inline-flex flex-col items-end whitespace-nowrap tabular-nums",
+          tone,
+          className,
+        )}
+      >
         <span className="inline-flex items-center gap-1">
           <Icon className="size-[1em] shrink-0" aria-hidden="true" />
           {money}
@@ -41,7 +47,13 @@ export function Delta({
     );
   }
   return (
-    <span className={cn("inline-flex items-center gap-1 tabular-nums", tone, className)}>
+    <span
+      className={cn(
+        "inline-flex items-center gap-1 whitespace-nowrap tabular-nums",
+        tone,
+        className,
+      )}
+    >
       <Icon className="size-[1em] shrink-0" aria-hidden="true" />
       {money}
       {money && percent ? <span className="opacity-80">({percent})</span> : percent}

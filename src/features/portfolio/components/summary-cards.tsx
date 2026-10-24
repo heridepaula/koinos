@@ -1,6 +1,7 @@
 import { HandCoinsIcon, PercentIcon, TrendingUpIcon } from "lucide-react";
 import { Delta, DeltaChip } from "@/shared/components/delta";
 import { MetricCard, Stat, StatList, StatRow } from "@/shared/components/metric";
+import { SnapCarousel } from "@/shared/components/snap-carousel";
 import { formatBRL, formatPercent } from "@/shared/lib/format";
 import { Card, CardContent } from "@/shared/ui/card";
 import type { PortfolioSummary } from "../domain/types";
@@ -15,9 +16,10 @@ export function SummaryCards({ summary }: { summary: PortfolioSummary }) {
   return (
     <div className="grid gap-4 md:gap-6">
       <PatrimonyCard summary={summary} />
-      {/* Três colunas só quando cada card tem uns 300 px: o valor de 28 px não pode quebrar. */}
+      {/* Três colunas só quando cada card tem uns 300 px: o valor de 28 px não pode quebrar. No
+          iPhone, os três cards viram um carrossel com encaixe, para as posições subirem. */}
       <div className="@container">
-        <div className="grid gap-4 md:gap-6 @min-[960px]:grid-cols-3">
+        <SnapCarousel className="grid gap-4 md:gap-6 @min-[960px]:grid-cols-3">
           <MetricCard
             icon={TrendingUpIcon}
             tile="[--tile:var(--tile-blue)]"
@@ -70,7 +72,7 @@ export function SummaryCards({ summary }: { summary: PortfolioSummary }) {
               <StatRow label="Renda mensal estimada" value={formatBRL(summary.monthlyIncome)} />
             </StatList>
           </MetricCard>
-        </div>
+        </SnapCarousel>
       </div>
     </div>
   );

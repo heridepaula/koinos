@@ -1,9 +1,12 @@
 "use client";
 
+import { useState } from "react";
 import { Pie, PieChart } from "recharts";
 import { formatBRL, formatPercent } from "@/shared/lib/format";
+import { cn } from "@/shared/lib/utils";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/shared/ui/card";
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/shared/ui/chart";
+import { SegmentedControl } from "@/shared/ui/segmented-control";
 import { OTHERS_KEY, UNCATEGORIZED_KEY } from "../domain/allocation";
 import type { AllocationSlice } from "../domain/types";
 import { ChartTooltipRow } from "./chart-tooltip-row";
@@ -29,23 +32,43 @@ function colorFor(slice: AllocationSlice, index: number, mode: Mode): string {
   return slot ? `var(--chart-${slot})` : NEUTRAL;
 }
 
+const MODE_OPTIONS = [
+  { value: "category", label: "Categoria" },
+  { value: "asset", label: "Ativo" },
+] as const;
+
 function Donut({
   title,
   description,
   slices,
   mode,
+  shown,
+  onShow,
 }: {
   title: string;
   description: string;
   slices: AllocationSlice[];
   mode: Mode;
+  /** No iPhone, os dois donuts dividem um card: só o escolhido aparece. */
+  shown: Mode;
+  onShow: (mode: Mode) => void;
 }) {
   const data = slices.map((slice, index) => ({ ...slice, fill: colorFor(slice, index, mode) }));
   return (
-    <Card>
+    <Card className={cn(mode !== shown && "max-md:hidden")}>
       <CardHeader>
-        <CardTitle>{title}</CardTitle>
+        <CardTitle>
+          <span className="md:hidden">Alocação</span>
+          <span className="max-md:hidden">{title}</span>
+        </CardTitle>
         <CardDescription>{description}</CardDescription>
+        <SegmentedControl
+          label="Alocação por"
+          value={shown}
+          options={MODE_OPTIONS}
+          onChange={onShow}
+          className="mt-2 w-full md:hidden"
+        />
       </CardHeader>
       <CardContent className="grid items-center gap-4 sm:grid-cols-[minmax(0,12rem)_1fr]">
         <ChartContainer config={{}} className="mx-auto aspect-square w-full max-w-48">
@@ -97,6 +120,10 @@ function Donut({
   );
 }
 
+/**
+ * Alocação por categoria e por ativo: dois cards lado a lado na mesa; no iPhone, um card só, com
+ * um controle segmentado escolhendo o donut (metade da rolagem).
+ */
 export function AllocationCharts({
   byCategory,
   byAsset,
@@ -104,6 +131,7 @@ export function AllocationCharts({
   byCategory: AllocationSlice[];
   byAsset: AllocationSlice[];
 }) {
+  const [shown, setShown] = useState<Mode>("category");
   return (
     <div className="grid gap-4 md:gap-6 xl:grid-cols-2">
       <Donut
@@ -111,12 +139,16 @@ export function AllocationCharts({
         description="Defina as categorias na Carteira Alvo"
         slices={byCategory}
         mode="category"
+        shown={shown}
+        onShow={setShown}
       />
       <Donut
         title="Por ativo"
         description="Os 5 maiores e o restante em Outros"
         slices={byAsset}
         mode="asset"
+        shown={shown}
+        onShow={setShown}
       />
     </div>
   );
