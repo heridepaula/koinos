@@ -24,7 +24,6 @@ export function DividendMonthCards({
               {formatBRL(month.received)}
             </CardTitle>
           </CardHeader>
-          <CardContent className="text-sm text-muted-foreground">Pelo extrato da B3.</CardContent>
         </Card>
         <Card className="card-lift">
           <CardHeader>
@@ -33,11 +32,11 @@ export function DividendMonthCards({
               {formatBRL(month.upcoming)}
             </CardTitle>
           </CardHeader>
-          <CardContent className="text-sm text-muted-foreground">
-            {forecastAsOf
-              ? "Pela B3 (Proventos a Receber), completado com o Yahoo."
-              : "Previsão pelo Yahoo, confirmada quando o extrato da B3 for importado."}
-          </CardContent>
+          {forecastAsOf ? null : (
+            <CardContent className="text-sm text-muted-foreground">
+              Previsão pelo Yahoo, confirmada quando o extrato da B3 for importado.
+            </CardContent>
+          )}
         </Card>
         <Card className="metal-ring card-lift brushed">
           <CardHeader>
