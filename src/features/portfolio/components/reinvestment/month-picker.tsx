@@ -26,38 +26,42 @@ export function MonthPicker({ month, months }: { month: string; months: readonly
   const index = months.indexOf(shown);
   const newer = index > 0 ? months[index - 1] : undefined;
   const older = index >= 0 && index < months.length - 1 ? months[index + 1] : undefined;
+  // Cápsula de vidro como os seletores de data do iOS: ‹ mês ›. A cápsula tem 40 px e os botões
+  // 32 (52 e 44 no toque), concêntricos; o select fica sem borda, só o texto e o chevron.
   return (
     <div className="flex items-center gap-2" aria-busy={loading}>
-      <Button
-        variant="outline"
-        size="icon-sm"
-        aria-label="Mês anterior"
-        disabled={!older}
-        onClick={() => older && void setMonth(older)}
-      >
-        <ChevronLeftIcon />
-      </Button>
-      <NativeSelect
-        aria-label="Mês do relatório"
-
-        value={shown}
-        onChange={(event) => void setMonth(event.target.value)}
-      >
-        {months.map((key) => (
-          <option key={key} value={key}>
-            {formatMonth(key)}
-          </option>
-        ))}
-      </NativeSelect>
-      <Button
-        variant="outline"
-        size="icon-sm"
-        aria-label="Próximo mês"
-        disabled={!newer}
-        onClick={() => newer && void setMonth(newer)}
-      >
-        <ChevronRightIcon />
-      </Button>
+      <div className="flex h-10 w-fit items-center gap-1 rounded-full glass p-1 pointer-coarse:h-13">
+        <Button
+          variant="ghost"
+          size="icon-sm"
+          aria-label="Mês anterior"
+          disabled={!older}
+          onClick={() => older && void setMonth(older)}
+        >
+          <ChevronLeftIcon />
+        </Button>
+        <NativeSelect
+          aria-label="Mês do relatório"
+          className="h-8 border-transparent bg-transparent font-medium dark:bg-transparent"
+          value={shown}
+          onChange={(event) => void setMonth(event.target.value)}
+        >
+          {months.map((key) => (
+            <option key={key} value={key}>
+              {formatMonth(key)}
+            </option>
+          ))}
+        </NativeSelect>
+        <Button
+          variant="ghost"
+          size="icon-sm"
+          aria-label="Próximo mês"
+          disabled={!newer}
+          onClick={() => newer && void setMonth(newer)}
+        >
+          <ChevronRightIcon />
+        </Button>
+      </div>
       {loading ? <Spinner className="text-muted-foreground" aria-label="Carregando o mês" /> : null}
     </div>
   );

@@ -1,5 +1,6 @@
 "use client";
 
+import { HandCoinsIcon, RepeatIcon, WalletIcon } from "lucide-react";
 import { useAction } from "next-safe-action/hooks";
 import { useId, useState } from "react";
 import { toast } from "sonner";
@@ -7,6 +8,7 @@ import { actionErrorMessage } from "@/shared/lib/action-error";
 import { formatBRL, formatPercent, formatQuantity } from "@/shared/lib/format";
 import { numberToInput, parseNumberInput } from "@/shared/lib/parse-number";
 import { Button } from "@/shared/ui/button";
+import { MetricCard, StatList, StatRow } from "@/shared/components/metric";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/shared/ui/card";
 import { Input } from "@/shared/ui/input";
 import { setReinvestmentPercentAction } from "../../actions";
@@ -41,35 +43,36 @@ export function ReinvestmentCards({ current }: { current: ReinvestmentMonth }) {
   const dividendsShare = Math.round((split.dividendsShare ?? 0) * 1000) / 1000;
 
   return (
-    <div className="@container">
-      <div className="grid gap-4 @min-[720px]:grid-cols-3">
-        <Card className="card-lift">
-          <CardHeader>
-            <CardDescription>Aporte no mês</CardDescription>
-            <CardTitle className="text-2xl font-semibold tabular-nums">
-              {formatBRL(current.aporte)}
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="text-sm text-muted-foreground">
-            {current.purchaseCount === 1
-              ? "1 compra"
-              : `${formatQuantity(current.purchaseCount)} compras`}
-          </CardContent>
-        </Card>
-        <Card className="card-lift">
-          <CardHeader>
-            <CardDescription>Proventos recebidos no mês</CardDescription>
-            <CardTitle className="text-2xl font-semibold tabular-nums">
-              {formatBRL(current.dividends)}
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="text-sm text-muted-foreground">Pelo extrato da B3.</CardContent>
-        </Card>
-        <Card className="card-lift">
-          <CardHeader>
-            <CardDescription id={labelId}>% dos proventos reinvestida</CardDescription>
-          </CardHeader>
-          <CardContent className="grid gap-2">
+    <div className="@container grid gap-4 md:gap-6">
+      <div className="grid gap-4 md:gap-6 @min-[720px]:grid-cols-3">
+        <MetricCard
+          icon={WalletIcon}
+          tile="[--tile:var(--tile-blue)]"
+          label="Aporte no mês"
+          value={formatBRL(current.aporte)}
+        >
+          <StatList>
+            <StatRow label="Compras" value={formatQuantity(current.purchaseCount)} />
+          </StatList>
+        </MetricCard>
+        <MetricCard
+          icon={HandCoinsIcon}
+          tile="[--tile:var(--tile-teal)]"
+          label="Proventos recebidos no mês"
+          value={formatBRL(current.dividends)}
+        >
+          <StatList>
+            <StatRow label="Origem" value="extrato da B3" />
+          </StatList>
+        </MetricCard>
+        {/* O valor grande acompanha o que é digitado (já arredondado como será gravado). */}
+        <MetricCard
+          icon={RepeatIcon}
+          tile="[--tile:var(--tile-purple)]"
+          label={<span id={labelId}>% dos proventos reinvestida</span>}
+          value={formatPercent(percent / 100, Number.isInteger(percent) ? 0 : 1)}
+        >
+          <div className="grid gap-2 border-t border-border/70 pt-3">
             <form
               className="flex items-center gap-2"
               onSubmit={(event) => {
@@ -91,15 +94,16 @@ export function ReinvestmentCards({ current }: { current: ReinvestmentMonth }) {
                 Salvar
               </Button>
             </form>
-            <div id={hintId} className="grid gap-1 text-xs text-muted-foreground">
+            <div id={hintId} className="grid gap-1 text-footnote text-muted-foreground">
               {valid ? null : <p className="text-loss">Use um número de 0 a 100.</p>}
               {current.isDefault ? (
                 <p>Padrão ({DEFAULT_REINVESTMENT_PERCENT}%): este mês ainda não tem % salva.</p>
               ) : (
                 <p>
+                  {/* Outline, não link: o azul do link fica abaixo de 4,5:1 sobre o card. */}
                   <Button
-                    variant="link"
-                    className="h-auto p-0 text-xs"
+                    variant="outline"
+                    size="xs"
                     disabled={save.isPending}
                     onClick={() => save.execute({ month: current.month, percent: null })}
                   >
@@ -108,10 +112,10 @@ export function ReinvestmentCards({ current }: { current: ReinvestmentMonth }) {
                 </p>
               )}
             </div>
-          </CardContent>
-        </Card>
+          </div>
+        </MetricCard>
       </div>
-      <Card className="mt-4">
+      <Card>
         <CardHeader>
           <CardTitle>De onde veio o aporte</CardTitle>
           <CardDescription>Proventos reinvestidos e dinheiro do bolso no mês.</CardDescription>
