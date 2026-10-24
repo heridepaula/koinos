@@ -20,6 +20,7 @@ type MoneyInputProps = Omit<
   ComponentProps<typeof Input>,
   "value" | "defaultValue" | "onChange" | "type" | "inputMode" | "ref" | "size"
 > & {
+  /** Valor de fora (ex.: a URL). Quando muda sem vir da digitação, o campo acompanha. */
   defaultValue?: number | null;
   /** "lg": entrada de valor em destaque, como a do Apple Pay (56 px, algarismos em Title 2). */
   size?: "default" | "lg";
@@ -49,6 +50,15 @@ export function MoneyInput({
   ...props
 }: MoneyInputProps) {
   const [text, setText] = useState(() => moneyToInput(defaultValue ?? 0));
+  // O valor de fora (a URL, por exemplo) manda: se ele muda sem vir da digitação, o campo
+  // acompanha. Sem isso, ao voltar a uma tela preservada pelo Next (Activity) sem o ?valor=, o
+  // campo ainda mostrava o valor antigo, e a tabela que depende dele não aparecia.
+  const [lastValue, setLastValue] = useState(defaultValue ?? 0);
+  const outside = defaultValue ?? 0;
+  if (outside !== lastValue) {
+    setLastValue(outside);
+    if (outside !== (parseMoneyInput(text) ?? 0)) setText(moneyToInput(outside));
+  }
   const inputRef = useRef<HTMLInputElement>(null);
 
   const moveCaretToEnd = () =>
