@@ -11,7 +11,7 @@ import { addMonths, currentMonthKey, monthRange } from "@/shared/lib/time";
 import { buildAlerts } from "./alerts";
 import { allocationByAsset, allocationByCategory } from "./allocation";
 import { closedPositions, type ClosedLedgerEntry } from "./closed-positions";
-import { adjustedResult, dividendsByTicker } from "./dividends";
+import { adjustedResult, dividendPace, dividendsByTicker } from "./dividends";
 import type {
   ClosedPositionRow,
   PortfolioSnapshot,
@@ -115,6 +115,7 @@ export function buildSnapshot({
     pnlPct: invested > 0 ? (patrimony - invested) / invested : null,
     realizedPnL,
     dividendsReceived,
+    dividendPace: dividendPace(now, dividends),
     pnlWithDividends: portfolioAdjusted.withDividends,
     totalResult: portfolioAdjusted.total,
     dayChange,

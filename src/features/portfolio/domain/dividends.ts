@@ -14,6 +14,7 @@ import {
 import type {
   AdjustedResult,
   DividendMonthGroup,
+  DividendPace,
   DividendMonthSummary,
   DividendTickerGroup,
   DividendYearGroup,
@@ -147,6 +148,27 @@ export function undisclosedDividends(input: {
     result.push({ ticker, lastAmount });
   }
   return result.sort((a, b) => a.ticker.localeCompare(b.ticker));
+}
+
+/**
+ * Ritmo dos proventos: a média por mês dos últimos 12 meses fechados (sem o mês atual, que ainda
+ * está pela metade), o total do ano atual até hoje e o do ano passado.
+ */
+export function dividendPace(now: Date, received: readonly DividendEntry[]): DividendPace {
+  const month = currentMonthKey(now);
+  const firstMonth = addMonths(month, -12);
+  const year = month.slice(0, 4);
+  const lastYear = String(Number(year) - 1);
+  let last12 = 0;
+  let thisYear = 0;
+  let previousYear = 0;
+  for (const item of received) {
+    const key = monthKeyOfTradeDate(item.paidAt);
+    if (key >= firstMonth && key < month) last12 += item.amount;
+    if (key.startsWith(year)) thisYear += item.amount;
+    else if (key.startsWith(lastYear)) previousYear += item.amount;
+  }
+  return { year: Number(year), monthlyAverage12m: last12 / 12, thisYear, lastYear: previousYear };
 }
 
 export function monthSummary(

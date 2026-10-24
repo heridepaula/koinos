@@ -133,6 +133,17 @@ export type ClosedPositionsTotals = {
   withLoss: number;
 };
 
+export type DividendPace = {
+  /** Ano atual, em São Paulo. */
+  year: number;
+  /** Média por mês dos últimos 12 meses fechados (sem o mês atual). */
+  monthlyAverage12m: number;
+  /** Recebido no ano atual, até hoje. */
+  thisYear: number;
+  /** Recebido no ano passado inteiro. */
+  lastYear: number;
+};
+
 export type PortfolioSummary = {
   patrimony: number;
   invested: number;
@@ -141,6 +152,7 @@ export type PortfolioSummary = {
   realizedPnL: number;
   /** Proventos recebidos de todos os FIIs, abertos ou encerrados, desde sempre. */
   dividendsReceived: number;
+  dividendPace: DividendPace;
   /** L/P da cotação + proventos. */
   pnlWithDividends: number;
   /** L/P da cotação + proventos + vendas. */

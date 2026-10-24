@@ -2,8 +2,10 @@ import { Delta } from "@/shared/components/delta";
 import { formatBRL, formatPercent } from "@/shared/lib/format";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/shared/ui/card";
 import type { PortfolioSummary } from "../domain/types";
+import { ResultBreakdown } from "./result-breakdown";
 
 export function SummaryCards({ summary }: { summary: PortfolioSummary }) {
+  const { year } = summary.dividendPace;
   return (
     // Os quatro blocos se arrumam pela largura da área do conteúdo (container query), com a sidebar
     // aberta ou recolhida, e as linhas ficam sempre completas. Cada card precisa de uns 250 px: é o
@@ -63,10 +65,32 @@ export function SummaryCards({ summary }: { summary: PortfolioSummary }) {
           </CardHeader>
           <CardContent className="grid gap-1 text-sm text-muted-foreground">
             <span>
+              Média por mês (12 meses){" "}
+              <span className="text-foreground tabular-nums">
+                {formatBRL(summary.dividendPace.monthlyAverage12m)}
+              </span>
+            </span>
+            <span>
+              Em {year}{" "}
+              <span className="text-foreground tabular-nums">
+                {formatBRL(summary.dividendPace.thisYear)}
+              </span>
+              {" · "}em {year - 1}{" "}
+              <span className="text-foreground tabular-nums">
+                {formatBRL(summary.dividendPace.lastYear)}
+              </span>
+            </span>
+            <span>
               L/P c/ proventos <Delta value={summary.pnlWithDividends} />
             </span>
             <span>
-              Resultado total <Delta value={summary.totalResult} />
+              <ResultBreakdown
+                pnl={summary.pnl}
+                dividends={summary.dividendsReceived}
+                withDividends={summary.pnlWithDividends}
+                realized={summary.realizedPnL}
+                total={summary.totalResult}
+              />
             </span>
           </CardContent>
         </Card>
