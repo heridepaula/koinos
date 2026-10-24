@@ -11,11 +11,11 @@ import { useCurrentTabBarAction } from "./tab-bar-action";
 const TABS = NAV_ITEMS.filter((item) => item.tab);
 
 /*
- * Aba: ícone de 24 px sobre o rótulo de 10 px, como no iOS. A escolhida fica no azul AA do --info
- * (o systemBlue dá menos de 4,5:1 no vidro) e o ícone afunda no toque.
+ * Aba: ícone de 24 px sobre o rótulo de 10 px, como no iOS. A escolhida fica no azul AA da
+ * --tab-active (o systemBlue dá menos de 4,5:1 no vidro) e o ícone afunda no toque.
  */
 const TAB =
-  "group/tab flex min-w-0 flex-col items-center justify-center gap-0.5 rounded-full text-[0.625rem] leading-3 font-semibold text-foreground outline-none select-none [-webkit-touch-callout:none] focus-visible:ring-3 focus-visible:ring-ring/50 aria-[current=page]:text-info data-current:text-info";
+  "group/tab flex min-w-0 flex-col items-center justify-center gap-0.5 rounded-full text-[0.625rem] leading-3 font-semibold text-foreground outline-none select-none [-webkit-touch-callout:none] focus-visible:ring-3 focus-visible:ring-ring/50 aria-[current=page]:text-(--tab-active) data-current:text-(--tab-active)";
 const TAB_ICON =
   "size-6 transition-transform duration-150 ease-out group-active/tab:scale-88 motion-reduce:transition-none";
 

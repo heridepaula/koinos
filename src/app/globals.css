@@ -336,6 +336,9 @@
   --tab-bar-height: 62px;
   /* Vidro da tab bar: mais denso que o da toolbar, porque o texto dos cards passa por baixo. */
   --tab-bar-tint: rgb(255 255 255 / 0.58);
+  /* Aba escolhida: o azul AA de informação (5,5:1 sobre a lente clara). */
+  --tab-active: var(--info);
+  --sheet: rgb(255 255 255 / 0.94);
   --tab-bar-bottom: max(0.5rem, calc(var(--safe-bottom) - 0.75rem));
   --tab-bar-space: calc(var(--tab-bar-height) + var(--tab-bar-bottom) + 1.5rem);
   --nav-bar-height: calc(var(--safe-top) + 3rem);
@@ -428,6 +431,9 @@
   --wallpaper-2: rgb(140 70 220 / 0.45);
   --wallpaper-3: rgb(220 60 120 / 0.3);
   --tab-bar-tint: rgb(36 36 48 / 0.62);
+  /* Sobre a lente do escuro, o #64a8ff dava 3,2:1; este azul claro dá 4,9:1. */
+  --tab-active: #a8d0ff;
+  --sheet: rgb(28 28 34 / 0.94);
 }
 
 /* Material de vidro (Liquid Glass): translúcido, com desfoque, borda clara e brilho no topo. */
@@ -716,9 +722,14 @@
   }
   [data-slot="dialog-content"],
   [data-slot="alert-dialog-content"],
-  [data-slot="sheet-content"],
-  [data-slot="drawer-popup"] {
+  [data-slot="sheet-content"] {
     background-color: var(--popover);
+    backdrop-filter: blur(32px) saturate(180%);
+  }
+  /* A folha do iPhone é quase opaca, como a do iOS: com o fundo escurecido atrás, o vidro de 82%
+     acinzentava, e o vermelho das perdas caía abaixo de 4,5:1 nas linhas dela. */
+  [data-slot="drawer-popup"] {
+    background-color: var(--sheet);
     backdrop-filter: blur(32px) saturate(180%);
   }
   /* Botões em cápsula, como os controles do Liquid Glass. */

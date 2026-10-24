@@ -9,7 +9,8 @@ export type SegmentedOption<T extends string> = { value: T; label: ReactNode };
  * Controle segmentado da Apple: trilho em cápsula e um marcador claro que desliza até a opção
  * escolhida, com a mola bouncy (sem animação com movimento reduzido). Segmentos de mesma largura.
  * Para leitor de tela e teclado é um grupo de rádios: as setas trocam a opção, como no macOS.
- * Altura de 36 px (44 no toque); `size="sm"` tem 32.
+ * Altura de 36 px (44 no toque); `size="sm"` tem 32. No toque, a área de cada segmento cobre também
+ * o respiro de 2 px do trilho: o alvo tem os 44 px inteiros.
  */
 export function SegmentedControl<T extends string>({
   value,
@@ -81,7 +82,7 @@ export function SegmentedControl<T extends string>({
             tabIndex={selected ? 0 : -1}
             onClick={() => onChange(option.value)}
             className={cn(
-              "rounded-full px-3 font-medium whitespace-nowrap outline-none focus-visible:ring-3 focus-visible:ring-ring/50",
+              "relative rounded-full px-3 font-medium whitespace-nowrap outline-none select-none [-webkit-touch-callout:none] after:absolute after:inset-x-0 after:-inset-y-0.5 focus-visible:ring-3 focus-visible:ring-ring/50",
               size === "sm" ? "text-footnote" : "text-sm",
               // No escuro, o secundário comum dá 4,4:1 sobre o trilho; 70% do primeiro plano dá 6:1.
               selected

@@ -29,7 +29,7 @@ export function ResultBreakdown({
         delay={200}
         closeDelay={100}
         aria-label={`Ver a conta do resultado total: ${formatBRL(total)}`}
-        className="-mx-1 inline-flex cursor-pointer items-center gap-1 rounded-sm px-1 text-left outline-none hover:text-foreground focus-visible:ring-3 focus-visible:ring-ring/50"
+        className="relative -mx-1 inline-flex cursor-pointer items-center gap-1 rounded-sm px-1 text-left outline-none hover:text-foreground focus-visible:ring-3 focus-visible:ring-ring/50 pointer-coarse:after:absolute pointer-coarse:after:inset-x-0 pointer-coarse:after:-inset-y-3"
       >
         Resultado total
         <InfoIcon className="size-3.5" aria-hidden="true" />

@@ -15,7 +15,7 @@ export function AccountSection({ user }: { user: UserMenuUser }) {
       <div className={insetRowClass(false)}>
         <Avatar className="size-10">
           {user.image ? <AvatarImage src={user.image} alt="" referrerPolicy="no-referrer" /> : null}
-          <AvatarFallback>{initials(user.name)}</AvatarFallback>
+          <AvatarFallback className="text-foreground">{initials(user.name)}</AvatarFallback>
         </Avatar>
         <div className="grid min-w-0 flex-1">
           <span className="truncate font-medium">{user.name}</span>

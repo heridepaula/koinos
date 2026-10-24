@@ -62,7 +62,7 @@ export default function AppLayout({ children }: { children: ReactNode }) {
              * título compacto quando o título grande sai da tela; a da direita guarda as ações.
              * Some ao rolar para baixo.
              */}
-            <AutoHideHeader className="pointer-events-none sticky top-2 z-20 mx-4 mt-2 hidden items-center justify-between gap-2 md:flex">
+            <AutoHideHeader className="pointer-events-none sticky top-2 z-20 mt-2 mr-[max(1rem,var(--safe-right))] ml-4 hidden items-center justify-between gap-2 md:flex">
               <div className={TOOLBAR_CAPSULE}>
                 <SidebarTrigger />
                 <ToolbarTitle />
@@ -72,7 +72,7 @@ export default function AppLayout({ children }: { children: ReactNode }) {
               </div>
             </AutoHideHeader>
             {/* No iPhone, o fim da página reserva o espaço da tab bar, e as laterais, as áreas seguras. */}
-            <div className="flex min-w-0 flex-1 flex-col gap-6 pt-1 pr-[max(1rem,var(--safe-right))] pb-(--tab-bar-space) pl-[max(1rem,var(--safe-left))] md:p-6">
+            <div className="flex min-w-0 flex-1 flex-col gap-6 pt-1 pr-[max(1rem,var(--safe-right))] pb-(--tab-bar-space) pl-[max(1rem,var(--safe-left))] md:p-6 md:pr-[max(1.5rem,var(--safe-right))] md:pb-[max(1.5rem,var(--safe-bottom))]">
               {children}
             </div>
           </SidebarInset>

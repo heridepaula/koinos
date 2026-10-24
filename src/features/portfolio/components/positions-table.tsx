@@ -183,7 +183,7 @@ export function PositionsTable({ rows }: { rows: PositionRow[] }) {
             aria-label="Ordenar as posições por"
             value={LIST_SORTS.some((sort) => sort.key === sortKey) ? sortKey : "valor"}
             onChange={(event) => choose(event.target.value as SortKey)}
-            className="h-9 border-transparent bg-secondary dark:bg-secondary pointer-coarse:h-9"
+            className="border-transparent bg-secondary dark:bg-secondary"
           >
             {LIST_SORTS.map((sort) => (
               <option key={sort.key} value={sort.key}>

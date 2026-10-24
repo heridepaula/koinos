@@ -42,7 +42,7 @@ export function PercentFixPanel({ rows, fixes }: { rows: StrategyRow[]; fixes: P
         </span>
       </p>
       <details className="group pl-7">
-        <summary className="flex w-fit cursor-pointer list-none items-center gap-1 rounded-sm font-medium outline-none focus-visible:ring-3 focus-visible:ring-ring/50">
+        <summary className="flex w-fit cursor-pointer list-none items-center gap-1 rounded-sm font-medium outline-none select-none focus-visible:ring-3 focus-visible:ring-ring/50 pointer-coarse:min-h-11 [&::-webkit-details-marker]:hidden">
           Ver o ajuste de cada FII ({fixes.length})
           <ChevronDownIcon
             className="size-4 transition-transform duration-420 ease-snappy group-open:rotate-180 motion-reduce:transition-none"
