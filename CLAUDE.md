@@ -237,6 +237,10 @@ Koinos is a single-owner FII (Brazilian REIT) portfolio dashboard that replaced 
   - Native `<select>` fields have a translucent background, and the system draws their open list. So `globals.css` gives `option` a solid `--card` background and `--foreground` text; without it, the dark theme showed light text on a light list.
 - **Container queries:** layouts that depend on the content width (sidebar open or closed) use `@container` with `@min-[Npx]:` steps, in px only. Tailwind emits px container sizes before the named rem ones (`@md`, `@3xl`…), so mixing the two lets the named ones win.
   - Wide tables scroll inside their card (`shared/ui/table.tsx` wraps them in `overflow-x-auto`, and `SidebarInset` has `min-w-0`). The closed-positions and IR tables instead add columns at container steps (480 to 840 px), so it fits a phone without scrolling sideways.
+- **Client bundle:** `package.json` declares `"sideEffects": ["*.css"]`. Without it, Turbopack shipped every client component of a feature barrel (`ui.ts`) to any page that imported one name from it: Carteira Alvo got all the charts and every app page got the Google sign-in button. A module that must run on import (not `import()`) would need its own entry in that list.
+  - Recharts (~150 KB gzip) only loads on demand: each card renders its plot (`*-plot.tsx`, `allocation-donut.tsx`) through `next/dynamic` with `ssr: false` and a `ChartPlaceholder` of the same height. A new chart follows the same split.
+  - The Better Auth client loads only on `/login`; `SessionKeepAlive` and `signOutAndLeave` `import()` it when they need it.
+  - To measure, read the `/_next/static/chunks/*.js` referenced by each `.next/server/app/<page>.html` after a build and gzip them.
 - **Charts:** Recharts, through `shared/ui/chart.tsx`.
   - Series colors come from the `--chart-*` tokens: aportes and bolso use `--chart-1` (blue), proventos use `--chart-2` (orange).
   - Two or more series get a legend.
