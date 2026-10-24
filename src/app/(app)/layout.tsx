@@ -2,6 +2,7 @@ import { Suspense, type ReactNode } from "react";
 import { SessionKeepAlive, UserMenu, UserMenuSkeleton } from "@/features/auth/ui";
 import { getCurrentUser } from "@/features/auth/server";
 import { AppSidebar } from "@/shared/components/app-sidebar";
+import { AutoHideHeader } from "@/shared/components/auto-hide-header";
 import { PointerGlow } from "@/shared/components/pointer-glow";
 import { QueryProvider } from "@/shared/components/query-provider";
 import { ThemeToggle } from "@/shared/components/theme-toggle";
@@ -30,13 +31,13 @@ export default function AppLayout({ children }: { children: ReactNode }) {
         />
         {/* min-w-0: tabelas largas rolam dentro do card, sem empurrar a página. */}
         <SidebarInset className="min-w-0 bg-transparent">
-          {/* Toolbar flutuante de vidro forte, como a sidebar. */}
-          <header className="sticky top-2 z-10 mx-2 mt-2 flex h-12 items-center gap-2 rounded-2xl px-2 glass-strong md:mx-4">
+          {/* Toolbar flutuante de vidro forte, como a sidebar; some ao rolar para baixo. */}
+          <AutoHideHeader className="sticky top-2 z-10 mx-2 mt-2 flex h-12 items-center gap-2 rounded-2xl px-2 glass-strong md:mx-4">
             <SidebarTrigger />
             <div className="ml-auto flex items-center gap-1">
               <ThemeToggle />
             </div>
-          </header>
+          </AutoHideHeader>
           <div className="flex min-w-0 flex-1 flex-col gap-6 p-4 md:p-6">{children}</div>
         </SidebarInset>
       </SidebarProvider>
