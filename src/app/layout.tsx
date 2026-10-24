@@ -8,7 +8,8 @@ import "./globals.css";
 
 // SF Pro vem do sistema no Mac; Inter é o substituto mais próximo nos outros sistemas.
 const inter = Inter({ variable: "--font-inter", subsets: ["latin"] });
-const geistMono = Geist_Mono({ variable: "--font-geist-mono", subsets: ["latin"] });
+// Só o tooltip padrão dos gráficos usa a mono, e depois do ui-monospace: sem pré-carregar em toda página.
+const geistMono = Geist_Mono({ variable: "--font-geist-mono", subsets: ["latin"], preload: false });
 
 export const metadata: Metadata = {
   title: { default: "Koinos", template: "%s · Koinos" },
