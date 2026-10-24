@@ -4,6 +4,7 @@ import { formatBRL, formatQuantity, formatTradeDate } from "@/shared/lib/format"
 import { numberToInput } from "@/shared/lib/parse-number";
 import { Badge } from "@/shared/ui/badge";
 import { Input } from "@/shared/ui/input";
+import { NativeSelect } from "@/shared/ui/native-select";
 import type { B3ImportPreview } from "../../import/b3/types";
 import type { AnswersDraft } from "./answers";
 
@@ -20,9 +21,6 @@ const PRICE_ORIGIN: Record<string, string> = {
 /** Ainda sem resposta no servidor (a conversão com sugestão vai confirmada junto). */
 export const isOpen = (item: Pending) =>
   item.type === "CONVERSAO" ? item.source === null : item.price === null;
-
-const selectClass =
-  "h-8 rounded-lg border border-input bg-transparent px-2 text-sm text-foreground outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 disabled:opacity-50 dark:bg-input/30";
 
 function question(item: Pending, priorDate: Date): string {
   if (item.type === "PRECO_SUBSCRICAO") {
@@ -70,9 +68,9 @@ export function PendingList({
             <p className="text-sm">{question(item, preview.priorDate)}</p>
             <div className="flex flex-wrap items-center gap-3">
               {item.type === "CONVERSAO" ? (
-                <select
+                <NativeSelect
                   aria-label={`Origem das cotas de ${item.ticker}`}
-                  className={selectClass}
+
                   disabled={out}
                   value={draft.conversions[item.id] ?? item.source ?? item.suggestion ?? ""}
                   onChange={(event) =>
@@ -92,7 +90,7 @@ export function PendingList({
                     </option>
                   ))}
                   <option value="NONE">Não é conversão</option>
-                </select>
+                </NativeSelect>
               ) : (
                 <div className="relative">
                   <span className="pointer-events-none absolute top-1/2 left-2.5 -translate-y-1/2 text-sm text-muted-foreground">

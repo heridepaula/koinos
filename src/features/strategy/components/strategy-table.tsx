@@ -17,6 +17,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/sha
 import { Input } from "@/shared/ui/input";
 import { Switch } from "@/shared/ui/switch";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/shared/ui/table";
+import { NativeSelect } from "@/shared/ui/native-select";
 import {
   addTargetAssetAction,
   removeTargetAssetAction,
@@ -33,9 +34,6 @@ type Patch = {
   suggestedPercent?: number | null;
   category?: Category | null;
 };
-
-const selectClass =
-  "h-8 w-36 rounded-lg border border-input bg-transparent px-2 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 dark:bg-input/30";
 
 /** Campo numérico que salva ao sair (ou Enter). Vazio = sem valor. */
 function NumberCell({
@@ -132,9 +130,9 @@ function StrategyTableRow({ row }: { row: StrategyRow }) {
         />
       </TableCell>
       <TableCell>
-        <select
+        <NativeSelect
           aria-label={`Categoria de ${row.ticker}`}
-          className={selectClass}
+          wrapperClassName="w-36"
           value={row.category ?? ""}
           onChange={(event) => save({ category: (event.target.value || null) as Category | null })}
         >
@@ -148,7 +146,7 @@ function StrategyTableRow({ row }: { row: StrategyRow }) {
               {CATEGORY_LABELS[category]}
             </option>
           ))}
-        </select>
+        </NativeSelect>
       </TableCell>
       <TableCell className="text-right tabular-nums">
         {row.price === null ? "—" : formatBRL(row.price)}

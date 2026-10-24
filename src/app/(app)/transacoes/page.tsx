@@ -1,7 +1,11 @@
 import type { Metadata } from "next";
 import { Suspense } from "react";
 import { getMyTransactions } from "@/features/transactions/server";
-import { TransactionsTable, type TransactionRow } from "@/features/transactions/ui";
+import {
+  NewTransactionButton,
+  TransactionsTable,
+  type TransactionRow,
+} from "@/features/transactions/ui";
 import { PageHeader } from "@/shared/components/page-header";
 import { TableSkeleton } from "@/shared/components/skeletons";
 
@@ -10,7 +14,11 @@ export const metadata: Metadata = { title: "Transações" };
 export default function TransactionsPage() {
   return (
     <>
-      <PageHeader title="Transações" description="Compras e vendas registradas." />
+      <PageHeader
+        title="Transações"
+        description="Compras e vendas registradas."
+        actions={<NewTransactionButton />}
+      />
       <Suspense fallback={<TableSkeleton />}>
         <TransactionsContent />
       </Suspense>

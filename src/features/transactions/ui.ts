@@ -1,4 +1,5 @@
 // Componentes da feature transactions.
+export { NewTransactionButton } from "./components/new-transaction-button";
 export { TransactionDialog } from "./components/transaction-dialog";
 export { TransactionsTable } from "./components/transactions-table";
 export { TickerInput } from "./components/ticker-input";

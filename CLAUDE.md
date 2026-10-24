@@ -215,6 +215,8 @@ Koinos is a single-owner FII (Brazilian REIT) portfolio dashboard that replaced 
   - spring easings `ease-snappy`, `ease-bouncy` and `ease-smooth` (`linear()` curves of SwiftUI springs);
   - spacing on the 4 px grid. Cards pad 20 px (24 from `md`), and table edges use `pl-(--card-spacing)`/`pr-(--card-spacing)` to line up with the card title;
   - buttons press with `press-spring` and grow to 44 px on touch screens (`pointer-coarse:`).
+  - form controls: every native select is `NativeSelect` (`shared/ui/native-select.tsx`, the macOS pop-up look); searches use `SearchInput`; two or three short options use `SegmentedControl` (a radio group whose thumb slides on a spring; arrows move it); tables share `Pagination`;
+  - dialogs are macOS sheets: radius 24 (34 with continuous corners), 24 px padding, no gray footer band, a bouncy entry from 95%;
   - number cards use `MetricCard` with `StatList`/`StatRow` (`shared/components/metric.tsx`): tile and label, the value in Title 1 at a fixed height, then the detail rows, so rows line up from card to card. A variation in a capsule is `DeltaChip`; its tint stays at 6% (light) and 8% (dark), because 10% took the text under 4.5:1.
 - **`backdrop-filter`:** write only the unprefixed property. If `-webkit-backdrop-filter` is also written, Lightning CSS keeps only the prefixed one, which Chrome and Edge ignore.
 - **Contrast:** at `size="sm"`, the `btn-gloss` label sits under the top sheen and falls to about 3.3:1 in the light theme.
@@ -228,6 +230,7 @@ Koinos is a single-owner FII (Brazilian REIT) portfolio dashboard that replaced 
   - Series colors come from the `--chart-*` tokens: aportes and bolso use `--chart-1` (blue), proventos use `--chart-2` (orange).
   - Two or more series get a legend.
 - **Money fields:** `MoneyInput` (`shared/components/money-input.tsx`) fills from the cents, like an ATM: it starts at "0,00", and typing 1, 2, 0, 0, 0, 0, 0 shows 0,01, 0,12, 1,20… 12.000,00. New digits always go at the end, and a paste is read in reais. Read its text with `parseMoneyInput`: `parseNumberInput` takes a dot without a comma as the decimal point and would read "14.000" as 14.
+- **Dates in the static shell:** a client component outside `<Suspense>` (the page header, like `NewTransactionButton`) can't call `new Date()` while rendering. That includes JSX props of a closed dialog's content, because JSX is evaluated eagerly. Compute the date in the event that opens it.
 - **Base UI `Button` as a link:** `render={<Link />}` needs `nativeButton={false}`. Without it, Base UI logs an error and puts `type="button"` on the `<a>`.
 - **Mongoose models in dev:** the models are reused from `mongoose.models` across hot reloads, so a field added to a schema is silently dropped (strict mode) until the dev server restarts.
 - **`cn`:** import it from `@/shared/lib/utils`, never from `"cn"`. The project's `createCn` knows the type tokens (`text-headline`…); the package's own `cn` takes them for colors and drops them next to a `text-*` color. A later class overrides a conflicting one.

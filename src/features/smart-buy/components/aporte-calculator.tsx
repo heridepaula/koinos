@@ -10,6 +10,7 @@ import { Badge } from "@/shared/ui/badge";
 import { Button } from "@/shared/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/shared/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/shared/ui/table";
+import { NativeSelect } from "@/shared/ui/native-select";
 import {
   DEFAULT_MAX_SHARE_PERCENT,
   EXCLUSION_LABELS,
@@ -39,9 +40,6 @@ const REASON_ORDER: ExclusionReason[] = [
   "SEM_RANKING",
   "SEM_COTACAO",
 ];
-
-const selectClass =
-  "h-10 rounded-lg border border-input bg-transparent px-2 text-sm text-foreground outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 dark:bg-input/30";
 
 const limitLabel = (percent: MaxSharePercent) =>
   percent >= 100 ? "Sem limite" : `${percent}% do aporte`;
@@ -121,8 +119,7 @@ export function AporteCalculator({ assets, meta }: { assets: CascadeAsset[]; met
             />
             <label className="flex items-center gap-2 text-sm text-muted-foreground">
               Máximo por FII
-              <select
-                className={selectClass}
+              <NativeSelect
                 value={maxShare}
                 onChange={(event) =>
                   void setMaxShare(Number(event.target.value) as MaxSharePercent)
@@ -133,7 +130,7 @@ export function AporteCalculator({ assets, meta }: { assets: CascadeAsset[]; met
                     {limitLabel(percent)}
                   </option>
                 ))}
-              </select>
+              </NativeSelect>
             </label>
             {result && result.orders.length > 0 ? (
               <Button type="button" variant="outline" onClick={copyOrders}>

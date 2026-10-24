@@ -6,9 +6,7 @@ import { useTransition } from "react";
 import { formatMonth } from "@/shared/lib/format";
 import { Button } from "@/shared/ui/button";
 import { Spinner } from "@/shared/ui/spinner";
-
-const selectClass =
-  "h-8 rounded-lg border border-input bg-transparent px-2.5 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 dark:bg-input/30";
+import { NativeSelect } from "@/shared/ui/native-select";
 
 /**
  * Mês do relatório na URL (?mes=). shallow: false faz o servidor montar a tela do mês novo.
@@ -39,9 +37,9 @@ export function MonthPicker({ month, months }: { month: string; months: readonly
       >
         <ChevronLeftIcon />
       </Button>
-      <select
+      <NativeSelect
         aria-label="Mês do relatório"
-        className={selectClass}
+
         value={shown}
         onChange={(event) => void setMonth(event.target.value)}
       >
@@ -50,7 +48,7 @@ export function MonthPicker({ month, months }: { month: string; months: readonly
             {formatMonth(key)}
           </option>
         ))}
-      </select>
+      </NativeSelect>
       <Button
         variant="outline"
         size="icon-sm"

@@ -16,8 +16,9 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/shared/ui/dialog";
-import { Field, FieldError, FieldGroup, FieldLabel } from "@/shared/ui/field";
+import { Field, FieldError, FieldGroup, FieldLabel, FieldTitle } from "@/shared/ui/field";
 import { Input } from "@/shared/ui/input";
+import { SegmentedControl } from "@/shared/ui/segmented-control";
 import { Spinner } from "@/shared/ui/spinner";
 import { createTransactionAction, updateTransactionAction } from "../actions";
 import { transactionFormSchema } from "../schemas";
@@ -34,8 +35,23 @@ type Draft = {
   notes: string;
 };
 
+const TYPE_OPTIONS = [
+  { value: "BUY", label: "Compra" },
+  { value: "SELL", label: "Venda" },
+] as const;
+
 const toNumber = parseNumberInput;
 const toText = (value: number) => numberToInput(value);
+
+const BLANK_DRAFT: Draft = {
+  ticker: "",
+  type: "BUY",
+  date: "",
+  quantity: "",
+  unitPrice: "",
+  fees: "0",
+  notes: "",
+};
 
 function emptyDraft(): Draft {
   return {
@@ -61,9 +77,6 @@ function draftFrom(row: TransactionRow): Draft {
   };
 }
 
-const selectClass =
-  "h-8 w-full rounded-lg border border-input bg-transparent px-2.5 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 dark:bg-input/30";
-
 export function TransactionDialog({
   transaction,
   trigger,
@@ -73,7 +86,10 @@ export function TransactionDialog({
   trigger: ReactElement;
 }) {
   const [open, setOpen] = useState(false);
-  const [draft, setDraft] = useState<Draft>(emptyDraft);
+  // Em branco até abrir (o abrir preenche, com a data de hoje): o botão de novo lançamento fica no
+  // cabeçalho, que é pré-renderizado, e lá não pode haver `new Date()`.
+  const [draft, setDraft] = useState<Draft>(BLANK_DRAFT);
+  const [today, setToday] = useState<string>();
   const [errors, setErrors] = useState<Partial<Record<keyof Draft, string>>>({});
 
   const onSuccess = () => {
@@ -88,6 +104,7 @@ export function TransactionDialog({
 
   function handleOpenChange(next: boolean) {
     if (next) {
+      setToday(toIsoDate(new Date()));
       setDraft(transaction ? draftFrom(transaction) : emptyDraft());
       setErrors({});
     }
@@ -147,16 +164,14 @@ export function TransactionDialog({
               <FieldError>{errors.ticker}</FieldError>
             </Field>
             <Field>
-              <FieldLabel htmlFor="tx-type">Tipo</FieldLabel>
-              <select
-                id="tx-type"
-                className={selectClass}
+              <FieldTitle id="tx-type">Tipo</FieldTitle>
+              <SegmentedControl
+                label="Tipo"
                 value={draft.type}
-                onChange={(event) => set("type", event.target.value as Draft["type"])}
-              >
-                <option value="BUY">Compra</option>
-                <option value="SELL">Venda</option>
-              </select>
+                options={TYPE_OPTIONS}
+                onChange={(next) => set("type", next)}
+                className="w-full"
+              />
             </Field>
             <Field data-invalid={Boolean(errors.date) || undefined}>
               <FieldLabel htmlFor="tx-date">Data</FieldLabel>
@@ -164,7 +179,7 @@ export function TransactionDialog({
                 id="tx-date"
                 type="date"
                 value={draft.date}
-                max={toIsoDate(new Date())}
+                max={today}
                 onChange={(event) => set("date", event.target.value)}
               />
               <FieldError>{errors.date}</FieldError>
