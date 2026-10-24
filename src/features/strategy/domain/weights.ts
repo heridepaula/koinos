@@ -47,3 +47,65 @@ export function effectiveWeights(items: readonly WeightInput[]): EffectiveWeight
   }
   return { weights, sumOfSuggested, warning };
 }
+
+export type PercentFix = { ticker: string; from: number | null; to: number };
+
+/** Divide `total` décimos entre os pesos pelo maior resto: a soma fecha exata, e ninguém fica com zero. */
+function splitTenths(weights: readonly number[], total: number): number[] {
+  const sum = weights.reduce((acc, value) => acc + value, 0);
+  const exact = weights.map((value) => (sum > 0 ? (value / sum) * total : total / weights.length));
+  const result = exact.map((value) => Math.max(1, Math.floor(value)));
+  let left = total - result.reduce((acc, value) => acc + value, 0);
+  const byRemainder = exact
+    .map((value, index) => ({ index, remainder: value - Math.floor(value) }))
+    .sort((a, b) => b.remainder - a.remainder);
+  for (let step = 0; left > 0; step++, left--)
+    result[byRemainder[step % byRemainder.length].index]++;
+  // O mínimo de 1 décimo pode passar do total: tira dos maiores.
+  while (left < 0) {
+    const largest = result.indexOf(Math.max(...result));
+    result[largest]--;
+    left++;
+  }
+  return result;
+}
+
+/**
+ * Ajuste sugerido para as % da estratégia somarem 100%, com uma casa decimal. Null se já somam.
+ * - Com ativos sem % e soma abaixo de 100%, o que falta é dividido igualmente entre eles (como
+ *   `effectiveWeights` já faz no cálculo).
+ * - Nos outros casos, as % existentes são ajustadas proporcionalmente.
+ */
+export function suggestPercentFix(items: readonly WeightInput[]): PercentFix[] | null {
+  const withPercent = items.filter((item) => item.suggestedPercent !== null);
+  const withoutPercent = items.filter((item) => item.suggestedPercent === null);
+  if (withPercent.length === 0) return null;
+  const tenths = withPercent.reduce(
+    (sum, item) => sum + Math.round(item.suggestedPercent! * 10),
+    0,
+  );
+  if (tenths === 1000) return null;
+
+  if (withoutPercent.length > 0 && tenths < 1000) {
+    const shares = splitTenths(
+      withoutPercent.map(() => 1),
+      1000 - tenths,
+    );
+    return withoutPercent.map((item, index) => ({
+      ticker: item.ticker,
+      from: null,
+      to: shares[index] / 10,
+    }));
+  }
+  const shares = splitTenths(
+    withPercent.map((item) => item.suggestedPercent!),
+    1000,
+  );
+  return withPercent
+    .map((item, index) => ({
+      ticker: item.ticker,
+      from: item.suggestedPercent,
+      to: shares[index] / 10,
+    }))
+    .filter((fix) => Math.abs(fix.to - fix.from!) > 1e-9);
+}

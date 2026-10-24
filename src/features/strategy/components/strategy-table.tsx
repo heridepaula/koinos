@@ -1,6 +1,6 @@
 "use client";
 
-import { PlusIcon, Trash2Icon, TriangleAlertIcon } from "lucide-react";
+import { PlusIcon, Trash2Icon, TriangleAlertIcon, WandSparklesIcon } from "lucide-react";
 import { useAction } from "next-safe-action/hooks";
 import { useState } from "react";
 import { toast } from "sonner";
@@ -17,8 +17,14 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/sha
 import { Input } from "@/shared/ui/input";
 import { Switch } from "@/shared/ui/switch";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/shared/ui/table";
-import { addTargetAssetAction, removeTargetAssetAction, updateTargetAssetAction } from "../actions";
+import {
+  addTargetAssetAction,
+  removeTargetAssetAction,
+  setSuggestedPercentsAction,
+  updateTargetAssetAction,
+} from "../actions";
 import { CATEGORIES, CATEGORY_LABELS, type Category } from "../domain/categories";
+import { suggestPercentFix } from "../domain/weights";
 
 type Patch = {
   inStrategy?: boolean;
@@ -183,6 +189,70 @@ function StrategyTableRow({ row }: { row: StrategyRow }) {
   );
 }
 
+const percentText = (value: number) => formatPercent(value / 100, 1);
+
+/**
+ * Quando as % sugeridas não somam 100%: mostra quanto falta (ou sobra) e o ajuste sugerido, que
+ * um clique grava. A conta é a de `suggestPercentFix`.
+ */
+function PercentFixPanel({ rows }: { rows: StrategyRow[] }) {
+  const members = rows.filter((row) => row.inStrategy);
+  const fixes = suggestPercentFix(
+    members.map((row) => ({ ticker: row.ticker, suggestedPercent: row.suggestedPercent })),
+  );
+  const apply = useAction(setSuggestedPercentsAction, {
+    onSuccess: () => toast.success("% sugeridas ajustadas: a soma fecha 100%."),
+    onError: ({ error }) => toast.error(actionErrorMessage(error)),
+  });
+  if (!fixes || fixes.length === 0) return null;
+  const sum = members.reduce((acc, row) => acc + (row.suggestedPercent ?? 0), 0);
+  const rest = 100 - sum;
+  const fillsMissing = fixes.every((fix) => fix.from === null);
+
+  return (
+    <div className="mx-6 mb-4 grid gap-3 rounded-lg border border-warn/40 bg-warn/10 p-4 text-sm">
+      <p className="flex items-start gap-2">
+        <TriangleAlertIcon className="mt-0.5 size-4 shrink-0 text-warn" aria-hidden />
+        <span>
+          As % sugeridas somam <strong className="tabular-nums">{percentText(sum)}</strong>:{" "}
+          {rest > 0
+            ? `faltam ${percentText(rest)} para 100%.`
+            : `passam ${percentText(-rest)} de 100%.`}{" "}
+          {fillsMissing
+            ? "Sugestão: dividir o que falta igualmente entre os ativos sem %."
+            : "Sugestão: ajustar cada % na mesma proporção."}
+        </span>
+      </p>
+      <ul className="flex flex-wrap gap-x-4 gap-y-1 tabular-nums">
+        {fixes.map((fix) => (
+          <li key={fix.ticker}>
+            <span className="font-medium">{fix.ticker}</span>{" "}
+            <span className="text-muted-foreground">
+              {fix.from === null ? "sem %" : percentText(fix.from)} →
+            </span>{" "}
+            {percentText(fix.to)}
+          </li>
+        ))}
+      </ul>
+      <div>
+        <Button
+          variant="outline"
+          size="sm"
+          disabled={apply.isPending}
+          onClick={() =>
+            apply.execute({
+              items: fixes.map((fix) => ({ ticker: fix.ticker, suggestedPercent: fix.to })),
+            })
+          }
+        >
+          <WandSparklesIcon />
+          Aplicar ajuste
+        </Button>
+      </div>
+    </div>
+  );
+}
+
 function AddAssetForm() {
   const [ticker, setTicker] = useState("");
   const add = useAction(addTargetAssetAction, {
@@ -236,6 +306,7 @@ export function StrategyTable({
         <AddAssetForm />
       </CardHeader>
       <CardContent className="px-0">
+        <PercentFixPanel rows={rows} />
         <Table>
           <TableHeader>
             <TableRow>
