@@ -9,7 +9,8 @@ const alertVariants = cva(
       variant: {
         default: "bg-card text-card-foreground",
         destructive:
-          "bg-card text-destructive *:data-[slot=alert-description]:text-destructive/90 *:[svg]:text-current",
+          // text-loss, não text-destructive: o vermelho do sistema dá 3,6:1 sobre o card claro.
+          "border-loss/30 bg-loss/4 text-loss *:data-[slot=alert-description]:text-loss *:[svg]:text-current",
       },
     },
     defaultVariants: {

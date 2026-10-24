@@ -7,7 +7,7 @@ import { authClient } from "../auth-client";
 
 function GoogleIcon() {
   return (
-    <svg viewBox="0 0 24 24" aria-hidden="true" className="size-4">
+    <svg viewBox="0 0 24 24" aria-hidden="true" className="size-5">
       <path
         fill="#4285F4"
         d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92a5.06 5.06 0 0 1-2.2 3.32v2.77h3.57c2.08-1.92 3.27-4.74 3.27-8.1z"
@@ -42,9 +42,18 @@ export function SignInButton() {
   }
 
   return (
-    <Button size="lg" className="w-full" onClick={signIn} disabled={pending}>
+    // Pelas regras da marca do Google: fundo neutro (branco no claro, cinza-escuro no escuro), o
+    // "G" colorido sem moldura e o texto "Continuar com o Google". O azul com brilho do app ficaria
+    // fora delas.
+    <Button
+      variant="outline"
+      size="lg"
+      className="w-full border-[#747775] bg-white text-[#1f1f1f] hover:bg-[#f2f2f2] hover:text-[#1f1f1f] dark:border-[#8e918f] dark:bg-[#131314] dark:text-[#e3e3e3] dark:hover:bg-[#1f1f20]"
+      onClick={signIn}
+      disabled={pending}
+    >
       {pending ? <Spinner /> : <GoogleIcon />}
-      Entrar com Google
+      Continuar com o Google
     </Button>
   );
 }

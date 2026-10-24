@@ -32,16 +32,22 @@ async function SignedInRedirect() {
   return null;
 }
 
+/**
+ * Entrada no estilo da tela de boas-vindas dos apps da Apple: o ícone do app (o mesmo azulejo com
+ * aro de titânio da sidebar), o nome em Large Title, a frase em Subheadline e um botão só.
+ */
 export default function LoginPage({ searchParams }: PageProps<"/login">) {
   return (
-    <main className="flex min-h-svh items-center justify-center bg-muted/40 p-4">
-      <Card className="w-full max-w-sm">
-        <CardHeader className="items-center text-center">
-          <div className="mx-auto flex size-12 items-center justify-center rounded-xl bg-primary text-primary-foreground">
-            <CoinsIcon className="size-6" />
+    <main className="flex min-h-svh items-center justify-center p-4">
+      <Card className="w-full max-w-sm [--card-spacing:--spacing(8)]">
+        <CardHeader className="justify-items-center gap-3 text-center">
+          <div className="metal-ring tile mb-2 size-16 rounded-2xl [--tile:var(--tile-app)]">
+            <CoinsIcon className="size-8" aria-hidden="true" />
           </div>
-          <CardTitle className="text-2xl">Koinos</CardTitle>
-          <CardDescription>Sua carteira de FIIs, com aportes pelo método Suno.</CardDescription>
+          <CardTitle className="text-large-title">Koinos</CardTitle>
+          <CardDescription className="text-subheadline text-balance">
+            Sua carteira de FIIs, com aportes pelo método Suno.
+          </CardDescription>
         </CardHeader>
         <CardContent className="grid gap-4">
           <Suspense fallback={null}>
@@ -51,7 +57,7 @@ export default function LoginPage({ searchParams }: PageProps<"/login">) {
             <LoginError searchParams={searchParams} />
           </Suspense>
           <SignInButton />
-          <p className="text-center text-xs text-muted-foreground">
+          <p className="text-center text-footnote text-muted-foreground">
             Acesso restrito a e-mails autorizados.
           </p>
         </CardContent>
