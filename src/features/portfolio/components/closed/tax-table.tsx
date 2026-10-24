@@ -31,16 +31,18 @@ export function ClosedTaxTable({ rows, totals }: ClosedPositionsView) {
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead className="pl-4">FII</TableHead>
+              <TableHead className="pl-(--card-spacing)">FII</TableHead>
               <TableHead className="hidden @min-[480px]:table-cell">Encerrada em</TableHead>
               <TableHead className="text-right">Resultado</TableHead>
-              <TableHead className="pr-4 text-right whitespace-normal">IR estimado</TableHead>
+              <TableHead className="pr-(--card-spacing) text-right whitespace-normal">
+                IR estimado
+              </TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {rows.map((row) => (
               <TableRow key={row.ticker}>
-                <TableCell className="pl-4">
+                <TableCell className="pl-(--card-spacing)">
                   <ClosedTickerCell row={row} />
                 </TableCell>
                 <TableCell className="hidden tabular-nums @min-[480px]:table-cell">
@@ -53,7 +55,7 @@ export function ClosedTaxTable({ rows, totals }: ClosedPositionsView) {
                     <span className="text-muted-foreground">sem venda</span>
                   )}
                 </TableCell>
-                <TableCell className="pr-4 text-right tabular-nums">
+                <TableCell className="pr-(--card-spacing) text-right tabular-nums">
                   {row.estimatedTax > 0 ? formatBRL(row.estimatedTax) : "—"}
                 </TableCell>
               </TableRow>
@@ -61,12 +63,12 @@ export function ClosedTaxTable({ rows, totals }: ClosedPositionsView) {
           </TableBody>
           <TableFooter>
             <TableRow>
-              <TableCell className="pl-4 font-medium">Total</TableCell>
+              <TableCell className="pl-(--card-spacing) font-medium">Total</TableCell>
               <TableCell className="hidden @min-[480px]:table-cell" />
               <TableCell className="text-right font-semibold">
                 <Delta value={totals.realizedPnL} />
               </TableCell>
-              <TableCell className="pr-4 text-right font-semibold tabular-nums">
+              <TableCell className="pr-(--card-spacing) text-right font-semibold tabular-nums">
                 {formatBRL(totals.estimatedTax)}
               </TableCell>
             </TableRow>

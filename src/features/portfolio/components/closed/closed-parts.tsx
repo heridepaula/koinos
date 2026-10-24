@@ -43,7 +43,7 @@ export function ClosedNotes({ rows, tax }: { rows: readonly Row[]; tax: boolean 
   const incorporated = rows.some((row) => row.incorporatedInto !== null);
   const estimated = rows.some((row) => row.estimatedPrice);
   return (
-    <ul className="mt-4 grid gap-1.5 px-4 text-xs text-muted-foreground">
+    <ul className="mt-4 grid gap-2 px-(--card-spacing) text-footnote text-muted-foreground">
       {tax ? (
         <li>
           <Term>IR estimado:</Term> {formatPercent(FII_CAPITAL_GAINS_RATE, 0)} do lucro de cada FII,

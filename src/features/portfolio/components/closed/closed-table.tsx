@@ -33,19 +33,19 @@ export function ClosedPositionsTable({ rows, totals }: ClosedPositionsView) {
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead className="pl-4">FII</TableHead>
+              <TableHead className="pl-(--card-spacing)">FII</TableHead>
               <TableHead className="hidden @min-[600px]:table-cell">Encerrada em</TableHead>
               <TableHead className="hidden text-right @min-[720px]:table-cell">
                 Custo (PM)
               </TableHead>
               <TableHead className="hidden text-right @min-[480px]:table-cell">Vendido</TableHead>
-              <TableHead className="pr-4 text-right">Resultado</TableHead>
+              <TableHead className="pr-(--card-spacing) text-right">Resultado</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {rows.map((row) => (
               <TableRow key={row.ticker}>
-                <TableCell className="pl-4">
+                <TableCell className="pl-(--card-spacing)">
                   <ClosedTickerCell row={row} />
                 </TableCell>
                 <TableCell className="hidden tabular-nums @min-[600px]:table-cell">
@@ -57,7 +57,7 @@ export function ClosedPositionsTable({ rows, totals }: ClosedPositionsView) {
                 <TableCell className="hidden text-right tabular-nums @min-[480px]:table-cell">
                   {row.sales > 0 ? formatBRL(row.proceeds) : "—"}
                 </TableCell>
-                <TableCell className="pr-4 text-right">
+                <TableCell className="pr-(--card-spacing) text-right">
                   {row.sales > 0 ? (
                     <Delta value={row.realizedPnL} pct={row.realizedPct} stacked />
                   ) : (
@@ -69,7 +69,7 @@ export function ClosedPositionsTable({ rows, totals }: ClosedPositionsView) {
           </TableBody>
           <TableFooter>
             <TableRow>
-              <TableCell className="pl-4 font-medium">Total</TableCell>
+              <TableCell className="pl-(--card-spacing) font-medium">Total</TableCell>
               <TableCell className="hidden @min-[600px]:table-cell" />
               <TableCell className="hidden text-right font-semibold tabular-nums @min-[720px]:table-cell">
                 {formatBRL(totals.costBasis)}
@@ -77,7 +77,7 @@ export function ClosedPositionsTable({ rows, totals }: ClosedPositionsView) {
               <TableCell className="hidden text-right font-semibold tabular-nums @min-[480px]:table-cell">
                 {formatBRL(totals.proceeds)}
               </TableCell>
-              <TableCell className="pr-4 text-right font-semibold">
+              <TableCell className="pr-(--card-spacing) text-right font-semibold">
                 <Delta value={totals.realizedPnL} />
               </TableCell>
             </TableRow>

@@ -68,3 +68,10 @@ export function Stat({ label, value }: { label: ReactNode; value: ReactNode }) {
     </div>
   );
 }
+
+/** Nota de rodapé de um card de número, separada do valor pelo mesmo fio de cabelo da lista. */
+export function MetricNote({ children }: { children: ReactNode }) {
+  return (
+    <p className="border-t border-border/70 pt-3 text-footnote text-muted-foreground">{children}</p>
+  );
+}
