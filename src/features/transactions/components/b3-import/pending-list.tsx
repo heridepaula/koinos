@@ -141,10 +141,10 @@ export function PendingList({
                   {formatBRL(item.price ?? 0)}
                 </Badge>
               ) : null}
-              <label className="flex cursor-pointer items-center gap-2 text-sm text-muted-foreground">
+              <label className="flex cursor-pointer items-center gap-2 text-sm text-muted-foreground pointer-coarse:min-h-11">
                 <input
                   type="checkbox"
-                  className="size-4 cursor-pointer accent-(--primary)"
+                  className="size-4 cursor-pointer accent-(--primary) pointer-coarse:size-5"
                   checked={out}
                   onChange={() => toggleExclude(item.ticker)}
                 />

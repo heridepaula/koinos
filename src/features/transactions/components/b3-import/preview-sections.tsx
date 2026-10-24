@@ -1,3 +1,4 @@
+import { Disclosure } from "@/shared/components/disclosure";
 import { formatBRL, formatQuantity, formatTradeDate } from "@/shared/lib/format";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/shared/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/shared/ui/table";
@@ -487,15 +488,85 @@ export function Inconsistencies({ preview }: { preview: B3ImportPreview }) {
   );
 }
 
-export function TickerTable({ preview }: { preview: B3ImportPreview }) {
+type TickerStatus = B3ImportPreview["tickers"][number];
+
+const tickerNotes = (item: TickerStatus) =>
+  [
+    ...item.reasons,
+    item.outOfCatalog ? "Fora do catálogo da bolsa." : null,
+    item.group.length > 1
+      ? `Junto com ${item.group.filter((ticker) => ticker !== item.ticker).join(", ")}.`
+      : null,
+  ]
+    .filter(Boolean)
+    .join(" ");
+
+/** Celular: cada FII numa célula, com a situação só quando pede atenção e as notas embaixo. */
+function TickerList({ items }: { items: TickerStatus[] }) {
   return (
-    <Card>
+    <ul className="divide-y divide-border">
+      {items.map((item) => {
+        const notes = tickerNotes(item);
+        return (
+          <li key={item.ticker} className="grid gap-0.5 px-(--card-spacing) py-2.5">
+            <div className="flex items-center justify-between gap-3">
+              <span className="flex items-center gap-2">
+                <span className="font-medium">{item.ticker}</span>
+                {item.status !== "OK" ? (
+                  <ToneBadge tone={STATUS[item.status].tone}>{STATUS[item.status].label}</ToneBadge>
+                ) : null}
+              </span>
+              <span className="text-footnote text-muted-foreground tabular-nums">
+                {item.quantity > 0
+                  ? `${formatQuantity(item.quantity)} cotas · PM ${formatBRL(item.averagePrice)}`
+                  : "posição zerada"}
+              </span>
+            </div>
+            {notes ? <p className="text-footnote text-muted-foreground">{notes}</p> : null}
+          </li>
+        );
+      })}
+    </ul>
+  );
+}
+
+/**
+ * Como cada FII fica depois da atualização: a tabela a partir de 640 px de card. No celular, só
+ * os que pedem atenção ficam à vista; os que estão ok ficam num recolhível, para conferir.
+ */
+export function TickerTable({ preview }: { preview: B3ImportPreview }) {
+  const attention = preview.tickers.filter((item) => item.status !== "OK");
+  const settled = preview.tickers.filter((item) => item.status === "OK");
+  return (
+    <Card className="@container">
       <CardHeader>
         <CardTitle>Situação por FII</CardTitle>
         <CardDescription>Como cada FII fica depois da atualização.</CardDescription>
       </CardHeader>
       <CardContent className="px-0">
-        <Table>
+        <div className="grid gap-2 @min-[640px]:hidden">
+          {attention.length > 0 ? (
+            <TickerList items={attention} />
+          ) : (
+            <p className="flex items-center gap-2 px-(--card-spacing) text-sm">
+              <ToneIcon tone="ok" />
+              Todos os {formatQuantity(settled.length)} FIIs ficam ok.
+            </p>
+          )}
+          {settled.length > 0 ? (
+            <Disclosure
+              summaryClassName="mx-(--card-spacing)"
+              summary={
+                attention.length > 0
+                  ? `Ver os ${formatQuantity(settled.length)} FIIs ok`
+                  : `Ver os ${formatQuantity(settled.length)} FIIs`
+              }
+            >
+              <TickerList items={settled} />
+            </Disclosure>
+          ) : null}
+        </div>
+        <Table className="hidden @min-[640px]:table">
           <TableHeader>
             <TableRow>
               <TableHead className="pl-(--card-spacing)">FII</TableHead>
@@ -519,15 +590,7 @@ export function TickerTable({ preview }: { preview: B3ImportPreview }) {
                   {item.quantity > 0 ? formatBRL(item.averagePrice) : "—"}
                 </TableCell>
                 <TableCell className="min-w-56 pr-(--card-spacing) text-xs whitespace-normal text-muted-foreground">
-                  {[
-                    ...item.reasons,
-                    item.outOfCatalog ? "Fora do catálogo da bolsa." : null,
-                    item.group.length > 1
-                      ? `Junto com ${item.group.filter((ticker) => ticker !== item.ticker).join(", ")}.`
-                      : null,
-                  ]
-                    .filter(Boolean)
-                    .join(" ")}
+                  {tickerNotes(item)}
                 </TableCell>
               </TableRow>
             ))}
