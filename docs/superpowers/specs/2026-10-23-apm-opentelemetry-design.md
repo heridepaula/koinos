@@ -78,3 +78,24 @@ Além disso:
 - Monitoramento do navegador (RUM).
 - Amostragem: todo trace é registrado, porque o tráfego é de um usuário.
 - O `autoIndex` do Mongoose. O ensaio mostrou que cada partida a frio roda `createIndexes` em todas as coleções e pesa a primeira requisição. Fica como melhoria futura.
+
+## 8. Cobertura ampliada (mesmo dia, segundo pedido)
+
+O usuário pediu de novo o JSON e uma análise do que mais instrumentar ("para ter um dashboard completo e bem monitorado"). A análise apontou o que faltava, e entrou:
+
+- **Web Vitals:**
+  - `shared/components/web-vitals.tsx` usa o `useReportWebVitals`, no layout de `(app)`, e envia as medidas em lote, por `sendBeacon`, quando a aba sai de vista;
+  - `app/api/vitals/route.ts` grava um span `web-vitals` por medida. Só aceita `Sec-Fetch-Site: same-origin` com cookie de sessão, e a rota fora da lista do app vira `other`;
+  - a chave da New Relic nunca vai ao navegador.
+- **Telas:** os cinco carregadores (`view.*`) passam pelo `traced`, que guarda só contagens do resultado.
+- **Atualização B3:** spans `b3.read-files`, `b3.load-stored`, `b3.plan`, `b3.diff` e `b3.apply`, com contagens: arquivos, linhas, FIIs, pendências, divergências, lançamentos e proventos novos ou substituídos.
+- **Travas:** `withLock` abre o span `lock <nome>`, com `koinos.lock.acquired`. O nome vai sem o id da carteira.
+- **Erros do Next:** `onRequestError` no `instrumentation.ts` grava um span `request.error` com o tipo e o arquivo da rota. O caminho pedido e os cabeçalhos ficam de fora.
+- **Fluxo de controle:** redirect, notFound e o fim de um prerender não marcam erro. O span leva `koinos.control_flow`. No prefetch parcial, o `connection()` rejeita de propósito com `HANGING_PROMISE_REJECTION`; antes disso, quatro views apareciam "com erro" no ensaio.
+- **Status:** o Next põe a mensagem inteira do erro na descrição do status do span. O `RedactionSpanProcessor` passou a limpá-la, porque o ensaio mostrou o e-mail e o `token=` de uma mensagem de teste chegando por ali.
+
+Verificação: o segundo ensaio, com páginas, Web Vitals, prévia e importação da B3 numa cópia isolada, uma rota de erro descartável e o cron, passou em 32 de 32 itens. O primeiro ensaio, rodado de novo no mesmo build, passou em 37 de 37.
+
+O dashboard passou a ter 10 páginas e 90 widgets. As consultas usam 70 atributos, todos vistos nos ensaios, menos `vcs.ref.head.revision` e `vercel.region`, que só existem na Vercel.
+
+Continuam de fora, com o caminho em `docs/observability/new-relic.md`: logs pelo OpenTelemetry, um monitor Synthetics, as metas de serviço (SLO), as marcas de deploy (Change tracking) e as métricas de runtime.

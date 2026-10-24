@@ -144,10 +144,10 @@ O ESLint impede importar o interior de outra feature e mantém `domain/` puro. A
 
 ## Observabilidade (APM)
 
-O app manda traces OpenTelemetry (`@vercel/otel`) para a New Relic: requisições, Server Actions, MongoDB, Redis, brapi, Yahoo, Google e cada etapa do cron diário. Sem `OTEL_EXPORTER_OTLP_ENDPOINT`, nada sai do servidor.
+O app manda traces OpenTelemetry (`@vercel/otel`) para a New Relic: os Web Vitals do navegador, as requisições, os carregadores de cada tela, as Server Actions, a atualização B3, o MongoDB, o Redis e as travas, a brapi, o Yahoo e o Google, cada etapa do cron diário e os erros que o Next captura. Sem `OTEL_EXPORTER_OTLP_ENDPOINT`, nada sai do servidor.
 
 - **Privacidade:** as URLs vão sem query string, as queries do MongoDB sem os valores, o Redis só com o nome do comando, as mensagens de erro sem números nem e-mails, e das entradas das actions só o ticker, o tipo e o mês.
-- **Dashboard e alertas:** importe [`docs/observability/new-relic-dashboard.json`](docs/observability/new-relic-dashboard.json) seguindo [o guia](docs/observability/new-relic.md), que também traz os alertas sugeridos (brapi lenta, cron que não rodou, falhas).
+- **Dashboard e alertas:** importe [`docs/observability/new-relic-dashboard.json`](docs/observability/new-relic-dashboard.json) (10 páginas) seguindo [o guia](docs/observability/new-relic.md), que também traz a análise de cobertura e os alertas sugeridos (brapi lenta, cron que não rodou, falhas, página lenta).
 - **Desligar:** `OTEL_SDK_DISABLED=true`, no próximo deploy.
 
 ## Segurança

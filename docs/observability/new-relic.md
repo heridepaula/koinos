@@ -15,16 +15,42 @@ Só em **Production**:
 - `OTEL_SDK_DISABLED=true` desliga o SDK inteiro. Como toda variável da Vercel, vale a partir do próximo deploy.
 - Para testar no computador, aponte o endpoint para um receptor local e use `OTEL_EXPORTER_OTLP_PROTOCOL=http/json`: o corpo chega em JSON legível.
 
+## Cobertura
+
+| Camada           | O que é medido                                                                                                   | Spans                                                |
+| ---------------- | ---------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------- |
+| Navegador        | LCP, INP, CLS, FCP e TTFB de quem usa o app, por página                                                          | `web-vitals`                                         |
+| Requisições      | Rota, método, status e tempo; o prefetch RSC separado; o proxy                                                   | os do Next (`BaseServer.handleRequest`, render, RSC) |
+| Telas            | Cada carregador de dados (snapshot, evolução, proventos, reinvestimento, encerradas), com o tamanho do que monta | `view.*`                                             |
+| Server Actions   | Nome, resultado, tipo do erro e os campos liberados (`ticker`, `type`, `month`)                                  | `action <nome>`                                      |
+| Atualização B3   | Leitura dos extratos, plano, comparação e gravação, só com contagens                                             | `b3.*`                                               |
+| Banco            | Cada comando do MongoDB (Better Auth e Mongoose), com o formato da query                                         | `find transactions`…                                 |
+| Sessões e travas | Cada comando do Redis; a leitura da sessão no Better Auth; as travas e quando estavam ocupadas                   | `get`, `setex`…, `GET /get-session`, `lock <nome>`   |
+| APIs externas    | brapi, Yahoo e Google: host, caminho, status e tempo; qual fonte resolveu as cotações; a cota da brapi           | `fetch GET …`, `quotes.*`                            |
+| Cron             | Cada etapa da rotina diária, com as contagens                                                                    | `cron.*`                                             |
+| Erros            | Exceções nos spans e os erros que o Next captura no render, nas rotas, nas actions e no proxy                    | `request.error`                                      |
+| Plataforma       | Partidas a frio, o commit e a região de cada span, e quanto a conta da New Relic recebeu                         | `register instrumentation`, `NrConsumption`          |
+
+### O que ainda fica de fora
+
+- **Logs:** os `console.error` e `console.warn` ficam só no log da Vercel. Dá para mandá-los à New Relic com o OpenTelemetry Logs, ligados ao trace, aplicando a mesma limpeza das exceções.
+- **Disponibilidade vista de fora:** um monitor **Synthetics** do tipo ping em `https://koinos-sooty.vercel.app/login` avisa se o site cair. No plano gratuito, um ping a cada 6 horas cabe na franquia mensal.
+- **Metas de serviço (SLO):** em **Service levels**, por exemplo 99% das páginas abaixo de 1,5 s e 99,5% sem 5xx, com as consultas da Visão geral.
+- **Marcas de deploy:** o dashboard já compara commits (`vcs.ref.head.revision`). Para ver o deploy marcado nos gráficos, falta registrar cada deploy no **Change tracking** da New Relic.
+- **Métricas de runtime** (memória, event loop): exigem o exportador de métricas do OpenTelemetry. Numa função serverless de um usuário, dizem pouco.
+
 ## O que chega e o que fica de fora
 
-| Chega                                                                  | Fica de fora                                             |
-| ---------------------------------------------------------------------- | -------------------------------------------------------- |
-| Requisições (rota, método, status, tempo) e os spans internos do Next  | Query strings (`?code=` do login, `crumb=`, `?valor=`…)  |
-| Server Actions: nome, resultado, tipo do erro, `ticker`/`type`/`month` | Quantidades, preços, notas, ids e arquivos das actions   |
-| MongoDB: coleção, operação e o formato da query                        | Os valores da query (cada um vira `?`)                   |
-| Redis: o nome do comando                                               | Chaves e valores (sessões, travas)                       |
-| brapi, Yahoo e Google: host, caminho, status e tempo                   | Cabeçalhos (o token da brapi, os cookies)                |
-| Exceções: tipo, mensagem e pilha                                       | Números e e-mails das mensagens (viram `#` e `[e-mail]`) |
+| Chega                                                                  | Fica de fora                                                 |
+| ---------------------------------------------------------------------- | ------------------------------------------------------------ |
+| Requisições (rota, método, status, tempo) e os spans internos do Next  | Query strings (`?code=` do login, `crumb=`, `?valor=`…)      |
+| Web Vitals: a métrica, o valor, a nota e a rota                        | URLs fora das rotas do app (viram `other`), quem é o usuário |
+| Server Actions: nome, resultado, tipo do erro, `ticker`/`type`/`month` | Quantidades, preços, notas, ids e arquivos das actions       |
+| Atualização B3: quantos arquivos, linhas, FIIs e lançamentos           | O conteúdo e o nome dos extratos                             |
+| MongoDB: coleção, operação e o formato da query                        | Os valores da query (cada um vira `?`)                       |
+| Redis: o nome do comando; travas: o nome (`import`, `quotes`)          | Chaves e valores; o id da carteira no nome da trava          |
+| brapi, Yahoo e Google: host, caminho, status e tempo                   | Cabeçalhos (o token da brapi, os cookies)                    |
+| Exceções: tipo, mensagem e pilha; a descrição do status                | Números e e-mails das mensagens (viram `#` e `[e-mail]`)     |
 
 ## Importar o dashboard
 
@@ -35,19 +61,22 @@ Só em **Production**:
    sed 's/"accountIds": \[0\]/"accountIds": [1234567]/g' docs/observability/new-relic-dashboard.json > dashboard.json
    ```
 
-3. **Dashboards** → **Import dashboard** → cole o JSON → **Import dashboard**.
+3. **Dashboards** → **Import dashboard** → cole o JSON → **Import dashboard**. Se já importou a versão anterior, apague a antiga ou importe ao lado.
 
 As páginas:
 
-- **Visão geral:** requisições, p95 das páginas, % de 5xx, % de actions com falha, rotas e status.
+- **Visão geral:** requisições, p95 das páginas, % de 5xx, LCP, actions com falha, rotas, status e o proxy.
+- **Navegador (Web Vitals):** LCP, INP, CLS, FCP e TTFB no p75 (o padrão do Google), por página, as notas e as medidas ruins.
+- **Páginas e dados:** o tempo de cada carregador de tela, os prerenders interrompidos pelo prefetch e o tamanho da carteira.
 - **Server Actions:** execuções, falhas inesperadas, erros de regra (`ActionError`), sessão expirada, tempo e últimas falhas.
+- **Atualização B3:** prévias, importações, falhas, a trava ocupada, o tempo de cada etapa e o que cada envio trouxe.
 - **MongoDB:** operações por coleção, as queries mais lentas (só o formato) e os índices criados nas partidas a frio.
-- **Redis e sessão:** comandos, a leitura da sessão no Better Auth e os logins pelo Google.
+- **Redis, sessão e travas:** comandos, a leitura da sessão no Better Auth, as travas e os logins pelo Google.
 - **APIs externas:** latência e falhas da brapi, do Yahoo e do Google, a cota da brapi no mês e quantas cotações o Yahoo precisou cobrir.
 - **Cron diário:** cada execução, o tempo de cada etapa, cotações atualizadas e com falha, e chamadas sem o segredo.
-- **Erros e partidas a frio:** spans com erro, exceções e instâncias novas da função.
+- **Erros, deploys e plataforma:** erros capturados pelo Next, exceções, a comparação entre commits, a região, as partidas a frio e quantos GB a conta recebeu.
 
-O tráfego do Koinos é pequeno. Com o seletor de tempo em 60 minutos, a maioria dos gráficos fica vazia: use 1 dia ou 7 dias. Os widgets do cron e o da cota da brapi já têm período próprio e não seguem o seletor.
+O tráfego do Koinos é pequeno. Com o seletor de tempo em 60 minutos, a maioria dos gráficos fica vazia: use 1 dia ou 7 dias. Os widgets do cron, da cota da brapi e do consumo já têm período próprio e não seguem o seletor.
 
 ## Alertas sugeridos
 
@@ -60,7 +89,11 @@ Em **Alerts** → **Alert conditions** → **New alert condition** → **NRQL**.
 | Cron não rodou             | `SELECT count(*) FROM Span WHERE service.name = 'koinos' AND name = 'cron.daily'`                                                                                                                 | loss of signal de 26 horas abre o incidente |
 | Etapa do cron com erro     | `SELECT count(*) FROM Span WHERE service.name = 'koinos' AND name LIKE 'cron.%' AND otel.status_code = 'ERROR'`                                                                                   | acima de 0 pelo menos uma vez em 5 minutos  |
 | Falha inesperada em action | `SELECT count(*) FROM Span WHERE service.name = 'koinos' AND koinos.action.error_kind = 'unexpected'`                                                                                             | acima de 0 pelo menos uma vez em 5 minutos  |
+| Erro capturado pelo Next   | `SELECT count(*) FROM Span WHERE service.name = 'koinos' AND name = 'request.error'`                                                                                                              | acima de 0 pelo menos uma vez em 5 minutos  |
 | Erros 5xx                  | `SELECT count(*) FROM Span WHERE service.name = 'koinos' AND next.span_type = 'BaseServer.handleRequest' AND http.status_code >= 500`                                                             | acima de 0 pelo menos uma vez em 5 minutos  |
+| Página lenta para quem usa | `SELECT percentile(koinos.vitals.value, 75) FROM Span WHERE service.name = 'koinos' AND name = 'web-vitals' AND koinos.vitals.name = 'LCP'`                                                       | acima de 4000 por 30 minutos                |
+| Atualização B3 falhando    | `SELECT count(*) FROM Span WHERE service.name = 'koinos' AND koinos.action.name IN ('previewB3Import', 'confirmB3Import') AND koinos.action.error_kind = 'unexpected'`                            | acima de 0 pelo menos uma vez em 5 minutos  |
+| Franquia da New Relic      | `SELECT sum(GigabytesIngested) FROM NrConsumption WHERE productLine = 'DataPlatform' SINCE 30 days ago`                                                                                           | acima de 80 (GB; a franquia grátis é 100)   |
 
 O aviso por e-mail fica em **Alerts** → **Workflows**, com um destino de e-mail.
 
@@ -68,5 +101,5 @@ O aviso por e-mail fica em **Alerts** → **Workflows**, com um destino de e-mai
 
 Trocar um destes nomes no código quebra os widgets e os alertas que o usam:
 
-- spans: `action <nome>`, `cron.daily`, `cron.load-tickers`, `cron.refresh-quotes`, `cron.refresh-dividends`, `cron.ensure-monthly-closes`, `cron.refresh-catalog`, `quotes.brapi`, `quotes.yahoo-fallback`, `tickers.search`;
-- atributos: `koinos.action.name`, `koinos.action.outcome`, `koinos.action.error_kind`, `koinos.action.input.*`, `error.type`, `koinos.quotes.*`, `koinos.brapi.*`, `koinos.dividends.updated`, `koinos.history.months_fetched`, `koinos.catalog.entries`, `koinos.tickers*`.
+- spans: `action <nome>`, `view.*`, `b3.*`, `lock <nome>`, `web-vitals`, `request.error`, `cron.daily`, `cron.load-tickers`, `cron.refresh-quotes`, `cron.refresh-dividends`, `cron.ensure-monthly-closes`, `cron.refresh-catalog`, `quotes.brapi`, `quotes.yahoo-fallback`, `tickers.search`;
+- atributos: `koinos.action.*`, `koinos.view.*`, `koinos.control_flow`, `koinos.b3.*`, `koinos.lock.name`, `koinos.lock.acquired`, `koinos.vitals.*`, `next.error.*`, `error.type`, `koinos.quotes.*`, `koinos.brapi.*`, `koinos.dividends.updated`, `koinos.history.months_fetched`, `koinos.catalog.entries`, `koinos.tickers*`.

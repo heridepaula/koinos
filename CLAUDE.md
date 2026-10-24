@@ -40,7 +40,7 @@ Koinos is a single-owner FII (Brazilian REIT) portfolio dashboard that replaced 
 
 - `src/features/{auth,transactions,market-data,strategy,portfolio,smart-buy}`.
 - `src/shared`: `db`, `env`, `lib`, `ui`, `components`. `ui` is shadcn "base-nova" on Base UI, so components take a `render` prop instead of `asChild`.
-- `src/app`: the `(app)` group (authenticated), `(public)/login`, and `api/{auth,cron/daily,tickers}`.
+- `src/app`: the `(app)` group (authenticated), `(public)/login`, and `api/{auth,cron/daily,tickers,vitals}`.
 
 **Pages** (`src/app/(app)`): each one renders a static header and streams a `<Suspense>` section that awaits a DAL view from `portfolio/server.ts` or `transactions/server.ts`.
 
@@ -150,7 +150,14 @@ Koinos is a single-owner FII (Brazilian REIT) portfolio dashboard that replaced 
   - MongoDB statements go with `?` for every value; Redis spans carry only the command name.
   - Action inputs go only for the fields in `TRACEABLE_INPUT_FIELDS` (`ticker`, `type`, `month`) in `auth/server/action-client.ts`. Adding one is a privacy decision.
 - **Server Actions:** every action needs `.metadata({ actionName })`, because the metadata schema requires it. The first middleware wraps the action in `action <name>` with `koinos.action.outcome` and, on failure, `error.type` and `koinos.action.error_kind` (`expected` for `ActionError` and `UnauthorizedError`).
-- **Custom spans:** `withSpan` and `recordError` (`shared/lib/tracing.ts`). The cron steps are `cron.*`, and the quote sources are `quotes.brapi` and `quotes.yahoo-fallback`.
+- **Custom spans** (`shared/lib/tracing.ts`): `withSpan`, `traced` (a span around a function, with counts taken from its result), `recordSpan` and `recordError`.
+  - Names: the page loaders are `view.*`, the B3 update steps `b3.*`, the cron steps `cron.*`, the quote sources `quotes.brapi` and `quotes.yahoo-fallback`, and `withLock` opens `lock <name>` with `koinos.lock.acquired`.
+  - Attributes carry counts, never portfolio values or ids.
+- **Next control flow isn't an error:** redirects, notFound and the end of a prerender (`HANGING_PROMISE_REJECTION`, when the partial prefetch makes `connection()` reject) only set `koinos.control_flow`.
+- **Errors Next catches:** `onRequestError` in `src/instrumentation.ts` records a `request.error` span. Next also puts the raw error message in the span status description, so the redaction processor scrubs that too.
+- **Web Vitals:** `WebVitals` (`shared/components/web-vitals.tsx`, in the `(app)` layout) batches `useReportWebVitals` measures and beacons them to `/api/vitals`, which records one `web-vitals` span each.
+  - The route only takes same-origin requests with a session cookie, and only the app's routes (anything else becomes `other`).
+  - The New Relic key never reaches the browser.
 - **The dashboard depends on these names:** renaming a span or a `koinos.*` attribute breaks its widgets and alerts (list in `docs/observability/new-relic.md`).
 - **Local check:** point the endpoint at a throwaway receiver with `OTEL_EXPORTER_OTLP_PROTOCOL=http/json` and read the spans as JSON.
 
