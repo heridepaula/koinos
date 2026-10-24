@@ -37,6 +37,8 @@ npm run dev                  # http://localhost:3000
 | `BRAPI_TOKEN`                               | Opcional. Sem token, as cotações vêm da listagem em lote da brapi, e o que faltar vem do Yahoo.                                                                                                |
 | `BRAPI_MONTHLY_QUOTA`                       | Cota mensal do seu plano da brapi (padrão 15000). Ao passar de 90%, o app usa só o Yahoo até o mês virar.                                                                                      |
 | `CRON_SECRET`                               | 16+ caracteres. Protege `/api/cron/daily`; obrigatório em produção.                                                                                                                            |
+| `OTEL_EXPORTER_OTLP_ENDPOINT`               | Opcional. Para onde vão os traces do APM (em produção, a New Relic: `https://otlp.nr-data.net:4318`). Sem ele, nada sai do servidor.                                                           |
+| `OTEL_EXPORTER_OTLP_HEADERS`                | Opcional. Cabeçalho do envio, no formato `api-key=<chave de ingestão>`. É segredo: na Vercel, marque como Sensitive.                                                                           |
 
 ### Login com Google
 
@@ -139,6 +141,14 @@ Monólito modular por features em `src/features`: `auth`, `transactions`, `marke
 - `repo.ts`: acesso com `portfolioId` explícito, só para scripts (o lint bloqueia o uso no app).
 
 O ESLint impede importar o interior de outra feature e mantém `domain/` puro. A especificação completa está em [`docs/superpowers/specs`](docs/superpowers/specs/2026-10-17-koinos-design.md), e o plano de implementação em [`docs/superpowers/plans`](docs/superpowers/plans/2026-10-17-koinos-mvp.md).
+
+## Observabilidade (APM)
+
+O app manda traces OpenTelemetry (`@vercel/otel`) para a New Relic: requisições, Server Actions, MongoDB, Redis, brapi, Yahoo, Google e cada etapa do cron diário. Sem `OTEL_EXPORTER_OTLP_ENDPOINT`, nada sai do servidor.
+
+- **Privacidade:** as URLs vão sem query string, as queries do MongoDB sem os valores, o Redis só com o nome do comando, as mensagens de erro sem números nem e-mails, e das entradas das actions só o ticker, o tipo e o mês.
+- **Dashboard e alertas:** importe [`docs/observability/new-relic-dashboard.json`](docs/observability/new-relic-dashboard.json) seguindo [o guia](docs/observability/new-relic.md), que também traz os alertas sugeridos (brapi lenta, cron que não rodou, falhas).
+- **Desligar:** `OTEL_SDK_DISABLED=true`, no próximo deploy.
 
 ## Segurança
 

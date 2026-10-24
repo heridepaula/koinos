@@ -1,0 +1,1735 @@
+{
+  "name": "Koinos · APM",
+  "description": "OpenTelemetry do Koinos (Next.js na Vercel): requisições, Server Actions, MongoDB, Redis, APIs externas e cron.",
+  "permissions": "PUBLIC_READ_WRITE",
+  "pages": [
+    {
+      "name": "Visão geral",
+      "description": "Requisições, tempo de resposta e falhas do Koinos.",
+      "widgets": [
+        {
+          "title": "Sobre este dashboard",
+          "layout": {
+            "column": 1,
+            "row": 1,
+            "width": 4,
+            "height": 3
+          },
+          "linkedEntityGuids": null,
+          "visualization": {
+            "id": "viz.markdown"
+          },
+          "rawConfiguration": {
+            "text": "### Koinos · APM (OpenTelemetry)\n- **Requisições**: spans raiz do Next (`BaseServer.handleRequest`) com rota; sem os arquivos estáticos.\n- **Páginas** exclui o prefetch RSC (`next.rsc`), que o Next dispara ao passar pelos links.\n- As URLs chegam sem query string e as mensagens de erro sem números nem e-mails.\n- As queries do MongoDB trazem o formato, com `?` no lugar de cada valor."
+          }
+        },
+        {
+          "title": "Requisições",
+          "layout": {
+            "column": 5,
+            "row": 1,
+            "width": 2,
+            "height": 3
+          },
+          "linkedEntityGuids": null,
+          "visualization": {
+            "id": "viz.billboard"
+          },
+          "rawConfiguration": {
+            "facet": {
+              "showOtherSeries": false
+            },
+            "nrqlQueries": [
+              {
+                "accountIds": [0],
+                "query": "SELECT count(*) AS 'Requisições' FROM Span WHERE service.name = 'koinos' AND next.span_type = 'BaseServer.handleRequest' AND http.route IS NOT NULL COMPARE WITH 1 week ago"
+              }
+            ],
+            "platformOptions": {
+              "ignoreTimeRange": false
+            }
+          }
+        },
+        {
+          "title": "Páginas: p95 (ms)",
+          "layout": {
+            "column": 7,
+            "row": 1,
+            "width": 2,
+            "height": 3
+          },
+          "linkedEntityGuids": null,
+          "visualization": {
+            "id": "viz.billboard"
+          },
+          "rawConfiguration": {
+            "facet": {
+              "showOtherSeries": false
+            },
+            "nrqlQueries": [
+              {
+                "accountIds": [0],
+                "query": "SELECT percentile(duration.ms, 95) AS 'p95 (ms)' FROM Span WHERE service.name = 'koinos' AND next.span_type = 'BaseServer.handleRequest' AND http.route IS NOT NULL AND next.rsc IS FALSE"
+              }
+            ],
+            "platformOptions": {
+              "ignoreTimeRange": false
+            },
+            "thresholds": [
+              {
+                "alertSeverity": "WARNING",
+                "value": 1500
+              },
+              {
+                "alertSeverity": "CRITICAL",
+                "value": 3000
+              }
+            ]
+          }
+        },
+        {
+          "title": "Erros 5xx",
+          "layout": {
+            "column": 9,
+            "row": 1,
+            "width": 2,
+            "height": 3
+          },
+          "linkedEntityGuids": null,
+          "visualization": {
+            "id": "viz.billboard"
+          },
+          "rawConfiguration": {
+            "facet": {
+              "showOtherSeries": false
+            },
+            "nrqlQueries": [
+              {
+                "accountIds": [0],
+                "query": "SELECT percentage(count(*), WHERE http.status_code >= 500) AS '% 5xx' FROM Span WHERE service.name = 'koinos' AND next.span_type = 'BaseServer.handleRequest' AND http.route IS NOT NULL"
+              }
+            ],
+            "platformOptions": {
+              "ignoreTimeRange": false
+            },
+            "thresholds": [
+              {
+                "alertSeverity": "WARNING",
+                "value": 1
+              },
+              {
+                "alertSeverity": "CRITICAL",
+                "value": 5
+              }
+            ]
+          }
+        },
+        {
+          "title": "Actions com falha",
+          "layout": {
+            "column": 11,
+            "row": 1,
+            "width": 2,
+            "height": 3
+          },
+          "linkedEntityGuids": null,
+          "visualization": {
+            "id": "viz.billboard"
+          },
+          "rawConfiguration": {
+            "facet": {
+              "showOtherSeries": false
+            },
+            "nrqlQueries": [
+              {
+                "accountIds": [0],
+                "query": "SELECT percentage(count(*), WHERE koinos.action.outcome = 'server_error') AS '% com falha' FROM Span WHERE service.name = 'koinos' AND koinos.action.name IS NOT NULL"
+              }
+            ],
+            "platformOptions": {
+              "ignoreTimeRange": false
+            }
+          }
+        },
+        {
+          "title": "Requisições por minuto",
+          "layout": {
+            "column": 1,
+            "row": 4,
+            "width": 6,
+            "height": 3
+          },
+          "linkedEntityGuids": null,
+          "visualization": {
+            "id": "viz.line"
+          },
+          "rawConfiguration": {
+            "facet": {
+              "showOtherSeries": false
+            },
+            "nrqlQueries": [
+              {
+                "accountIds": [0],
+                "query": "SELECT rate(count(*), 1 minute) AS 'req/min' FROM Span WHERE service.name = 'koinos' AND next.span_type = 'BaseServer.handleRequest' AND http.route IS NOT NULL FACET CASES (WHERE next.rsc IS TRUE AS 'Prefetch RSC', WHERE next.rsc IS FALSE AS 'Páginas e API') TIMESERIES AUTO"
+              }
+            ],
+            "platformOptions": {
+              "ignoreTimeRange": false
+            },
+            "legend": {
+              "enabled": true
+            },
+            "yAxisLeft": {
+              "zero": true
+            }
+          }
+        },
+        {
+          "title": "Tempo de resposta das páginas (ms)",
+          "layout": {
+            "column": 7,
+            "row": 4,
+            "width": 6,
+            "height": 3
+          },
+          "linkedEntityGuids": null,
+          "visualization": {
+            "id": "viz.line"
+          },
+          "rawConfiguration": {
+            "facet": {
+              "showOtherSeries": false
+            },
+            "nrqlQueries": [
+              {
+                "accountIds": [0],
+                "query": "SELECT percentile(duration.ms, 50, 95, 99) FROM Span WHERE service.name = 'koinos' AND next.span_type = 'BaseServer.handleRequest' AND http.route IS NOT NULL AND next.rsc IS FALSE TIMESERIES AUTO"
+              }
+            ],
+            "platformOptions": {
+              "ignoreTimeRange": false
+            },
+            "legend": {
+              "enabled": true
+            },
+            "yAxisLeft": {
+              "zero": true
+            }
+          }
+        },
+        {
+          "title": "Rotas",
+          "layout": {
+            "column": 1,
+            "row": 7,
+            "width": 8,
+            "height": 4
+          },
+          "linkedEntityGuids": null,
+          "visualization": {
+            "id": "viz.table"
+          },
+          "rawConfiguration": {
+            "facet": {
+              "showOtherSeries": false
+            },
+            "nrqlQueries": [
+              {
+                "accountIds": [0],
+                "query": "SELECT count(*) AS 'Requisições', average(duration.ms) AS 'Média (ms)', percentile(duration.ms, 95) AS 'p95 (ms)', percentage(count(*), WHERE http.status_code >= 500) AS '% 5xx' FROM Span WHERE service.name = 'koinos' AND next.span_type = 'BaseServer.handleRequest' AND http.route IS NOT NULL FACET name LIMIT 50"
+              }
+            ],
+            "platformOptions": {
+              "ignoreTimeRange": false
+            }
+          }
+        },
+        {
+          "title": "Status HTTP",
+          "layout": {
+            "column": 9,
+            "row": 7,
+            "width": 4,
+            "height": 4
+          },
+          "linkedEntityGuids": null,
+          "visualization": {
+            "id": "viz.pie"
+          },
+          "rawConfiguration": {
+            "facet": {
+              "showOtherSeries": false
+            },
+            "nrqlQueries": [
+              {
+                "accountIds": [0],
+                "query": "SELECT count(*) FROM Span WHERE service.name = 'koinos' AND next.span_type = 'BaseServer.handleRequest' AND http.route IS NOT NULL FACET http.status_code"
+              }
+            ],
+            "platformOptions": {
+              "ignoreTimeRange": false
+            }
+          }
+        },
+        {
+          "title": "Erros 5xx por rota",
+          "layout": {
+            "column": 1,
+            "row": 11,
+            "width": 6,
+            "height": 3
+          },
+          "linkedEntityGuids": null,
+          "visualization": {
+            "id": "viz.stacked-bar"
+          },
+          "rawConfiguration": {
+            "facet": {
+              "showOtherSeries": false
+            },
+            "nrqlQueries": [
+              {
+                "accountIds": [0],
+                "query": "SELECT count(*) FROM Span WHERE service.name = 'koinos' AND next.span_type = 'BaseServer.handleRequest' AND http.route IS NOT NULL AND http.status_code >= 500 FACET http.route TIMESERIES AUTO"
+              }
+            ],
+            "platformOptions": {
+              "ignoreTimeRange": false
+            },
+            "legend": {
+              "enabled": true
+            },
+            "yAxisLeft": {
+              "zero": true
+            }
+          }
+        },
+        {
+          "title": "Proxy (cookie de sessão) p95 (ms)",
+          "layout": {
+            "column": 7,
+            "row": 11,
+            "width": 6,
+            "height": 3
+          },
+          "linkedEntityGuids": null,
+          "visualization": {
+            "id": "viz.line"
+          },
+          "rawConfiguration": {
+            "facet": {
+              "showOtherSeries": false
+            },
+            "nrqlQueries": [
+              {
+                "accountIds": [0],
+                "query": "SELECT percentile(duration.ms, 95) FROM Span WHERE service.name = 'koinos' AND next.span_type = 'Middleware.execute' TIMESERIES AUTO"
+              }
+            ],
+            "platformOptions": {
+              "ignoreTimeRange": false
+            },
+            "legend": {
+              "enabled": true
+            },
+            "yAxisLeft": {
+              "zero": true
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Server Actions",
+      "description": "Cada action do next-safe-action, com o resultado e o erro.",
+      "widgets": [
+        {
+          "title": "Execuções",
+          "layout": {
+            "column": 1,
+            "row": 1,
+            "width": 3,
+            "height": 3
+          },
+          "linkedEntityGuids": null,
+          "visualization": {
+            "id": "viz.billboard"
+          },
+          "rawConfiguration": {
+            "facet": {
+              "showOtherSeries": false
+            },
+            "nrqlQueries": [
+              {
+                "accountIds": [0],
+                "query": "SELECT count(*) AS 'Execuções' FROM Span WHERE service.name = 'koinos' AND koinos.action.name IS NOT NULL COMPARE WITH 1 week ago"
+              }
+            ],
+            "platformOptions": {
+              "ignoreTimeRange": false
+            }
+          }
+        },
+        {
+          "title": "Falhas inesperadas",
+          "layout": {
+            "column": 4,
+            "row": 1,
+            "width": 3,
+            "height": 3
+          },
+          "linkedEntityGuids": null,
+          "visualization": {
+            "id": "viz.billboard"
+          },
+          "rawConfiguration": {
+            "facet": {
+              "showOtherSeries": false
+            },
+            "nrqlQueries": [
+              {
+                "accountIds": [0],
+                "query": "SELECT count(*) AS 'Falhas inesperadas' FROM Span WHERE service.name = 'koinos' AND koinos.action.name IS NOT NULL AND koinos.action.error_kind = 'unexpected'"
+              }
+            ],
+            "platformOptions": {
+              "ignoreTimeRange": false
+            },
+            "thresholds": [
+              {
+                "alertSeverity": "CRITICAL",
+                "value": 1
+              }
+            ]
+          }
+        },
+        {
+          "title": "Erros de regra (ActionError)",
+          "layout": {
+            "column": 7,
+            "row": 1,
+            "width": 3,
+            "height": 3
+          },
+          "linkedEntityGuids": null,
+          "visualization": {
+            "id": "viz.billboard"
+          },
+          "rawConfiguration": {
+            "facet": {
+              "showOtherSeries": false
+            },
+            "nrqlQueries": [
+              {
+                "accountIds": [0],
+                "query": "SELECT count(*) AS 'ActionError' FROM Span WHERE service.name = 'koinos' AND koinos.action.name IS NOT NULL AND error.type = 'ActionError'"
+              }
+            ],
+            "platformOptions": {
+              "ignoreTimeRange": false
+            }
+          }
+        },
+        {
+          "title": "Sessão expirada",
+          "layout": {
+            "column": 10,
+            "row": 1,
+            "width": 3,
+            "height": 3
+          },
+          "linkedEntityGuids": null,
+          "visualization": {
+            "id": "viz.billboard"
+          },
+          "rawConfiguration": {
+            "facet": {
+              "showOtherSeries": false
+            },
+            "nrqlQueries": [
+              {
+                "accountIds": [0],
+                "query": "SELECT count(*) AS 'UnauthorizedError' FROM Span WHERE service.name = 'koinos' AND koinos.action.name IS NOT NULL AND error.type = 'UnauthorizedError'"
+              }
+            ],
+            "platformOptions": {
+              "ignoreTimeRange": false
+            }
+          }
+        },
+        {
+          "title": "Por action",
+          "layout": {
+            "column": 1,
+            "row": 4,
+            "width": 12,
+            "height": 4
+          },
+          "linkedEntityGuids": null,
+          "visualization": {
+            "id": "viz.table"
+          },
+          "rawConfiguration": {
+            "facet": {
+              "showOtherSeries": false
+            },
+            "nrqlQueries": [
+              {
+                "accountIds": [0],
+                "query": "SELECT count(*) AS 'Execuções', percentage(count(*), WHERE koinos.action.outcome = 'success') AS '% sucesso', percentage(count(*), WHERE koinos.action.outcome = 'server_error') AS '% falha', percentage(count(*), WHERE koinos.action.outcome = 'validation_error') AS '% validação', average(duration.ms) AS 'Média (ms)', percentile(duration.ms, 95) AS 'p95 (ms)' FROM Span WHERE service.name = 'koinos' AND koinos.action.name IS NOT NULL FACET koinos.action.name LIMIT 20"
+              }
+            ],
+            "platformOptions": {
+              "ignoreTimeRange": false
+            }
+          }
+        },
+        {
+          "title": "Resultado ao longo do tempo",
+          "layout": {
+            "column": 1,
+            "row": 8,
+            "width": 6,
+            "height": 3
+          },
+          "linkedEntityGuids": null,
+          "visualization": {
+            "id": "viz.stacked-bar"
+          },
+          "rawConfiguration": {
+            "facet": {
+              "showOtherSeries": false
+            },
+            "nrqlQueries": [
+              {
+                "accountIds": [0],
+                "query": "SELECT count(*) FROM Span WHERE service.name = 'koinos' AND koinos.action.name IS NOT NULL FACET koinos.action.outcome TIMESERIES AUTO"
+              }
+            ],
+            "platformOptions": {
+              "ignoreTimeRange": false
+            },
+            "legend": {
+              "enabled": true
+            },
+            "yAxisLeft": {
+              "zero": true
+            }
+          }
+        },
+        {
+          "title": "Tempo por action, p95 (ms)",
+          "layout": {
+            "column": 7,
+            "row": 8,
+            "width": 6,
+            "height": 3
+          },
+          "linkedEntityGuids": null,
+          "visualization": {
+            "id": "viz.line"
+          },
+          "rawConfiguration": {
+            "facet": {
+              "showOtherSeries": false
+            },
+            "nrqlQueries": [
+              {
+                "accountIds": [0],
+                "query": "SELECT percentile(duration.ms, 95) FROM Span WHERE service.name = 'koinos' AND koinos.action.name IS NOT NULL FACET koinos.action.name TIMESERIES AUTO"
+              }
+            ],
+            "platformOptions": {
+              "ignoreTimeRange": false
+            },
+            "legend": {
+              "enabled": true
+            },
+            "yAxisLeft": {
+              "zero": true
+            }
+          }
+        },
+        {
+          "title": "Falhas por action e tipo",
+          "layout": {
+            "column": 1,
+            "row": 11,
+            "width": 6,
+            "height": 4
+          },
+          "linkedEntityGuids": null,
+          "visualization": {
+            "id": "viz.table"
+          },
+          "rawConfiguration": {
+            "facet": {
+              "showOtherSeries": false
+            },
+            "nrqlQueries": [
+              {
+                "accountIds": [0],
+                "query": "SELECT count(*) AS 'Falhas' FROM Span WHERE service.name = 'koinos' AND koinos.action.name IS NOT NULL AND koinos.action.outcome = 'server_error' FACET koinos.action.name, error.type, koinos.action.error_kind LIMIT 50"
+              }
+            ],
+            "platformOptions": {
+              "ignoreTimeRange": false
+            }
+          }
+        },
+        {
+          "title": "Últimas falhas",
+          "layout": {
+            "column": 7,
+            "row": 11,
+            "width": 6,
+            "height": 4
+          },
+          "linkedEntityGuids": null,
+          "visualization": {
+            "id": "viz.table"
+          },
+          "rawConfiguration": {
+            "facet": {
+              "showOtherSeries": false
+            },
+            "nrqlQueries": [
+              {
+                "accountIds": [0],
+                "query": "SELECT koinos.action.name AS 'Action', error.type AS 'Erro', koinos.action.input.ticker AS 'Ticker', koinos.action.input.type AS 'Tipo', koinos.action.input.month AS 'Mês', duration.ms AS 'ms', trace.id FROM Span WHERE service.name = 'koinos' AND koinos.action.name IS NOT NULL AND koinos.action.outcome = 'server_error' LIMIT 50"
+              }
+            ],
+            "platformOptions": {
+              "ignoreTimeRange": false
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "MongoDB",
+      "description": "Driver nativo (Better Auth e Mongoose). Queries com '?' no lugar dos valores.",
+      "widgets": [
+        {
+          "title": "Operações",
+          "layout": {
+            "column": 1,
+            "row": 1,
+            "width": 3,
+            "height": 3
+          },
+          "linkedEntityGuids": null,
+          "visualization": {
+            "id": "viz.billboard"
+          },
+          "rawConfiguration": {
+            "facet": {
+              "showOtherSeries": false
+            },
+            "nrqlQueries": [
+              {
+                "accountIds": [0],
+                "query": "SELECT count(*) AS 'Operações' FROM Span WHERE service.name = 'koinos' AND db.system.name = 'mongodb' AND db.operation.name NOT IN ('saslStart', 'saslContinue', 'hello', 'endSessions') COMPARE WITH 1 week ago"
+              }
+            ],
+            "platformOptions": {
+              "ignoreTimeRange": false
+            }
+          }
+        },
+        {
+          "title": "p95 (ms)",
+          "layout": {
+            "column": 4,
+            "row": 1,
+            "width": 3,
+            "height": 3
+          },
+          "linkedEntityGuids": null,
+          "visualization": {
+            "id": "viz.billboard"
+          },
+          "rawConfiguration": {
+            "facet": {
+              "showOtherSeries": false
+            },
+            "nrqlQueries": [
+              {
+                "accountIds": [0],
+                "query": "SELECT percentile(duration.ms, 95) AS 'p95 (ms)' FROM Span WHERE service.name = 'koinos' AND db.system.name = 'mongodb' AND db.operation.name NOT IN ('saslStart', 'saslContinue', 'hello', 'endSessions')"
+              }
+            ],
+            "platformOptions": {
+              "ignoreTimeRange": false
+            },
+            "thresholds": [
+              {
+                "alertSeverity": "WARNING",
+                "value": 200
+              },
+              {
+                "alertSeverity": "CRITICAL",
+                "value": 500
+              }
+            ]
+          }
+        },
+        {
+          "title": "Com erro",
+          "layout": {
+            "column": 7,
+            "row": 1,
+            "width": 3,
+            "height": 3
+          },
+          "linkedEntityGuids": null,
+          "visualization": {
+            "id": "viz.billboard"
+          },
+          "rawConfiguration": {
+            "facet": {
+              "showOtherSeries": false
+            },
+            "nrqlQueries": [
+              {
+                "accountIds": [0],
+                "query": "SELECT count(*) AS 'Com erro' FROM Span WHERE service.name = 'koinos' AND db.system.name = 'mongodb' AND db.operation.name NOT IN ('saslStart', 'saslContinue', 'hello', 'endSessions') AND otel.status_code = 'ERROR'"
+              }
+            ],
+            "platformOptions": {
+              "ignoreTimeRange": false
+            }
+          }
+        },
+        {
+          "title": "Índices criados (partida a frio)",
+          "layout": {
+            "column": 10,
+            "row": 1,
+            "width": 3,
+            "height": 3
+          },
+          "linkedEntityGuids": null,
+          "visualization": {
+            "id": "viz.billboard"
+          },
+          "rawConfiguration": {
+            "facet": {
+              "showOtherSeries": false
+            },
+            "nrqlQueries": [
+              {
+                "accountIds": [0],
+                "query": "SELECT count(*) AS 'createIndexes' FROM Span WHERE service.name = 'koinos' AND db.system.name = 'mongodb' AND db.operation.name NOT IN ('saslStart', 'saslContinue', 'hello', 'endSessions') AND db.operation.name = 'createIndexes'"
+              }
+            ],
+            "platformOptions": {
+              "ignoreTimeRange": false
+            }
+          }
+        },
+        {
+          "title": "Operações por minuto",
+          "layout": {
+            "column": 1,
+            "row": 4,
+            "width": 6,
+            "height": 3
+          },
+          "linkedEntityGuids": null,
+          "visualization": {
+            "id": "viz.stacked-bar"
+          },
+          "rawConfiguration": {
+            "facet": {
+              "showOtherSeries": false
+            },
+            "nrqlQueries": [
+              {
+                "accountIds": [0],
+                "query": "SELECT rate(count(*), 1 minute) FROM Span WHERE service.name = 'koinos' AND db.system.name = 'mongodb' AND db.operation.name NOT IN ('saslStart', 'saslContinue', 'hello', 'endSessions') FACET db.operation.name TIMESERIES AUTO"
+              }
+            ],
+            "platformOptions": {
+              "ignoreTimeRange": false
+            },
+            "legend": {
+              "enabled": true
+            },
+            "yAxisLeft": {
+              "zero": true
+            }
+          }
+        },
+        {
+          "title": "p95 por coleção (ms)",
+          "layout": {
+            "column": 7,
+            "row": 4,
+            "width": 6,
+            "height": 3
+          },
+          "linkedEntityGuids": null,
+          "visualization": {
+            "id": "viz.line"
+          },
+          "rawConfiguration": {
+            "facet": {
+              "showOtherSeries": false
+            },
+            "nrqlQueries": [
+              {
+                "accountIds": [0],
+                "query": "SELECT percentile(duration.ms, 95) FROM Span WHERE service.name = 'koinos' AND db.system.name = 'mongodb' AND db.operation.name NOT IN ('saslStart', 'saslContinue', 'hello', 'endSessions') FACET db.collection.name TIMESERIES AUTO"
+              }
+            ],
+            "platformOptions": {
+              "ignoreTimeRange": false
+            },
+            "legend": {
+              "enabled": true
+            },
+            "yAxisLeft": {
+              "zero": true
+            }
+          }
+        },
+        {
+          "title": "Por coleção e operação",
+          "layout": {
+            "column": 1,
+            "row": 7,
+            "width": 12,
+            "height": 4
+          },
+          "linkedEntityGuids": null,
+          "visualization": {
+            "id": "viz.table"
+          },
+          "rawConfiguration": {
+            "facet": {
+              "showOtherSeries": false
+            },
+            "nrqlQueries": [
+              {
+                "accountIds": [0],
+                "query": "SELECT count(*) AS 'Operações', average(duration.ms) AS 'Média (ms)', percentile(duration.ms, 95) AS 'p95 (ms)', max(duration.ms) AS 'Máx (ms)' FROM Span WHERE service.name = 'koinos' AND db.system.name = 'mongodb' AND db.operation.name NOT IN ('saslStart', 'saslContinue', 'hello', 'endSessions') FACET db.collection.name, db.operation.name LIMIT 50"
+              }
+            ],
+            "platformOptions": {
+              "ignoreTimeRange": false
+            }
+          }
+        },
+        {
+          "title": "Queries mais lentas (formato)",
+          "layout": {
+            "column": 1,
+            "row": 11,
+            "width": 12,
+            "height": 4
+          },
+          "linkedEntityGuids": null,
+          "visualization": {
+            "id": "viz.table"
+          },
+          "rawConfiguration": {
+            "facet": {
+              "showOtherSeries": false
+            },
+            "nrqlQueries": [
+              {
+                "accountIds": [0],
+                "query": "SELECT max(duration.ms) AS 'Máx (ms)', average(duration.ms) AS 'Média (ms)', count(*) AS 'Vezes' FROM Span WHERE service.name = 'koinos' AND db.system.name = 'mongodb' AND db.operation.name NOT IN ('saslStart', 'saslContinue', 'hello', 'endSessions') FACET db.collection.name, db.query.text LIMIT 25"
+              }
+            ],
+            "platformOptions": {
+              "ignoreTimeRange": false
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Redis e sessão",
+      "description": "Sessões, rate limit e travas no Redis, e a leitura da sessão no Better Auth.",
+      "widgets": [
+        {
+          "title": "Comandos",
+          "layout": {
+            "column": 1,
+            "row": 1,
+            "width": 3,
+            "height": 3
+          },
+          "linkedEntityGuids": null,
+          "visualization": {
+            "id": "viz.billboard"
+          },
+          "rawConfiguration": {
+            "facet": {
+              "showOtherSeries": false
+            },
+            "nrqlQueries": [
+              {
+                "accountIds": [0],
+                "query": "SELECT count(*) AS 'Comandos' FROM Span WHERE service.name = 'koinos' AND db.system.name = 'redis' AND name NOT IN ('connect', 'auth', 'client', 'info')"
+              }
+            ],
+            "platformOptions": {
+              "ignoreTimeRange": false
+            }
+          }
+        },
+        {
+          "title": "Redis p95 (ms)",
+          "layout": {
+            "column": 4,
+            "row": 1,
+            "width": 3,
+            "height": 3
+          },
+          "linkedEntityGuids": null,
+          "visualization": {
+            "id": "viz.billboard"
+          },
+          "rawConfiguration": {
+            "facet": {
+              "showOtherSeries": false
+            },
+            "nrqlQueries": [
+              {
+                "accountIds": [0],
+                "query": "SELECT percentile(duration.ms, 95) AS 'p95 (ms)' FROM Span WHERE service.name = 'koinos' AND db.system.name = 'redis' AND name NOT IN ('connect', 'auth', 'client', 'info')"
+              }
+            ],
+            "platformOptions": {
+              "ignoreTimeRange": false
+            },
+            "thresholds": [
+              {
+                "alertSeverity": "WARNING",
+                "value": 100
+              },
+              {
+                "alertSeverity": "CRITICAL",
+                "value": 300
+              }
+            ]
+          }
+        },
+        {
+          "title": "Leitura da sessão p95 (ms)",
+          "layout": {
+            "column": 7,
+            "row": 1,
+            "width": 3,
+            "height": 3
+          },
+          "linkedEntityGuids": null,
+          "visualization": {
+            "id": "viz.billboard"
+          },
+          "rawConfiguration": {
+            "facet": {
+              "showOtherSeries": false
+            },
+            "nrqlQueries": [
+              {
+                "accountIds": [0],
+                "query": "SELECT percentile(duration.ms, 95) AS 'p95 (ms)' FROM Span WHERE service.name = 'koinos' AND better_auth.operation_id = 'getSession' AND name = 'GET /get-session'"
+              }
+            ],
+            "platformOptions": {
+              "ignoreTimeRange": false
+            }
+          }
+        },
+        {
+          "title": "Conexões novas ao Redis",
+          "layout": {
+            "column": 10,
+            "row": 1,
+            "width": 3,
+            "height": 3
+          },
+          "linkedEntityGuids": null,
+          "visualization": {
+            "id": "viz.billboard"
+          },
+          "rawConfiguration": {
+            "facet": {
+              "showOtherSeries": false
+            },
+            "nrqlQueries": [
+              {
+                "accountIds": [0],
+                "query": "SELECT count(*) AS 'Conexões' FROM Span WHERE service.name = 'koinos' AND db.system.name = 'redis' AND name = 'connect'"
+              }
+            ],
+            "platformOptions": {
+              "ignoreTimeRange": false
+            }
+          }
+        },
+        {
+          "title": "Por comando",
+          "layout": {
+            "column": 1,
+            "row": 4,
+            "width": 6,
+            "height": 4
+          },
+          "linkedEntityGuids": null,
+          "visualization": {
+            "id": "viz.table"
+          },
+          "rawConfiguration": {
+            "facet": {
+              "showOtherSeries": false
+            },
+            "nrqlQueries": [
+              {
+                "accountIds": [0],
+                "query": "SELECT count(*) AS 'Comandos', average(duration.ms) AS 'Média (ms)', percentile(duration.ms, 95) AS 'p95 (ms)', filter(count(*), WHERE otel.status_code = 'ERROR') AS 'Erros' FROM Span WHERE service.name = 'koinos' AND db.system.name = 'redis' AND name NOT IN ('connect', 'auth', 'client', 'info') FACET name LIMIT 20"
+              }
+            ],
+            "platformOptions": {
+              "ignoreTimeRange": false
+            }
+          }
+        },
+        {
+          "title": "Redis p95 por comando (ms)",
+          "layout": {
+            "column": 7,
+            "row": 4,
+            "width": 6,
+            "height": 4
+          },
+          "linkedEntityGuids": null,
+          "visualization": {
+            "id": "viz.line"
+          },
+          "rawConfiguration": {
+            "facet": {
+              "showOtherSeries": false
+            },
+            "nrqlQueries": [
+              {
+                "accountIds": [0],
+                "query": "SELECT percentile(duration.ms, 95) FROM Span WHERE service.name = 'koinos' AND db.system.name = 'redis' AND name NOT IN ('connect', 'auth', 'client', 'info') FACET name TIMESERIES AUTO"
+              }
+            ],
+            "platformOptions": {
+              "ignoreTimeRange": false
+            },
+            "legend": {
+              "enabled": true
+            },
+            "yAxisLeft": {
+              "zero": true
+            }
+          }
+        },
+        {
+          "title": "Sessão: tempo (ms)",
+          "layout": {
+            "column": 1,
+            "row": 8,
+            "width": 6,
+            "height": 3
+          },
+          "linkedEntityGuids": null,
+          "visualization": {
+            "id": "viz.line"
+          },
+          "rawConfiguration": {
+            "facet": {
+              "showOtherSeries": false
+            },
+            "nrqlQueries": [
+              {
+                "accountIds": [0],
+                "query": "SELECT percentile(duration.ms, 50, 95) FROM Span WHERE service.name = 'koinos' AND better_auth.operation_id = 'getSession' AND name = 'GET /get-session' TIMESERIES AUTO"
+              }
+            ],
+            "platformOptions": {
+              "ignoreTimeRange": false
+            },
+            "legend": {
+              "enabled": true
+            },
+            "yAxisLeft": {
+              "zero": true
+            }
+          }
+        },
+        {
+          "title": "Logins (volta do Google)",
+          "layout": {
+            "column": 7,
+            "row": 8,
+            "width": 6,
+            "height": 3
+          },
+          "linkedEntityGuids": null,
+          "visualization": {
+            "id": "viz.table"
+          },
+          "rawConfiguration": {
+            "facet": {
+              "showOtherSeries": false
+            },
+            "nrqlQueries": [
+              {
+                "accountIds": [0],
+                "query": "SELECT count(*) AS 'Voltas do Google' FROM Span WHERE service.name = 'koinos' AND better_auth.operation_id = 'handleOAuthCallback' AND http.response.status_code IS NOT NULL FACET http.response.status_code"
+              }
+            ],
+            "platformOptions": {
+              "ignoreTimeRange": false
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "APIs externas",
+      "description": "brapi (cotações e catálogo), Yahoo Finance (proventos, histórico e reserva) e Google (login).",
+      "widgets": [
+        {
+          "title": "brapi p95 (ms)",
+          "layout": {
+            "column": 1,
+            "row": 1,
+            "width": 3,
+            "height": 3
+          },
+          "linkedEntityGuids": null,
+          "visualization": {
+            "id": "viz.billboard"
+          },
+          "rawConfiguration": {
+            "facet": {
+              "showOtherSeries": false
+            },
+            "nrqlQueries": [
+              {
+                "accountIds": [0],
+                "query": "SELECT percentile(duration.ms, 95) AS 'p95 (ms)' FROM Span WHERE service.name = 'koinos' AND http.client.name = 'fetch' AND net.peer.name = 'brapi.dev'"
+              }
+            ],
+            "platformOptions": {
+              "ignoreTimeRange": false
+            },
+            "thresholds": [
+              {
+                "alertSeverity": "WARNING",
+                "value": 1500
+              },
+              {
+                "alertSeverity": "CRITICAL",
+                "value": 3000
+              }
+            ]
+          }
+        },
+        {
+          "title": "brapi com falha",
+          "layout": {
+            "column": 4,
+            "row": 1,
+            "width": 3,
+            "height": 3
+          },
+          "linkedEntityGuids": null,
+          "visualization": {
+            "id": "viz.billboard"
+          },
+          "rawConfiguration": {
+            "facet": {
+              "showOtherSeries": false
+            },
+            "nrqlQueries": [
+              {
+                "accountIds": [0],
+                "query": "SELECT percentage(count(*), WHERE (http.status_code >= 400 OR otel.status_code = 'ERROR')) AS '% com falha' FROM Span WHERE service.name = 'koinos' AND http.client.name = 'fetch' AND net.peer.name = 'brapi.dev'"
+              }
+            ],
+            "platformOptions": {
+              "ignoreTimeRange": false
+            },
+            "thresholds": [
+              {
+                "alertSeverity": "WARNING",
+                "value": 5
+              },
+              {
+                "alertSeverity": "CRITICAL",
+                "value": 20
+              }
+            ]
+          }
+        },
+        {
+          "title": "Yahoo p95 (ms)",
+          "layout": {
+            "column": 7,
+            "row": 1,
+            "width": 3,
+            "height": 3
+          },
+          "linkedEntityGuids": null,
+          "visualization": {
+            "id": "viz.billboard"
+          },
+          "rawConfiguration": {
+            "facet": {
+              "showOtherSeries": false
+            },
+            "nrqlQueries": [
+              {
+                "accountIds": [0],
+                "query": "SELECT percentile(duration.ms, 95) AS 'p95 (ms)' FROM Span WHERE service.name = 'koinos' AND http.client.name = 'fetch' AND net.peer.name LIKE '%.yahoo.com'"
+              }
+            ],
+            "platformOptions": {
+              "ignoreTimeRange": false
+            }
+          }
+        },
+        {
+          "title": "Cota da brapi no mês (%)",
+          "layout": {
+            "column": 10,
+            "row": 1,
+            "width": 3,
+            "height": 3
+          },
+          "linkedEntityGuids": null,
+          "visualization": {
+            "id": "viz.billboard"
+          },
+          "rawConfiguration": {
+            "facet": {
+              "showOtherSeries": false
+            },
+            "nrqlQueries": [
+              {
+                "accountIds": [0],
+                "query": "SELECT latest(koinos.brapi.month_requests) / latest(koinos.brapi.month_quota) * 100 AS '% da cota' FROM Span WHERE service.name = 'koinos' AND name = 'quotes.brapi' SINCE 1 month ago"
+              }
+            ],
+            "platformOptions": {
+              "ignoreTimeRange": true
+            },
+            "thresholds": [
+              {
+                "alertSeverity": "WARNING",
+                "value": 70
+              },
+              {
+                "alertSeverity": "CRITICAL",
+                "value": 90
+              }
+            ]
+          }
+        },
+        {
+          "title": "Latência por serviço, p95 (ms)",
+          "layout": {
+            "column": 1,
+            "row": 4,
+            "width": 6,
+            "height": 3
+          },
+          "linkedEntityGuids": null,
+          "visualization": {
+            "id": "viz.line"
+          },
+          "rawConfiguration": {
+            "facet": {
+              "showOtherSeries": false
+            },
+            "nrqlQueries": [
+              {
+                "accountIds": [0],
+                "query": "SELECT percentile(duration.ms, 95) FROM Span WHERE service.name = 'koinos' AND http.client.name = 'fetch' FACET net.peer.name TIMESERIES AUTO"
+              }
+            ],
+            "platformOptions": {
+              "ignoreTimeRange": false
+            },
+            "legend": {
+              "enabled": true
+            },
+            "yAxisLeft": {
+              "zero": true
+            }
+          }
+        },
+        {
+          "title": "Chamadas por serviço",
+          "layout": {
+            "column": 7,
+            "row": 4,
+            "width": 6,
+            "height": 3
+          },
+          "linkedEntityGuids": null,
+          "visualization": {
+            "id": "viz.stacked-bar"
+          },
+          "rawConfiguration": {
+            "facet": {
+              "showOtherSeries": false
+            },
+            "nrqlQueries": [
+              {
+                "accountIds": [0],
+                "query": "SELECT count(*) FROM Span WHERE service.name = 'koinos' AND http.client.name = 'fetch' FACET net.peer.name TIMESERIES AUTO"
+              }
+            ],
+            "platformOptions": {
+              "ignoreTimeRange": false
+            },
+            "legend": {
+              "enabled": true
+            },
+            "yAxisLeft": {
+              "zero": true
+            }
+          }
+        },
+        {
+          "title": "Por endpoint",
+          "layout": {
+            "column": 1,
+            "row": 7,
+            "width": 8,
+            "height": 4
+          },
+          "linkedEntityGuids": null,
+          "visualization": {
+            "id": "viz.table"
+          },
+          "rawConfiguration": {
+            "facet": {
+              "showOtherSeries": false
+            },
+            "nrqlQueries": [
+              {
+                "accountIds": [0],
+                "query": "SELECT count(*) AS 'Chamadas', average(duration.ms) AS 'Média (ms)', percentile(duration.ms, 95) AS 'p95 (ms)', percentage(count(*), WHERE (http.status_code >= 400 OR otel.status_code = 'ERROR')) AS '% falha' FROM Span WHERE service.name = 'koinos' AND http.client.name = 'fetch' FACET net.peer.name, http.url LIMIT 50"
+              }
+            ],
+            "platformOptions": {
+              "ignoreTimeRange": false
+            }
+          }
+        },
+        {
+          "title": "Status por serviço",
+          "layout": {
+            "column": 9,
+            "row": 7,
+            "width": 4,
+            "height": 4
+          },
+          "linkedEntityGuids": null,
+          "visualization": {
+            "id": "viz.bar"
+          },
+          "rawConfiguration": {
+            "facet": {
+              "showOtherSeries": false
+            },
+            "nrqlQueries": [
+              {
+                "accountIds": [0],
+                "query": "SELECT count(*) FROM Span WHERE service.name = 'koinos' AND http.client.name = 'fetch' FACET net.peer.name, http.status_code"
+              }
+            ],
+            "platformOptions": {
+              "ignoreTimeRange": false
+            }
+          }
+        },
+        {
+          "title": "Cotações resolvidas por fonte",
+          "layout": {
+            "column": 1,
+            "row": 11,
+            "width": 6,
+            "height": 3
+          },
+          "linkedEntityGuids": null,
+          "visualization": {
+            "id": "viz.stacked-bar"
+          },
+          "rawConfiguration": {
+            "facet": {
+              "showOtherSeries": false
+            },
+            "nrqlQueries": [
+              {
+                "accountIds": [0],
+                "query": "SELECT sum(koinos.quotes.resolved) FROM Span WHERE service.name = 'koinos' AND name IN ('quotes.brapi', 'quotes.yahoo-fallback') FACET name TIMESERIES AUTO"
+              }
+            ],
+            "platformOptions": {
+              "ignoreTimeRange": false
+            },
+            "legend": {
+              "enabled": true
+            },
+            "yAxisLeft": {
+              "zero": true
+            }
+          }
+        },
+        {
+          "title": "brapi pulada (cota) e reserva do Yahoo",
+          "layout": {
+            "column": 7,
+            "row": 11,
+            "width": 6,
+            "height": 3
+          },
+          "linkedEntityGuids": null,
+          "visualization": {
+            "id": "viz.billboard"
+          },
+          "rawConfiguration": {
+            "facet": {
+              "showOtherSeries": false
+            },
+            "nrqlQueries": [
+              {
+                "accountIds": [0],
+                "query": "SELECT filter(count(*), WHERE name = 'quotes.brapi' AND koinos.brapi.skipped IS TRUE) AS 'brapi pulada', filter(count(*), WHERE name = 'quotes.yahoo-fallback') AS 'Yahoo cobriu' FROM Span WHERE service.name = 'koinos' AND name IN ('quotes.brapi', 'quotes.yahoo-fallback')"
+              }
+            ],
+            "platformOptions": {
+              "ignoreTimeRange": false
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Cron diário",
+      "description": "/api/cron/daily: cotações, proventos, histórico mensal e catálogo.",
+      "widgets": [
+        {
+          "title": "Execuções",
+          "layout": {
+            "column": 1,
+            "row": 1,
+            "width": 12,
+            "height": 4
+          },
+          "linkedEntityGuids": null,
+          "visualization": {
+            "id": "viz.table"
+          },
+          "rawConfiguration": {
+            "facet": {
+              "showOtherSeries": false
+            },
+            "nrqlQueries": [
+              {
+                "accountIds": [0],
+                "query": "SELECT duration.ms AS 'ms', koinos.tickers AS 'Tickers', koinos.quotes.status AS 'Cotações', koinos.dividends.updated AS 'Proventos', koinos.history.months_fetched AS 'Meses de histórico', koinos.catalog.entries AS 'Catálogo', otel.status_code AS 'Status' FROM Span WHERE service.name = 'koinos' AND name = 'cron.daily' LIMIT 30 SINCE 30 days ago"
+              }
+            ],
+            "platformOptions": {
+              "ignoreTimeRange": true
+            }
+          }
+        },
+        {
+          "title": "Tempo médio por etapa (ms)",
+          "layout": {
+            "column": 1,
+            "row": 5,
+            "width": 6,
+            "height": 3
+          },
+          "linkedEntityGuids": null,
+          "visualization": {
+            "id": "viz.bar"
+          },
+          "rawConfiguration": {
+            "facet": {
+              "showOtherSeries": false
+            },
+            "nrqlQueries": [
+              {
+                "accountIds": [0],
+                "query": "SELECT average(duration.ms) FROM Span WHERE service.name = 'koinos' AND name IN ('cron.load-tickers', 'cron.refresh-quotes', 'cron.refresh-dividends', 'cron.ensure-monthly-closes', 'cron.refresh-catalog') FACET name SINCE 7 days ago"
+              }
+            ],
+            "platformOptions": {
+              "ignoreTimeRange": true
+            }
+          }
+        },
+        {
+          "title": "Tempo por etapa, dia a dia (ms)",
+          "layout": {
+            "column": 7,
+            "row": 5,
+            "width": 6,
+            "height": 3
+          },
+          "linkedEntityGuids": null,
+          "visualization": {
+            "id": "viz.stacked-bar"
+          },
+          "rawConfiguration": {
+            "facet": {
+              "showOtherSeries": false
+            },
+            "nrqlQueries": [
+              {
+                "accountIds": [0],
+                "query": "SELECT average(duration.ms) FROM Span WHERE service.name = 'koinos' AND name IN ('cron.load-tickers', 'cron.refresh-quotes', 'cron.refresh-dividends', 'cron.ensure-monthly-closes', 'cron.refresh-catalog') FACET name TIMESERIES 1 day SINCE 30 days ago"
+              }
+            ],
+            "platformOptions": {
+              "ignoreTimeRange": true
+            },
+            "legend": {
+              "enabled": true
+            },
+            "yAxisLeft": {
+              "zero": true
+            }
+          }
+        },
+        {
+          "title": "Cotações atualizadas e com falha",
+          "layout": {
+            "column": 1,
+            "row": 8,
+            "width": 6,
+            "height": 3
+          },
+          "linkedEntityGuids": null,
+          "visualization": {
+            "id": "viz.line"
+          },
+          "rawConfiguration": {
+            "facet": {
+              "showOtherSeries": false
+            },
+            "nrqlQueries": [
+              {
+                "accountIds": [0],
+                "query": "SELECT latest(koinos.quotes.updated) AS 'Atualizadas', latest(koinos.quotes.failed) AS 'Sem cotação' FROM Span WHERE service.name = 'koinos' AND name = 'cron.refresh-quotes' TIMESERIES 1 day SINCE 30 days ago"
+              }
+            ],
+            "platformOptions": {
+              "ignoreTimeRange": true
+            },
+            "legend": {
+              "enabled": true
+            },
+            "yAxisLeft": {
+              "zero": true
+            }
+          }
+        },
+        {
+          "title": "Etapas com erro",
+          "layout": {
+            "column": 7,
+            "row": 8,
+            "width": 3,
+            "height": 3
+          },
+          "linkedEntityGuids": null,
+          "visualization": {
+            "id": "viz.billboard"
+          },
+          "rawConfiguration": {
+            "facet": {
+              "showOtherSeries": false
+            },
+            "nrqlQueries": [
+              {
+                "accountIds": [0],
+                "query": "SELECT count(*) AS 'Etapas com erro' FROM Span WHERE service.name = 'koinos' AND name LIKE 'cron.%' AND otel.status_code = 'ERROR' SINCE 30 days ago"
+              }
+            ],
+            "platformOptions": {
+              "ignoreTimeRange": true
+            },
+            "thresholds": [
+              {
+                "alertSeverity": "CRITICAL",
+                "value": 1
+              }
+            ]
+          }
+        },
+        {
+          "title": "Chamadas sem o segredo",
+          "layout": {
+            "column": 10,
+            "row": 8,
+            "width": 3,
+            "height": 3
+          },
+          "linkedEntityGuids": null,
+          "visualization": {
+            "id": "viz.billboard"
+          },
+          "rawConfiguration": {
+            "facet": {
+              "showOtherSeries": false
+            },
+            "nrqlQueries": [
+              {
+                "accountIds": [0],
+                "query": "SELECT count(*) AS '401' FROM Span WHERE service.name = 'koinos' AND next.span_type = 'BaseServer.handleRequest' AND http.route IS NOT NULL AND http.route = '/api/cron/daily' AND http.status_code = 401 SINCE 30 days ago"
+              }
+            ],
+            "platformOptions": {
+              "ignoreTimeRange": true
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Erros e partidas a frio",
+      "description": "Spans com erro, exceções (mensagens limpas) e instâncias novas da função.",
+      "widgets": [
+        {
+          "title": "Spans com erro por minuto",
+          "layout": {
+            "column": 1,
+            "row": 1,
+            "width": 6,
+            "height": 3
+          },
+          "linkedEntityGuids": null,
+          "visualization": {
+            "id": "viz.line"
+          },
+          "rawConfiguration": {
+            "facet": {
+              "showOtherSeries": false
+            },
+            "nrqlQueries": [
+              {
+                "accountIds": [0],
+                "query": "SELECT rate(count(*), 1 minute) FROM Span WHERE service.name = 'koinos' AND otel.status_code = 'ERROR' TIMESERIES AUTO"
+              }
+            ],
+            "platformOptions": {
+              "ignoreTimeRange": false
+            },
+            "legend": {
+              "enabled": true
+            },
+            "yAxisLeft": {
+              "zero": true
+            }
+          }
+        },
+        {
+          "title": "Partidas a frio (register)",
+          "layout": {
+            "column": 7,
+            "row": 1,
+            "width": 6,
+            "height": 3
+          },
+          "linkedEntityGuids": null,
+          "visualization": {
+            "id": "viz.line"
+          },
+          "rawConfiguration": {
+            "facet": {
+              "showOtherSeries": false
+            },
+            "nrqlQueries": [
+              {
+                "accountIds": [0],
+                "query": "SELECT count(*) AS 'Instâncias novas', average(duration.ms) AS 'register (ms)' FROM Span WHERE service.name = 'koinos' AND name = 'register instrumentation' TIMESERIES AUTO"
+              }
+            ],
+            "platformOptions": {
+              "ignoreTimeRange": false
+            },
+            "legend": {
+              "enabled": true
+            },
+            "yAxisLeft": {
+              "zero": true
+            }
+          }
+        },
+        {
+          "title": "Spans com erro",
+          "layout": {
+            "column": 1,
+            "row": 4,
+            "width": 6,
+            "height": 4
+          },
+          "linkedEntityGuids": null,
+          "visualization": {
+            "id": "viz.table"
+          },
+          "rawConfiguration": {
+            "facet": {
+              "showOtherSeries": false
+            },
+            "nrqlQueries": [
+              {
+                "accountIds": [0],
+                "query": "SELECT count(*) AS 'Erros', latest(timestamp) AS 'Último' FROM Span WHERE service.name = 'koinos' AND otel.status_code = 'ERROR' FACET name, error.type LIMIT 50"
+              }
+            ],
+            "platformOptions": {
+              "ignoreTimeRange": false
+            }
+          }
+        },
+        {
+          "title": "Exceções",
+          "layout": {
+            "column": 7,
+            "row": 4,
+            "width": 6,
+            "height": 4
+          },
+          "linkedEntityGuids": null,
+          "visualization": {
+            "id": "viz.table"
+          },
+          "rawConfiguration": {
+            "facet": {
+              "showOtherSeries": false
+            },
+            "nrqlQueries": [
+              {
+                "accountIds": [0],
+                "query": "SELECT count(*) AS 'Vezes' FROM SpanEvent WHERE exception.type IS NOT NULL FACET exception.type, exception.message LIMIT 50"
+              }
+            ],
+            "platformOptions": {
+              "ignoreTimeRange": false
+            }
+          }
+        }
+      ]
+    }
+  ],
+  "variables": []
+}
