@@ -1,7 +1,12 @@
 import "server-only";
 import { recordError, withSpan } from "@/shared/lib/tracing";
 import { refreshCatalog } from "./catalog";
-import { ensureMonthlyCloses, refreshDividends, type HistoryRequest } from "./history-service";
+import {
+  ensureMonthlyCloses,
+  ensureRecentCloses,
+  refreshDividends,
+  type HistoryRequest,
+} from "./history-service";
 import { refreshQuotes, type RefreshResult } from "./quote-service";
 
 export type DailyJobSummary = {
@@ -9,6 +14,7 @@ export type DailyJobSummary = {
   quotes: RefreshResult;
   dividends: number;
   historyMonths: number;
+  recentCloses: number;
   catalog: number;
 };
 
@@ -59,6 +65,16 @@ export async function runDailyMarketJob(
       return result;
     },
   );
+  // Depois do pregão: o fechamento de hoje entra na lista do L/P da semana.
+  const recent = await withSpan(
+    "cron.ensure-recent-closes",
+    { "koinos.tickers": tickers.length },
+    async (span) => {
+      const result = await ensureRecentCloses(tickers, now, { force: true });
+      span.setAttribute("koinos.history.recent_updated", result.updated);
+      return result;
+    },
+  );
   // Falhar o catálogo não derruba a rotina: o erro fica no span e no log.
   const catalog = await withSpan("cron.refresh-catalog", {}, async (span) => {
     try {
@@ -76,6 +92,7 @@ export async function runDailyMarketJob(
     quotes,
     dividends: dividends.updated,
     historyMonths: history.fetched,
+    recentCloses: recent.updated,
     catalog,
   };
 }

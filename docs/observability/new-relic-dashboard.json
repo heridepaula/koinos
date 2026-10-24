@@ -2363,7 +2363,7 @@
             "nrqlQueries": [
               {
                 "accountIds": [6563675],
-                "query": "SELECT average(duration.ms) FROM Span WHERE service.name = 'koinos' AND name IN ('cron.load-tickers', 'cron.refresh-quotes', 'cron.refresh-dividends', 'cron.ensure-monthly-closes', 'cron.refresh-catalog') FACET name SINCE 7 days ago"
+                "query": "SELECT average(duration.ms) FROM Span WHERE service.name = 'koinos' AND name IN ('cron.load-tickers', 'cron.refresh-quotes', 'cron.refresh-dividends', 'cron.ensure-monthly-closes', 'cron.ensure-recent-closes', 'cron.refresh-catalog') FACET name SINCE 7 days ago"
               }
             ],
             "platformOptions": {
@@ -2390,7 +2390,7 @@
             "nrqlQueries": [
               {
                 "accountIds": [6563675],
-                "query": "SELECT average(duration.ms) FROM Span WHERE service.name = 'koinos' AND name IN ('cron.load-tickers', 'cron.refresh-quotes', 'cron.refresh-dividends', 'cron.ensure-monthly-closes', 'cron.refresh-catalog') FACET name TIMESERIES 1 day SINCE 30 days ago"
+                "query": "SELECT average(duration.ms) FROM Span WHERE service.name = 'koinos' AND name IN ('cron.load-tickers', 'cron.refresh-quotes', 'cron.refresh-dividends', 'cron.ensure-monthly-closes', 'cron.ensure-recent-closes', 'cron.refresh-catalog') FACET name TIMESERIES 1 day SINCE 30 days ago"
               }
             ],
             "platformOptions": {

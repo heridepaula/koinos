@@ -7,6 +7,8 @@ import { yahooProvider } from "../adapters/yahoo";
 import { AssetModel, PriceHistoryModel } from "./models";
 
 const HISTORY_RECHECK_MS = 12 * 60 * 60 * 1000;
+/** Fechamentos diários guardados: três semanas cobrem a sexta anterior mesmo com feriados. */
+const RECENT_CLOSES_DAYS = 21;
 const DIVIDENDS_RECHECK_MS = 20 * 60 * 60 * 1000;
 /** Janela dos anúncios de proventos guardados no ativo. */
 const ANNOUNCEMENT_WINDOW_MS = 90 * 86_400_000;
@@ -107,6 +109,49 @@ export async function ensureMonthlyCloses(
     },
   );
   return { fetched: fetched.reduce((sum, count) => sum + count, 0) };
+}
+
+/**
+ * Guarda no ativo os fechamentos diários das últimas três semanas (Yahoo), para o L/P da semana.
+ * Pula o ativo buscado nas últimas 12 h; `force` ignora essa checagem (o cron, depois do pregão).
+ */
+export async function ensureRecentCloses(
+  tickers: readonly string[],
+  now = new Date(),
+  options: { force?: boolean } = {},
+): Promise<{ updated: number }> {
+  const unique = [...new Set(tickers)];
+  if (unique.length === 0) return { updated: 0 };
+  await connectMongo();
+  const assets = await AssetModel.find(
+    { _id: mongoose.trusted({ $in: unique }) },
+    { recentClosesFetchedAt: 1 },
+  ).lean();
+  const fetchedAt = new Map(assets.map((asset) => [asset._id, asset.recentClosesFetchedAt]));
+  const due = unique.filter(
+    (ticker) =>
+      options.force || (fetchedAt.get(ticker)?.getTime() ?? 0) < now.getTime() - HISTORY_RECHECK_MS,
+  );
+  const from = new Date(now.getTime() - RECENT_CLOSES_DAYS * 86_400_000);
+  const results = await mapWithConcurrency(
+    due,
+    ioConcurrency(YAHOO_CONCURRENCY_CAP),
+    async (ticker): Promise<number> => {
+      try {
+        const closes = await yahooProvider.getDailyCloses(ticker, from);
+        await AssetModel.updateOne(
+          { _id: ticker },
+          { $set: { recentCloses: closes, recentClosesFetchedAt: now } },
+          { upsert: true },
+        );
+        return 1;
+      } catch (error) {
+        console.warn(`[fechamentos diários] ${ticker}:`, errorMessage(error));
+        return 0;
+      }
+    },
+  );
+  return { updated: results.reduce((sum, count) => sum + count, 0) };
 }
 
 /**

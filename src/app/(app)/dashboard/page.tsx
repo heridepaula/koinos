@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { Suspense } from "react";
-import { getEvolution, getPortfolioSnapshot } from "@/features/portfolio/server";
+import { getEvolution, getPeriodResults, getPortfolioSnapshot } from "@/features/portfolio/server";
 import {
   AlertsPanel,
   AllocationCharts,
@@ -8,6 +8,7 @@ import {
   ContributionsChart,
   EmptyPortfolio,
   EvolutionChart,
+  PeriodResults,
   PositionsTable,
   QuoteRefresher,
   SummaryCards,
@@ -49,6 +50,9 @@ async function DashboardContent() {
   return (
     <div className="grid gap-6">
       <SummaryCards summary={snapshot.summary} />
+      <Suspense fallback={<CardSkeleton />}>
+        <PeriodSection />
+      </Suspense>
       <AlertsPanel alerts={snapshot.alerts} />
       <div className="grid gap-6 xl:grid-cols-2">
         <Suspense fallback={<CardSkeleton />}>
@@ -69,4 +73,9 @@ async function DashboardContent() {
 // Pode buscar histórico no Yahoo na primeira vez: fica no próprio Suspense para não segurar o resto.
 async function EvolutionSection() {
   return <EvolutionChart points={await getEvolution()} />;
+}
+
+// Pode buscar fechamentos no Yahoo (no máximo a cada 12 h): também fica no próprio Suspense.
+async function PeriodSection() {
+  return <PeriodResults results={await getPeriodResults()} />;
 }

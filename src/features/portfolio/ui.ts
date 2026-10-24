@@ -13,6 +13,7 @@ export { DividendMonthCards } from "./components/dividends/month-cards";
 export { UpcomingDividends } from "./components/dividends/upcoming-list";
 export { EmptyPortfolio } from "./components/empty-portfolio";
 export { EvolutionChart } from "./components/evolution-chart";
+export { PeriodResults } from "./components/period-results";
 export { PositionsTable } from "./components/positions-table";
 export { QuoteRefresher } from "./components/quote-refresher";
 export { SummaryCards } from "./components/summary-cards";

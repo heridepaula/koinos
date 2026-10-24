@@ -108,6 +108,6 @@ O aviso por e-mail fica em **Alerts** → **Workflows**, com um destino de e-mai
 
 Trocar um destes nomes no código quebra os widgets e os alertas que o usam:
 
-- spans: `action <nome>`, `view.*`, `b3.*`, `lock <nome>`, `web-vitals`, `request.error`, `cron.daily`, `cron.load-tickers`, `cron.refresh-quotes`, `cron.refresh-dividends`, `cron.ensure-monthly-closes`, `cron.refresh-catalog`, `quotes.brapi`, `quotes.yahoo-fallback`, `tickers.search`;
+- spans: `action <nome>`, `view.*`, `b3.*`, `lock <nome>`, `web-vitals`, `request.error`, `cron.daily`, `cron.load-tickers`, `cron.refresh-quotes`, `cron.refresh-dividends`, `cron.ensure-monthly-closes`, `cron.ensure-recent-closes`, `cron.refresh-catalog`, `quotes.brapi`, `quotes.yahoo-fallback`, `tickers.search`;
 - logs: o evento `Log` com `service.name`, `severity.text`, `message`, `trace.id` e `log.source`;
 - atributos: `koinos.action.*`, `koinos.view.*`, `koinos.control_flow`, `koinos.b3.*`, `koinos.lock.name`, `koinos.lock.acquired`, `koinos.vitals.*`, `next.error.*`, `error.type`, `koinos.quotes.*`, `koinos.brapi.*`, `koinos.dividends.updated`, `koinos.history.months_fetched`, `koinos.catalog.entries`, `koinos.tickers*`.

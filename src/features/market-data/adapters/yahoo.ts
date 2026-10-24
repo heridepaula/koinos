@@ -1,8 +1,15 @@
 import "server-only";
 import YahooFinance from "yahoo-finance2";
 import type { ChartResultArray } from "yahoo-finance2/modules/chart";
-import { monthKeyOfTradeDate } from "@/shared/lib/time";
-import type { DividendEvent, HistoryProvider, MonthlyClose, Quote, QuoteProvider } from "../ports";
+import { monthKeyOfTradeDate, todayTradeDate } from "@/shared/lib/time";
+import type {
+  DailyClose,
+  DividendEvent,
+  HistoryProvider,
+  MonthlyClose,
+  Quote,
+  QuoteProvider,
+} from "../ports";
 
 type YahooClient = InstanceType<typeof YahooFinance>;
 const globalForYahoo = globalThis as typeof globalThis & { __koinosYahoo?: YahooClient };
@@ -69,6 +76,18 @@ export const yahooProvider: QuoteProvider & HistoryProvider = {
     return result.quotes
       .filter((bar) => typeof bar.close === "number" && bar.close > 0)
       .map((bar) => ({ month: monthKeyOfTradeDate(bar.date), close: bar.close as number }));
+  },
+
+  async getDailyCloses(ticker, from): Promise<DailyClose[]> {
+    const result = (await client().chart(
+      toSymbol(ticker),
+      { period1: from, interval: "1d" },
+      { validateResult: false },
+    )) as ChartResultArray;
+    // O Yahoo marca o pregão com o horário de abertura: guarda só o dia, como data de negócio.
+    return result.quotes
+      .filter((bar) => typeof bar.close === "number" && bar.close > 0)
+      .map((bar) => ({ date: todayTradeDate(bar.date), close: bar.close as number }));
   },
 
   async getDividends(ticker, from): Promise<DividendEvent[]> {

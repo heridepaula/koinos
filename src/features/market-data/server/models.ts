@@ -25,6 +25,9 @@ export interface AssetDoc {
   historyCheckedAt?: Date | null;
   /** Início (YYYY-MM) da faixa de histórico já buscada. */
   historyFromMonth?: string | null;
+  /** Fechamentos diários das últimas semanas (Yahoo), para o L/P da semana. */
+  recentCloses?: { date: Date; close: number }[];
+  recentClosesFetchedAt?: Date | null;
 }
 
 const assetSchema = new Schema<AssetDoc>(
@@ -43,6 +46,11 @@ const assetSchema = new Schema<AssetDoc>(
       type: new Schema({ amount: Number, exDate: Date }, { _id: false }),
       default: null,
     },
+    recentCloses: {
+      type: [new Schema({ date: Date, close: Number }, { _id: false })],
+      default: undefined,
+    },
+    recentClosesFetchedAt: { type: Date, default: null },
     dividendAnnouncements: {
       type: [new Schema({ exDate: Date, perShare: Number }, { _id: false })],
       default: [],

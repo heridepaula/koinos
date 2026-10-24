@@ -34,7 +34,7 @@ Ver no APM o tempo e as falhas de cada parte do Koinos: requisições, Server Ac
 | Redis | um por comando (`get`, `setex`, `eval`…) | — (`db.query.text` = o comando) |
 | brapi, Yahoo, Google | `fetch GET <url sem query>` | — (`net.peer.name`, `http.url`, `http.status_code`) |
 | Cotações | `quotes.brapi`, `quotes.yahoo-fallback` | `koinos.quotes.requested`, `koinos.quotes.resolved`, `koinos.brapi.month_requests`, `koinos.brapi.month_quota`, `koinos.brapi.skipped` |
-| Cron | `cron.daily` e as etapas `cron.load-tickers`, `cron.refresh-quotes`, `cron.refresh-dividends`, `cron.ensure-monthly-closes`, `cron.refresh-catalog` | as contagens de cada etapa e o resumo em `cron.daily` |
+| Cron | `cron.daily` e as etapas `cron.load-tickers`, `cron.refresh-quotes`, `cron.refresh-dividends`, `cron.ensure-monthly-closes`, `cron.ensure-recent-closes`, `cron.refresh-catalog` | as contagens de cada etapa e o resumo em `cron.daily` |
 | Busca de tickers | `tickers.search` | `koinos.tickers.query_length`, `koinos.tickers.results` |
 
 - **Actions:** `defineMetadataSchema` exige `.metadata({ actionName })` em toda action. O middleware de tracing vem antes do `requireTenant`, então cobre a sessão, a validação e a action. O `handleServerError` roda dentro do span e registra a exceção.

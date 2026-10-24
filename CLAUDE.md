@@ -44,7 +44,7 @@ Koinos is a single-owner FII (Brazilian REIT) portfolio dashboard that replaced 
 
 **Pages** (`src/app/(app)`): each one renders a static header and streams a `<Suspense>` section that awaits a DAL view from `portfolio/server.ts` or `transactions/server.ts`.
 
-- `/dashboard`: `getPortfolioSnapshot` (summary, alerts, monthly aportes, allocation, positions and the closed card), plus `getEvolution` in its own `<Suspense>` (Domain flow, item 7).
+- `/dashboard`: `getPortfolioSnapshot` (summary, alerts, monthly aportes, allocation, positions and the closed card), plus `getEvolution` (Domain flow, item 7) and `getPeriodResults` (item 8), each in its own `<Suspense>`.
 - `/transacoes`: `getMyTransactions`, with filters, pagination and the create, edit and delete actions.
 - `/encerradas`: `getClosedPositionsView` (item 6): cost, proceeds and result per closed FII. Its subpage `/encerradas/ir` shows the estimated tax from the same view, and the sidebar lists it as a sub-item. The Dashboard's closed card links here, and `/dashboard/encerradas` redirects here from `next.config.ts`.
 - `/proventos`: `getDividendsView` (item 4). Its subpage `/proventos/reinvestimento?mes=AAAA-MM` uses `getReinvestmentView` (item 5), and the sidebar lists it as a sub-item, like the IR under `/encerradas`.
@@ -132,13 +132,18 @@ Koinos is a single-owner FII (Brazilian REIT) portfolio dashboard that replaced 
    - patrimony and invested at each month's end, from the first entry to the current month;
    - each month is priced at its monthly close (the current month at today's quote), or else at the last known close. A FII with no close at all uses its average price, and the month is flagged `estimated`;
    - `getEvolution` first fills the missing closes from Yahoo (`ensureMonthlyCloses`), once per month and ticker.
+8. `portfolio/domain/period-results.ts` (`periodResults`) feeds the Dashboard's "Variação da cotação" card through `getPeriodResults`:
+   - the week, month and year P/L by quote only: today's shares of each open position × (current price − the reference close). No dividends or sales, and a buy made inside the period counts from its start, as the owner decided;
+   - the references: the last trading day before this week's Monday (São Paulo), from the asset's `recentCloses`; the previous month's close; and December's close of the previous year;
+   - a FII without a price or without the reference close is left out and listed;
+   - `getPeriodResults` first fills the closes from Yahoo: monthly from December of the previous year (`ensureMonthlyCloses`) and the last 21 days of daily closes (`ensureRecentCloses`, at most every 12 h per ticker).
 
 **Market data** (`market-data`):
 
 - Quotes come from brapi first, with Yahoo as the fallback. Pages refresh stale quotes in the background: `QuoteRefresher` calls `refreshMyQuotesAction`, which also refreshes the held FIIs' dividends.
   - A quote goes stale after 30 min during the session (10:00 to 18:30 in São Paulo, counting brapi's delay). Outside it, the last close holds and no quota is spent. Holidays aren't handled (`market-data/domain/market-hours.ts`).
   - brapi requests are counted per month in Mongo (`server/usage.ts`). Above 90% of `BRAPI_MONTHLY_QUOTA`, only Yahoo is used until the month turns.
-- The daily Vercel cron (`/api/cron/daily`, bearer `CRON_SECRET`, see `vercel.json`) refreshes closes, dividends, monthly history and the ticker catalog.
+- The daily Vercel cron (`/api/cron/daily`, bearer `CRON_SECRET`, see `vercel.json`) refreshes closes, dividends, monthly history, the recent daily closes (forced, so today's close enters the week's list) and the ticker catalog.
 - `refreshDividends` keeps the last 90 days of Yahoo dividend announcements on each asset (`dividendAnnouncements`), with the ex-date normalized to the São Paulo trade date at UTC midnight. It skips assets fetched in the last 20 h.
 - The brapi free plan has no dividends, and Yahoo has no FII dividends between 2018 and early 2022. Yahoo also has no monthly history for delisted FIIs (MALL11, IRDM11), so the evolution chart estimates those months.
 
@@ -217,6 +222,7 @@ Koinos is a single-owner FII (Brazilian REIT) portfolio dashboard that replaced 
   - Two or more series get a legend.
 - **Money fields:** `MoneyInput` (`shared/components/money-input.tsx`) fills from the cents, like an ATM: it starts at "0,00", and typing 1, 2, 0, 0, 0, 0, 0 shows 0,01, 0,12, 1,20… 12.000,00. New digits always go at the end, and a paste is read in reais. Read its text with `parseMoneyInput`: `parseNumberInput` takes a dot without a comma as the decimal point and would read "14.000" as 14.
 - **Base UI `Button` as a link:** `render={<Link />}` needs `nativeButton={false}`. Without it, Base UI logs an error and puts `type="button"` on the `<a>`.
+- **Mongoose models in dev:** the models are reused from `mongoose.models` across hot reloads, so a field added to a schema is silently dropped (strict mode) until the dev server restarts.
 - **`cn`:** the `cn` package is tailwind-merge compatible, so a later class overrides a conflicting one.
 - **`next.config.ts`:**
   - `turbopackFileSystemCacheForBuild` is off on purpose: Vercel's restored build cache shipped stale CSS.

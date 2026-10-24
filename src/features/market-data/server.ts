@@ -10,6 +10,7 @@ export {
 } from "./server/assets-read";
 export {
   ensureMonthlyCloses,
+  ensureRecentCloses,
   refreshDividends,
   type HistoryRequest,
 } from "./server/history-service";

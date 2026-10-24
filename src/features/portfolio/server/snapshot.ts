@@ -3,6 +3,7 @@ import { connection } from "next/server";
 import { cache } from "react";
 import {
   ensureMonthlyCloses,
+  ensureRecentCloses,
   getAssetSnapshots,
   getMonthlyCloses,
   type AssetSnapshot,
@@ -13,8 +14,9 @@ import { getMyDividends, getMyTransactions } from "@/features/transactions/serve
 import { currentMonthKey, monthKeyOfTradeDate } from "@/shared/lib/time";
 import { traced } from "@/shared/lib/tracing";
 import { computeEvolution } from "../domain/evolution";
+import { periodResults } from "../domain/period-results";
 import { buildSnapshot } from "../domain/snapshot";
-import type { EvolutionPoint, PortfolioSnapshot, PriceInfo } from "../domain/types";
+import type { EvolutionPoint, PeriodResult, PortfolioSnapshot, PriceInfo } from "../domain/types";
 
 function toPriceInfo(assets: ReadonlyMap<string, AssetSnapshot>): Map<string, PriceInfo> {
   return new Map(
@@ -97,5 +99,49 @@ export const getEvolution = traced(
   (points) => ({
     "koinos.view.months": points.length,
     "koinos.view.estimated_months": points.filter((point) => point.estimated).length,
+  }),
+);
+
+/**
+ * L/P da semana, do mês e do ano pela cotação das posições abertas. Antes de ler, completa no
+ * Yahoo os fechamentos que faltam: o de dezembro do ano passado em diante e os diários recentes
+ * (no máximo a cada 12 h por ticker; o cron renova depois do pregão).
+ */
+export const getPeriodResults = traced(
+  "view.period-results",
+  async (): Promise<PeriodResult[]> => {
+    await connection();
+    const now = new Date();
+    const transactions = await getMyTransactions();
+    const held = replayLedger(transactions).positions.filter((position) => position.quantity > 0);
+    if (held.length === 0) return [];
+    const tickers = held.map((position) => position.ticker);
+    const fromMonth = `${Number(currentMonthKey(now).slice(0, 4)) - 1}-12`;
+    await Promise.all([
+      // Dezembro do ano passado nunca é depois do mês anterior: cobre as duas referências.
+      ensureMonthlyCloses(
+        tickers.map((ticker) => ({ ticker, fromMonth })),
+        now,
+      ),
+      ensureRecentCloses(tickers, now),
+    ]);
+    const [monthlyCloses, assets] = await Promise.all([
+      getMonthlyCloses(tickers),
+      getAssetSnapshots(tickers),
+    ]);
+    return periodResults({
+      now,
+      positions: held.map((position) => ({
+        ticker: position.ticker,
+        quantity: position.quantity,
+        price: assets.get(position.ticker)?.price ?? null,
+      })),
+      monthlyCloses,
+      recentCloses: new Map([...assets].map(([ticker, asset]) => [ticker, asset.recentCloses])),
+    });
+  },
+  (results) => ({
+    "koinos.view.periods": results.length,
+    "koinos.view.missing": results.reduce((sum, result) => sum + result.missing.length, 0),
   }),
 );

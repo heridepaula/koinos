@@ -22,10 +22,13 @@ export interface QuoteProvider {
 }
 
 export type MonthlyClose = { month: string; close: number };
+/** Fechamento de um pregão; `date` é a data de negócio (meia-noite UTC do dia em São Paulo). */
+export type DailyClose = { date: Date; close: number };
 export type DividendEvent = { exDate: Date; amount: number };
 
 export interface HistoryProvider {
   getMonthlyCloses(ticker: string, from: Date): Promise<MonthlyClose[]>;
+  getDailyCloses(ticker: string, from: Date): Promise<DailyClose[]>;
   getDividends(ticker: string, from: Date): Promise<DividendEvent[]>;
 }
 

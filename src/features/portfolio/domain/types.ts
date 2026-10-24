@@ -133,6 +133,17 @@ export type ClosedPositionsTotals = {
   withLoss: number;
 };
 
+/** L/P de um período só pela cotação das posições abertas (ver period-results.ts). */
+export type PeriodResult = {
+  key: "semana" | "mes" | "ano";
+  label: string;
+  value: number;
+  /** Sobre o valor das mesmas cotas no fechamento de referência; null sem base. */
+  pct: number | null;
+  /** FIIs fora da conta: sem cotação ou sem o fechamento de referência. */
+  missing: string[];
+};
+
 export type DividendPace = {
   /** Ano atual, em São Paulo. */
   year: number;

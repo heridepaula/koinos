@@ -18,6 +18,8 @@ export type AssetSnapshot = {
   lastDividend: { amount: number; exDate: Date } | null;
   /** Anúncios dos últimos 90 dias (Yahoo). A data ex é uma data de negócio. */
   dividendAnnouncements: { exDate: Date; perShare: number }[];
+  /** Fechamentos diários das últimas semanas, do mais antigo ao mais recente. */
+  recentCloses: { date: Date; close: number }[];
 };
 
 export async function getAssetSnapshots(
@@ -46,6 +48,10 @@ export async function getAssetSnapshots(
         dividendAnnouncements: (doc.dividendAnnouncements ?? []).map((item) => ({
           exDate: item.exDate,
           perShare: item.perShare,
+        })),
+        recentCloses: (doc.recentCloses ?? []).map((item) => ({
+          date: item.date,
+          close: item.close,
         })),
       },
     ]),
