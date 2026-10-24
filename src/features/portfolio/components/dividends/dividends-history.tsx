@@ -138,7 +138,6 @@ const MONTH_HEADERS = [
   "nov",
   "dez",
 ];
-const wholeReais = new Intl.NumberFormat("pt-BR", { maximumFractionDigits: 0 });
 const longMonth = new Intl.DateTimeFormat("pt-BR", {
   month: "long",
   year: "numeric",
@@ -205,14 +204,14 @@ function MonthMatrix({ view }: { view: HistoryData }) {
                       aria-label={`${monthName(key)}: ${formatBRL(group.total)}`}
                       onClick={() => void setMonth(key)}
                       className={cn(
-                        "w-full min-w-14 cursor-pointer rounded-md px-1.5 py-1.5 text-center tabular-nums outline-none hover:ring-2 hover:ring-ring/40 focus-visible:ring-3 focus-visible:ring-ring/50",
+                        "w-full min-w-22 cursor-pointer rounded-md px-1.5 py-1.5 text-center whitespace-nowrap tabular-nums outline-none hover:ring-2 hover:ring-ring/40 focus-visible:ring-3 focus-visible:ring-ring/50",
                         active && "font-semibold ring-2 ring-ring",
                       )}
                       style={{
                         backgroundColor: `color-mix(in oklab, var(--chart-2) ${strength}%, transparent)`,
                       }}
                     >
-                      {wholeReais.format(group.total)}
+                      {formatBRL(group.total)}
                     </button>
                   </TableCell>
                 );
@@ -225,8 +224,7 @@ function MonthMatrix({ view }: { view: HistoryData }) {
         </TableBody>
       </Table>
       <p className="text-xs text-muted-foreground">
-        Valores em reais, sem os centavos. Cor mais forte, mês maior. Clique num mês para ver os
-        FIIs.
+        Cor mais forte, mês maior. Clique num mês para ver os FIIs.
       </p>
       {selected ? (
         <section aria-live="polite" className="grid gap-3 rounded-lg border p-4">
