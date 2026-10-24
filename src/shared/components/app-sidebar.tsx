@@ -31,6 +31,7 @@ import {
   SidebarMenuSubButton,
   SidebarMenuSubItem,
   SidebarRail,
+  useSidebar,
 } from "@/shared/ui/sidebar";
 
 type NavItem = {
@@ -95,13 +96,16 @@ const ACTIVE_ITEM =
 
 export function AppSidebar({ footer }: { footer: ReactNode }) {
   const pathname = usePathname();
+  const { setOpenMobile } = useSidebar();
+  // No celular o menu é uma gaveta por cima da página: fecha ao escolher um item.
+  const closeMobile = () => setOpenMobile(false);
 
   return (
     <Sidebar collapsible="icon" variant="floating">
       <SidebarHeader>
         <SidebarMenu>
           <SidebarMenuItem>
-            <SidebarMenuButton size="lg" render={<Link href="/dashboard" />}>
+            <SidebarMenuButton size="lg" render={<Link href="/dashboard" onClick={closeMobile} />}>
               <div className="metal-ring tile aspect-square size-8 rounded-[9px] [--tile:var(--tile-app)]">
                 <CoinsIcon className="size-4" />
               </div>
@@ -124,7 +128,7 @@ export function AppSidebar({ footer }: { footer: ReactNode }) {
                 return (
                   <SidebarMenuItem key={item.href}>
                     <SidebarMenuButton
-                      render={<Link href={item.href} />}
+                      render={<Link href={item.href} onClick={closeMobile} />}
                       isActive={active}
                       tooltip={item.label}
                       // Recolhida, a sidebar tem botões de 32 px: o azulejo de 24 px pede padding menor.
@@ -145,7 +149,7 @@ export function AppSidebar({ footer }: { footer: ReactNode }) {
                         {item.children.map((child) => (
                           <SidebarMenuSubItem key={child.href}>
                             <SidebarMenuSubButton
-                              render={<Link href={child.href} />}
+                              render={<Link href={child.href} onClick={closeMobile} />}
                               isActive={pathname === child.href}
                             >
                               <child.icon />
