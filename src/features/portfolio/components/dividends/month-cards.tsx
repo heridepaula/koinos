@@ -1,11 +1,13 @@
 import { CircleCheckIcon, ClockIcon, HandCoinsIcon } from "lucide-react";
-import { MetricCard } from "@/shared/components/metric";
+import { MetricCard, StatList, StatRow } from "@/shared/components/metric";
 import { formatBRL, formatMonth, formatPercent } from "@/shared/lib/format";
 import type { DividendMonthSummary } from "../../domain/types";
 
 /**
  * Mês atual em três cards de número: o que já caiu (extrato da B3), o que falta cair (a lista da
  * B3 ou, sem ela, os anúncios do Yahoo) e o total, que mostra numa barra quanto do mês já entrou.
+ * No card estreito (o celular), um card só: o total com a barra e, embaixo, o recebido e o a
+ * receber em linhas, em vez de três cards empilhados.
  */
 export function DividendMonthCards({
   month,
@@ -14,21 +16,26 @@ export function DividendMonthCards({
   month: DividendMonthSummary;
   forecastAsOf: Date | null;
 }) {
+  const upcomingLabel = forecastAsOf ? "A receber" : "A receber (estimado)";
+  const share = month.total > 0 ? Math.min(1, month.received / month.total) : 0;
   return (
-    // Três colunas só quando cada card tem espaço para o valor sem quebrar a linha.
-    <div className="@container">
-      <div className="grid gap-4 md:gap-6 @min-[720px]:grid-cols-3">
+    // Três colunas só quando cada card tem espaço para o valor sem quebrar a linha. O container
+    // tem nome: o rótulo fica dentro do cabeçalho do card, que é outro container.
+    <div className="@container/month">
+      <div className="grid gap-4 md:gap-6 @min-[720px]/month:grid-cols-3">
         <MetricCard
           icon={CircleCheckIcon}
           tile="[--tile:var(--tile-green)]"
           label={`Recebido em ${formatMonth(month.month)}`}
           value={formatBRL(month.received)}
+          className="hidden @min-[720px]/month:flex"
         />
         <MetricCard
           icon={ClockIcon}
           tile="[--tile:var(--tile-orange)]"
-          label={forecastAsOf ? "A receber" : "A receber (estimado)"}
+          label={upcomingLabel}
           value={formatBRL(month.upcoming)}
+          className="hidden @min-[720px]/month:flex"
         >
           {forecastAsOf ? null : (
             <p className="text-footnote text-muted-foreground">
@@ -39,11 +46,30 @@ export function DividendMonthCards({
         <MetricCard
           icon={HandCoinsIcon}
           tile="[--tile:var(--tile-teal)]"
-          label="Total do mês"
+          label={
+            <>
+              <span className="@min-[720px]/month:hidden">
+                Proventos de {formatMonth(month.month)}
+              </span>
+              <span className="hidden @min-[720px]/month:inline">Total do mês</span>
+            </>
+          }
           value={formatBRL(month.total)}
           className="metal-ring brushed"
         >
-          <MonthProgress received={month.received} total={month.total} />
+          <div className="grid gap-3">
+            <MonthProgress share={share} />
+            <StatList className="@min-[720px]/month:hidden">
+              <StatRow
+                label={`Recebido · ${formatPercent(share, 0)}`}
+                value={formatBRL(month.received)}
+              />
+              <StatRow
+                label={`${upcomingLabel} · ${formatPercent(1 - share, 0)}`}
+                value={formatBRL(month.upcoming)}
+              />
+            </StatList>
+          </div>
         </MetricCard>
       </div>
     </div>
@@ -52,10 +78,9 @@ export function DividendMonthCards({
 
 /**
  * Quanto do mês já entrou: a parte recebida na cor dos proventos (--chart-2) e o que falta na
- * mesma cor, mais clara. Embaixo, as duas fatias em %.
+ * mesma cor, mais clara. Embaixo, as duas fatias em % (no celular, elas vão para as linhas).
  */
-function MonthProgress({ received, total }: { received: number; total: number }) {
-  const share = total > 0 ? Math.min(1, received / total) : 0;
+function MonthProgress({ share }: { share: number }) {
   return (
     <div className="grid gap-2">
       <div
@@ -65,7 +90,7 @@ function MonthProgress({ received, total }: { received: number; total: number })
       >
         <span className="rounded-full bg-(--chart-2)" style={{ width: `${share * 100}%` }} />
       </div>
-      <div className="flex justify-between text-footnote text-muted-foreground tabular-nums">
+      <div className="hidden justify-between text-footnote text-muted-foreground tabular-nums @min-[720px]/month:flex">
         <span>Recebido {formatPercent(share, 0)}</span>
         <span>A receber {formatPercent(1 - share, 0)}</span>
       </div>

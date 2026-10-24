@@ -1,9 +1,18 @@
 import { CircleAlertIcon } from "lucide-react";
 import type { ReactNode } from "react";
 import { AssetLabel } from "@/shared/components/asset-label";
+import { InfoSheet } from "@/shared/components/info-sheet";
 import { formatBRL, formatQuantity, formatTradeDate } from "@/shared/lib/format";
+import { cn } from "@/shared/lib/utils";
 import { Badge } from "@/shared/ui/badge";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/shared/ui/card";
+import {
+  Card,
+  CardAction,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/shared/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/shared/ui/table";
 import type { DividendsView } from "../../domain/types";
 
@@ -42,7 +51,16 @@ function NotDisclosedBadge() {
  * Legenda no pé da lista, só com o que aparece nela: o que cada origem quer dizer e quando surge o
  * "a confirmar". Substitui o parágrafo longo que explicava tudo de uma vez no cabeçalho.
  */
-function UpcomingLegend({ rows, undisclosed }: { rows: Row[]; undisclosed: boolean }) {
+function UpcomingLegend({
+  rows,
+  undisclosed,
+  inSheet = false,
+}: {
+  rows: Row[];
+  undisclosed: boolean;
+  /** Dentro da folha ⓘ do celular: sem o recuo do card. */
+  inSheet?: boolean;
+}) {
   const items: { key: string; term: ReactNode; text: string }[] = [];
   if (rows.some((row) => row.source === "B3")) {
     items.push({
@@ -76,17 +94,80 @@ function UpcomingLegend({ rows, undisclosed }: { rows: Row[]; undisclosed: boole
   // No celular, uma grade (termo | explicação) para as explicações não ziguezaguearem; em card
   // largo, os pares seguem em linha.
   return (
-    <dl className="grid grid-cols-[auto_1fr] items-center gap-x-3 gap-y-2 px-(--card-spacing) pt-4 text-footnote text-muted-foreground @min-[640px]:flex @min-[640px]:flex-wrap @min-[640px]:gap-x-6">
+    <dl
+      className={cn(
+        "text-muted-foreground",
+        inSheet
+          ? "grid gap-4 text-subheadline"
+          : "grid grid-cols-[auto_1fr] items-center gap-x-3 gap-y-2 px-(--card-spacing) pt-4 text-footnote @min-[640px]:flex @min-[640px]:flex-wrap @min-[640px]:gap-x-6",
+      )}
+    >
       {items.map((item) => (
         <div
           key={item.key}
-          className="contents @min-[640px]:flex @min-[640px]:items-center @min-[640px]:gap-2"
+          className={cn(
+            inSheet
+              ? "grid justify-items-start gap-1.5"
+              : "contents @min-[640px]:flex @min-[640px]:items-center @min-[640px]:gap-2",
+          )}
         >
           <dt className="justify-self-start">{item.term}</dt>
           <dd>{item.text}</dd>
         </div>
       ))}
     </dl>
+  );
+}
+
+/**
+ * Celular (card abaixo de 400 px): cada provento numa célula, como as listas do iOS: o FII à
+ * esquerda; o valor e o pagamento à direita. O "não divulgado" leva o selo no lugar da data.
+ */
+function UpcomingPhoneList({
+  rows,
+  undisclosed,
+}: {
+  rows: DividendsView["upcoming"];
+  undisclosed: DividendsView["undisclosed"];
+}) {
+  return (
+    <ul className="divide-y divide-border @min-[400px]:hidden">
+      {rows.map((row, index) => (
+        <li
+          key={`${row.ticker}-${row.source}-${(row.exDate ?? row.payBy)?.toISOString() ?? "sem-data"}-${index}`}
+          className="flex items-center gap-3 px-(--card-spacing) py-3"
+        >
+          <div className="min-w-0 flex-1">
+            <AssetLabel ticker={row.ticker} name={row.name} logoUrl={row.logoUrl} size="lg" />
+          </div>
+          <div className="grid justify-items-end gap-0.5">
+            <span className="text-headline font-normal tabular-nums">{formatBRL(row.amount)}</span>
+            <span className="text-footnote whitespace-nowrap text-muted-foreground tabular-nums">
+              <PayBy row={row} />
+            </span>
+          </div>
+        </li>
+      ))}
+      {undisclosed.map((row) => (
+        <li
+          key={`${row.ticker}-nao-divulgado`}
+          className="flex items-center gap-3 px-(--card-spacing) py-3"
+        >
+          <div className="min-w-0 flex-1">
+            <AssetLabel ticker={row.ticker} name={row.name} logoUrl={row.logoUrl} size="lg" />
+          </div>
+          <div className="grid justify-items-end gap-1">
+            <span
+              className="text-headline font-normal text-muted-foreground tabular-nums"
+              title="Pago no mês passado, como referência."
+            >
+              {formatBRL(row.lastAmount)}
+            </span>
+            <NotDisclosedBadge />
+          </div>
+        </li>
+      ))}
+    </ul>
   );
 }
 
@@ -100,15 +181,21 @@ export function UpcomingDividends({
   undisclosed: DividendsView["undisclosed"];
   forecastAsOf: Date | null;
 }) {
+  const description = forecastAsOf
+    ? `Da lista Proventos a Receber da B3 (envio de ${formatTradeDate(forecastAsOf)}) e dos anúncios do Yahoo depois dela.`
+    : "Pelos anúncios do Yahoo, sobre as cotas da véspera da data ex.";
   return (
     <Card>
       <CardHeader>
         <CardTitle>A receber</CardTitle>
-        <CardDescription>
-          {forecastAsOf
-            ? `Da lista Proventos a Receber da B3 (envio de ${formatTradeDate(forecastAsOf)}) e dos anúncios do Yahoo depois dela.`
-            : "Pelos anúncios do Yahoo, sobre as cotas da véspera da data ex."}
-        </CardDescription>
+        <CardDescription className="max-md:hidden">{description}</CardDescription>
+        {/* No celular, a origem e a legenda ficam na folha ⓘ: a lista é o que importa. */}
+        <CardAction className="md:hidden">
+          <InfoSheet title="A receber" label="Sobre a lista a receber">
+            <p>{description}</p>
+            <UpcomingLegend rows={rows} undisclosed={undisclosed.length > 0} inSheet />
+          </InfoSheet>
+        </CardAction>
       </CardHeader>
       {/* As colunas de detalhe saem pela largura do card: FII, valor e pagamento ficam sempre. */}
       <CardContent className="@container px-0">
@@ -117,83 +204,88 @@ export function UpcomingDividends({
             Nenhum provento anunciado a receber.
           </p>
         ) : (
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead className="pl-(--card-spacing)">FII</TableHead>
-                <TableHead className="hidden @min-[400px]:table-cell">Origem</TableHead>
-                <TableHead className="hidden @min-[520px]:table-cell">Data ex</TableHead>
-                <TableHead className="hidden text-right @min-[640px]:table-cell">Cotas</TableHead>
-                <TableHead className="hidden text-right @min-[640px]:table-cell">
-                  Por cota
-                </TableHead>
-                <TableHead className="text-right">Valor</TableHead>
-                <TableHead className="pr-(--card-spacing) text-right">Pagamento</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {rows.map((row, index) => (
-                // O Yahoo pode mandar dois eventos do mesmo FII no mesmo dia (normal e extra).
-                <TableRow
-                  key={`${row.ticker}-${row.source}-${(row.exDate ?? row.payBy)?.toISOString() ?? "sem-data"}-${index}`}
-                >
-                  <TableCell className="pl-(--card-spacing)">
-                    <AssetLabel ticker={row.ticker} name={row.name} logoUrl={row.logoUrl} />
-                  </TableCell>
-                  <TableCell className="hidden @min-[400px]:table-cell">
-                    {row.source === "B3" ? (
-                      <Badge variant="secondary">B3</Badge>
-                    ) : (
-                      <Badge variant="outline">estimado</Badge>
-                    )}
-                  </TableCell>
-                  <TableCell className="hidden tabular-nums @min-[520px]:table-cell">
-                    {row.exDate ? formatTradeDate(row.exDate) : "—"}
-                  </TableCell>
-                  <TableCell className="hidden text-right tabular-nums @min-[640px]:table-cell">
-                    {row.quantity !== null ? formatQuantity(row.quantity) : "—"}
-                  </TableCell>
-                  <TableCell className="hidden text-right tabular-nums @min-[640px]:table-cell">
-                    {row.perShare !== null ? formatBRL(row.perShare) : "—"}
-                  </TableCell>
-                  <TableCell className="text-right font-medium tabular-nums">
-                    {formatBRL(row.amount)}
-                  </TableCell>
-                  <TableCell className="pr-(--card-spacing) text-right whitespace-nowrap text-muted-foreground tabular-nums">
-                    <PayBy row={row} />
-                  </TableCell>
+          <>
+            <UpcomingPhoneList rows={rows} undisclosed={undisclosed} />
+            <Table className="hidden @min-[400px]:table">
+              <TableHeader>
+                <TableRow>
+                  <TableHead className="pl-(--card-spacing)">FII</TableHead>
+                  <TableHead className="hidden @min-[400px]:table-cell">Origem</TableHead>
+                  <TableHead className="hidden @min-[520px]:table-cell">Data ex</TableHead>
+                  <TableHead className="hidden text-right @min-[640px]:table-cell">Cotas</TableHead>
+                  <TableHead className="hidden text-right @min-[640px]:table-cell">
+                    Por cota
+                  </TableHead>
+                  <TableHead className="text-right">Valor</TableHead>
+                  <TableHead className="pr-(--card-spacing) text-right">Pagamento</TableHead>
                 </TableRow>
-              ))}
-              {undisclosed.map((row) => (
-                <TableRow key={`${row.ticker}-nao-divulgado`}>
-                  <TableCell className="pl-(--card-spacing)">
-                    <AssetLabel ticker={row.ticker} name={row.name} logoUrl={row.logoUrl} />
-                  </TableCell>
-                  <TableCell className="hidden @min-[400px]:table-cell">
-                    <NotDisclosedBadge />
-                  </TableCell>
-                  <TableCell className="hidden @min-[520px]:table-cell">—</TableCell>
-                  <TableCell className="hidden text-right @min-[640px]:table-cell">—</TableCell>
-                  <TableCell className="hidden text-right @min-[640px]:table-cell">—</TableCell>
-                  <TableCell
-                    className="text-right text-muted-foreground tabular-nums"
-                    title="Pago no mês passado, como referência."
+              </TableHeader>
+              <TableBody>
+                {rows.map((row, index) => (
+                  // O Yahoo pode mandar dois eventos do mesmo FII no mesmo dia (normal e extra).
+                  <TableRow
+                    key={`${row.ticker}-${row.source}-${(row.exDate ?? row.payBy)?.toISOString() ?? "sem-data"}-${index}`}
                   >
-                    {formatBRL(row.lastAmount)}
-                  </TableCell>
-                  <TableCell className="pr-(--card-spacing) text-right whitespace-nowrap text-muted-foreground">
-                    {/* Na tela estreita a coluna Origem some: o aviso fica aqui. */}
-                    <span className="@min-[400px]:hidden">
+                    <TableCell className="pl-(--card-spacing)">
+                      <AssetLabel ticker={row.ticker} name={row.name} logoUrl={row.logoUrl} />
+                    </TableCell>
+                    <TableCell className="hidden @min-[400px]:table-cell">
+                      {row.source === "B3" ? (
+                        <Badge variant="secondary">B3</Badge>
+                      ) : (
+                        <Badge variant="outline">estimado</Badge>
+                      )}
+                    </TableCell>
+                    <TableCell className="hidden tabular-nums @min-[520px]:table-cell">
+                      {row.exDate ? formatTradeDate(row.exDate) : "—"}
+                    </TableCell>
+                    <TableCell className="hidden text-right tabular-nums @min-[640px]:table-cell">
+                      {row.quantity !== null ? formatQuantity(row.quantity) : "—"}
+                    </TableCell>
+                    <TableCell className="hidden text-right tabular-nums @min-[640px]:table-cell">
+                      {row.perShare !== null ? formatBRL(row.perShare) : "—"}
+                    </TableCell>
+                    <TableCell className="text-right font-medium tabular-nums">
+                      {formatBRL(row.amount)}
+                    </TableCell>
+                    <TableCell className="pr-(--card-spacing) text-right whitespace-nowrap text-muted-foreground tabular-nums">
+                      <PayBy row={row} />
+                    </TableCell>
+                  </TableRow>
+                ))}
+                {undisclosed.map((row) => (
+                  <TableRow key={`${row.ticker}-nao-divulgado`}>
+                    <TableCell className="pl-(--card-spacing)">
+                      <AssetLabel ticker={row.ticker} name={row.name} logoUrl={row.logoUrl} />
+                    </TableCell>
+                    <TableCell className="hidden @min-[400px]:table-cell">
                       <NotDisclosedBadge />
-                    </span>
-                    <span className="hidden @min-[400px]:inline">não divulgado</span>
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
+                    </TableCell>
+                    <TableCell className="hidden @min-[520px]:table-cell">—</TableCell>
+                    <TableCell className="hidden text-right @min-[640px]:table-cell">—</TableCell>
+                    <TableCell className="hidden text-right @min-[640px]:table-cell">—</TableCell>
+                    <TableCell
+                      className="text-right text-muted-foreground tabular-nums"
+                      title="Pago no mês passado, como referência."
+                    >
+                      {formatBRL(row.lastAmount)}
+                    </TableCell>
+                    <TableCell className="pr-(--card-spacing) text-right whitespace-nowrap text-muted-foreground">
+                      {/* Na tela estreita a coluna Origem some: o aviso fica aqui. */}
+                      <span className="@min-[400px]:hidden">
+                        <NotDisclosedBadge />
+                      </span>
+                      <span className="hidden @min-[400px]:inline">não divulgado</span>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </>
         )}
-        <UpcomingLegend rows={rows} undisclosed={undisclosed.length > 0} />
+        <div className="max-md:hidden">
+          <UpcomingLegend rows={rows} undisclosed={undisclosed.length > 0} />
+        </div>
       </CardContent>
     </Card>
   );

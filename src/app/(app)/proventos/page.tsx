@@ -1,4 +1,4 @@
-import { RepeatIcon } from "lucide-react";
+import { ChevronRightIcon, RepeatIcon } from "lucide-react";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { Suspense } from "react";
@@ -9,6 +9,7 @@ import {
   EmptyDividends,
   UpcomingDividends,
 } from "@/features/portfolio/ui";
+import { InsetGroup, insetRowClass } from "@/shared/components/inset-list";
 import { PageHeader } from "@/shared/components/page-header";
 import { CardSkeleton } from "@/shared/components/skeletons";
 import { Button } from "@/shared/ui/button";
@@ -33,6 +34,7 @@ export default function DividendsPage() {
             Reinvestimento
           </Button>
         }
+        mobileActions={false}
       />
       <Suspense fallback={<DividendsSkeleton />}>
         <DividendsContent />
@@ -47,6 +49,22 @@ async function DividendsContent() {
   return (
     <div className="grid gap-6">
       <DividendMonthCards month={view.month} forecastAsOf={view.forecastAsOf} />
+      {/* No iPhone, a subpágina é uma célula com chevron, como nos Ajustes: o botão do
+          cabeçalho fica só na mesa. */}
+      <InsetGroup surface="page" className="md:hidden">
+        <Link href="/proventos/reinvestimento" className={insetRowClass()}>
+          <span className="tile size-8 rounded-lg [--tile:var(--tile-purple)] [&_svg]:size-4.5">
+            <RepeatIcon aria-hidden="true" />
+          </span>
+          <span className="grid flex-1">
+            Reinvestimento
+            <span className="text-footnote text-muted-foreground">
+              Quanto do aporte veio de proventos
+            </span>
+          </span>
+          <ChevronRightIcon className="size-4 text-muted-foreground" aria-hidden="true" />
+        </Link>
+      </InsetGroup>
       <UpcomingDividends
         rows={view.upcoming}
         undisclosed={view.undisclosed}

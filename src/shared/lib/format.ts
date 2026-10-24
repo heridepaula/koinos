@@ -13,6 +13,10 @@ const compactBrl = new Intl.NumberFormat("pt-BR", {
   notation: "compact",
   maximumFractionDigits: 1,
 });
+const compactNumber = new Intl.NumberFormat("pt-BR", {
+  notation: "compact",
+  maximumFractionDigits: 1,
+});
 const quantity = new Intl.NumberFormat("pt-BR", { maximumFractionDigits: 2 });
 const percentFormatters = new Map<number, Intl.NumberFormat>();
 const tradeDate = new Intl.DateTimeFormat("pt-BR", { timeZone: "UTC" });
@@ -33,6 +37,11 @@ export function formatBRL(value: number): string {
 
 export function formatCompactBRL(value: number): string {
   return compactBrl.format(value);
+}
+
+/** "7,6 mil", sem o R$: para células apertadas em que a moeda já está dita (o calendário do celular). */
+export function formatCompactNumber(value: number): string {
+  return compactNumber.format(value);
 }
 
 export function formatQuantity(value: number): string {

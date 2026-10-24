@@ -11,10 +11,13 @@ export function InsetGroup({
   title,
   footer,
   listRole,
+  surface = "sheet",
   className,
   children,
 }: {
   title?: string;
+  /** "sheet" dentro das folhas (preenchimento leve); "page" direto na página, com o material dos cards. */
+  surface?: "sheet" | "page";
   /** Nota em texto secundário embaixo do bloco, como o rodapé das seções dos Ajustes. */
   footer?: ReactNode;
   /** "radiogroup" quando as células são as opções de uma escolha (com o check do iOS). */
@@ -30,7 +33,10 @@ export function InsetGroup({
       <div
         role={listRole}
         aria-label={listRole ? title : undefined}
-        className="grid divide-y divide-border overflow-hidden rounded-2xl bg-card/80 dark:bg-white/6"
+        className={cn(
+          "grid divide-y divide-border overflow-hidden rounded-2xl",
+          surface === "page" ? "card-surface" : "bg-card/80 dark:bg-white/6",
+        )}
       >
         {children}
       </div>
