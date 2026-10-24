@@ -472,17 +472,16 @@
   }
 }
 
-/* Entrada suave das telas (template.tsx): a página que sai some rápido, a nova sobe com fade. */
+/* Entrada suave das telas (template.tsx): a página que sai some rápido, a nova entra com fade. */
 ::view-transition {
   pointer-events: none;
 }
 ::view-transition-old(.page-exit) {
   animation: 150ms ease-out both page-fade reverse;
 }
+/* A subida fica com os cards (abaixo): a tela nova só entra com fade. */
 ::view-transition-new(.page-enter) {
-  animation:
-    210ms ease-in 150ms both page-fade,
-    400ms cubic-bezier(0.2, 0.8, 0.2, 1) both page-rise;
+  animation: 210ms ease-in 150ms both page-fade;
 }
 @keyframes page-fade {
   from {
@@ -492,14 +491,50 @@
     opacity: 1;
   }
 }
-@keyframes page-rise {
-  from {
-    transform: translateY(10px);
+/*
+ * Cards subindo: ao aparecer (abrir a página ou chegar do streaming), sobem com fade, um pouco
+ * depois do anterior; os que estão abaixo da dobra sobem de novo ao entrar na tela, pela rolagem
+ * (só nos navegadores com animation-timeline). As duas usam propriedades diferentes (translate e
+ * opacity; transform) para não brigar, e o card-lift do hover segue no translate.
+ */
+@media (prefers-reduced-motion: no-preference) {
+  [data-slot="card"] {
+    animation: card-appear 450ms cubic-bezier(0.2, 0.8, 0.2, 1) backwards;
   }
-  to {
-    transform: none;
+  :where(*) > [data-slot="card"]:nth-child(2) {
+    animation-delay: 60ms;
+  }
+  :where(*) > [data-slot="card"]:nth-child(3) {
+    animation-delay: 120ms;
+  }
+  :where(*) > [data-slot="card"]:nth-child(n + 4) {
+    animation-delay: 180ms;
+  }
+  @supports (animation-timeline: view()) {
+    [data-slot="card"] {
+      animation-name: card-appear, card-scroll-rise;
+      animation-duration: 450ms, auto;
+      animation-timing-function: cubic-bezier(0.2, 0.8, 0.2, 1), linear;
+      animation-fill-mode: backwards, backwards;
+      animation-timeline: auto, view();
+      animation-range:
+        normal,
+        entry 0% entry 70%;
+    }
   }
 }
+@keyframes card-appear {
+  from {
+    opacity: 0;
+    translate: 0 16px;
+  }
+}
+@keyframes card-scroll-rise {
+  from {
+    transform: translateY(32px) scale(0.98);
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   ::view-transition-old(*),
   ::view-transition-new(*),
