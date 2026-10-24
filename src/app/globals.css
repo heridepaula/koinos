@@ -584,7 +584,8 @@
     corner-shape: squircle;
   }
   [data-slot="dialog-content"],
-  [data-slot="alert-dialog-content"] {
+  [data-slot="alert-dialog-content"],
+  [data-slot="sheet-content"][data-side="bottom"] {
     border-radius: 34px;
     corner-shape: squircle;
   }
@@ -672,7 +673,8 @@
     backdrop-filter: blur(24px) saturate(180%);
   }
   [data-slot="dialog-content"],
-  [data-slot="alert-dialog-content"] {
+  [data-slot="alert-dialog-content"],
+  [data-slot="sheet-content"] {
     background-color: var(--popover);
     backdrop-filter: blur(32px) saturate(180%);
   }
