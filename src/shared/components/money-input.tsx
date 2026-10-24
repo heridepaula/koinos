@@ -18,9 +18,11 @@ import { Input } from "@/shared/ui/input";
 
 type MoneyInputProps = Omit<
   ComponentProps<typeof Input>,
-  "value" | "defaultValue" | "onChange" | "type" | "inputMode" | "ref"
+  "value" | "defaultValue" | "onChange" | "type" | "inputMode" | "ref" | "size"
 > & {
   defaultValue?: number | null;
+  /** "lg": entrada de valor em destaque, como a do Apple Pay (56 px, algarismos em Title 2). */
+  size?: "default" | "lg";
   /** Valor em reais a cada tecla (0 com o campo em "0,00"). */
   onValueChange: (value: number | null) => void;
 };
@@ -40,6 +42,7 @@ function pastedToMask(text: string): string | null {
  */
 export function MoneyInput({
   defaultValue,
+  size = "default",
   onValueChange,
   className,
   onFocus,
@@ -83,7 +86,12 @@ export function MoneyInput({
 
   return (
     <div className="relative">
-      <span className="pointer-events-none absolute top-1/2 left-3 -translate-y-1/2 text-sm text-muted-foreground">
+      <span
+        className={cn(
+          "pointer-events-none absolute top-1/2 -translate-y-1/2 text-muted-foreground",
+          size === "lg" ? "left-5 text-headline font-normal" : "left-3 text-sm",
+        )}
+      >
         R$
       </span>
       <Input
@@ -92,7 +100,12 @@ export function MoneyInput({
         type="text"
         inputMode="decimal"
         autoComplete="off"
-        className={cn("pl-9 tabular-nums", className)}
+        className={cn(
+          "pl-9 tabular-nums",
+          size === "lg" &&
+            "h-14 rounded-2xl pr-5 pl-13 text-title-2 md:text-title-2 pointer-coarse:h-14",
+          className,
+        )}
         value={text}
         onChange={handleChange}
         onPaste={handlePaste}

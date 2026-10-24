@@ -1,70 +1,33 @@
 "use client";
 
-import { CopyIcon, LayersIcon } from "lucide-react";
+import { CopyIcon, LayersIcon, PiggyBankIcon, ShoppingCartIcon, WalletIcon } from "lucide-react";
 import { parseAsFloat, parseAsNumberLiteral, useQueryState } from "nuqs";
 import { toast } from "sonner";
-import { AssetLabel } from "@/shared/components/asset-label";
+import { MetricCard, StatList, StatRow } from "@/shared/components/metric";
 import { MoneyInput } from "@/shared/components/money-input";
-import { formatBRL, formatPercent, formatQuantity } from "@/shared/lib/format";
-import { Badge } from "@/shared/ui/badge";
+import { formatBRL, formatQuantity } from "@/shared/lib/format";
 import { Button } from "@/shared/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/shared/ui/card";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/shared/ui/table";
 import { NativeSelect } from "@/shared/ui/native-select";
 import {
   DEFAULT_MAX_SHARE_PERCENT,
-  EXCLUSION_LABELS,
   MAX_SHARE_PERCENTS,
   sunoCascade,
   type CascadeAsset,
-  type CascadeOrder,
   type ExclusionReason,
   type MaxSharePercent,
 } from "../domain/suno-cascade";
+import { ExcludedCard } from "./aporte/excluded-card";
+import { limitLabel } from "./aporte/explain";
+import { OrdersList, OrdersTable, type AssetMeta } from "./aporte/orders";
 
-export type AssetMeta = { ticker: string; name: string | null; logoUrl: string | null };
+export type { AssetMeta };
 
-const REASON_HELP: Record<ExclusionReason, string> = {
-  ACIMA_DO_TETO: "Preço igual ou acima do teto: a regra é só comprar abaixo dele.",
-  NA_META: "Já está na % sugerida (ou passou dela).",
-  SEM_SALDO: "Está abaixo da meta, mas o valor não alcançou: fica para o próximo aporte.",
-  SEM_TETO: "Sem preço teto cadastrado na Carteira Alvo.",
-  SEM_RANKING: "Sem ranking cadastrado na Carteira Alvo.",
-  SEM_COTACAO: "Ainda sem cotação.",
-};
-const REASON_ORDER: ExclusionReason[] = [
-  "SEM_SALDO",
-  "NA_META",
-  "ACIMA_DO_TETO",
-  "SEM_TETO",
-  "SEM_RANKING",
-  "SEM_COTACAO",
-];
-
-const limitLabel = (percent: MaxSharePercent) =>
-  percent >= 100 ? "Sem limite" : `${percent}% do aporte`;
-
-function explain(order: CascadeOrder, maxSharePercent: number): string {
-  const parts = [
-    `${order.rank}º do ranking`,
-    `${formatPercent(order.marginToCeiling, 1)} abaixo do teto`,
-    order.gapBefore > 0 ? `faltavam ${formatBRL(order.gapBefore)} para a meta` : "já na meta",
-  ];
-  if (order.limited) {
-    parts.push(`limite de ${maxSharePercent}% do aporte`);
-    // Estimativa: mesmo aporte, mesmo preço e mesmo ranking.
-    if (order.aportesLeft !== null) {
-      parts.push(
-        order.aportesLeft === 1
-          ? "falta ≈ 1 aporte como este"
-          : `faltam ≈ ${order.aportesLeft} aportes como este`,
-      );
-    }
-  }
-  if (order.fromLeftover > 0) parts.push(`${order.fromLeftover} cota(s) da sobra`);
-  return parts.join(" · ");
-}
-
+/**
+ * Calculadora de aporte pelo método Suno. O valor é a ação principal da página: entra num campo
+ * grande, como o do Apple Pay, e a cascata roda no navegador a cada tecla (valor e limite na URL).
+ * Embaixo, o resumo em cards de número, as ordens (tabela ou, no celular, lista) e quem ficou fora.
+ */
 export function AporteCalculator({ assets, meta }: { assets: CascadeAsset[]; meta: AssetMeta[] }) {
   const [amount, setAmount] = useQueryState(
     "valor",
@@ -97,7 +60,7 @@ export function AporteCalculator({ assets, meta }: { assets: CascadeAsset[]; met
   }
 
   return (
-    <div className="grid gap-6">
+    <div className="grid gap-4 md:gap-6">
       <Card>
         <CardHeader>
           <CardTitle>Quanto vou aportar hoje?</CardTitle>
@@ -108,12 +71,13 @@ export function AporteCalculator({ assets, meta }: { assets: CascadeAsset[]; met
         </CardHeader>
         <CardContent>
           <form
-            className="flex flex-wrap items-center gap-2"
+            className="flex flex-wrap items-center gap-x-4 gap-y-3"
             onSubmit={(event) => event.preventDefault()}
           >
             <MoneyInput
               aria-label="Valor do aporte em reais"
-              className="h-10 w-48 text-lg"
+              size="lg"
+              className="w-full sm:w-72"
               defaultValue={amount > 0 ? amount : null}
               onValueChange={(value) => void setAmount(value !== null && value > 0 ? value : null)}
             />
@@ -144,38 +108,49 @@ export function AporteCalculator({ assets, meta }: { assets: CascadeAsset[]; met
 
       {result ? (
         <>
-          <div className="grid gap-4 sm:grid-cols-3">
-            <Card size="sm" className="card-lift">
-              <CardHeader>
-                <CardDescription>Aporte</CardDescription>
-                <CardTitle className="text-2xl tabular-nums">{formatBRL(result.amount)}</CardTitle>
-              </CardHeader>
+          {/* No celular, o resumo é um card só, com três linhas: os três cards de número
+              empurravam as ordens, que são o que importa, para baixo da dobra. */}
+          <div className="@container">
+            <Card size="sm" className="@min-[720px]:hidden">
+              <CardContent>
+                <StatList className="border-t-0 pt-0">
+                  <StatRow label="Aporte" value={formatBRL(result.amount)} />
+                  <StatRow label="Ordens" value={formatBRL(result.spent)} />
+                  <StatRow label="Sobra para o próximo aporte" value={formatBRL(result.leftover)} />
+                </StatList>
+              </CardContent>
             </Card>
-            <Card size="sm" className="card-lift">
-              <CardHeader>
-                <CardDescription>Ordens</CardDescription>
-                <CardTitle className="text-2xl tabular-nums">{formatBRL(result.spent)}</CardTitle>
-              </CardHeader>
-            </Card>
-            <Card size="sm" className="card-lift">
-              <CardHeader>
-                <CardDescription>Sobra para o próximo aporte</CardDescription>
-                <CardTitle className="text-2xl tabular-nums">
-                  {formatBRL(result.leftover)}
-                </CardTitle>
-              </CardHeader>
-            </Card>
+            <div className="hidden gap-4 md:gap-6 @min-[720px]:grid @min-[720px]:grid-cols-3">
+              <MetricCard
+                icon={WalletIcon}
+                tile="[--tile:var(--tile-blue)]"
+                label="Aporte"
+                value={formatBRL(result.amount)}
+              />
+              <MetricCard
+                icon={ShoppingCartIcon}
+                tile="[--tile:var(--tile-green)]"
+                label="Ordens"
+                value={formatBRL(result.spent)}
+              />
+              <MetricCard
+                icon={PiggyBankIcon}
+                tile="[--tile:var(--tile-orange)]"
+                label="Sobra para o próximo aporte"
+                value={formatBRL(result.leftover)}
+              />
+            </div>
           </div>
 
-          <Card>
+          <Card className="@container">
             <CardHeader>
               <CardTitle>Ordens de compra</CardTitle>
               <CardDescription>
                 Na ordem do ranking. Os preços são de referência: confira na corretora.
               </CardDescription>
               {limitedAny ? (
-                <p className="flex items-start gap-2 text-sm">
-                  <LayersIcon className="mt-0.5 size-4 shrink-0 text-primary" aria-hidden="true" />
+                <p className="mt-2 flex items-start gap-3 text-sm">
+                  <LayersIcon className="mt-0.5 size-4 shrink-0 text-info" aria-hidden="true" />
                   Entrada aos poucos: nenhum FII leva mais de {result.maxSharePercent}% do aporte, e
                   o resto vai para os outros FIIs. Quem parou no limite volta a receber no próximo
                   aporte, até chegar à meta.
@@ -189,77 +164,27 @@ export function AporteCalculator({ assets, meta }: { assets: CascadeAsset[]; met
                   ativo.
                 </p>
               ) : (
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead className="pl-(--card-spacing)">Ativo</TableHead>
-                      <TableHead className="text-right">Cotas</TableHead>
-                      <TableHead className="text-right">Preço</TableHead>
-                      <TableHead className="text-right">Total</TableHead>
-                      <TableHead className="text-right">% antes → depois</TableHead>
-                      <TableHead className="text-right">% meta</TableHead>
-                      <TableHead className="pr-(--card-spacing)">Por quê</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {result.orders.map((order) => {
-                      const info = metaByTicker.get(order.ticker);
-                      return (
-                        <TableRow key={order.ticker}>
-                          <TableCell className="pl-(--card-spacing)">
-                            <AssetLabel
-                              ticker={order.ticker}
-                              name={info?.name}
-                              logoUrl={info?.logoUrl}
-                            />
-                          </TableCell>
-                          <TableCell className="text-right font-medium tabular-nums">
-                            {formatQuantity(order.quantity)}
-                          </TableCell>
-                          <TableCell className="text-right tabular-nums">
-                            {formatBRL(order.price)}
-                          </TableCell>
-                          <TableCell className="text-right tabular-nums">
-                            {formatBRL(order.total)}
-                          </TableCell>
-                          <TableCell className="text-right tabular-nums">
-                            {formatPercent(order.weightBefore, 1)} →{" "}
-                            {formatPercent(order.weightAfter, 1)}
-                          </TableCell>
-                          <TableCell className="text-right tabular-nums">
-                            {formatPercent(order.targetWeight, 1)}
-                          </TableCell>
-                          {/* A explicação quebra linha: a tabela cabe em telas menores. */}
-                          <TableCell className="min-w-64 pr-(--card-spacing) text-xs whitespace-normal text-muted-foreground">
-                            {explain(order, result.maxSharePercent)}
-                          </TableCell>
-                        </TableRow>
-                      );
-                    })}
-                  </TableBody>
-                </Table>
+                <>
+                  <div className="@min-[760px]:hidden">
+                    <OrdersList
+                      orders={result.orders}
+                      meta={metaByTicker}
+                      maxSharePercent={result.maxSharePercent}
+                    />
+                  </div>
+                  <div className="hidden @min-[760px]:block">
+                    <OrdersTable
+                      orders={result.orders}
+                      meta={metaByTicker}
+                      maxSharePercent={result.maxSharePercent}
+                    />
+                  </div>
+                </>
               )}
             </CardContent>
           </Card>
 
-          {result.excluded.length > 0 ? (
-            <Card>
-              <CardHeader>
-                <CardTitle>Fora deste aporte</CardTitle>
-              </CardHeader>
-              <CardContent className="grid gap-3">
-                {REASON_ORDER.filter((reason) => excludedByReason.has(reason)).map((reason) => (
-                  <div key={reason} className="grid gap-1.5">
-                    <div className="flex items-center gap-2">
-                      <Badge variant="outline">{EXCLUSION_LABELS[reason]}</Badge>
-                      <span className="text-xs text-muted-foreground">{REASON_HELP[reason]}</span>
-                    </div>
-                    <p className="text-sm">{excludedByReason.get(reason)!.join(", ")}</p>
-                  </div>
-                ))}
-              </CardContent>
-            </Card>
-          ) : null}
+          <ExcludedCard byReason={excludedByReason} />
         </>
       ) : null}
     </div>
