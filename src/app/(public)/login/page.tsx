@@ -34,13 +34,15 @@ async function SignedInRedirect() {
 
 /**
  * Entrada no estilo da tela de boas-vindas dos apps da Apple: o ícone do app (o mesmo azulejo com
- * aro de titânio da sidebar), o nome em Large Title, a frase em Subheadline e um botão só.
+ * aro de titânio da sidebar), o nome em Large Title, a frase em Subheadline e um botão só. No
+ * iPhone não há card: o ícone e o nome ficam no meio da tela, direto no papel de parede, e o botão
+ * desce para a base, ao alcance do polegar, acima do home indicator.
  */
 export default function LoginPage({ searchParams }: PageProps<"/login">) {
   return (
-    <main className="flex min-h-svh items-center justify-center p-4">
-      <Card className="w-full max-w-sm [--card-spacing:--spacing(8)]">
-        <CardHeader className="justify-items-center gap-3 text-center">
+    <main className="flex min-h-svh items-center justify-center p-4 max-md:items-stretch max-md:px-6 max-md:pt-[max(1rem,var(--safe-top))] max-md:pb-[max(1.5rem,var(--safe-bottom))]">
+      <Card className="w-full max-w-sm [--card-spacing:--spacing(8)] max-md:max-w-none max-md:border-0 max-md:bg-none max-md:shadow-none max-md:backdrop-blur-none max-md:[--card-spacing:0px]">
+        <CardHeader className="justify-items-center gap-3 text-center max-md:flex-1 max-md:content-center">
           <div className="metal-ring tile mb-2 size-16 rounded-2xl [--tile:var(--tile-app)]">
             <CoinsIcon className="size-8" aria-hidden="true" />
           </div>

@@ -48,7 +48,7 @@ export function SignInButton() {
     <Button
       variant="outline"
       size="lg"
-      className="w-full border-[#747775] bg-white text-[#1f1f1f] hover:bg-[#f2f2f2] hover:text-[#1f1f1f] dark:border-[#8e918f] dark:bg-[#131314] dark:text-[#e3e3e3] dark:hover:bg-[#1f1f20]"
+      className="w-full border-[#747775] bg-white text-[#1f1f1f] hover:bg-[#f2f2f2] hover:text-[#1f1f1f] max-md:h-13 max-md:text-headline dark:border-[#8e918f] dark:bg-[#131314] dark:text-[#e3e3e3] dark:hover:bg-[#1f1f20]"
       onClick={signIn}
       disabled={pending}
     >
