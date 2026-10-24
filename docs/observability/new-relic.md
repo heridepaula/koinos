@@ -54,14 +54,14 @@ Só em **Production**:
 
 ## Importar o dashboard
 
-1. Na New Relic, copie o **Account ID**: menu do usuário → **Administration** → **Access management** → **Accounts**.
-2. Em [`new-relic-dashboard.json`](new-relic-dashboard.json), troque todos os `"accountIds": [0]` pelo ID, por exemplo `"accountIds": [1234567]`. No terminal:
+1. O [`new-relic-dashboard.json`](new-relic-dashboard.json) já vem com o Account ID da conta do Koinos (`6563675`) em todas as consultas.
+2. **Dashboards** → **Import dashboard** → cole o JSON → **Import dashboard**. Se já importou a versão anterior, apague a antiga ou importe ao lado.
 
-   ```bash
-   sed 's/"accountIds": \[0\]/"accountIds": [1234567]/g' docs/observability/new-relic-dashboard.json > dashboard.json
-   ```
+Para importar em outra conta, troque o ID em todas as consultas (menu do usuário → **Administration** → **Access management** → **Accounts** mostra o seu):
 
-3. **Dashboards** → **Import dashboard** → cole o JSON → **Import dashboard**. Se já importou a versão anterior, apague a antiga ou importe ao lado.
+```bash
+sed 's/"accountIds": \[6563675\]/"accountIds": [1234567]/g' docs/observability/new-relic-dashboard.json > dashboard.json
+```
 
 As páginas:
 

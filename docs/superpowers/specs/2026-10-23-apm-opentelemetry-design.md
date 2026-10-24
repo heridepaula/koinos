@@ -70,7 +70,7 @@ Além disso:
 ## 6. Dashboard e alertas
 
 - `docs/observability/new-relic-dashboard.json`: 7 páginas e 56 widgets, gerados com os nomes vistos no ensaio. Importação e alertas em `docs/observability/new-relic.md`.
-- O JSON não foi testado dentro da New Relic: não há acesso à conta. O `accountIds` vem com `0`, para ser trocado na importação.
+- O JSON não foi testado dentro da New Relic: não há acesso à conta. As consultas usam o Account ID que o usuário passou (`6563675`).
 
 ## 7. Fora do escopo
 
