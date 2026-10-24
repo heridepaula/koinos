@@ -5,6 +5,7 @@ import { AppSidebar } from "@/shared/components/app-sidebar";
 import { PointerGlow } from "@/shared/components/pointer-glow";
 import { QueryProvider } from "@/shared/components/query-provider";
 import { ThemeToggle } from "@/shared/components/theme-toggle";
+import { WebVitals } from "@/shared/components/web-vitals";
 import { SidebarInset, SidebarProvider, SidebarTrigger } from "@/shared/ui/sidebar";
 
 // Lê a sessão: fica dentro de <Suspense> para o resto do layout ir no shell estático.
@@ -18,6 +19,7 @@ export default function AppLayout({ children }: { children: ReactNode }) {
     <QueryProvider>
       <PointerGlow />
       <SessionKeepAlive />
+      <WebVitals />
       <SidebarProvider>
         <AppSidebar
           footer={

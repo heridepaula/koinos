@@ -50,9 +50,10 @@ export function redactAttributes(attributes: MutableAttributes): void {
 
 /**
  * Processador que limpa os spans antes do exportador. No início, o nome e os atributos com que
- * o span nasce (o Next e o fetch já põem a URL completa ali). No fim, o que foi gravado depois,
- * como as exceções: o objeto ainda é o mesmo que o exportador vai enviar, por isso a limpeza é
- * feita nele, e este processador vem antes do exportador na lista.
+ * o span nasce (o Next e o fetch já põem a URL completa ali). No fim, o que foi gravado depois:
+ * as exceções e a descrição do status, onde o Next põe a mensagem inteira do erro. O objeto ainda
+ * é o mesmo que o exportador vai enviar, por isso a limpeza é feita nele, e este processador vem
+ * antes do exportador na lista.
  */
 export class RedactionSpanProcessor implements SpanProcessor {
   onStart(span: Span): void {
@@ -66,6 +67,8 @@ export class RedactionSpanProcessor implements SpanProcessor {
     for (const event of span.events) {
       if (event.attributes) redactAttributes(event.attributes as MutableAttributes);
     }
+    const status = span.status as { message?: string };
+    if (typeof status.message === "string") status.message = scrubMessage(status.message);
   }
 
   forceFlush(): Promise<void> {
