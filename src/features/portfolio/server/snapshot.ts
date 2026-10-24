@@ -11,6 +11,7 @@ import { getMyTargetAssets } from "@/features/strategy/server";
 import { replayLedger } from "@/features/transactions";
 import { getMyDividends, getMyTransactions } from "@/features/transactions/server";
 import { currentMonthKey, monthKeyOfTradeDate } from "@/shared/lib/time";
+import { traced } from "@/shared/lib/tracing";
 import { computeEvolution } from "../domain/evolution";
 import { buildSnapshot } from "../domain/snapshot";
 import type { EvolutionPoint, PortfolioSnapshot, PriceInfo } from "../domain/types";
@@ -37,45 +38,64 @@ function toPriceInfo(assets: ReadonlyMap<string, AssetSnapshot>): Map<string, Pr
  * Visão consolidada da carteira do usuário logado (dashboard, Carteira Alvo, Recomendações).
  * Os dados vêm da sessão (DAL); o resultado é um DTO sem ids internos.
  */
-export const getPortfolioSnapshot = cache(async (): Promise<PortfolioSnapshot> => {
-  await connection(); // usa a hora atual: só em tempo de requisição
-  const [transactions, targets, dividends] = await Promise.all([
-    getMyTransactions(),
-    getMyTargetAssets(),
-    getMyDividends(),
-  ]);
-  const tickers = [
-    ...new Set([...transactions.map((t) => t.ticker), ...targets.map((t) => t.ticker)]),
-  ];
-  const assets = await getAssetSnapshots(tickers);
-  return buildSnapshot({
-    now: new Date(),
-    transactions,
-    targets,
-    dividends,
-    prices: toPriceInfo(assets),
-  });
-});
+export const getPortfolioSnapshot = cache(
+  traced(
+    "view.portfolio-snapshot",
+    async (): Promise<PortfolioSnapshot> => {
+      await connection(); // usa a hora atual: só em tempo de requisição
+      const [transactions, targets, dividends] = await Promise.all([
+        getMyTransactions(),
+        getMyTargetAssets(),
+        getMyDividends(),
+      ]);
+      const tickers = [
+        ...new Set([...transactions.map((t) => t.ticker), ...targets.map((t) => t.ticker)]),
+      ];
+      const assets = await getAssetSnapshots(tickers);
+      return buildSnapshot({
+        now: new Date(),
+        transactions,
+        targets,
+        dividends,
+        prices: toPriceInfo(assets),
+      });
+    },
+    (snapshot) => ({
+      "koinos.view.positions": snapshot.positions.length,
+      "koinos.view.closed": snapshot.closed.length,
+      "koinos.view.strategy_rows": snapshot.strategy.rows.length,
+      "koinos.view.stale_quotes": snapshot.quotes.staleCount,
+      "koinos.view.alerts": snapshot.alerts.length,
+    }),
+  ),
+);
 
 /** Evolução mensal. Completa no Yahoo os fechamentos que faltam (uma vez por mês e ticker). */
-export async function getEvolution(): Promise<EvolutionPoint[]> {
-  await connection();
-  const now = new Date();
-  const transactions = await getMyTransactions();
-  if (transactions.length === 0) return [];
-  const { positions } = replayLedger(transactions);
-  await ensureMonthlyCloses(
-    positions.map((position) => ({
-      ticker: position.ticker,
-      fromMonth: monthKeyOfTradeDate(position.firstDate),
-    })),
-    now,
-  );
-  const tickers = positions.map((position) => position.ticker);
-  const [closes, assets] = await Promise.all([
-    getMonthlyCloses(tickers),
-    getAssetSnapshots(tickers),
-  ]);
-  const currentPrices = new Map([...assets].map(([ticker, asset]) => [ticker, asset.price]));
-  return computeEvolution(transactions, closes, currentPrices, currentMonthKey(now));
-}
+export const getEvolution = traced(
+  "view.evolution",
+  async (): Promise<EvolutionPoint[]> => {
+    await connection();
+    const now = new Date();
+    const transactions = await getMyTransactions();
+    if (transactions.length === 0) return [];
+    const { positions } = replayLedger(transactions);
+    await ensureMonthlyCloses(
+      positions.map((position) => ({
+        ticker: position.ticker,
+        fromMonth: monthKeyOfTradeDate(position.firstDate),
+      })),
+      now,
+    );
+    const tickers = positions.map((position) => position.ticker);
+    const [closes, assets] = await Promise.all([
+      getMonthlyCloses(tickers),
+      getAssetSnapshots(tickers),
+    ]);
+    const currentPrices = new Map([...assets].map(([ticker, asset]) => [ticker, asset.price]));
+    return computeEvolution(transactions, closes, currentPrices, currentMonthKey(now));
+  },
+  (points) => ({
+    "koinos.view.months": points.length,
+    "koinos.view.estimated_months": points.filter((point) => point.estimated).length,
+  }),
+);

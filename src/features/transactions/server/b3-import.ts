@@ -3,6 +3,7 @@ import readXlsxFile from "read-excel-file/node";
 import { ActionError, type Tenant } from "@/features/auth/server";
 import { readCatalogTypes } from "@/features/market-data/server";
 import { withLock } from "@/shared/db/lock";
+import { withSpan } from "@/shared/lib/tracing";
 import { todayTradeDate } from "@/shared/lib/time";
 import type { DividendEntry } from "../domain/types";
 import {
@@ -88,51 +89,94 @@ async function recognize(files: readonly File[]) {
     negociacao: found.get("NEGOCIACAO")!,
     movimentacao: found.get("MOVIMENTACAO")!,
     eventos: found.get("EVENTOS")!,
+    rows,
   };
 }
 
+// Cada etapa tem o seu span (`b3.*`), só com contagens: nada dos extratos vai para o APM.
 async function buildUpdate(tenant: Tenant, request: B3ImportRequest) {
-  const files = await recognize(request.files);
-  const [existing, existingDividends, storedForecast, assetTypes] = await Promise.all([
-    listTransactions(tenant.portfolioId),
-    listDividendRecords(tenant.portfolioId),
-    getDividendForecast(tenant.portfolioId),
-    readCatalogTypes(),
-  ]);
+  const files = await withSpan(
+    "b3.read-files",
+    { "koinos.b3.files": request.files.length },
+    async (span) => {
+      const read = await recognize(request.files);
+      span.setAttribute("koinos.b3.rows", read.rows);
+      return read;
+    },
+  );
+  const [existing, existingDividends, storedForecast, assetTypes] = await withSpan(
+    "b3.load-stored",
+    {},
+    async (span) => {
+      const stored = await Promise.all([
+        listTransactions(tenant.portfolioId),
+        listDividendRecords(tenant.portfolioId),
+        getDividendForecast(tenant.portfolioId),
+        readCatalogTypes(),
+      ]);
+      span.setAttributes({
+        "koinos.b3.stored_entries": stored[0].length,
+        "koinos.b3.stored_dividends": stored[1].length,
+      });
+      return stored;
+    },
+  );
   if (assetTypes.size === 0) {
     throw new ActionError(
       "O catálogo de tickers ainda não foi carregado. Tente de novo em alguns minutos.",
     );
   }
   const asOf = todayTradeDate(new Date());
-  let plan: B3ImportPlan;
-  try {
-    plan = planB3Import({
-      negociacao: readNegociacao(files.negociacao),
-      movimentacao: readMovimentacao(files.movimentacao),
-      eventos: readEventos(files.eventos),
-      asOf,
-      planilha: null,
-      existing,
-      assetTypes,
-      answers: request.answers,
+  const plan = await withSpan("b3.plan", {}, async (span): Promise<B3ImportPlan> => {
+    let planned: B3ImportPlan;
+    try {
+      planned = planB3Import({
+        negociacao: readNegociacao(files.negociacao),
+        movimentacao: readMovimentacao(files.movimentacao),
+        eventos: readEventos(files.eventos),
+        asOf,
+        planilha: null,
+        existing,
+        assetTypes,
+        answers: request.answers,
+      });
+    } catch (error) {
+      // Erros de conteúdo dos arquivos já vêm com mensagem para o usuário.
+      if (error instanceof B3ImportError) throw new ActionError(error.message);
+      throw error;
+    }
+    span.setAttributes({
+      "koinos.b3.tickers": planned.tickers.length,
+      "koinos.b3.pending": planned.pending.length,
+      "koinos.b3.warnings": planned.warnings.length,
+      "koinos.b3.ignored": planned.ignored.length,
+      "koinos.b3.divergences": planned.check.unexplained.length,
     });
-  } catch (error) {
-    // Erros de conteúdo dos arquivos já vêm com mensagem para o usuário.
-    if (error instanceof B3ImportError) throw new ActionError(error.message);
-    throw error;
-  }
+    return planned;
+  });
   const upcoming = plan.upcoming ?? { asOf, items: [] };
-  const entries = diffLedger(plan, existing);
-  const dividends = diffDividends(plan.dividends, existingDividends);
-  const forecastChanged = !storedForecast || !sameForecast(storedForecast.items, upcoming.items);
-  const changed =
-    entries.insert.length > 0 ||
-    entries.removeIds.length > 0 ||
-    dividends.insert.length > 0 ||
-    dividends.removeIds.length > 0 ||
-    forecastChanged;
-  return { plan, upcoming, entries, dividends, forecastChanged, changed };
+  return withSpan("b3.diff", {}, async (span) => {
+    const entries = diffLedger(plan, existing);
+    const dividends = diffDividends(plan.dividends, existingDividends);
+    const forecastChanged = !storedForecast || !sameForecast(storedForecast.items, upcoming.items);
+    const changed =
+      entries.insert.length > 0 ||
+      entries.removeIds.length > 0 ||
+      dividends.insert.length > 0 ||
+      dividends.removeIds.length > 0 ||
+      forecastChanged;
+    span.setAttributes({
+      "koinos.b3.entries_added": entries.added.length,
+      "koinos.b3.entries_replaced": entries.replaced.length,
+      "koinos.b3.entries_unchanged": entries.unchanged,
+      "koinos.b3.dividends_added": dividends.added.length,
+      "koinos.b3.dividends_replaced": dividends.replaced.length,
+      "koinos.b3.dividends_unchanged": dividends.unchanged,
+      "koinos.b3.forecast_changed": forecastChanged,
+      "koinos.b3.changed": changed,
+    });
+    return { plan, upcoming, entries, dividends, forecastChanged, changed };
+  });
 }
 
 type Update = Awaited<ReturnType<typeof buildUpdate>>;
@@ -238,13 +282,23 @@ export async function confirmB3Import(
     if (hasDividendOutsideScope(plan.dividends))
       throw new Error("Provento fora do escopo da troca.");
     if (update.changed) {
-      await applyB3Update(tenant.portfolioId, {
-        removeIds: entries.removeIds,
-        inserts: entries.insert,
-        dividendRemoveIds: dividends.removeIds,
-        dividendInserts: dividends.insert,
-        forecast: upcoming,
-      });
+      await withSpan(
+        "b3.apply",
+        {
+          "koinos.b3.inserts": entries.insert.length,
+          "koinos.b3.removes": entries.removeIds.length,
+          "koinos.b3.dividend_inserts": dividends.insert.length,
+          "koinos.b3.dividend_removes": dividends.removeIds.length,
+        },
+        () =>
+          applyB3Update(tenant.portfolioId, {
+            removeIds: entries.removeIds,
+            inserts: entries.insert,
+            dividendRemoveIds: dividends.removeIds,
+            dividendInserts: dividends.insert,
+            forecast: upcoming,
+          }),
+      );
     }
     return counts(update);
   });
