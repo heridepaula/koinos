@@ -4,8 +4,9 @@ import { refresh } from "next/cache";
 import { ActionError, authActionClient } from "@/features/auth/server";
 import { getCatalogSubType } from "@/features/market-data/server";
 import { suggestCategory } from "./domain/categories";
+import { suggestedPercentProblem } from "./domain/quarantine";
 import { suggestedPercentsSchema, targetPatchSchema, targetTickerSchema } from "./schemas";
-import { deleteTargetAsset, upsertTargetAsset } from "./server/target-asset-repo";
+import { deleteTargetAsset, findTargetAsset, upsertTargetAsset } from "./server/target-asset-repo";
 
 /** Adiciona um ativo à Carteira Alvo, já na estratégia, com categoria sugerida pelo subtipo. */
 export const addTargetAssetAction = authActionClient
@@ -26,13 +27,30 @@ export const addTargetAssetAction = authActionClient
     return { ok: true as const };
   });
 
-/** Edita campos da configuração. Um ativo em carteira ainda sem configuração nasce fora da estratégia. */
+/**
+ * Edita campos da configuração. Um ativo em carteira ainda sem configuração nasce fora da estratégia.
+ * 0% é a quarentena, então só vale fora da estratégia: na estratégia, a % vazia divide o que falta.
+ * Por isso um ativo com 0% que entra na estratégia volta a ficar sem %.
+ */
 export const updateTargetAssetAction = authActionClient
   .metadata({ actionName: "updateTargetAsset", traceInput: ["ticker"] })
   .inputSchema(targetPatchSchema)
   .action(async ({ parsedInput, ctx }) => {
     const { ticker, ...patch } = parsedInput;
-    await upsertTargetAsset(ctx.tenant.portfolioId, ticker, patch, { inStrategy: false });
+    const stored = await findTargetAsset(ctx.tenant.portfolioId, ticker);
+    const inStrategy = patch.inStrategy ?? stored?.inStrategy ?? false;
+    const problem = suggestedPercentProblem(patch.suggestedPercent ?? null, inStrategy);
+    if (problem) throw new ActionError(problem);
+    const enteringWithZero =
+      patch.inStrategy === true &&
+      patch.suggestedPercent === undefined &&
+      stored?.suggestedPercent === 0;
+    await upsertTargetAsset(
+      ctx.tenant.portfolioId,
+      ticker,
+      enteringWithZero ? { ...patch, suggestedPercent: null } : patch,
+      { inStrategy: false },
+    );
     refresh();
     return { ok: true as const };
   });

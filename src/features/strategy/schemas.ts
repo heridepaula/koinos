@@ -12,9 +12,10 @@ export const targetPatchSchema = z.object({
     .max(1_000_000)
     .nullable()
     .optional(),
+  // 0% é a quarentena: só vale fora da estratégia (a action confere).
   suggestedPercent: z
     .number()
-    .gt(0, "A % deve ser maior que zero")
+    .min(0, "A % não pode ser negativa")
     .max(100, "A % não pode passar de 100")
     .nullable()
     .optional(),

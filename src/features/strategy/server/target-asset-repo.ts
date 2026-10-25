@@ -46,6 +46,19 @@ export async function listTargetAssets(portfolioId: string): Promise<TargetAsset
   return docs.map(toRecord);
 }
 
+/** A configuração de um ativo, ou null se ele ainda não foi configurado nesta carteira. */
+export async function findTargetAsset(
+  portfolioId: string,
+  ticker: string,
+): Promise<TargetAssetRecord | null> {
+  await connectMongo();
+  const doc = await TargetAssetModel.findOne({
+    portfolioId: toObjectId(portfolioId),
+    ticker,
+  }).lean<TargetAssetDoc>();
+  return doc ? toRecord(doc) : null;
+}
+
 /**
  * Atualiza (ou cria) a configuração de um ativo. `defaultsOnCreate` só vale na criação,
  * e nunca sobrescreve campos que vieram no patch.

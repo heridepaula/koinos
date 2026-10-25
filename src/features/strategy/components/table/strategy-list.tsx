@@ -20,6 +20,7 @@ import {
 } from "@/shared/ui/drawer";
 import { Switch } from "@/shared/ui/switch";
 import { CategorySelect } from "./category-select";
+import { suggestedPercentProblem } from "../../domain/quarantine";
 import { NumberField } from "./number-field";
 import { MarginValue, WeightValue } from "./read-only-cells";
 import { useTargetRow } from "./use-target-row";
@@ -145,6 +146,7 @@ function StrategySheet({ row, onRemoved }: { row: StrategyRow; onRemoved: () => 
               label="% sugerida"
               className="w-24 bg-card dark:bg-card"
               value={row.suggestedPercent}
+              validate={(value) => suggestedPercentProblem(value, row.inStrategy)}
               onCommit={(value) => save({ suggestedPercent: value })}
             />
           </SheetRow>

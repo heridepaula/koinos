@@ -22,7 +22,8 @@ const targetAssetSchema = new Schema<TargetAssetDoc>(
     inStrategy: { type: Boolean, required: true, default: true },
     sunoRank: { type: Number, default: null, min: 1, max: 999 },
     ceilingPrice: { type: Number, default: null, min: 0.000001 },
-    suggestedPercent: { type: Number, default: null, min: 0.000001, max: 100 },
+    // 0 é a quarentena (fora da estratégia).
+    suggestedPercent: { type: Number, default: null, min: 0, max: 100 },
     category: { type: String, enum: [...CATEGORIES, null], default: null },
   },
   { timestamps: true },

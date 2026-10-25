@@ -16,12 +16,15 @@ export function NumberField({
   label,
   integer,
   className,
+  validate,
   onCommit,
 }: {
   value: number | null;
   label: string;
   integer?: boolean;
   className?: string;
+  /** Recusa o valor antes de salvar: devolve a mensagem, e o campo volta ao valor salvo. */
+  validate?: (value: number | null) => string | null;
   onCommit: (value: number | null) => void;
 }) {
   const [text, setText] = useState(numberToInput(value));
@@ -39,7 +42,14 @@ export function NumberField({
       setText(numberToInput(value));
       return;
     }
-    if (parsed !== value) onCommit(parsed);
+    if (parsed === value) return;
+    const problem = validate?.(parsed) ?? null;
+    if (problem) {
+      toast.error(problem);
+      setText(numberToInput(value));
+      return;
+    }
+    onCommit(parsed);
   }
 
   return (

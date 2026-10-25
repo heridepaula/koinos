@@ -9,6 +9,7 @@ import { Button } from "@/shared/ui/button";
 import { Switch } from "@/shared/ui/switch";
 import { TableCell, TableRow } from "@/shared/ui/table";
 import { CategorySelect } from "./category-select";
+import { suggestedPercentProblem } from "../../domain/quarantine";
 import { NumberField } from "./number-field";
 import { MarginValue, WeightValue } from "./read-only-cells";
 import { useTargetRow } from "./use-target-row";
@@ -50,6 +51,7 @@ export function StrategyRow({ row }: { row: StrategyRowData }) {
           label="% sugerida"
           className="w-16"
           value={row.suggestedPercent}
+          validate={(value) => suggestedPercentProblem(value, row.inStrategy)}
           onCommit={(value) => save({ suggestedPercent: value })}
         />
       </TableCell>
