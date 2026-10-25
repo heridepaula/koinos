@@ -34,7 +34,7 @@ import { OrdersList, OrdersTable, type AssetMeta } from "./aporte/orders";
 export type { AssetMeta };
 
 const CALCULATION_NOTE =
-  "O cálculo usa as cotações atuais e a configuração da Carteira Alvo. O máximo por FII monta cada posição aos poucos: o preço médio se forma em várias compras.";
+  "O cálculo usa as cotações atuais e a configuração da Carteira Alvo. Quem está mais descontado pede mais: com mais de 5% de margem até o teto, o que falta para a meta vale 1,2 vez (o P/VP entra quando houver fonte do valor patrimonial). O máximo por FII monta cada posição aos poucos: o preço médio se forma em várias compras.";
 
 /**
  * Calculadora de aporte pelo método Suno. O valor é a ação principal da página: entra num campo

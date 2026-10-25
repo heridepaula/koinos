@@ -1,4 +1,4 @@
-import { formatBRL, formatPercent } from "@/shared/lib/format";
+import { formatBRL, formatPercent, formatQuantity } from "@/shared/lib/format";
 import type { CascadeOrder, ExclusionReason, MaxSharePercent } from "../../domain/suno-cascade";
 
 export const REASON_HELP: Record<ExclusionReason, string> = {
@@ -22,13 +22,28 @@ export const REASON_ORDER: ExclusionReason[] = [
 export const limitLabel = (percent: MaxSharePercent) =>
   percent >= 100 ? "Sem limite" : `${percent}% do aporte`;
 
-/** O porquê de cada ordem: posição no ranking, margem até o teto, quanto faltava e o limite. */
+/** " (×1,2)" quando o multiplicador muda o pedido; nada quando é neutro. */
+const times = (multiplier: number) => (multiplier === 1 ? "" : ` (×${formatQuantity(multiplier)})`);
+
+/**
+ * O porquê de cada ordem: posição no ranking, margem até o teto e P/VP (com os multiplicadores do
+ * Índice de Convicção), quanto faltava, quanto o FII pediu e o limite.
+ */
 export function explain(order: CascadeOrder, maxSharePercent: number): string {
+  const conviction = order.marginMultiplier * order.priceToBookMultiplier;
   const parts = [
     `${order.rank}º do ranking`,
-    `${formatPercent(order.marginToCeiling, 1)} abaixo do teto`,
-    order.gapBefore > 0 ? `faltavam ${formatBRL(order.gapBefore)} para a meta` : "já na meta",
+    `${formatPercent(order.marginToCeiling, 1)} abaixo do teto${times(order.marginMultiplier)}`,
   ];
+  if (order.priceToBook !== null) {
+    parts.push(`P/VP ${formatQuantity(order.priceToBook)}${times(order.priceToBookMultiplier)}`);
+  }
+  parts.push(
+    order.gapBefore > 0 ? `faltavam ${formatBRL(order.gapBefore)} para a meta` : "já na meta",
+  );
+  if (order.gapBefore > 0 && conviction !== 1) {
+    parts.push(`convicção ×${formatQuantity(conviction)}: pediu ${formatBRL(order.adjustedGap)}`);
+  }
   if (order.limited) {
     parts.push(`limite de ${maxSharePercent}% do aporte`);
     // Estimativa: mesmo aporte, mesmo preço e mesmo ranking.

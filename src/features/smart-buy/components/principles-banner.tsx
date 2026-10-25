@@ -1,4 +1,5 @@
 import {
+  BadgePercentIcon,
   CalendarCheckIcon,
   LayersIcon,
   ListOrderedIcon,
@@ -12,6 +13,7 @@ export const PRINCIPLES = [
   { icon: CalendarCheckIcon, text: "Aporte todo mês" },
   { icon: ShieldCheckIcon, text: "Só abaixo do preço teto" },
   { icon: ListOrderedIcon, text: "Siga o ranking até a % sugerida" },
+  { icon: BadgePercentIcon, text: "Compre mais do que está descontado" },
   { icon: LayersIcon, text: "Monte posições aos poucos" },
   { icon: ScaleIcon, text: "Rebalanceie com aportes, não com vendas" },
 ] as const;

@@ -1,10 +1,14 @@
 import { round2 } from "@/shared/lib/money";
+import { marginMultiplier, priceToBookMultiplier } from "./conviction";
 
 // Motor de aporte pelo método Suno (orientações públicas da Suno no Suno Conecta):
 // 1. só comprar abaixo do preço teto;
 // 2. seguir o ranking respeitando a % sugerida: levar o 1º até a meta, depois o 2º, e assim por diante;
 // 3. se todos estiverem abaixo do teto e na meta, aportar no de menor peso ou mais abaixo do preço médio.
 // Na acumulação, a carteira se rebalanceia pelos aportes, sem vender.
+// Índice de Convicção (decisão do dono, 24/10/2026): o quanto cada FII pede é o que falta para a meta
+// vezes os multiplicadores da margem até o teto e do P/VP (conviction.ts). O descontado pede mais e
+// o caro pede menos.
 // Entrada aos poucos ("investir aos poucos, distribuindo as compras ao longo de alguns meses"):
 // nenhum ativo leva mais que uma parte do aporte. Uma posição nova se monta em vários aportes,
 // e o preço médio se forma em várias compras.
@@ -18,6 +22,8 @@ export type CascadeAsset = {
   price: number | null;
   quantity: number;
   averagePrice: number | null;
+  /** P/VP (cotação ÷ valor patrimonial por cota). Null sem dado: o multiplicador fica neutro. */
+  priceToBook: number | null;
 };
 
 export type ExclusionReason =
@@ -47,9 +53,17 @@ export type CascadeOrder = {
   targetWeight: number;
   /** (teto − preço) / teto */
   marginToCeiling: number;
-  /** Quanto faltava (R$) para a meta antes do aporte. */
+  priceToBook: number | null;
+  /** Multiplicadores do Índice de Convicção usados (1 = neutro). */
+  marginMultiplier: number;
+  priceToBookMultiplier: number;
+  /** Quanto faltava (R$) para a meta antes do aporte (o gap base). */
   gapBefore: number;
-  /** Parou no limite por ativo com o ativo ainda abaixo da meta (entrada aos poucos). */
+  /** Gap base × multiplicadores: o quanto o FII pediu neste aporte. */
+  adjustedGap: number;
+  /** Cotas desejadas: gap ajustado ÷ preço, arredondado para a cota mais próxima. */
+  desired: number;
+  /** Parou no limite por ativo antes das cotas desejadas (entrada aos poucos). */
   limited: boolean;
   /** Quanto falta (R$) para a meta depois desta ordem. */
   gapAfter: number;
@@ -80,6 +94,10 @@ type Eligible = CascadeAsset & {
   ceiling: number;
   value: number;
   target: number;
+  marginMultiplier: number;
+  priceToBookMultiplier: number;
+  adjustedGap: number;
+  desired: number;
   bought: number;
   fromLeftover: number;
 };
@@ -119,13 +137,27 @@ export function sunoCascade(
       excluded.push({ ticker: asset.ticker, rank: asset.rank, reason });
       continue;
     }
+    const price = asset.price!;
+    const ceiling = asset.ceiling!;
+    const value = positionValue(asset);
+    const target = asset.weight * total;
+    const gap = target - value;
+    // Os multiplicadores só valem para quem está abaixo da meta.
+    const byMargin = gap > 0 ? marginMultiplier((ceiling - price) / ceiling) : 1;
+    const byPriceToBook = gap > 0 ? priceToBookMultiplier(asset.priceToBook) : 1;
+    const adjustedGap = gap > 0 ? gap * byMargin * byPriceToBook : 0;
     eligible.push({
       ...asset,
-      price: asset.price!,
+      price,
       rank: asset.rank!,
-      ceiling: asset.ceiling!,
-      value: positionValue(asset),
-      target: asset.weight * total,
+      ceiling,
+      value,
+      target,
+      marginMultiplier: byMargin,
+      priceToBookMultiplier: byPriceToBook,
+      adjustedGap,
+      // Arredonda para a cota mais próxima: só compra se o gap ajustado pagar meia cota ou mais.
+      desired: Math.floor(adjustedGap / price + 0.5),
       bought: 0,
       fromLeftover: 0,
     });
@@ -133,11 +165,8 @@ export function sunoCascade(
   eligible.sort(byRankThenTicker);
 
   let cash = budget;
-  // Cotas que aproximam o ativo da meta: arredonda para a cota mais próxima (só compra se faltar ≥ meia cota).
-  const wanted = (asset: Eligible) => {
-    const gap = asset.target - (asset.value + asset.bought * asset.price);
-    return gap > 0 ? Math.floor(gap / asset.price + 0.5) : 0;
-  };
+  // Cotas desejadas que ainda faltam comprar.
+  const wanted = (asset: Eligible) => Math.max(0, asset.desired - asset.bought);
   const affordable = (asset: Eligible) => Math.floor(cash / asset.price + EPSILON);
   // Entrada aos poucos: teto de cotas por ativo neste aporte, com pelo menos 1 cota (senão um
   // ativo caro nunca entraria com aportes pequenos). Com 100%, não há teto.
@@ -145,8 +174,8 @@ export function sunoCascade(
   const maxQuantity = (asset: Eligible) => Math.max(1, Math.floor(limit / asset.price + EPSILON));
   const room = (asset: Eligible) => maxQuantity(asset) - asset.bought;
 
-  // Passo 1: cascata pelo ranking, cada ativo até a meta ou até o limite. Se o dinheiro não
-  // alcança um ativo, segue para os próximos (um mais barato ainda pode caber).
+  // Passo 1: cascata pelo ranking, cada ativo até as cotas desejadas ou até o limite. Se o dinheiro
+  // não alcança um ativo, segue para os próximos (um mais barato ainda pode caber).
   for (const asset of eligible) {
     const quantity = Math.min(wanted(asset), room(asset), affordable(asset));
     if (quantity > 0) {
@@ -155,8 +184,8 @@ export function sunoCascade(
     }
   }
 
-  // Passo 2: sobra. Só quando todos os elegíveis estão na meta ou no limite; senão o dinheiro
-  // fica guardado para o próximo aporte do ativo que ainda está abaixo dela.
+  // Passo 2: sobra. Só quando todos os elegíveis compraram as cotas desejadas ou estão no limite;
+  // senão o dinheiro fica guardado para o próximo aporte do ativo que ainda pede cotas.
   if (eligible.every((asset) => wanted(asset) === 0 || room(asset) <= 0)) {
     const weightVsTarget = (asset: Eligible) =>
       (asset.value + asset.bought * asset.price) / asset.target;
@@ -192,6 +221,7 @@ export function sunoCascade(
       // Cada aporte igual compra cerca do mesmo total, e a meta cresce peso × aporte.
       const pace = total - asset.weight * budget;
       const gapAfter = round2(asset.target - (asset.value + asset.bought * asset.price));
+      const estimate = limited && pace > 0 && gapAfter > 0;
       return {
         ticker: asset.ticker,
         rank: asset.rank,
@@ -203,10 +233,15 @@ export function sunoCascade(
         weightAfter: totalAfter > 0 ? (asset.value + asset.bought * asset.price) / totalAfter : 0,
         targetWeight: asset.weight,
         marginToCeiling: (asset.ceiling - asset.price) / asset.ceiling,
+        priceToBook: asset.priceToBook,
+        marginMultiplier: asset.marginMultiplier,
+        priceToBookMultiplier: asset.priceToBookMultiplier,
         gapBefore: round2(asset.target - asset.value),
+        adjustedGap: round2(asset.adjustedGap),
+        desired: asset.desired,
         limited,
         gapAfter,
-        aportesLeft: limited && pace > 0 ? Math.ceil(gapAfter / pace) : null,
+        aportesLeft: estimate ? Math.ceil(gapAfter / pace) : null,
       };
     });
 
