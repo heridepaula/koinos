@@ -30,7 +30,7 @@ describe("sunoCascade: cascata pelo ranking", () => {
       fii("CCCC11", { rank: 3, weight: 0.5, quantity: 100 }),
     ];
     // Metas sobre 1.000 + 300: AAAA11 e BBBB11 pedem 33 cotas cada; o saldo paga 30.
-    const result = sunoCascade(300, assets, { maxSharePercent: 100 });
+    const result = sunoCascade(300, assets);
     expect(result.orders.map((item) => [item.ticker, item.quantity])).toEqual([["AAAA11", 30]]);
     expect(reasonOf(result, "BBBB11")).toBe("SEM_SALDO");
     expect(reasonOf(result, "CCCC11")).toBe("NA_META");
@@ -39,7 +39,7 @@ describe("sunoCascade: cascata pelo ranking", () => {
 
   it("o troco desce para um FII mais barato no fim da fila", () => {
     const assets = [fii("AAAA11", { rank: 1, price: 100 }), fii("BBBB11", { rank: 2, price: 10 })];
-    const result = sunoCascade(150, assets, { maxSharePercent: 100 });
+    const result = sunoCascade(150, assets);
     expect(order(result, "AAAA11")?.quantity).toBe(1);
     expect(order(result, "BBBB11")?.quantity).toBe(5);
     expect(result.leftover).toBe(0);
@@ -53,7 +53,7 @@ describe("sunoCascade: Índice de Convicção", () => {
       fii("BBBB11", { rank: 2, ceiling: 10.4, quantity: 100 }),
     ];
     // Metas de 1.250 sobre 1.500 + 1.000: AAAA11 tem 500 e pede 750 × 1,2.
-    const result = sunoCascade(1000, assets, { maxSharePercent: 100 });
+    const result = sunoCascade(1000, assets);
     const discounted = order(result, "AAAA11")!;
     expect(discounted.marginMultiplier).toBe(1.2);
     expect(discounted.adjustedGap).toBe(900);
@@ -75,7 +75,7 @@ describe("sunoCascade: Índice de Convicção", () => {
       fii("CCCC11", { rank: 3, weight: 1 / 3, ceiling: 12.5, priceToBook: 1.05 }),
     ];
     // Cada um tem meta de 100 e nada em carteira.
-    const result = sunoCascade(300, assets, { maxSharePercent: 100 });
+    const result = sunoCascade(300, assets);
     expect(order(result, "AAAA11")).toMatchObject({
       marginMultiplier: 1.2,
       priceToBookMultiplier: 1.2,
@@ -90,7 +90,7 @@ describe("sunoCascade: Índice de Convicção", () => {
       fii("AAAA11", { rank: 1, quantity: 100, ceiling: 12.5, priceToBook: 0.8 }),
       fii("BBBB11", { rank: 2 }),
     ];
-    const result = sunoCascade(100, assets, { maxSharePercent: 100 });
+    const result = sunoCascade(100, assets);
     expect(order(result, "AAAA11")).toBeUndefined();
     expect(reasonOf(result, "AAAA11")).toBe("NA_META");
   });
@@ -103,8 +103,8 @@ describe("sunoCascade: dinheiro sobrando", () => {
       fii("BBBB11", { rank: 2, price: 10, quantity: 30 }),
     ];
     // AAAA11 pede 3 cotas de 100 e o saldo paga 2. Os 50 que sobram não vão para o BBBB11.
-    const result = sunoCascade(250, assets, { maxSharePercent: 100 });
-    expect(order(result, "AAAA11")).toMatchObject({ quantity: 2, fromLeftover: 0, limited: false });
+    const result = sunoCascade(250, assets);
+    expect(order(result, "AAAA11")).toMatchObject({ quantity: 2, fromLeftover: 0 });
     expect(order(result, "BBBB11")).toBeUndefined();
     expect(result.leftover).toBe(50);
   });
@@ -117,7 +117,7 @@ describe("sunoCascade: dinheiro sobrando", () => {
     ];
     // O passo 1 gasta 140 + 50 + 60 e sobram 50. A sobra alterna entre BBBB11 e CCCC11, os mais
     // abaixo da meta; no empate, o melhor ranking. O AAAA11, já acima da meta, não recebe.
-    const result = sunoCascade(300, assets, { maxSharePercent: 100 });
+    const result = sunoCascade(300, assets);
     expect(order(result, "AAAA11")).toMatchObject({ quantity: 14, fromLeftover: 0 });
     expect(order(result, "BBBB11")).toMatchObject({ quantity: 8, fromLeftover: 3 });
     expect(order(result, "CCCC11")).toMatchObject({ quantity: 8, fromLeftover: 2 });
@@ -136,32 +136,24 @@ describe("sunoCascade: dinheiro sobrando", () => {
     expect(result.leftover).toBe(2);
   });
 
-  it("respeita o limite por ativo e para quando nenhuma cota cabe", () => {
-    // Um só FII elegível, com limite de 50%: a outra metade fica guardada.
-    const result = sunoCascade(100, [fii("AAAA11", { weight: 1 })], { maxSharePercent: 50 });
-    expect(order(result, "AAAA11")).toMatchObject({ quantity: 5, total: 50, limited: true });
-    expect(result.leftover).toBe(50);
+  it("para quando nenhuma cota cabe no saldo", () => {
+    // Meta de 100 com cotas de 30: pede 3 (arredondado de 3,33), e os 10 que sobram não pagam outra.
+    const result = sunoCascade(100, [fii("AAAA11", { weight: 1, price: 30 })]);
+    expect(order(result, "AAAA11")).toMatchObject({ quantity: 3, fromLeftover: 0 });
+    expect(result.leftover).toBe(10);
   });
 });
 
-describe("sunoCascade: limite por ativo", () => {
-  it("passa do limite só quando uma cota já custa mais que ele", () => {
-    const result = sunoCascade(100, [fii("AAAA11", { weight: 1, price: 90 })], {
-      maxSharePercent: 25,
-    });
-    expect(order(result, "AAAA11")?.quantity).toBe(1);
-  });
-
-  it("sem limite, o multiplicador 0,6 não impede um FII novo de levar o aporte inteiro", () => {
+describe("sunoCascade: sem limite por FII", () => {
+  it("o multiplicador 0,6 não impede um FII novo de levar o aporte inteiro", () => {
     const assets = [
       // Novo, 1º do ranking, margem de 9,1% (×1,2) e P/VP 1,05 (×0,5): pede 0,6 × 25.000.
       fii("NOVO11", { rank: 1, price: 100, ceiling: 110, priceToBook: 1.05 }),
       fii("VELH11", { rank: 2, price: 100, quantity: 400 }),
     ];
-    const unlimited = sunoCascade(10_000, assets, { maxSharePercent: 100 });
-    expect(order(unlimited, "NOVO11")).toMatchObject({ adjustedGap: 15_000, total: 10_000 });
-    const capped = sunoCascade(10_000, assets, { maxSharePercent: 50 });
-    expect(order(capped, "NOVO11")?.total).toBe(5_000);
+    const result = sunoCascade(10_000, assets);
+    expect(order(result, "NOVO11")).toMatchObject({ adjustedGap: 15_000, total: 10_000 });
+    expect(order(result, "VELH11")).toBeUndefined();
   });
 });
 
@@ -175,7 +167,7 @@ describe("sunoCascade: invariantes", () => {
     };
   }
 
-  it("não gasta mais que o aporte, respeita o limite e só redistribui sem ninguém pedindo cota", () => {
+  it("não gasta mais que o aporte, só compra elegíveis e só redistribui sem ninguém pedindo cota", () => {
     const next = random(42);
     for (let run = 0; run < 500; run++) {
       const count = 1 + Math.floor(next() * 8);
@@ -192,17 +184,16 @@ describe("sunoCascade: invariantes", () => {
         });
       });
       const amount = Math.round(next() * 20_000 * 100) / 100;
-      const maxSharePercent = [25, 33, 50, 75, 100][Math.floor(next() * 5)];
-      const result = sunoCascade(amount, assets, { maxSharePercent });
+      const result = sunoCascade(amount, assets);
 
       expect(result.leftover).toBeGreaterThanOrEqual(0);
       expect(Math.abs(result.spent + result.leftover - result.amount)).toBeLessThan(0.005);
-      const limit = maxSharePercent >= 100 ? Infinity : (maxSharePercent / 100) * result.amount;
       for (const item of result.orders) {
         const asset = assets.find((candidate) => candidate.ticker === item.ticker)!;
         expect(asset.rank).not.toBeNull();
         expect(asset.price!).toBeLessThan(asset.ceiling!);
-        expect(item.total).toBeLessThanOrEqual(Math.max(limit, item.price) + 1e-6);
+        // Sem limite por FII, cada um compra no máximo o que pediu, mais as cotas da sobra.
+        expect(item.quantity - item.fromLeftover).toBeLessThanOrEqual(item.desired);
       }
       if (result.orders.some((item) => item.fromLeftover > 0)) {
         expect(result.excluded.some((item) => item.reason === "SEM_SALDO")).toBe(false);

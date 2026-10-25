@@ -1,5 +1,5 @@
 import { formatBRL, formatPercent, formatQuantity } from "@/shared/lib/format";
-import type { CascadeOrder, ExclusionReason, MaxSharePercent } from "../../domain/suno-cascade";
+import type { CascadeOrder, ExclusionReason } from "../../domain/suno-cascade";
 
 export const REASON_HELP: Record<ExclusionReason, string> = {
   ACIMA_DO_TETO: "Preço igual ou acima do teto: a regra é só comprar abaixo dele.",
@@ -19,17 +19,14 @@ export const REASON_ORDER: ExclusionReason[] = [
   "SEM_COTACAO",
 ];
 
-export const limitLabel = (percent: MaxSharePercent) =>
-  percent >= 100 ? "Sem limite" : `${percent}% do aporte`;
-
 /** " (×1,2)" quando o multiplicador muda o pedido; nada quando é neutro. */
 const times = (multiplier: number) => (multiplier === 1 ? "" : ` (×${formatQuantity(multiplier)})`);
 
 /**
  * O porquê de cada ordem: posição no ranking, margem até o teto e P/VP (com os multiplicadores do
- * Índice de Convicção), quanto faltava, quanto o FII pediu e o limite.
+ * Índice de Convicção), quanto faltava e quanto o FII pediu.
  */
-export function explain(order: CascadeOrder, maxSharePercent: number): string {
+export function explain(order: CascadeOrder): string {
   const conviction = order.marginMultiplier * order.priceToBookMultiplier;
   const parts = [
     `${order.rank}º do ranking`,
@@ -43,17 +40,6 @@ export function explain(order: CascadeOrder, maxSharePercent: number): string {
   );
   if (order.gapBefore > 0 && conviction !== 1) {
     parts.push(`convicção ×${formatQuantity(conviction)}: pediu ${formatBRL(order.adjustedGap)}`);
-  }
-  if (order.limited) {
-    parts.push(`limite de ${maxSharePercent}% do aporte`);
-    // Estimativa: mesmo aporte, mesmo preço e mesmo ranking.
-    if (order.aportesLeft !== null) {
-      parts.push(
-        order.aportesLeft === 1
-          ? "falta ≈ 1 aporte como este"
-          : `faltam ≈ ${order.aportesLeft} aportes como este`,
-      );
-    }
   }
   if (order.fromLeftover > 0) parts.push(`${order.fromLeftover} cota(s) da sobra`);
   return parts.join(" · ");

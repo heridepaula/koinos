@@ -1,7 +1,7 @@
 "use client";
 
-import { CopyIcon, LayersIcon, PiggyBankIcon, ShoppingCartIcon, WalletIcon } from "lucide-react";
-import { parseAsFloat, parseAsNumberLiteral, useQueryState } from "nuqs";
+import { CopyIcon, PiggyBankIcon, ShoppingCartIcon, WalletIcon } from "lucide-react";
+import { parseAsFloat, useQueryState } from "nuqs";
 import { toast } from "sonner";
 import { InfoSheet } from "@/shared/components/info-sheet";
 import { MetricCard, StatList, StatRow } from "@/shared/components/metric";
@@ -17,28 +17,19 @@ import {
   CardHeader,
   CardTitle,
 } from "@/shared/ui/card";
-import { NativeSelect } from "@/shared/ui/native-select";
-import {
-  DEFAULT_MAX_SHARE_PERCENT,
-  MAX_SHARE_PERCENTS,
-  sunoCascade,
-  type CascadeAsset,
-  type ExclusionReason,
-  type MaxSharePercent,
-} from "../domain/suno-cascade";
+import { sunoCascade, type CascadeAsset, type ExclusionReason } from "../domain/suno-cascade";
 import { ExcludedCard } from "./aporte/excluded-card";
-import { limitLabel } from "./aporte/explain";
 import { PRINCIPLES } from "./principles-banner";
 import { OrdersList, OrdersTable, type AssetMeta } from "./aporte/orders";
 
 export type { AssetMeta };
 
 const CALCULATION_NOTE =
-  "O cálculo usa as cotações atuais e a configuração da Carteira Alvo. Quem está mais descontado pede mais: com mais de 5% de margem até o teto, o que falta para a meta vale 1,2 vez (o P/VP entra quando houver fonte do valor patrimonial). O máximo por FII monta cada posição aos poucos: o preço médio se forma em várias compras.";
+  "O cálculo usa as cotações atuais e a configuração da Carteira Alvo. Quem está mais descontado pede mais: com mais de 5% de margem até o teto, o que falta para a meta vale 1,2 vez (o P/VP entra quando houver fonte do valor patrimonial). Cada FII compra o que pede, até o saldo acabar.";
 
 /**
  * Calculadora de aporte pelo método Suno. O valor é a ação principal da página: entra num campo
- * grande, como o do Apple Pay, e a cascata roda no navegador a cada tecla (valor e limite na URL).
+ * grande, como o do Apple Pay, e a cascata roda no navegador a cada tecla (o valor fica na URL).
  * Embaixo, o resumo em cards de número, as ordens (tabela ou, no celular, lista) e quem ficou fora.
  */
 export function AporteCalculator({ assets, meta }: { assets: CascadeAsset[]; meta: AssetMeta[] }) {
@@ -46,16 +37,9 @@ export function AporteCalculator({ assets, meta }: { assets: CascadeAsset[]; met
     "valor",
     parseAsFloat.withDefault(0).withOptions({ history: "replace" }),
   );
-  const [maxShare, setMaxShare] = useQueryState(
-    "limite",
-    parseAsNumberLiteral(MAX_SHARE_PERCENTS)
-      .withDefault(DEFAULT_MAX_SHARE_PERCENT)
-      .withOptions({ history: "replace" }),
-  );
   const metaByTicker = new Map(meta.map((item) => [item.ticker, item]));
 
-  const result = amount > 0 ? sunoCascade(amount, assets, { maxSharePercent: maxShare }) : null;
-  const limitedAny = result?.orders.some((order) => order.limited) ?? false;
+  const result = amount > 0 ? sunoCascade(amount, assets) : null;
   const excludedByReason = new Map<ExclusionReason, string[]>();
   for (const item of result?.excluded ?? []) {
     excludedByReason.set(item.reason, [...(excludedByReason.get(item.reason) ?? []), item.ticker]);
@@ -111,21 +95,6 @@ export function AporteCalculator({ assets, meta }: { assets: CascadeAsset[]; met
               defaultValue={amount > 0 ? amount : null}
               onValueChange={(value) => void setAmount(value !== null && value > 0 ? value : null)}
             />
-            <label className="flex items-center gap-2 text-sm text-muted-foreground">
-              Máximo por FII
-              <NativeSelect
-                value={maxShare}
-                onChange={(event) =>
-                  void setMaxShare(Number(event.target.value) as MaxSharePercent)
-                }
-              >
-                {MAX_SHARE_PERCENTS.map((percent) => (
-                  <option key={percent} value={percent}>
-                    {limitLabel(percent)}
-                  </option>
-                ))}
-              </NativeSelect>
-            </label>
             {hasOrders ? (
               <Button
                 type="button"
@@ -184,14 +153,6 @@ export function AporteCalculator({ assets, meta }: { assets: CascadeAsset[]; met
                 <span className="max-md:hidden">Na ordem do ranking. </span>Os preços são de
                 referência: confira na corretora.
               </CardDescription>
-              {limitedAny ? (
-                <p className="mt-2 flex items-start gap-3 text-sm">
-                  <LayersIcon className="mt-0.5 size-4 shrink-0 text-info" aria-hidden="true" />
-                  Entrada aos poucos: nenhum FII leva mais de {result.maxSharePercent}% do aporte, e
-                  o resto vai para os outros FIIs. Quem parou no limite volta a receber no próximo
-                  aporte, até chegar à meta.
-                </p>
-              ) : null}
             </CardHeader>
             <CardContent className="px-0">
               {result.orders.length === 0 ? (
@@ -202,18 +163,10 @@ export function AporteCalculator({ assets, meta }: { assets: CascadeAsset[]; met
               ) : (
                 <>
                   <div className="@min-[760px]:hidden">
-                    <OrdersList
-                      orders={result.orders}
-                      meta={metaByTicker}
-                      maxSharePercent={result.maxSharePercent}
-                    />
+                    <OrdersList orders={result.orders} meta={metaByTicker} />
                   </div>
                   <div className="hidden @min-[760px]:block">
-                    <OrdersTable
-                      orders={result.orders}
-                      meta={metaByTicker}
-                      maxSharePercent={result.maxSharePercent}
-                    />
+                    <OrdersTable orders={result.orders} meta={metaByTicker} />
                   </div>
                 </>
               )}

@@ -76,10 +76,7 @@ describe("buildSnapshot: reescala de pesos com quarentena", () => {
     const small = buildSnapshot(portfolio(500, 0));
     const large = buildSnapshot(portfolio(50_000, 5));
     const ordersOf = (snapshot: typeof small) =>
-      sunoCascade(200, snapshot.cascadeInput, { maxSharePercent: 100 }).orders.map((item) => [
-        item.ticker,
-        item.quantity,
-      ]);
+      sunoCascade(200, snapshot.cascadeInput).orders.map((item) => [item.ticker, item.quantity]);
     // Metas de 300 (50% de 400 + 200): só o AAAA11, com 100, está abaixo. Com 16,7% de margem até
     // o teto, ele pede 200 × 1,2, e o saldo paga 20 cotas.
     expect(ordersOf(small)).toEqual([["AAAA11", 20]]);
