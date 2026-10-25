@@ -22,7 +22,7 @@ Koinos is a single-owner FII (Brazilian REIT) portfolio dashboard that replaced 
 **Tests:** unit tests cover only the pure rules that pick the aportes (the owner asked for them on 2026-10-24; before that there was no suite, by their decision).
 
 - They sit next to the code (`*.test.ts` in `domain/`), import from `vitest` explicitly and need no database. `vitest.config.mts` maps the `@/` alias.
-- Covered: `smart-buy/domain` (cascade, conviction multipliers, leftover, invariants over 500 seeded random portfolios), `strategy/domain` (weights and the 0% quarantine rule), and the snapshot keeping the quarantine out of the cascade (`portfolio/domain/snapshot.test.ts`).
+- Covered: `smart-buy/domain` (cascade, conviction multipliers, leftover, cap, invariants over 500 seeded random portfolios), `strategy/domain` (weights and the 0% quarantine rule), and the snapshot keeping the quarantine out of the cascade (`portfolio/domain/snapshot.test.ts`).
 - Verify with `format:check`, `lint`, `typecheck`, `test` and `build`. CI runs the same checks on Node 24 and 26.
 - Check behavior with throwaway scripts kept outside the repo:
 
@@ -53,7 +53,7 @@ Koinos is a single-owner FII (Brazilian REIT) portfolio dashboard that replaced 
 - `/proventos`: `getDividendsView` (item 4). Its subpage `/proventos/reinvestimento?mes=AAAA-MM` uses `getReinvestmentView` (item 5), and the sidebar lists it as a sub-item, like the IR under `/encerradas`.
 - `/atualizacao-b3`: the client `B3ImportWizard`, which calls the preview and confirm actions (see B3 update).
 - `/carteira-alvo`: the snapshot's strategy rows, edited in the table through `strategy/actions.ts`. When the suggested % don't add up to 100%, a panel shows what is missing or over and the fix from `suggestPercentFix` (split the rest among the FIIs without %, or scale the existing ones), saved in one click by `setSuggestedPercentsAction`.
-- `/recomendacoes`: the snapshot's `cascadeInput`. The cascade runs in the browser (`AporteCalculator`), with the amount in the URL (`?valor=`).
+- `/recomendacoes`: the snapshot's `cascadeInput`. The cascade runs in the browser (`AporteCalculator`), with the amount and the cap in the URL (`?valor=&limite=`).
 - **A new top-level page** also needs a `proxy.ts` matcher entry (see Tenancy) and an entry in `shared/components/nav-items.ts`, which feeds the sidebar, the iPhone tab bar (only items with a `tab` label) and its "Mais" sheet (the rest). Subpages need neither: the matcher's `:path*` covers them, and the menus highlight the parent by prefix. A subpage that should appear in the menu goes in the item's `children`, with its own icon; its page header keeps a button back to the parent on desktop, and on phones the nav bar shows a back button (`parentOf`).
 
 **Public entry points per feature.** `eslint.config.mjs` enforces these with `no-restricted-imports`:
@@ -85,7 +85,7 @@ Koinos is a single-owner FII (Brazilian REIT) portfolio dashboard that replaced 
 - `getCurrentUser` uses `'use cache: private'`.
 - `getTenant` calls `connection()` before touching the database. Any new database path reached from rendering must go through `getTenant` or call `await connection()` first. Otherwise prerendering fails on the Mongo driver's internal `new Date()`.
 - The DAL readers (`getMyTransactions`, `getMyDividends`, `getPortfolioSnapshot`…) are wrapped in React `cache`, so several `<Suspense>` sections of one page can call them and each query runs once per request.
-- Client state that should survive a reload or a shared link lives in the URL through `nuqs`: the tables' filters, page and sort (`shared/hooks/use-sort-state.ts`), the dividends grouping and month (`?agrupar=&mes=`), and the aporte amount. The reinvestment month uses `shallow: false`, because the server reads it.
+- Client state that should survive a reload or a shared link lives in the URL through `nuqs`: the tables' filters, page and sort (`shared/hooks/use-sort-state.ts`), the dividends grouping and month (`?agrupar=&mes=`), and the aporte amount and cap. The reinvestment month uses `shallow: false`, because the server reads it.
 
 **Mutations:**
 
@@ -115,7 +115,7 @@ Koinos is a single-owner FII (Brazilian REIT) portfolio dashboard that replaced 
 2. `portfolio/domain/snapshot.ts` (`buildSnapshot`) builds positions, allocation, alerts and the cascade input. It also adds the dividends received per FII and the adjusted results: "com proventos" (quote result + dividends) and "total" (+ realized sales). The Dashboard's dividends card also shows `dividendPace` (the average of the last 12 closed months, this year and last year) and opens the "total" sum in a popover (`ResultBreakdown`).
 3. `smart-buy/domain/suno-cascade.ts` turns that into the buy recommendations. Dividends never reach the cascade input.
    - Only the strategy's FIIs enter it: one outside the strategy never receives and its value stays out of the targets, whatever its %. 0% (allowed only outside the strategy) marks it as quarantine.
-   - Each FII asks for its gap to the target times the "Índice de Convicção" (`smart-buy/domain/conviction.ts`): ×1.2 with more than 5% margin to the ceiling, and ×1.2 below P/VP 0.95, ×1 from 0.95 to 1.00, ×0.5 above 1.00. The asked amount is rounded to the nearest share and bought up to what the balance pays; there is no per-FII cap.
+   - Each FII asks for its gap to the target times the "Índice de Convicção" (`smart-buy/domain/conviction.ts`): ×1.2 with more than 5% margin to the ceiling, and ×1.2 below P/VP 0.95, ×1 from 0.95 to 1.00, ×0.5 above 1.00. The asked amount is rounded to the nearest share, then capped by the per-FII limit (33% of the aporte by default) and the balance.
    - **P/VP has no source yet:** `CascadeAsset.priceToBook` is null and the multiplier stays at ×1. The free brapi plan has no book value (brapi Pro does, R$ 139.99/month), Yahoo has it for only 2 of the 17 FIIs, and the CVM data needed the B3 fund list to reach the tickers.
    - **Not StatusInvest:** its internal search API has P/VP, but its terms (`/condicoes-de-uso`) forbid copying its data into a database or building programs that copy it, and it blocks non-browser clients. Don't scrape it, as with B3.
 4. `portfolio/domain/dividends.ts` is pure and feeds `/proventos` (`portfolio/server/dividends-view.ts`):
@@ -206,7 +206,7 @@ Koinos is a single-owner FII (Brazilian REIT) portfolio dashboard that replaced 
 - **Suno method:** recommendation logic follows it as implemented in `suno-cascade.ts`.
   - Only buy below the ceiling price, filling assets in ranking order up to what each one asks (the gap to the suggested % times the conviction multipliers, which can take a FII past its target).
   - Rebalance only through new money, never by selling. Leftover cash goes to the least-represented asset, but only when every FII got the shares it asked for; otherwise it waits for the next aporte.
-  - No per-FII cap: the owner removed the "entrada gradual" cap on 2026-10-24, knowing a new or far-behind FII can then take most of an aporte.
+  - No FII takes more than a share of one aporte (the "entrada gradual" cap). On 2026-10-24 the owner removed it and brought it back with 33% as the default; the screen still offers 25/50/75% and "Sem limite".
   - Don't bring back the old spreadsheet's IPA formula.
 - **No B3 calls:** don't call B3 systems or endpoints. B3 offers integrations only to companies, so B3 data enters only through statements the user uploads. A P/VP feature built on B3 lookups was dropped. Its spec and plan are marked discarded.
 - **Dividends start at the first B3 statement (Nov 2019).** The owner decided not to estimate older ones: before that, the app only knows the prior positions of 2019-11-07, without purchase dates.

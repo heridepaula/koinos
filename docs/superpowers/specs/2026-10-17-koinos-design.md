@@ -324,7 +324,7 @@ A **estratégia** é o conjunto de `target_assets` com `inStrategy = true`, este
 
 ## 9. Motor de aporte (método Suno)
 
-> **Atualizado em 2026-10-24:** o quanto cada FII pede passou a ser o gap até a meta vezes o Índice de Convicção (margem até o teto e P/VP), a sobra só roda quando todos compraram as cotas desejadas, e não há mais limite por FII. Ver `2026-10-24-indice-de-conviccao-design.md`.
+> **Atualizado em 2026-10-24:** o quanto cada FII pede passou a ser o gap até a meta vezes o Índice de Convicção (margem até o teto e P/VP), a sobra só roda quando todos compraram as cotas desejadas, e o limite por FII padrão é 33%. Ver `2026-10-24-indice-de-conviccao-design.md`.
 
 ### 9.1 Regras de origem
 

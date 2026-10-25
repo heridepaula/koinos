@@ -1,7 +1,7 @@
 # Entrada gradual no aporte: especificação de design
 
 - **Data:** 2026-10-18
-- **Status:** **substituído em 2026-10-24:** o usuário tirou o limite por FII junto com o Índice de Convicção (`2026-10-24-indice-de-conviccao-design.md`). Antes disso: decidido na conversa. O usuário pediu para seguir sem novas perguntas, então os padrões abaixo são a recomendação, e o limite pode ser trocado na tela.
+- **Status:** decidido na conversa. Em 2026-10-24 o padrão passou de 50% para 33%, a pedido do usuário (`2026-10-24-indice-de-conviccao-design.md`). O usuário pediu para seguir sem novas perguntas, então os padrões abaixo são a recomendação, e o limite pode ser trocado na tela.
 - **Ciclo:** muda a cascata Suno das Recomendações (spec do MVP, §9). A fila de prioridade não muda.
 
 ## 1. Objetivo

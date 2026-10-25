@@ -2,7 +2,7 @@
 
 - **Data:** 2026-10-24
 - **Status:** aplicado a pedido do usuário ("Aplique as regras abaixo", com o documento "Como o Koinos escolhe onde aportar" reescrito por ele). Substitui, antes de chegar à produção, a proposta do mesmo dia de fila pela distância da meta, base no patrimônio todo e sobra contínua.
-- **Ciclo:** muda a cascata das Recomendações (spec do MVP, §9) e tira a entrada gradual (spec de 2026-10-18).
+- **Ciclo:** muda a cascata das Recomendações (spec do MVP, §9). A entrada gradual (spec de 2026-10-18) continua, com o limite padrão em 33%.
 
 ## 1. Regras
 
@@ -12,15 +12,15 @@
    - margem até o teto, (teto − preço) ÷ teto: acima de 5%, ×1,2; até 5%, ×1,0;
    - P/VP: abaixo de 0,95, ×1,2; de 0,95 a 1,00 (pontas inclusas), ×1,0; acima de 1,00, ×0,5.
 4. **Gap ajustado** = gap base × os dois multiplicadores. **Cotas desejadas** = gap ajustado ÷ preço, arredondado para a cota mais próxima: só compra com meia cota ou mais.
-5. **Passo 1:** pelo ranking, cada FII compra o menor entre as cotas desejadas e o que o saldo paga. Não há limite por FII. Se o saldo não paga um FII, ele compra o que der, e a cascata segue para os próximos.
-6. **Passo 2 (sobra):** só roda quando todo FII elegível comprou as cotas desejadas. Então compra uma cota por vez do de menor valor ÷ meta; no empate, o mais abaixo do preço médio; depois, o melhor ranking. Senão, a sobra fica para o próximo aporte.
+5. **Passo 1:** pelo ranking, cada FII compra o menor entre as cotas desejadas, o limite por FII (33% do aporte, por padrão) e o que o saldo paga. Se o saldo não paga um FII, ele compra o que der, e a cascata segue para os próximos.
+6. **Passo 2 (sobra):** só roda quando todo FII elegível comprou as cotas desejadas (ou chegou ao limite). Então compra uma cota por vez do de menor valor ÷ meta; no empate, o mais abaixo do preço médio; depois, o melhor ranking. Senão, a sobra fica para o próximo aporte.
 7. **Filtros e motivos:** os de antes (sem cotação, sem ranking, sem teto, acima do teto, já na meta, faltou saldo).
 
 ## 2. Decisões
 
 | Tema | Decisão | Motivo |
 | --- | --- | --- |
-| Limite por FII | **Removido**, por decisão do usuário depois do aviso | O documento o tirou ("eliminar travas manuais"). O exemplo da seção 5 dele não fecha sem limite: um FII novo com P/VP 1,05 e margem acima de 5% pede 0,6 do gap base, e com gap grande isso passa do aporte, então ele leva o aporte inteiro, e não a metade. O usuário escolheu tirar mesmo assim |
+| Limite por FII | **Mantido, com 33% como padrão** | O documento o tirou ("eliminar travas manuais"), mas o exemplo da seção 5 dele não fecha sem limite: um FII novo com P/VP 1,05 e margem acima de 5% pede 0,6 do gap base, e com gap grande isso passa do aporte. O usuário tirou o limite e, no mesmo dia, pediu de volta com 33% |
 | P/VP | Entrada `priceToBook` na cascata, **nula por enquanto**: multiplicador ×1,0 | Não há fonte gratuita e permitida para todos os FIIs (§5) |
 | Fora da estratégia | Fica fora da cascata e da base, com qualquer % | Regra 2 do documento |
 | 0% | Só fora da estratégia; quem entra na estratégia com 0% volta a ficar sem % | Pedido do usuário. Na estratégia, a % vazia divide o que falta |
@@ -28,7 +28,7 @@
 
 ## 3. O que observar
 
-- **Concentração:** sem limite, o 1º do ranking abaixo da meta leva o que pede. Com os três fundos da Suno marcados na estratégia, todas as outras metas sobem, e um só FII leva de 72% a 99% de um aporte típico na carteira real.
+- **Concentração:** com os três fundos da Suno marcados na estratégia, todas as outras metas sobem, e os primeiros do ranking batem no limite. Sem limite, um só FII levava de 72% a 99% de um aporte típico na carteira real.
 - **A margem de 5% separa pouco:** na carteira real, 15 dos 17 FIIs têm mais de 5% de margem, então quase todos pedem 1,2 vez o gap. Os primeiros do ranking passam da meta, e o dinheiro acaba antes nos últimos da fila.
 - **O P/VP tem um degrau em 1,00:** de 0,999 para 1,001, o pedido cai pela metade. Uma oscilação de 1% no preço troca a recomendação de um dia para o outro.
 - **O P/VP diz mais em papel e FoF:** pela Suno, em tijolo o valor patrimonial depende de laudos. A regra vale igual para todos.
@@ -39,9 +39,9 @@
 | Peça | Arquivo | Mudança |
 | --- | --- | --- |
 | Multiplicadores (puro) | `src/features/smart-buy/domain/conviction.ts` | `marginMultiplier`, `priceToBookMultiplier` |
-| Cascata (puro) | `src/features/smart-buy/domain/suno-cascade.ts` | `CascadeAsset.priceToBook`; cotas desejadas pelo gap ajustado; a trava da sobra usa as cotas desejadas. `CascadeOrder` ganha `priceToBook`, `marginMultiplier`, `priceToBookMultiplier`, `adjustedGap` e `desired`. Saem o limite (`maxSharePercent`, `MAX_SHARE_PERCENTS`), `limited` e `aportesLeft` |
+| Cascata (puro) | `src/features/smart-buy/domain/suno-cascade.ts` | `CascadeAsset.priceToBook`; cotas desejadas pelo gap ajustado; a trava da sobra usa as cotas desejadas. `CascadeOrder` ganha `priceToBook`, `marginMultiplier`, `priceToBookMultiplier`, `adjustedGap` e `desired`. O limite padrão (`DEFAULT_MAX_SHARE_PERCENT`) passa de 50% para 33% |
 | Entrada | `src/features/portfolio/domain/snapshot.ts` | `priceToBook: null` até haver fonte |
-| Tela | `smart-buy/components` | "Por quê" com a margem, o P/VP (quando houver) e "convicção ×1,44: pediu R$ …"; princípio "Compre mais do que está descontado"; saem o seletor "Máximo por FII" (`?limite=`), o aviso da entrada aos poucos e o princípio "Monte posições aos poucos" |
+| Tela | `smart-buy/components` | "Por quê" com a margem, o P/VP (quando houver) e "convicção ×1,44: pediu R$ …"; princípio "Compre mais do que está descontado" |
 | 0% fora da estratégia | `strategy/domain/quarantine.ts`, `schemas.ts`, `actions.ts`, `server/target-asset.model.ts`, `server/target-asset-repo.ts`, `components/table/number-field.tsx` | Aceita 0. 0% na estratégia é recusado no campo (o aviso aparece e o campo volta ao valor salvo) e na action; quem entra na estratégia com 0% volta a ficar sem % |
 | Testes | `*.test.ts` em `smart-buy/domain`, `strategy/domain` e `portfolio/domain` | Vitest 5 (`npm test`, também no CI) |
 
@@ -59,7 +59,7 @@
 
 ## 6. Verificação
 
-- `npm test`: 31 testes, incluindo invariantes em 500 carteiras aleatórias com semente fixa. Os mutantes "margem sempre ×1" e "sobra sem a trava" derrubam testes.
+- `npm test`: 33 testes, incluindo invariantes em 500 carteiras aleatórias com semente fixa. Os mutantes "margem sempre ×1" e "sobra sem a trava" derrubam testes.
 - Script descartável, só de leitura, com a carteira real.
 - `format:check`, `lint`, `typecheck` e `build`. O pacote das páginas não mudou (Recomendações 356 KB, Carteira Alvo 364 KB, gzip).
 - Prévia isolada (`koinos_preview`, cópia da carteira): Recomendações na mesa e no iPhone, claro e escuro, sem erros no console; 0% salvo num FII fora da estratégia e recusado num da estratégia.

@@ -23,10 +23,11 @@ export type AssetMeta = { ticker: string; name: string | null; logoUrl: string |
 type OrdersProps = {
   orders: CascadeOrder[];
   meta: ReadonlyMap<string, AssetMeta>;
+  maxSharePercent: number;
 };
 
 /** Tabela das ordens (a partir de 760 px de card). */
-export function OrdersTable({ orders, meta }: OrdersProps) {
+export function OrdersTable({ orders, meta, maxSharePercent }: OrdersProps) {
   return (
     <Table>
       <TableHeader>
@@ -63,7 +64,7 @@ export function OrdersTable({ orders, meta }: OrdersProps) {
               </TableCell>
               {/* A explicação quebra linha: a tabela cabe em telas menores. */}
               <TableCell className="min-w-64 pr-(--card-spacing) text-caption whitespace-normal text-muted-foreground">
-                {explain(order)}
+                {explain(order, maxSharePercent)}
               </TableCell>
             </TableRow>
           );
@@ -78,7 +79,7 @@ export function OrdersTable({ orders, meta }: OrdersProps) {
  * cotas × preço e o peso antes → depois. O porquê (ranking, teto, meta, limite) sai da lista e
  * abre numa folha ao tocar, com o chevron dizendo que há mais.
  */
-export function OrdersList({ orders, meta }: OrdersProps) {
+export function OrdersList({ orders, meta, maxSharePercent }: OrdersProps) {
   const [sheet] = useState(() => createDrawerHandle<CascadeOrder>());
   return (
     <>
@@ -120,14 +121,28 @@ export function OrdersList({ orders, meta }: OrdersProps) {
       </ul>
       <Drawer handle={sheet}>
         {({ payload }) =>
-          payload ? <OrderSheet order={payload} info={meta.get(payload.ticker)} /> : null
+          payload ? (
+            <OrderSheet
+              order={payload}
+              info={meta.get(payload.ticker)}
+              maxSharePercent={maxSharePercent}
+            />
+          ) : null
         }
       </Drawer>
     </>
   );
 }
 
-function OrderSheet({ order, info }: { order: CascadeOrder; info: AssetMeta | undefined }) {
+function OrderSheet({
+  order,
+  info,
+  maxSharePercent,
+}: {
+  order: CascadeOrder;
+  info: AssetMeta | undefined;
+  maxSharePercent: number;
+}) {
   return (
     <DrawerContent>
       <DrawerHeader className="justify-items-start pr-16 pl-5 text-left">
@@ -150,7 +165,7 @@ function OrderSheet({ order, info }: { order: CascadeOrder; info: AssetMeta | un
           <InsetValueRow label="Meta" value={formatPercent(order.targetWeight, 1)} />
         </InsetGroup>
         <InsetGroup title="Por quê">
-          {explain(order)
+          {explain(order, maxSharePercent)
             .split(" · ")
             .map((reason) => (
               <div key={reason} className="flex min-h-11 items-center px-4 py-2 text-subheadline">
