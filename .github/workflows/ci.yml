@@ -41,6 +41,7 @@ jobs:
       - run: npm run format:check
       - run: npm run lint
       - run: npm run typecheck
+      - run: npm test
       - run: npm run build
       - name: Audit das dependências de produção
         run: npm audit --omit=dev --audit-level=high
