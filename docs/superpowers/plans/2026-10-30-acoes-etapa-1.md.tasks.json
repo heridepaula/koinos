@@ -22,7 +22,7 @@
     {
       "id": 4,
       "subject": "Task 4: Proventos, \"a receber\" e conferência num módulo próprio",
-      "status": "pending",
+      "status": "completed",
       "blockedBy": [
         2,
         3
@@ -121,5 +121,5 @@
       "description": "**Goal:** Com o ok do dono, publicar o branch em produção e orientá-lo a enviar os 3 extratos em /atualizacao-b3.\n\n**Files:**\n- nenhum\n\n**Acceptance Criteria:**\n- [ ] O dono autorizou o push na main nesta conversa\n- [ ] A main avançou por fast-forward até o último commit do branch e foi enviada\n- [ ] O status do commit na Vercel ficou success\n- [ ] O dono recebeu o passo a passo: enviar os 3 extratos, responder as 3 bonificações e confirmar; a prévia deve mostrar as 9 ações, os proventos de ações e o aluguel dos FIIs como novos, e nenhum lançamento de FII trocado\n\n**Verify:** `git log origin/main -1 --format=%H igual a git rev-parse feat/acoes-etapa-1; gh api \"repos/{owner}/{repo}/commits/$(git rev-parse HEAD)/status\" --jq .state → success`\n\n**Steps:** pedir o ok → git switch main && git merge --ff-only feat/acoes-etapa-1 && git push origin main → acompanhar o status → orientar o dono.\n\n```json:metadata\n{\"files\":[],\"verifyCommand\":\"git log origin/main -1 --format=%H igual a git rev-parse feat/acoes-etapa-1; gh api \\\"repos/{owner}/{repo}/commits/$(git rev-parse HEAD)/status\\\" --jq .state → success\",\"acceptanceCriteria\":[\"O dono autorizou o push na main nesta conversa\",\"A main avançou por fast-forward até o último commit do branch e foi enviada\",\"O status do commit na Vercel ficou success\",\"O dono recebeu o passo a passo: enviar os 3 extratos, responder as 3 bonificações e confirmar; a prévia deve mostrar as 9 ações, os proventos de ações e o aluguel dos FIIs como novos, e nenhum lançamento de FII trocado\"]}\n```"
     }
   ],
-  "lastUpdated": "2026-10-30T22:34:45.331Z"
+  "lastUpdated": "2026-10-30T22:37:27.852Z"
 }

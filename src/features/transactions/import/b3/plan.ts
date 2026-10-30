@@ -1,13 +1,25 @@
 import { findOversells } from "../../domain/positions";
-import type { DividendKind, LedgerEntry, PriceSource, TransactionSource } from "../../domain/types";
+import type { LedgerEntry, PriceSource, TransactionSource } from "../../domain/types";
 import type { ParsedPlanilha } from "../parse-planilha";
-import { normalizeHeader } from "./cells";
+import {
+  DAY,
+  EPSILON,
+  FII_CODE,
+  FII_FAMILY_CODE,
+  RECEIPT_CODE,
+  RIGHTS_OR_RECEIPT_CODE,
+  TICKER_CODE,
+  family,
+  fiiOf,
+  isoDay,
+  qtyKey,
+  sameQty,
+} from "./codes";
+import { dividendCheck, extractDividends, extractUpcoming } from "./dividends";
 import type {
   AssetTypeInfo,
   B3ImportAnswers,
   B3ImportPlan,
-  DividendCheck,
-  DividendCheckItem,
   EventosData,
   ExistingTransaction,
   ForecastMismatch,
@@ -15,24 +27,13 @@ import type {
   MovimentacaoData,
   NegociacaoData,
   PendingItem,
-  PlannedDividend,
-  PlannedDividends,
-  PlannedForecast,
   PlannedTransaction,
-  PlannedUpcoming,
   TickerPlan,
 } from "./types";
 
-// Regras: docs/superpowers/specs/2026-10-18-importacao-b3-design.md (§4 a §7).
+// Regras: docs/superpowers/specs/2026-10-18-importacao-b3-design.md (§4 a §7) e, para as ações,
+// 2026-10-30-acoes-etapa-1-design.md (§5).
 
-const DAY = 86_400_000;
-const EPSILON = 1e-6;
-const FII_CODE = /^[A-Z0-9]{4}11$/;
-const RECEIPT_CODE = /^[A-Z0-9]{4}1[3-9]$/;
-const RIGHTS_OR_RECEIPT_CODE = /^[A-Z0-9]{4}1[2-9]$/;
-/** Códigos da família de um FII (cota, direito ou recibo): só eles podem ser levados ao FII. */
-const FII_FAMILY_CODE = /^[A-Z0-9]{4}1[1-9]$/;
-const TICKER_CODE = /^[A-Z0-9]{4}\d{1,2}$/;
 const EXERCISE_WINDOW = 10 * DAY;
 const SHEET_PRICE_WINDOW = 60 * DAY;
 const FRACTION_WINDOW = 60 * DAY;
@@ -54,11 +55,6 @@ export type PlanInput = {
   answers?: B3ImportAnswers;
 };
 
-const family = (code: string) => code.slice(0, 4);
-const fiiOf = (code: string) => `${family(code)}11`;
-const isoDay = (date: Date) => date.toISOString().slice(0, 10);
-const qtyKey = (quantity: number) => String(Math.round(quantity * 1e6) / 1e6);
-const sameQty = (a: number, b: number) => Math.abs(a - b) < EPSILON;
 const subId = (ticker: string, date: Date, quantity: number) =>
   `sub:${ticker}:${isoDay(date)}:${qtyKey(quantity)}`;
 const convId = (ticker: string, date: Date, quantity: number) =>
@@ -384,6 +380,12 @@ export function planB3Import(input: PlanInput): B3ImportPlan {
   const outOfCatalog = (code: string) => {
     const result = classificationOf(code);
     return result.managed && result.outOfCatalog;
+  };
+  // O ativo de uma linha de provento: o FII da família (…12 a …19 vão ao …11).
+  const dividendTickerOf = (code: string): string | null => {
+    if (!FII_FAMILY_CODE.test(code)) return null;
+    const ticker = fiiOf(code);
+    return managed(ticker) ? ticker : null;
   };
 
   if (negociacao.otherMarkets > 0) {
@@ -959,7 +961,9 @@ export function planB3Import(input: PlanInput): B3ImportPlan {
 
   // "A receber" com quantidade diferente da posição final: compra ou venda depois da data com,
   // ou um FII que a carteira não tem (spec atualizacao-b3, §5). Só avisa.
-  const upcoming = eventos ? extractUpcoming(eventos, input.asOf, managed, addIgnored) : null;
+  const upcoming = eventos
+    ? extractUpcoming(eventos, input.asOf, dividendTickerOf, addIgnored)
+    : null;
   const forecastMismatches: ForecastMismatch[] = [];
   for (const item of upcoming?.items ?? []) {
     const held = final.states.get(item.ticker)?.quantity ?? 0;
@@ -980,210 +984,22 @@ export function planB3Import(input: PlanInput): B3ImportPlan {
       .map(([reason, codes]) => ({ reason, codes: [...codes].sort() }))
       .sort((a, b) => a.reason.localeCompare(b.reason)),
     warnings,
-    check: dividendCheck(movimentacao.rows, final.timeline, managed),
+    check: dividendCheck({
+      rows: movimentacao.rows,
+      timeline: final.timeline,
+      tickerOf: dividendTickerOf,
+      isStock: () => false,
+      legs: [],
+    }),
     dividends: extractDividends(
       movimentacao.rows,
       { start: movimentacao.firstDate, end: movimentacao.lastDate },
+      dividendTickerOf,
       acceptsDividends,
       [...tickers].filter(accepted),
     ),
     upcoming,
     forecastMismatches,
     totals,
-  };
-}
-
-// --- Proventos (spec proventos, §3.1) ------------------------------------------------------
-
-// Map, e não objeto: um tipo de linha como "constructor" não pode achar nada no prototype.
-const DIVIDEND_ROW_KINDS = new Map<string, DividendKind>([
-  ["Rendimento", "RENDIMENTO"],
-  ["Reembolso", "REEMBOLSO"],
-]);
-
-function extractDividends(
-  rows: readonly MovementRow[],
-  period: PlannedDividends["period"],
-  accepts: (ticker: string) => boolean,
-  acceptedTickers: readonly string[],
-): PlannedDividends {
-  const inserts: PlannedDividend[] = [];
-  for (const row of rows) {
-    const kind = DIVIDEND_ROW_KINDS.get(row.kind);
-    if (!row.credit || !kind || !FII_FAMILY_CODE.test(row.code)) continue;
-    if (row.value === null || row.value <= 0) continue;
-    const ticker = fiiOf(row.code);
-    if (!accepts(ticker)) continue;
-    inserts.push({
-      ticker,
-      paidAt: row.date,
-      kind,
-      amount: row.value,
-      quantity: row.quantity,
-      perShare: row.unitPrice,
-    });
-  }
-  // Escopo da troca: os FIIs aceitos do plano e os que só aparecem pelos próprios proventos.
-  const tickers = new Set([...acceptedTickers, ...inserts.map((item) => item.ticker)]);
-  return { period, tickers: [...tickers].sort(), inserts };
-}
-
-// --- A receber (spec atualizacao-b3, §3) -----------------------------------------------------
-
-// Map, e não objeto, pelo mesmo motivo de DIVIDEND_ROW_KINDS.
-const FORECAST_EVENT_KINDS = new Map<string, DividendKind>([
-  ["rendimento", "RENDIMENTO"],
-  ["reembolso - rendimento", "REEMBOLSO"],
-]);
-
-function extractUpcoming(
-  eventos: EventosData,
-  asOf: Date,
-  managed: (code: string) => boolean,
-  addIgnored: (reason: string, code: string) => void,
-): PlannedUpcoming {
-  const items: PlannedForecast[] = [];
-  for (const row of eventos.rows) {
-    // Ações e units já entraram nos ignorados pela classificação. Como na Movimentação, o
-    // direito ou recibo (…12 a …19) é levado ao FII da família.
-    if (!FII_FAMILY_CODE.test(row.code)) continue;
-    const ticker = fiiOf(row.code);
-    if (!managed(ticker)) continue;
-    const kind = FORECAST_EVENT_KINDS.get(normalizeHeader(row.eventType));
-    if (!kind || row.value === null || row.value <= 0) {
-      addIgnored("Eventos de FII que não são rendimento", row.code);
-      continue;
-    }
-    items.push({
-      ticker,
-      kind,
-      payDate: row.payDate,
-      quantity: row.quantity,
-      perShare: row.unitPrice,
-      amount: row.value,
-    });
-  }
-  return { asOf, items };
-}
-
-// --- Conferência pelos rendimentos (§6.7) -----------------------------------------------------
-
-function dividendCheck(
-  rows: readonly MovementRow[],
-  timeline: ReadonlyMap<string, [number, number][]>,
-  managed: (code: string) => boolean,
-): DividendCheck {
-  const quantityAt = (ticker: string, when: number) => {
-    let quantity = 0;
-    for (const [date, value] of timeline.get(ticker) ?? []) {
-      if (date > when) break;
-      quantity = value;
-    }
-    return quantity;
-  };
-
-  // Oficial: créditos de Rendimento + Reembolso por FII da família e mês de pagamento.
-  const official = new Map<
-    string,
-    { ticker: string; month: string; quantity: number; last: number }
-  >();
-  for (const row of rows) {
-    if (!row.credit || (row.kind !== "Rendimento" && row.kind !== "Reembolso")) continue;
-    if (!FII_FAMILY_CODE.test(row.code)) continue;
-    const ticker = fiiOf(row.code);
-    if (!managed(ticker)) continue;
-    const month = isoDay(row.date).slice(0, 7);
-    const key = `${ticker}|${month}`;
-    const item = official.get(key) ?? { ticker, month, quantity: 0, last: 0 };
-    item.quantity += row.quantity ?? 0;
-    item.last = Math.max(item.last, row.date.getTime());
-    official.set(key, item);
-  }
-
-  // Aluguel: do "Empréstimo" que abre o contrato (sem valor) até o que fecha (com a taxa).
-  // Enquanto as cotas estão emprestadas, o rendimento vem como "Reembolso", sem quantidade.
-  const lending: { ticker: string; from: number; to: number }[] = [];
-  const loans = rows.filter(
-    (row) => row.credit && row.kind === "Empréstimo" && FII_CODE.test(row.code),
-  );
-  for (const open of loans) {
-    if (open.value !== null || !open.quantity) continue;
-    const close = loans.find(
-      (row) =>
-        row.code === open.code &&
-        row.value !== null &&
-        sameQty(row.quantity ?? 0, open.quantity ?? 0) &&
-        row.date >= open.date,
-    );
-    lending.push({
-      ticker: open.code,
-      from: open.date.getTime(),
-      to: (close?.date.getTime() ?? open.date.getTime()) + 45 * DAY,
-    });
-  }
-  const settlements = rows.filter((row) => row.kind === "Transferência - Liquidação");
-  for (const out of settlements) {
-    if (out.credit || out.unitPrice !== null || !FII_CODE.test(out.code)) continue;
-    const back = settlements.find(
-      (row) =>
-        row.credit &&
-        row.code === out.code &&
-        sameQty(row.quantity ?? 0, out.quantity ?? 0) &&
-        row.date >= out.date,
-    );
-    lending.push({
-      ticker: out.code,
-      from: out.date.getTime(),
-      to: (back?.date.getTime() ?? out.date.getTime()) + 45 * DAY,
-    });
-  }
-  const receipts = rows.filter(
-    (row) => row.credit && row.kind === "Recibo de Subscrição" && RECEIPT_CODE.test(row.code),
-  );
-
-  let matched = 0;
-  const explained: DividendCheckItem[] = [];
-  const unexplained: DividendCheckItem[] = [];
-  for (const item of official.values()) {
-    let ok = false;
-    for (let when = item.last - 45 * DAY; when <= item.last - DAY && !ok; when += DAY) {
-      const rebuilt = quantityAt(item.ticker, when);
-      ok = sameQty(rebuilt, item.quantity) || sameQty(Math.floor(rebuilt + EPSILON), item.quantity);
-    }
-    if (ok) {
-      matched++;
-      continue;
-    }
-    const rebuilt = quantityAt(item.ticker, item.last - 15 * DAY);
-    const lent = lending.some(
-      (window) =>
-        window.ticker === item.ticker && item.last >= window.from && item.last <= window.to,
-    );
-    const proRata = receipts.some(
-      (receipt) =>
-        fiiOf(receipt.code) === item.ticker &&
-        item.last >= receipt.date.getTime() &&
-        item.last - receipt.date.getTime() <= 60 * DAY,
-    );
-    const reason = lent
-      ? "cotas emprestadas (aluguel)"
-      : proRata
-        ? "recibo de subscrição pró-rata"
-        : null;
-    (reason ? explained : unexplained).push({
-      ticker: item.ticker,
-      month: item.month,
-      official: item.quantity,
-      rebuilt,
-      reason,
-    });
-  }
-  const byKey = (a: DividendCheckItem, b: DividendCheckItem) =>
-    a.ticker.localeCompare(b.ticker) || a.month.localeCompare(b.month);
-  return {
-    months: official.size,
-    matched,
-    explained: explained.sort(byKey),
-    unexplained: unexplained.sort(byKey),
   };
 }
