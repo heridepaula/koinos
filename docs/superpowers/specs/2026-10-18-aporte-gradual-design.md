@@ -3,7 +3,7 @@
 - **Data:** 2026-10-18
 - **Status:** decidido na conversa. Em 2026-10-24 o padrão passou de 50% para 33%, a pedido do usuário (`2026-10-24-indice-de-conviccao-design.md`). O usuário pediu para seguir sem novas perguntas, então os padrões abaixo são a recomendação, e o limite pode ser trocado na tela.
 - **Ciclo:** muda a cascata Suno das Recomendações (spec do MVP, §9). A fila de prioridade não muda.
-- **Substituída em 2026-10-30** pelas travas fixas do Koinos 3.0 (`2026-10-30-koinos-3-0-design.md`): 20% do aporte por FII, 35% por setor e 60% por macro. O seletor "Máximo por FII" e o `?limite=` saíram.
+- **Substituída em 2026-10-30** pelas travas fixas do Koinos 3.0 (`2026-10-30-koinos-3-0-design.md`): 33% do aporte por FII, 35% por setor e 60% por macro. O seletor "Máximo por FII" e o `?limite=` saíram.
 
 ## 1. Objetivo
 

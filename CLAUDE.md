@@ -125,7 +125,7 @@ Koinos is a single-owner FII (Brazilian REIT) portfolio dashboard that replaced 
      - dividends, min(1, the last dividend ÷ the 12-month monthly average): the brake for a cut;
      - safety, 1 + the margin to the ceiling;
      - vacancy, 1 − the physical vacancy, tijolo only.
-   - The risk caps (`smart-buy/domain/risk.ts`, `RISK_CAPS`), as shares of the aporte: 20% per FII, 35% per sector and 60% per macro (Papel, Tijolo or Outros).
+   - The risk caps (`smart-buy/domain/risk.ts`, `RISK_CAPS`), as shares of the aporte: 33% per FII, 35% per sector and 60% per macro (Papel, Tijolo or Outros).
      - `classifyRisk` takes the macro from usebolsai's `fundType`: Híbrido goes by its composition, FoF goes to Outros, and without a type the Carteira Alvo category decides.
      - Only tijolo with a specific segment has a sector. "Multicategoria", "Outros" and "Híbrido" share no cap: they cover half the FIIs, papel included.
    - Step 1, in ranking order: each FII buys the smallest of its need, the room left in its three caps and the balance, in whole shares rounded down, with no 1-share minimum. `limitedBy` says what cut it.
@@ -226,7 +226,7 @@ Koinos is a single-owner FII (Brazilian REIT) portfolio dashboard that replaced 
 - **Aporte engine (Koinos 3.0, the owner's document of 2026-10-30):** recommendation logic follows it as implemented in `suno-cascade.ts` (Domain flow, item 3), on the Suno base:
   - Only buy below the ceiling price, filling assets in ranking order up to what each one asks (the gap to the target times the tensors, which can take a FII past its target).
   - Rebalance only through new money, never by selling. The leftover goes one share at a time to the FII furthest below its braked target, until no share fits; the change stays in cash.
-  - The risk caps are fixed: 20% of the aporte per FII, 35% per sector and 60% per macro. On 2026-10-30 they replaced the "entrada gradual" cap (33% by default) and its "Máximo por FII" selector.
+  - The risk caps are fixed: 33% of the aporte per FII, 35% per sector and 60% per macro. On 2026-10-30 they replaced the "entrada gradual" cap and its "Máximo por FII" selector. The document says 20% per FII; the owner raised it to 33% the same day.
   - The continuous tensors replaced the Índice de Convicção of 2026-10-24 (×1.2, ×1 and ×0.5 steps). Don't bring back the old spreadsheet's IPA formula either.
 - **No B3 calls:** don't call B3 systems or endpoints. B3 offers integrations only to companies, so B3 data enters only through statements the user uploads. A P/VP feature built on B3 lookups was dropped. Its spec and plan are marked discarded.
 - **Dividends start at the first B3 statement (Nov 2019).** The owner decided not to estimate older ones: before that, the app only knows the prior positions of 2019-11-07, without purchase dates.

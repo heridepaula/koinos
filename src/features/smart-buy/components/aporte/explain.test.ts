@@ -74,6 +74,6 @@ describe("explain", () => {
     expect(parts).toContain("P/VP 0,9 (×1,1)");
     expect(parts).toContain("último provento 50% da média de 12 meses (×0,5)");
     expect(parts).toContain("vacância de 10,0% (×0,9)");
-    expect(parts).toContain("limite de 20% do aporte por FII");
+    expect(parts).toContain("limite de 33% do aporte por FII");
   });
 });

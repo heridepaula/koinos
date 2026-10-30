@@ -14,7 +14,7 @@ import { RISK_CAPS, type RiskMacro } from "./risk";
 // 2. Meta = peso × (estratégia + aporte); gap = meta − valor. Com gap > 0, o FII pede o gap vezes os
 //    tensores de valuation, proventos, segurança e vacância (conviction.ts).
 // 3. Passo 1, do 1º ao último do ranking: cada FII gasta o menor entre o pedido e o espaço que sobra
-//    no próprio FII (20% do aporte), no setor (35%), na macro, papel ou tijolo (60%), e no saldo, em
+//    no próprio FII (33% do aporte), no setor (35%), na macro, papel ou tijolo (60%), e no saldo, em
 //    cotas inteiras (risk.ts).
 // 4. Passo 2, a sobra: uma cota por vez para o FII mais abaixo da meta, dentro das mesmas travas, até
 //    nenhuma cota caber. Nesta conta a meta vem descontada pelos freios de proventos e de vacância:
