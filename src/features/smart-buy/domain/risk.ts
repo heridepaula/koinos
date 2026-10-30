@@ -1,10 +1,10 @@
 import type { Category } from "@/features/strategy";
 
-// Travas de risco do Koinos 3.0: nenhum FII leva mais de 20% do aporte, nenhum setor mais de 35% e
+// Travas de risco do Koinos 3.0: nenhum FII leva mais de 25% do aporte, nenhum setor mais de 35% e
 // nenhuma macro (papel ou tijolo) mais de 60%.
 
 /** Frações do aporte. */
-export const RISK_CAPS = { asset: 0.2, sector: 0.35, macro: 0.6 } as const;
+export const RISK_CAPS = { asset: 0.25, sector: 0.35, macro: 0.6 } as const;
 
 /** Papel e tijolo são as duas macros; FoF e o que não dá para classificar ficam em "Outros". */
 export type RiskMacro = "Papel" | "Tijolo" | "Outros";

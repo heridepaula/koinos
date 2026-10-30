@@ -3,7 +3,7 @@
 - **Data:** 2026-10-24
 - **Status:** aplicado a pedido do usuário ("Aplique as regras abaixo", com o documento "Como o Koinos escolhe onde aportar" reescrito por ele). Substitui, antes de chegar à produção, a proposta do mesmo dia de fila pela distância da meta, base no patrimônio todo e sobra contínua.
 - **Ciclo:** muda a cascata das Recomendações (spec do MVP, §9). A entrada gradual (spec de 2026-10-18) continua, com o limite padrão em 33%.
-- **Substituída em 2026-10-30** pelo motor Koinos 3.0 (`2026-10-30-koinos-3-0-design.md`): os multiplicadores em degraus viraram tensores contínuos (valuation, proventos, segurança e vacância), e o limite por FII virou as travas de 20% por FII, 35% por setor e 60% por macro. O que segue é o histórico.
+- **Substituída em 2026-10-30** pelo motor Koinos 3.0 (`2026-10-30-koinos-3-0-design.md`): os multiplicadores em degraus viraram tensores contínuos (valuation, proventos, segurança e vacância), e o limite por FII virou as travas de 25% por FII, 35% por setor e 60% por macro. O que segue é o histórico.
 
 ## 1. Regras
 

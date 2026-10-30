@@ -80,11 +80,11 @@ describe("buildSnapshot: reescala de pesos com quarentena", () => {
     const large = buildSnapshot(portfolio(50_000, 5));
     const ordersOf = (snapshot: typeof small) =>
       sunoCascade(1_000, snapshot.cascadeInput).orders.map((item) => [item.ticker, item.quantity]);
-    // Metas de 700 (50% de 400 + 1.000): os dois pedem mais que o limite de 20% do aporte
-    // (R$ 200, 20 cotas de R$ 10).
+    // Metas de 700 (50% de 400 + 1.000): os dois pedem mais que o limite de 25% do aporte
+    // (R$ 250, 25 cotas de R$ 10).
     expect(ordersOf(small)).toEqual([
-      ["AAAA11", 20],
-      ["BBBB11", 20],
+      ["AAAA11", 25],
+      ["BBBB11", 25],
     ]);
     expect(ordersOf(large)).toEqual(ordersOf(small));
   });

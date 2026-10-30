@@ -32,7 +32,7 @@ const reasonOf = (result: ReturnType<typeof sunoCascade>, ticker: string) =>
   result.excluded.find((item) => item.ticker === ticker)?.reason;
 
 describe("sunoCascade: o pedido", () => {
-  it("é o gap vezes os tensores, e o limite por FII corta o que passar de 20%", () => {
+  it("é o gap vezes os tensores, e o limite por FII corta o que passar de 25%", () => {
     const assets = [
       fii("AAAA11", {
         rank: 1,
@@ -52,7 +52,7 @@ describe("sunoCascade: o pedido", () => {
     expect(first.tensors.safety).toBeCloseTo(1.2);
     expect(first.tensors.vacancy).toBeCloseTo(0.9);
     expect(first.need).toBeCloseTo(5_940, 0);
-    expect(first).toMatchObject({ quantity: 20, fromLeftover: 0, limitedBy: "ativo" });
+    expect(first).toMatchObject({ quantity: 25, fromLeftover: 0, limitedBy: "ativo" });
   });
 });
 
@@ -76,13 +76,14 @@ describe("sunoCascade: cenários do documento 3.0", () => {
     ];
     const result = sunoCascade(3_000, assets);
     expect(reasonOf(result, "TOP111")).toBe("NA_META");
-    // Cinco FIIs, cada um no limite de 20% (R$ 600).
-    expect(result.orders.map((item) => [item.ticker, item.quantity])).toEqual([
-      ["TOP211", 60],
-      ["TOP311", 60],
-      ["TOP411", 60],
-      ["TOP511", 60],
-      ["TOP611", 60],
+    // Metas de 1.608,33: cada um pede 63 cotas, abaixo do limite de 25% (R$ 750). O 3º tijolo
+    // para na trava de 60% da macro (R$ 1.800), e o último papel leva o que o saldo ainda paga.
+    expect(result.orders.map((item) => [item.ticker, item.quantity, item.limitedBy])).toEqual([
+      ["TOP211", 63, null],
+      ["TOP311", 63, null],
+      ["TOP411", 54, "macro"],
+      ["TOP511", 63, null],
+      ["TOP611", 57, "saldo"],
     ]);
     expect(result.leftover).toBe(0);
   });
@@ -96,12 +97,13 @@ describe("sunoCascade: cenários do documento 3.0", () => {
     );
     const result = sunoCascade(10_000, [...papel, ...tijolo, anchor(90_000, 0.04)]);
     expect(result.orders.map((item) => [item.ticker, item.total])).toEqual([
-      ["CRI111", 2_000],
-      ["CRI211", 2_000],
-      ["CRI311", 2_000],
-      ["TIJ111", 2_000],
-      ["TIJ211", 2_000],
+      ["CRI111", 2_500],
+      ["CRI211", 2_500],
+      ["CRI311", 1_000],
+      ["TIJ111", 2_500],
+      ["TIJ211", 1_500],
     ]);
+    expect(order(result, "CRI311")?.limitedBy).toBe("macro");
     expect(reasonOf(result, "CRI411")).toBe("LIMITE_MACRO");
     expect(result.leftover).toBe(0);
   });
@@ -137,12 +139,12 @@ describe("sunoCascade: travas de risco", () => {
     );
     const logistics = fii("LOG111", { rank: 4, weight: 0.2, sector: "Logística" });
     const result = sunoCascade(10_000, [...shoppings, logistics, anchor(90_000, 0.2)]);
-    expect(order(result, "SHO111")?.total).toBe(2_000);
-    expect(order(result, "SHO211")).toMatchObject({ total: 1_500, limitedBy: "setor" });
+    expect(order(result, "SHO111")?.total).toBe(2_500);
+    expect(order(result, "SHO211")).toMatchObject({ total: 1_000, limitedBy: "setor" });
     expect(reasonOf(result, "SHO311")).toBe("LIMITE_SETOR");
-    expect(order(result, "LOG111")?.total).toBe(2_000);
+    expect(order(result, "LOG111")?.total).toBe(2_500);
     // Ninguém mais cabe nas travas: o resto fica guardado.
-    expect(result.leftover).toBe(4_500);
+    expect(result.leftover).toBe(4_000);
   });
 });
 
