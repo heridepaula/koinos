@@ -1,3 +1,4 @@
+import type { AssetClass } from "@/features/market-data";
 import type {
   DividendEntry,
   DividendKind,
@@ -97,7 +98,7 @@ export type PlannedTransaction = {
 };
 
 export type B3ImportAnswers = {
-  /** Preço por pendência (`sub:…` e `prev:…`). */
+  /** Preço por pendência (`sub:…`, `prev:…` e o custo da bonificação, `bon:…`, que aceita 0). */
   prices?: Readonly<Record<string, number>>;
   /** Pendências cujo preço é uma estimativa (carga feita pelo script). */
   estimated?: readonly string[];
@@ -128,6 +129,18 @@ export type PendingItem =
     }
   | {
       id: string;
+      /** Custo atribuído por ação de uma bonificação (spec ações etapa 1, §5.4). Aceita 0. */
+      type: "CUSTO_BONIFICACAO";
+      ticker: string;
+      /** Dia do evento (a linha "Bonificação em Ativos"). */
+      date: Date;
+      /** Ações creditadas, mais as que voltaram a mais do aluguel. */
+      quantity: number;
+      price: number | null;
+      priceSource: PriceSource | null;
+    }
+  | {
+      id: string;
       type: "CONVERSAO";
       ticker: string;
       date: Date;
@@ -142,6 +155,8 @@ export type TickerStatus = "OK" | "PENDENTE" | "FORA";
 
 export type TickerPlan = {
   ticker: string;
+  /** FII ou ação (spec ações etapa 1, §4). */
+  assetClass: AssetClass;
   /** FIIs ligados por incorporação entram ou ficam de fora juntos. */
   group: string[];
   status: TickerStatus;

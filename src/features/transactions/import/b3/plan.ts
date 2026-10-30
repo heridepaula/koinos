@@ -1,14 +1,14 @@
 import { findOversells } from "../../domain/positions";
 import type { LedgerEntry, PriceSource, TransactionSource } from "../../domain/types";
 import type { ParsedPlanilha } from "../parse-planilha";
+import { classify, type Classification } from "./classify";
 import {
   DAY,
   EPSILON,
   FII_CODE,
   FII_FAMILY_CODE,
   RECEIPT_CODE,
-  RIGHTS_OR_RECEIPT_CODE,
-  TICKER_CODE,
+  STOCK_RECEIPT_CODE,
   family,
   fiiOf,
   isoDay,
@@ -16,6 +16,7 @@ import {
   sameQty,
 } from "./codes";
 import { dividendCheck, extractDividends, extractUpcoming } from "./dividends";
+import { lendingLegs } from "./lending";
 import type {
   AssetTypeInfo,
   B3ImportAnswers,
@@ -60,35 +61,8 @@ const subId = (ticker: string, date: Date, quantity: number) =>
 const convId = (ticker: string, date: Date, quantity: number) =>
   `conv:${ticker}:${isoDay(date)}:${qtyKey(quantity)}`;
 const prevId = (ticker: string) => `prev:${ticker}`;
-
-// --- Classificação (§4) ---------------------------------------------------------------------
-
-type Classification =
-  { managed: true; outOfCatalog: boolean; untyped: boolean } | { managed: false; reason: string };
-
-function classify(code: string, types: ReadonlyMap<string, AssetTypeInfo | null>): Classification {
-  const info = types.get(code) ?? null;
-  if (info) {
-    const subType = info.subType?.toLowerCase() ?? null;
-    if (info.type === "fund" && (subType === "fii" || subType === "fi-agro")) {
-      return { managed: true, outOfCatalog: false, untyped: false };
-    }
-    if (info.type === "fund" && !subType && FII_CODE.test(code)) {
-      return { managed: true, outOfCatalog: false, untyped: true };
-    }
-    if (info.type === "stock") return { managed: false, reason: "Ações e units" };
-    if (info.type === "bdr") return { managed: false, reason: "BDRs" };
-    if (subType === "etf") return { managed: false, reason: "ETFs" };
-    if (subType === "fi-infra") return { managed: false, reason: "FI-Infra" };
-    return { managed: false, reason: "Outros fundos (FIP, FIDC...)" };
-  }
-  if (FII_CODE.test(code)) return { managed: true, outOfCatalog: true, untyped: false };
-  if (RIGHTS_OR_RECEIPT_CODE.test(code)) {
-    return { managed: false, reason: "Direitos e recibos (o recibo entra como subscrição do FII)" };
-  }
-  if (TICKER_CODE.test(code)) return { managed: false, reason: "Outros ativos fora do catálogo" };
-  return { managed: false, reason: "Renda fixa e Tesouro" };
-}
+/** Uma pendência por bonificação: a ação e o dia do evento (as ações a mais do aluguel usam a mesma). */
+const bonusId = (ticker: string, date: Date) => `bon:${ticker}:${isoDay(date)}`;
 
 // --- Simulação (mesmas regras do replayLedger, com conversões no meio) --------------------
 
@@ -125,6 +99,8 @@ type SimContext = {
   redemptions: Map<string, number[]>;
   fractions: { family: string; date: Date; quantity: number }[];
   outOfCatalog: (ticker: string) => boolean;
+  /** Só FII tem conversão: a "Atualização" de uma ação só confere o saldo. */
+  isFii: (ticker: string) => boolean;
   conversionAnswer: (id: string, ticker: string, date: Date) => string | null;
   acquisitionPrice: (
     id: string,
@@ -225,6 +201,16 @@ function simulate(events: readonly SimEvent[], context: SimContext): SimResult {
 
     // "Atualização" que credita cotas de um FII (§5.2).
     const { ticker, quantity, date } = event;
+    if (!context.isFii(ticker)) {
+      // Ação: igual à posição, só atualiza o saldo; diferente não é suportada (spec ações, §5.3).
+      if (!sameQty(state(ticker).quantity, quantity)) {
+        problem(
+          ticker,
+          `Atualização de ${qtyKey(quantity)} ações em ${isoDay(date)} com posição ${qtyKey(state(ticker).quantity)} não é suportada.`,
+        );
+      }
+      continue;
+    }
     const receipt = receipts.find(
       (item) =>
         !item.converted &&
@@ -242,7 +228,7 @@ function simulate(events: readonly SimEvent[], context: SimContext): SimResult {
     const id = convId(ticker, date, quantity);
     const candidates = [...states.entries()]
       .filter(([other, current]) => {
-        if (other === ticker || current.quantity <= EPSILON) return false;
+        if (other === ticker || current.quantity <= EPSILON || !context.isFii(other)) return false;
         if ((context.lastActivity.get(other) ?? 0) > date.getTime()) return false;
         const redeemed = (context.redemptions.get(other) ?? []).some(
           (when) => Math.abs(when - date.getTime()) <= REDEMPTION_WINDOW,
@@ -381,8 +367,17 @@ export function planB3Import(input: PlanInput): B3ImportPlan {
     const result = classificationOf(code);
     return result.managed && result.outOfCatalog;
   };
-  // O ativo de uma linha de provento: o FII da família (…12 a …19 vão ao …11).
+  const classOf = (code: string) => {
+    const result = classificationOf(code);
+    return result.managed ? result.assetClass : null;
+  };
+  const isStock = (code: string) => classOf(code) === "ACAO";
+  /** O ativo cuja posição a linha mexe: a cota `…11` do FII ou a própria ação. */
+  const holdingOf = (code: string): string | null =>
+    isStock(code) || (FII_CODE.test(code) && managed(code)) ? code : null;
+  // O ativo de uma linha de provento: a própria ação ou o FII da família (…12 a …19 vão ao …11).
   const dividendTickerOf = (code: string): string | null => {
+    if (isStock(code)) return code;
     if (!FII_FAMILY_CODE.test(code)) return null;
     const ticker = fiiOf(code);
     return managed(ticker) ? ticker : null;
@@ -406,11 +401,18 @@ export function planB3Import(input: PlanInput): B3ImportPlan {
     if (price === undefined || !(price > 0)) return null;
     return { price, source: answers.estimated?.includes(id) ? "ESTIMADO" : "USUARIO" };
   };
+  // O custo atribuído da bonificação pode ser 0: a empresa nem sempre atribui custo (spec ações, §5.4).
+  const answeredBonus = (id: string): { price: number; source: PriceSource } | null => {
+    const price = answers.prices?.[id];
+    if (price === undefined || !(price >= 0)) return null;
+    return { price, source: answers.estimated?.includes(id) ? "ESTIMADO" : "USUARIO" };
+  };
 
   // Respostas de uploads anteriores ficam nos próprios lançamentos B3 do período (§7). O preço
   // que veio da planilha num envio anterior também vale: a página não recebe mais a planilha.
   const previousSubscription = new Map<string, { price: number; source: PriceSource }>();
   const previousConversion = new Map<string, string>();
+  const previousBonus = new Map<string, { price: number; source: PriceSource }>();
   for (const entry of existing) {
     if (entry.source !== "B3" || !inPeriod(entry.date)) continue;
     if (
@@ -426,6 +428,17 @@ export function planB3Import(input: PlanInput): B3ImportPlan {
     }
     if (entry.kind === "INCORPORACAO" && entry.type === "BUY" && entry.relatedTicker) {
       previousConversion.set(`${entry.ticker}:${isoDay(entry.date)}`, entry.relatedTicker);
+    }
+    // O lançamento da linha de bonificação tem a data do evento; o das ações que voltaram do
+    // aluguel tem a da volta e só repete o mesmo custo.
+    if (
+      entry.kind === "BONIFICACAO" &&
+      (entry.priceSource === "USUARIO" || entry.priceSource === "ESTIMADO")
+    ) {
+      previousBonus.set(bonusId(entry.ticker, entry.date), {
+        price: entry.unitPrice,
+        source: entry.priceSource,
+      });
     }
   }
 
@@ -483,6 +496,48 @@ export function planB3Import(input: PlanInput): B3ImportPlan {
   const touch = (ticker: string, date: Date) =>
     lastActivity.set(ticker, Math.max(lastActivity.get(ticker) ?? 0, date.getTime()));
   const b3Tickers = new Set<string>();
+  // Bonificações e desdobros (spec ações, §5.3 e §5.5): as ações a mais do aluguel seguem o evento.
+  const corporateEvents: { ticker: string; date: Date; kind: "BONIFICACAO" | "DESDOBRO" }[] = [];
+  const bonusPending = new Map<string, Extract<PendingItem, { type: "CUSTO_BONIFICACAO" }>>();
+  const stockReceipts: MovementRow[] = [];
+  /** A compra da bonificação: o custo por ação vem da pendência, que soma as quantidades. */
+  const addBonus = (
+    ticker: string,
+    eventDate: Date,
+    date: Date,
+    quantity: number,
+    note: string,
+  ) => {
+    const id = bonusId(ticker, eventDate);
+    const answer = answeredBonus(id) ?? previousBonus.get(id) ?? null;
+    const pending = bonusPending.get(id);
+    if (pending) pending.quantity += quantity;
+    else {
+      bonusPending.set(id, {
+        id,
+        type: "CUSTO_BONIFICACAO",
+        ticker,
+        date: eventDate,
+        quantity,
+        price: answer?.price ?? null,
+        priceSource: answer?.source ?? null,
+      });
+    }
+    b3Tickers.add(ticker);
+    touch(ticker, date);
+    planned.push({
+      ticker,
+      type: "BUY",
+      quantity,
+      unitPrice: answer?.price ?? 0,
+      fees: 0,
+      date,
+      kind: "BONIFICACAO",
+      priceSource: answer?.source ?? null,
+      relatedTicker: null,
+      notes: note,
+    });
+  };
 
   for (const trade of negociacao.trades) {
     if (!inPeriod(trade.date) || !managed(trade.ticker)) continue;
@@ -530,6 +585,10 @@ export function planB3Import(input: PlanInput): B3ImportPlan {
     const quantity = row.quantity ?? 0;
     switch (row.kind) {
       case "Recibo de Subscrição": {
+        if (row.credit && STOCK_RECEIPT_CODE.test(row.code) && quantity > 0) {
+          stockReceipts.push(row); // subscrição de ação: não suportada (spec ações, §5.3)
+          break;
+        }
         if (!row.credit || !RECEIPT_CODE.test(row.code) || quantity <= 0) break;
         const ticker = fiiOf(row.code);
         if (!managed(ticker)) break;
@@ -587,17 +646,28 @@ export function planB3Import(input: PlanInput): B3ImportPlan {
         break;
       }
       case "Atualização": {
-        if (!row.credit || !FII_CODE.test(row.code) || !managed(row.code) || quantity <= 0) break;
-        b3Tickers.add(row.code);
-        updates.push({ ticker: row.code, quantity, date: row.date, row: row.row });
+        // A da ação só confere o saldo na simulação (spec ações, §5.3).
+        const ticker = holdingOf(row.code);
+        if (!row.credit || !ticker || quantity <= 0) break;
+        b3Tickers.add(ticker);
+        updates.push({ ticker, quantity, date: row.date, row: row.row });
+        break;
+      }
+      case "Bonificação em Ativos": {
+        const ticker = holdingOf(row.code);
+        if (!row.credit || !ticker || quantity <= 0) break;
+        corporateEvents.push({ ticker, date: row.date, kind: "BONIFICACAO" });
+        addBonus(ticker, row.date, row.date, quantity, "Bonificação");
         break;
       }
       case "Desdobro": {
-        if (!row.credit || !FII_CODE.test(row.code) || !managed(row.code) || quantity <= 0) break;
-        b3Tickers.add(row.code);
-        touch(row.code, row.date);
+        const ticker = holdingOf(row.code);
+        if (!row.credit || !ticker || quantity <= 0) break;
+        b3Tickers.add(ticker);
+        touch(ticker, row.date);
+        corporateEvents.push({ ticker, date: row.date, kind: "DESDOBRO" });
         planned.push({
-          ticker: row.code,
+          ticker,
           type: "BUY",
           quantity,
           unitPrice: 0,
@@ -611,13 +681,37 @@ export function planB3Import(input: PlanInput): B3ImportPlan {
         break;
       }
       case "Grupamento": {
-        if (!FII_FAMILY_CODE.test(row.code)) break;
-        const ticker = fiiOf(row.code);
-        if (managed(ticker))
+        const ticker = isStock(row.code)
+          ? row.code
+          : FII_FAMILY_CODE.test(row.code)
+            ? fiiOf(row.code)
+            : null;
+        if (ticker && managed(ticker))
           unsupported.set(ticker, `Grupamento em ${isoDay(row.date)} não é suportado.`);
         break;
       }
       case "Leilão de Fração": {
+        if (isStock(row.code)) {
+          // Ação: a fração veio de bonificação ou desdobro e já está na posição (spec ações, §5.3).
+          if (!row.credit || quantity <= 0) break;
+          const price = row.unitPrice ?? (row.value !== null ? row.value / quantity : null);
+          if (!price) break;
+          b3Tickers.add(row.code);
+          touch(row.code, row.date);
+          planned.push({
+            ticker: row.code,
+            type: "SELL",
+            quantity,
+            unitPrice: price,
+            fees: 0,
+            date: row.date,
+            kind: "FRACAO",
+            priceSource: "B3",
+            relatedTicker: null,
+            notes: "Leilão de fração",
+          });
+          break;
+        }
         if (!FII_FAMILY_CODE.test(row.code)) break;
         const ticker = fiiOf(row.code);
         if (!row.credit || !managed(ticker) || quantity <= 0) break;
@@ -691,10 +785,62 @@ export function planB3Import(input: PlanInput): B3ImportPlan {
         break;
     }
   }
-  // Tudo o que aparece nos extratos e não é FII entra na lista de ignorados da prévia.
+  // Tudo o que aparece nos extratos e o app não acompanha entra na lista de ignorados da prévia.
   for (const row of movimentacao.rows) classificationOf(row.code);
   for (const trade of negociacao.trades) classificationOf(trade.ticker);
   for (const row of eventos?.rows ?? []) classificationOf(row.code);
+
+  // Subscrição de ação (recibo …9 ou …10): não suportada; a ação da mesma família fica de fora.
+  for (const receipt of stockReceipts) {
+    for (const ticker of b3Tickers) {
+      if (isStock(ticker) && family(ticker) === family(receipt.code)) {
+        unsupported.set(
+          ticker,
+          `Subscrição (recibo ${receipt.code}) em ${isoDay(receipt.date)} não é suportada.`,
+        );
+      }
+    }
+  }
+
+  // Aluguel (spec ações, §5.5): os extratos inteiros, para parear também o aluguel aberto antes do
+  // período. Ações que voltaram a mais entram como o evento que houve durante o aluguel.
+  const legs = lendingLegs(
+    movimentacao.rows.filter((row) => holdingOf(row.code) !== null),
+    negociacao.trades.filter((trade) => holdingOf(trade.ticker) !== null),
+  );
+  for (const leg of legs) {
+    const back = leg.back;
+    if (!back || leg.backQuantity === null || !inPeriod(back)) continue;
+    const extra = leg.backQuantity - leg.outQuantity;
+    if (extra <= EPSILON) continue;
+    const event = corporateEvents.find(
+      (item) => item.ticker === leg.ticker && item.date >= leg.out && item.date <= back,
+    );
+    if (!event) {
+      warnings.push(
+        `${leg.ticker}: voltaram ${qtyKey(extra)} a mais do aluguel em ${isoDay(back)}, sem bonificação ou desdobro durante o aluguel. A posição não muda.`,
+      );
+      continue;
+    }
+    if (event.kind === "BONIFICACAO") {
+      addBonus(leg.ticker, event.date, back, extra, "Bonificação (ações que estavam alugadas)");
+      continue;
+    }
+    b3Tickers.add(leg.ticker);
+    touch(leg.ticker, back);
+    planned.push({
+      ticker: leg.ticker,
+      type: "BUY",
+      quantity: extra,
+      unitPrice: 0,
+      fees: 0,
+      date: back,
+      kind: "DESDOBRO",
+      priceSource: "B3",
+      relatedTicker: null,
+      notes: "Desdobro (ações que estavam alugadas)",
+    });
+  }
 
   // --- Lançamentos atuais: fora do período ficam; dentro, dos FIIs gerenciados, saem -------
   const managedExisting = existing.filter((entry) => managed(entry.ticker));
@@ -742,6 +888,7 @@ export function planB3Import(input: PlanInput): B3ImportPlan {
     redemptions,
     fractions,
     outOfCatalog,
+    isFii: (ticker) => classOf(ticker) === "FII",
     conversionAnswer: (id, ticker, date) =>
       answers.conversions?.[id] ?? previousConversion.get(`${ticker}:${isoDay(date)}`) ?? null,
     acquisitionPrice,
@@ -856,6 +1003,7 @@ export function planB3Import(input: PlanInput): B3ImportPlan {
   }));
   const pending = [
     ...subscriptionPending,
+    ...bonusPending.values(),
     ...final.acquisitions,
     ...priorPending,
     ...conversionPending,
@@ -944,6 +1092,8 @@ export function planB3Import(input: PlanInput): B3ImportPlan {
     const decision = status.get(ticker) ?? { status: "OK" as const, reasons: [] };
     return {
       ticker,
+      // Todo ativo do plano é acompanhado; o "FII" de reserva só satisfaz o tipo.
+      assetClass: classOf(ticker) ?? "FII",
       group: groups.get(root(ticker)) ?? [ticker],
       status: decision.status,
       reasons: decision.reasons,
@@ -988,8 +1138,8 @@ export function planB3Import(input: PlanInput): B3ImportPlan {
       rows: movimentacao.rows,
       timeline: final.timeline,
       tickerOf: dividendTickerOf,
-      isStock: () => false,
-      legs: [],
+      isStock,
+      legs,
     }),
     dividends: extractDividends(
       movimentacao.rows,

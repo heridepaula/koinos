@@ -8,7 +8,7 @@
 // respostas.json responde as pendências que a prévia lista (ids sub:…, prev:… e conv:…):
 //   { "prices": { "sub:KISU11:2021-05-26:226": 98.5 }, "estimated": ["sub:KISU11:2021-05-26:226"],
 //     "conversions": { "conv:PMLL11:2025-07-23:197": "MALL11" }, "exclude": [] }
-// Só grava sem nenhuma pendência aberta e com a conferência pelos rendimentos sem divergência
+// Só grava sem nenhuma pendência aberta e com a conferência pelos proventos sem divergência
 // inexplicada (ou com --aceitar-divergencias).
 import { readFile } from "node:fs/promises";
 import { parseArgs } from "node:util";
@@ -115,13 +115,13 @@ async function main() {
   console.log(
     `Lançamentos atuais: ${existing.length} · a remover: ${plan.removeIds.length} ${JSON.stringify(plan.removedBySource)} · a inserir: ${plan.inserts.length}`,
   );
-  console.log(`Por tipo (todos os FIIs): ${JSON.stringify(plan.totals)}`);
+  console.log(`Por tipo (todos os ativos): ${JSON.stringify(plan.totals)}`);
   const dividendsTotal = plan.dividends.inserts.reduce((sum, item) => sum + item.amount, 0);
   console.log(
-    `Proventos: ${plan.dividends.inserts.length} (${formatBRL(dividendsTotal)}) em ${new Set(plan.dividends.inserts.map((item) => item.ticker)).size} FIIs · trocados em ${plan.dividends.tickers.length} FIIs`,
+    `Proventos: ${plan.dividends.inserts.length} (${formatBRL(dividendsTotal)}) em ${new Set(plan.dividends.inserts.map((item) => item.ticker)).size} ativos · trocados em ${plan.dividends.tickers.length} ativos`,
   );
 
-  console.log("\nFII       situação   cotas      preço médio  L/P realizado   lançamentos");
+  console.log("\nAtivo     situação   qtd.       preço médio  L/P realizado   lançamentos");
   for (const item of plan.tickers) {
     const counts = Object.entries(item.counts)
       .map(([kind, count]) => `${kind.toLowerCase()} ${count}`)
@@ -160,7 +160,7 @@ async function main() {
 
   const { check } = plan;
   console.log(
-    `\nConferência pelos rendimentos: ${check.matched} de ${check.months} meses batem · explicados: ${check.explained.length} · sem explicação: ${check.unexplained.length}`,
+    `\nConferência pelos proventos: ${check.matched} de ${check.months} meses batem · explicados: ${check.explained.length} · sem explicação: ${check.unexplained.length}`,
   );
   for (const item of check.explained)
     console.log(
@@ -181,7 +181,7 @@ async function main() {
     throw new B3ImportError(`Há ${open.length} pendência(s) aberta(s): responda em --respostas.`);
   if (check.unexplained.length > 0 && !values["aceitar-divergencias"]) {
     throw new B3ImportError(
-      "A conferência pelos rendimentos tem divergências sem explicação. Revise ou use --aceitar-divergencias.",
+      "A conferência pelos proventos tem divergências sem explicação. Revise ou use --aceitar-divergencias.",
     );
   }
   const result = await applyTransactionChanges(portfolioId!, {
