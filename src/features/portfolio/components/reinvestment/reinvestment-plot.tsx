@@ -12,6 +12,7 @@ import {
 } from "@/shared/ui/chart";
 import type { ReinvestmentView } from "../../domain/types";
 import { ChartTooltipRow } from "../chart-tooltip-row";
+import { Sensitive } from "@/shared/components/sensitive";
 
 // Duas séries: bolso no azul dos aportes, proventos no laranja dos proventos (par validado nos
 // dois temas, CVD ΔE > 24). Legenda sempre visível: a identidade não depende só da cor.
@@ -29,7 +30,7 @@ export function ReinvestmentPlot({
   className: string;
 }) {
   return (
-    <ChartContainer config={config} className={className}>
+    <ChartContainer data-sensitive-axis="" config={config} className={className}>
       <BarChart data={history} margin={{ left: 4, right: 12, top: 8 }}>
         <CartesianGrid vertical={false} />
         <XAxis
@@ -52,16 +53,25 @@ export function ReinvestmentPlot({
               labelFormatter={(month, payload) => {
                 const item = payload?.[0]?.payload as
                   ReinvestmentView["history"][number] | undefined;
-                const detail = item
-                  ? ` · total ${formatBRL(item.aporte)} · ${formatPercent(item.percent / 100, 1)} reinvestido${item.isDefault ? " (padrão)" : ""}`
-                  : "";
-                return `${formatMonth(String(month))}${detail}`;
+                return (
+                  <>
+                    {formatMonth(String(month))}
+                    {item ? (
+                      <>
+                        {" "}
+                        · total <Sensitive>{formatBRL(item.aporte)}</Sensitive> ·{" "}
+                        {formatPercent(item.percent / 100, 1)} reinvestido
+                        {item.isDefault ? " (padrão)" : ""}
+                      </>
+                    ) : null}
+                  </>
+                );
               }}
               formatter={(value, name) => (
                 <ChartTooltipRow
                   color={`var(--color-${String(name)})`}
                   label={config[name as keyof typeof config]?.label ?? String(name)}
-                  value={formatBRL(Number(value))}
+                  value={<Sensitive>{formatBRL(Number(value))}</Sensitive>}
                 />
               )}
             />

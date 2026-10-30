@@ -11,6 +11,7 @@ import {
   TableRow,
 } from "@/shared/ui/table";
 import type { ReinvestmentView } from "../../domain/types";
+import { QUANTITY_MASK, Sensitive } from "@/shared/components/sensitive";
 
 const KIND_LABELS = { NEGOCIO: "Negócio", SUBSCRICAO: "Subscrição" } as const;
 
@@ -42,11 +43,12 @@ export function PurchasesTable({ rows }: { rows: ReinvestmentView["purchases"] }
                   <div className="flex items-center justify-between gap-3">
                     <AssetLabel ticker={row.ticker} name={row.name} logoUrl={row.logoUrl} />
                     <span className="text-headline font-normal whitespace-nowrap tabular-nums">
-                      {formatBRL(row.total)}
+                      <Sensitive>{formatBRL(row.total)}</Sensitive>
                     </span>
                   </div>
                   <p className="truncate text-footnote text-muted-foreground tabular-nums">
-                    {formatTradeDate(row.date)} · {formatQuantity(row.quantity)} ×{" "}
+                    {formatTradeDate(row.date)} ·{" "}
+                    <Sensitive mask={QUANTITY_MASK}>{formatQuantity(row.quantity)}</Sensitive> ×{" "}
                     {formatBRL(row.unitPrice)}
                     {row.kind === "SUBSCRICAO" ? " · subscrição" : ""}
                   </p>
@@ -54,7 +56,9 @@ export function PurchasesTable({ rows }: { rows: ReinvestmentView["purchases"] }
               ))}
               <li className="flex items-center justify-between gap-3 px-(--card-spacing) pt-3 font-semibold">
                 <span>Total</span>
-                <span className="tabular-nums">{formatBRL(total)}</span>
+                <span className="tabular-nums">
+                  <Sensitive>{formatBRL(total)}</Sensitive>
+                </span>
               </li>
             </ul>
             <Table className="hidden @min-[480px]:table">
@@ -81,13 +85,13 @@ export function PurchasesTable({ rows }: { rows: ReinvestmentView["purchases"] }
                       {KIND_LABELS[row.kind]}
                     </TableCell>
                     <TableCell className="hidden text-right tabular-nums @min-[480px]:table-cell">
-                      {formatQuantity(row.quantity)}
+                      <Sensitive mask={QUANTITY_MASK}>{formatQuantity(row.quantity)}</Sensitive>
                     </TableCell>
                     <TableCell className="hidden text-right tabular-nums @min-[640px]:table-cell">
                       {formatBRL(row.unitPrice)}
                     </TableCell>
                     <TableCell className="pr-(--card-spacing) text-right font-medium tabular-nums">
-                      {formatBRL(row.total)}
+                      <Sensitive>{formatBRL(row.total)}</Sensitive>
                     </TableCell>
                   </TableRow>
                 ))}
@@ -101,7 +105,7 @@ export function PurchasesTable({ rows }: { rows: ReinvestmentView["purchases"] }
                   <TableCell className="hidden @min-[480px]:table-cell" />
                   <TableCell className="hidden @min-[640px]:table-cell" />
                   <TableCell className="pr-(--card-spacing) text-right font-semibold tabular-nums">
-                    {formatBRL(total)}
+                    <Sensitive>{formatBRL(total)}</Sensitive>
                   </TableCell>
                 </TableRow>
               </TableFooter>

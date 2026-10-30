@@ -1,6 +1,7 @@
 import { ArrowDownRightIcon, ArrowUpRightIcon, MinusIcon } from "lucide-react";
 import { formatBRL, formatSignedPercent } from "@/shared/lib/format";
 import { cn } from "@/shared/lib/utils";
+import { Sensitive } from "./sensitive";
 
 /** Abaixo de meio centavo o valor aparece como R$ 0,00: vale como zero (sobra de ponto flutuante). */
 const ZERO_BELOW = 0.005;
@@ -40,7 +41,7 @@ export function Delta({
       >
         <span className="inline-flex items-center gap-1">
           <Icon className="size-[1em] shrink-0" aria-hidden="true" />
-          {money}
+          <Sensitive>{money}</Sensitive>
         </span>
         <span className="text-xs opacity-80">{percent}</span>
       </span>
@@ -55,7 +56,7 @@ export function Delta({
       )}
     >
       <Icon className="size-[1em] shrink-0" aria-hidden="true" />
-      {money}
+      {money ? <Sensitive>{money}</Sensitive> : null}
       {money && percent ? <span className="opacity-80">({percent})</span> : percent}
     </span>
   );
@@ -83,10 +84,8 @@ export function DeltaChip({
     value === undefined || value === null ? null : Math.abs(value) < ZERO_BELOW ? 0 : value;
   const reference = amount ?? pct ?? 0;
   const Icon = reference > 0 ? ArrowUpRightIcon : reference < 0 ? ArrowDownRightIcon : MinusIcon;
-  const parts = [
-    amount === null ? null : `${amount > 0 ? "+" : ""}${formatBRL(amount)}`,
-    pct === undefined || pct === null ? null : formatSignedPercent(pct),
-  ].filter(Boolean);
+  const money = amount === null ? null : `${amount > 0 ? "+" : ""}${formatBRL(amount)}`;
+  const percent = pct === undefined || pct === null ? null : formatSignedPercent(pct);
   return (
     <span
       className={cn(
@@ -101,7 +100,9 @@ export function DeltaChip({
       )}
     >
       {showIcon ? <Icon className="size-3.5 shrink-0" aria-hidden="true" /> : null}
-      {parts.join(" · ")}
+      {money ? <Sensitive>{money}</Sensitive> : null}
+      {money && percent ? " · " : null}
+      {percent}
       {suffix ? <span className="font-normal">{suffix}</span> : null}
     </span>
   );

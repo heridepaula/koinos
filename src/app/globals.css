@@ -3,6 +3,8 @@
 @import "shadcn/tailwind.css";
 
 @custom-variant dark (&:is(.dark *));
+/* Valores da carteira à mostra (o olho da barra, privacy-toggle.tsx). */
+@custom-variant values-visible (&:where([data-privacy="visible"] *));
 
 @theme inline {
   --color-background: var(--background);
@@ -735,6 +737,23 @@
 }
 
 @layer components {
+  /*
+   * O olho da barra (sensitive.tsx): sem `data-privacy="visible"` no <html>, cada valor dá lugar
+   * à máscara, e os gráficos de R$ perdem os rótulos do eixo Y (as barras e linhas ficam).
+   */
+  :root:not([data-privacy="visible"]) [data-sensitive-value],
+  :root[data-privacy="visible"] [data-sensitive-mask] {
+    display: none;
+  }
+  [data-sensitive-mask] {
+    white-space: nowrap;
+  }
+  :root:not([data-privacy="visible"])
+    [data-sensitive-axis]
+    .recharts-yAxis
+    .recharts-cartesian-axis-tick-value {
+    visibility: hidden;
+  }
   /*
    * Card com tabela: fundo opaco, da mesma cor da coluna fixa (bg-card). Com o fundo translúcido,
    * a coluna fixa aparecia como uma faixa de outro tom.

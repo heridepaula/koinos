@@ -7,6 +7,7 @@ import { Card, CardContent } from "@/shared/ui/card";
 import type { AllocationSlice, PortfolioSummary } from "../domain/types";
 import { categoryColor } from "./category-colors";
 import { ResultBreakdown } from "./result-breakdown";
+import { Sensitive } from "@/shared/components/sensitive";
 
 /**
  * Topo do dashboard: o patrimônio (o número principal, em titânio escovado, com a composição da
@@ -59,16 +60,25 @@ export function SummaryCards({
             icon={HandCoinsIcon}
             tile="[--tile:var(--tile-teal)]"
             label="Proventos recebidos"
-            value={formatBRL(summary.dividendsReceived)}
+            value={<Sensitive>{formatBRL(summary.dividendsReceived)}</Sensitive>}
           >
             <StatList>
-              <StatRow label="Últimos 12 meses" value={formatBRL(summary.dividendPace.last12m)} />
+              <StatRow
+                label="Últimos 12 meses"
+                value={<Sensitive>{formatBRL(summary.dividendPace.last12m)}</Sensitive>}
+              />
               <StatRow
                 label="Média por mês (12 meses)"
-                value={formatBRL(summary.dividendPace.monthlyAverage12m)}
+                value={<Sensitive>{formatBRL(summary.dividendPace.monthlyAverage12m)}</Sensitive>}
               />
-              <StatRow label={`Em ${year}`} value={formatBRL(summary.dividendPace.thisYear)} />
-              <StatRow label={`Em ${year - 1}`} value={formatBRL(summary.dividendPace.lastYear)} />
+              <StatRow
+                label={`Em ${year}`}
+                value={<Sensitive>{formatBRL(summary.dividendPace.thisYear)}</Sensitive>}
+              />
+              <StatRow
+                label={`Em ${year - 1}`}
+                value={<Sensitive>{formatBRL(summary.dividendPace.lastYear)}</Sensitive>}
+              />
             </StatList>
           </MetricCard>
           <MetricCard
@@ -78,7 +88,10 @@ export function SummaryCards({
             value={summary.dy12m === null ? "—" : formatPercent(summary.dy12m)}
           >
             <StatList>
-              <StatRow label="Renda mensal estimada" value={formatBRL(summary.monthlyIncome)} />
+              <StatRow
+                label="Renda mensal estimada"
+                value={<Sensitive>{formatBRL(summary.monthlyIncome)}</Sensitive>}
+              />
               {/* Logo abaixo da renda mensal: a comparação é dela com o que entrou por mês. */}
               <StatRow
                 label="Vs. média de 12 meses"
@@ -86,7 +99,10 @@ export function SummaryCards({
                   summary.incomeVsAverage === null ? "—" : <Delta pct={summary.incomeVsAverage} />
                 }
               />
-              <StatRow label="Renda anual estimada" value={formatBRL(summary.monthlyIncome * 12)} />
+              <StatRow
+                label="Renda anual estimada"
+                value={<Sensitive>{formatBRL(summary.monthlyIncome * 12)}</Sensitive>}
+              />
               <StatRow
                 label="Yield sobre o custo"
                 value={summary.yieldOnCost === null ? "—" : formatPercent(summary.yieldOnCost)}
@@ -120,12 +136,12 @@ function PatrimonyCard({
           <div className="grid gap-2">
             <p className="text-subheadline text-muted-foreground">Patrimônio</p>
             <p className="text-large-title tabular-nums @min-[560px]:text-display">
-              {formatBRL(summary.patrimony)}
+              <Sensitive>{formatBRL(summary.patrimony)}</Sensitive>
             </p>
             <DeltaChip value={summary.dayChange} pct={summary.dayChangePct} suffix="hoje" />
           </div>
           <dl className="grid grid-cols-2 gap-x-10 gap-y-4 @min-[960px]:order-last">
-            <Stat label="Investido" value={formatBRL(summary.invested)} />
+            <Stat label="Investido" value={<Sensitive>{formatBRL(summary.invested)}</Sensitive>} />
             <Stat label="Ativos" value={summary.positionsCount} />
           </dl>
           <Composition

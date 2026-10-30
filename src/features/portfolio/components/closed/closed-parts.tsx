@@ -6,6 +6,7 @@ import { cn } from "@/shared/lib/utils";
 import { Badge } from "@/shared/ui/badge";
 import { FII_CAPITAL_GAINS_RATE } from "../../domain/closed-positions";
 import type { ClosedPositionsView } from "../../domain/types";
+import { Sensitive } from "@/shared/components/sensitive";
 
 type Row = ClosedPositionsView["rows"][number];
 
@@ -87,7 +88,13 @@ export function ClosedList({
               )}
               {tax ? (
                 <span className="text-footnote text-muted-foreground tabular-nums">
-                  {row.estimatedTax > 0 ? `IR ${formatBRL(row.estimatedTax)}` : "sem IR"}
+                  {row.estimatedTax > 0 ? (
+                    <>
+                      IR <Sensitive>{formatBRL(row.estimatedTax)}</Sensitive>
+                    </>
+                  ) : (
+                    "sem IR"
+                  )}
                 </span>
               ) : null}
             </div>

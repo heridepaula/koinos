@@ -5,6 +5,7 @@ import type { MonthlyContribution } from "@/features/transactions";
 import { ChartPlaceholder } from "@/shared/components/chart-placeholder";
 import { formatBRL } from "@/shared/lib/format";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/shared/ui/card";
+import { Sensitive } from "@/shared/components/sensitive";
 
 const PLOT_SIZE = "aspect-auto h-56 w-full md:h-72";
 
@@ -25,7 +26,7 @@ export function ContributionsChart({ data }: { data: MonthlyContribution[] }) {
         <CardTitle>Aportes por mês</CardTitle>
         <CardDescription>
           {monthsWithAporte} de {data.length} meses com aporte · média de{" "}
-          {formatBRL(data.length > 0 ? total / data.length : 0)} por mês
+          <Sensitive>{formatBRL(data.length > 0 ? total / data.length : 0)}</Sensitive> por mês
         </CardDescription>
       </CardHeader>
       <CardContent>

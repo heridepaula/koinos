@@ -10,6 +10,7 @@ import { getCurrentUser } from "@/features/auth/server";
 import { AppSidebar } from "@/shared/components/app-sidebar";
 import { AutoHideHeader } from "@/shared/components/auto-hide-header";
 import { MobileNavBar } from "@/shared/components/mobile-nav-bar";
+import { PrivacyToggle } from "@/shared/components/privacy-toggle";
 import { PointerGlow } from "@/shared/components/pointer-glow";
 import { QueryProvider } from "@/shared/components/query-provider";
 import { TabBar } from "@/shared/components/tab-bar";
@@ -68,6 +69,7 @@ export default function AppLayout({ children }: { children: ReactNode }) {
                 <ToolbarTitle />
               </div>
               <div className={TOOLBAR_CAPSULE}>
+                <PrivacyToggle />
                 <ThemeToggle />
               </div>
             </AutoHideHeader>

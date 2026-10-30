@@ -15,6 +15,7 @@ import { Drawer, DrawerBody, DrawerContent, DrawerHeader, DrawerTitle } from "@/
 import { SegmentedControl } from "@/shared/ui/segmented-control";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/shared/ui/table";
 import type { DividendsView } from "../../domain/types";
+import { QUANTITY_MASK, Sensitive } from "@/shared/components/sensitive";
 
 const GROUPINGS = ["mes", "ano", "papel"] as const;
 type Grouping = (typeof GROUPINGS)[number];
@@ -169,13 +170,13 @@ function MonthMatrix({ view }: { view: HistoryData }) {
                           backgroundColor: `color-mix(in oklab, var(--chart-2) ${strength}%, transparent)`,
                         }}
                       >
-                        {formatBRL(group.total)}
+                        <Sensitive>{formatBRL(group.total)}</Sensitive>
                       </button>
                     </TableCell>
                   );
                 })}
                 <TableCell className="text-right font-semibold tabular-nums">
-                  {formatBRL(year.total)}
+                  <Sensitive>{formatBRL(year.total)}</Sensitive>
                 </TableCell>
               </TableRow>
             ))}
@@ -191,14 +192,16 @@ function MonthMatrix({ view }: { view: HistoryData }) {
               <span className="font-normal text-muted-foreground">
                 {selected.byTicker.length} {selected.byTicker.length === 1 ? "FII" : "FIIs"}
               </span>
-              <span className="ml-auto tabular-nums">{formatBRL(selected.total)}</span>
+              <span className="ml-auto tabular-nums">
+                <Sensitive>{formatBRL(selected.total)}</Sensitive>
+              </span>
             </h3>
             <ul className="grid gap-x-8 gap-y-1 text-sm sm:grid-cols-2 lg:grid-cols-3">
               {selected.byTicker.map((item) => (
                 <li key={item.ticker} className="flex gap-2">
                   <span>{item.ticker}</span>
                   <span className="ml-auto text-muted-foreground tabular-nums">
-                    {formatBRL(item.amount)}
+                    <Sensitive>{formatBRL(item.amount)}</Sensitive>
                   </span>
                 </li>
               ))}
@@ -246,7 +249,7 @@ function MonthCalendar({
         <p className="grid text-center" aria-live="polite">
           <span className="text-headline">{year.year}</span>
           <span className="text-footnote text-muted-foreground tabular-nums">
-            {formatBRL(year.total)}
+            <Sensitive>{formatBRL(year.total)}</Sensitive>
           </span>
         </p>
         <Button
@@ -293,7 +296,7 @@ function MonthCalendar({
               >
                 <span className="text-caption capitalize">{label}</span>
                 <span className="text-footnote font-semibold tabular-nums">
-                  {formatCompactNumber(item.total)}
+                  <Sensitive mask={QUANTITY_MASK}>{formatCompactNumber(item.total)}</Sensitive>
                 </span>
               </button>
             </li>
@@ -312,7 +315,9 @@ function MonthCalendar({
               </DrawerHeader>
               <DrawerBody className="grid content-start gap-5">
                 <div className="grid justify-items-center gap-1">
-                  <p className="text-title-1 tabular-nums">{formatBRL(group.total)}</p>
+                  <p className="text-title-1 tabular-nums">
+                    <Sensitive>{formatBRL(group.total)}</Sensitive>
+                  </p>
                   <p className="text-footnote text-muted-foreground">
                     {group.byTicker.length} {group.byTicker.length === 1 ? "FII" : "FIIs"}
                   </p>
@@ -322,7 +327,7 @@ function MonthCalendar({
                     <InsetValueRow
                       key={item.ticker}
                       label={item.ticker}
-                      value={formatBRL(item.amount)}
+                      value={<Sensitive>{formatBRL(item.amount)}</Sensitive>}
                     />
                   ))}
                 </InsetGroup>
@@ -339,7 +344,15 @@ function MonthCalendar({
  * Célula das listas do celular: o nome e o valor na primeira linha, o detalhe na de baixo, em
  * texto secundário, com a largura toda (não disputa espaço com o nome).
  */
-function PhoneRow({ lead, value, detail }: { lead: ReactNode; value: string; detail: string }) {
+function PhoneRow({
+  lead,
+  value,
+  detail,
+}: {
+  lead: ReactNode;
+  value: ReactNode;
+  detail: ReactNode;
+}) {
   return (
     <li className="grid gap-1 px-(--card-spacing) py-3">
       <div className="flex items-center justify-between gap-3">
@@ -359,8 +372,13 @@ function ByYear({ rows }: { rows: DividendsView["byYear"] }) {
           <PhoneRow
             key={row.year}
             lead={<span className="text-headline">{row.year}</span>}
-            value={formatBRL(row.total)}
-            detail={`${row.months} ${row.months === 1 ? "mês" : "meses"} · média ${formatBRL(row.monthlyAverage)}`}
+            value={<Sensitive>{formatBRL(row.total)}</Sensitive>}
+            detail={
+              <>
+                {row.months} {row.months === 1 ? "mês" : "meses"} · média{" "}
+                <Sensitive>{formatBRL(row.monthlyAverage)}</Sensitive>
+              </>
+            }
           />
         ))}
       </ul>
@@ -377,10 +395,12 @@ function ByYear({ rows }: { rows: DividendsView["byYear"] }) {
           {rows.map((row) => (
             <TableRow key={row.year}>
               <TableCell className="pl-(--card-spacing) font-medium">{row.year}</TableCell>
-              <TableCell className="text-right tabular-nums">{formatBRL(row.total)}</TableCell>
+              <TableCell className="text-right tabular-nums">
+                <Sensitive>{formatBRL(row.total)}</Sensitive>
+              </TableCell>
               <TableCell className="text-right tabular-nums">{row.months}</TableCell>
               <TableCell className="pr-(--card-spacing) text-right tabular-nums">
-                {formatBRL(row.monthlyAverage)}
+                <Sensitive>{formatBRL(row.monthlyAverage)}</Sensitive>
               </TableCell>
             </TableRow>
           ))}
@@ -398,7 +418,7 @@ function ByTicker({ rows }: { rows: DividendsView["byTicker"] }) {
           <PhoneRow
             key={row.ticker}
             lead={<AssetLabel ticker={row.ticker} name={row.name} logoUrl={row.logoUrl} />}
-            value={formatBRL(row.total)}
+            value={<Sensitive>{formatBRL(row.total)}</Sensitive>}
             detail={`${row.payments} ${row.payments === 1 ? "pagamento" : "pagamentos"} · último ${formatTradeDate(row.lastPaidAt)}`}
           />
         ))}
@@ -418,7 +438,9 @@ function ByTicker({ rows }: { rows: DividendsView["byTicker"] }) {
               <TableCell className="pl-(--card-spacing)">
                 <AssetLabel ticker={row.ticker} name={row.name} logoUrl={row.logoUrl} />
               </TableCell>
-              <TableCell className="text-right tabular-nums">{formatBRL(row.total)}</TableCell>
+              <TableCell className="text-right tabular-nums">
+                <Sensitive>{formatBRL(row.total)}</Sensitive>
+              </TableCell>
               <TableCell className="text-right tabular-nums">{row.payments}</TableCell>
               <TableCell className="pr-(--card-spacing) text-right tabular-nums">
                 {formatTradeDate(row.lastPaidAt)}

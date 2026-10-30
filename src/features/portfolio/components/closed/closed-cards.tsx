@@ -15,6 +15,7 @@ import { formatBRL, formatPercent, formatQuantity } from "@/shared/lib/format";
 import { Button } from "@/shared/ui/button";
 import { FII_CAPITAL_GAINS_RATE } from "../../domain/closed-positions";
 import type { ClosedPositionsTotals } from "../../domain/types";
+import { Sensitive } from "@/shared/components/sensitive";
 
 const positions = (count: number) => `${count} ${count === 1 ? "posição" : "posições"}`;
 const taxLabel = `IR estimado (${formatPercent(FII_CAPITAL_GAINS_RATE, 0)} do lucro)`;
@@ -35,8 +36,11 @@ export function ClosedPositionsCards({ totals }: { totals: ClosedPositionsTotals
           value={<Delta value={totals.realizedPnL} />}
         >
           <StatList>
-            <StatRow label="Vendido" value={formatBRL(totals.proceeds)} />
-            <StatRow label="Custo (PM)" value={formatBRL(totals.costBasis)} />
+            <StatRow label="Vendido" value={<Sensitive>{formatBRL(totals.proceeds)}</Sensitive>} />
+            <StatRow
+              label="Custo (PM)"
+              value={<Sensitive>{formatBRL(totals.costBasis)}</Sensitive>}
+            />
             <StatRow
               label={`${totals.withProfit} com lucro`}
               value={<Delta value={totals.profit} />}
@@ -59,7 +63,7 @@ export function ClosedPositionsCards({ totals }: { totals: ClosedPositionsTotals
               </span>
             </span>
             <span className="text-muted-foreground tabular-nums">
-              {formatBRL(totals.estimatedTax)}
+              <Sensitive>{formatBRL(totals.estimatedTax)}</Sensitive>
             </span>
             <ChevronRightIcon className="size-4 text-muted-foreground" aria-hidden="true" />
           </Link>
@@ -73,8 +77,11 @@ export function ClosedPositionsCards({ totals }: { totals: ClosedPositionsTotals
           value={<Delta value={totals.realizedPnL} />}
         >
           <StatList>
-            <StatRow label="Vendido" value={formatBRL(totals.proceeds)} />
-            <StatRow label="Custo (PM)" value={formatBRL(totals.costBasis)} />
+            <StatRow label="Vendido" value={<Sensitive>{formatBRL(totals.proceeds)}</Sensitive>} />
+            <StatRow
+              label="Custo (PM)"
+              value={<Sensitive>{formatBRL(totals.costBasis)}</Sensitive>}
+            />
           </StatList>
         </MetricCard>
         <MetricCard
@@ -98,7 +105,7 @@ export function ClosedPositionsCards({ totals }: { totals: ClosedPositionsTotals
           icon={ReceiptTextIcon}
           tile="[--tile:var(--tile-indigo)]"
           label={taxLabel}
-          value={formatBRL(totals.estimatedTax)}
+          value={<Sensitive>{formatBRL(totals.estimatedTax)}</Sensitive>}
         >
           <div className="border-t border-border/70 pt-3">
             {/* Outline, não link: o azul do link fica abaixo de 4,5:1 sobre o card. */}
@@ -129,7 +136,7 @@ export function ClosedTaxCards({ totals }: { totals: ClosedPositionsTotals }) {
         icon={ReceiptTextIcon}
         tile="[--tile:var(--tile-indigo)]"
         label={taxLabel}
-        value={formatBRL(totals.estimatedTax)}
+        value={<Sensitive>{formatBRL(totals.estimatedTax)}</Sensitive>}
         className="@min-[720px]/closed:hidden"
       >
         <div className="grid gap-3">
@@ -153,7 +160,7 @@ export function ClosedTaxCards({ totals }: { totals: ClosedPositionsTotals }) {
           icon={ReceiptTextIcon}
           tile="[--tile:var(--tile-indigo)]"
           label={taxLabel}
-          value={formatBRL(totals.estimatedTax)}
+          value={<Sensitive>{formatBRL(totals.estimatedTax)}</Sensitive>}
         >
           <MetricNote>Por posição, sem isenção e sem compensar os prejuízos.</MetricNote>
         </MetricCard>

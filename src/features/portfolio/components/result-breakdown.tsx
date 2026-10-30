@@ -3,6 +3,7 @@
 import { InfoIcon } from "lucide-react";
 import { formatBRL } from "@/shared/lib/format";
 import { Popover, PopoverContent, PopoverTitle, PopoverTrigger } from "@/shared/ui/popover";
+import { Sensitive } from "@/shared/components/sensitive";
 
 /**
  * Rótulo "Resultado total ⓘ" que abre a conta (ao passar o mouse ou tocar): o L/P da cotação das
@@ -44,16 +45,24 @@ export function ResultBreakdown({
         </p>
         <dl className="grid grid-cols-[1fr_auto] gap-x-3 gap-y-1 text-sm tabular-nums">
           <dt>Cotação (posições abertas)</dt>
-          <dd className="text-right">{formatBRL(pnl)}</dd>
+          <dd className="text-right">
+            <Sensitive>{formatBRL(pnl)}</Sensitive>
+          </dd>
           <dt>+ Proventos recebidos</dt>
-          <dd className="text-right">{formatBRL(dividends)}</dd>
+          <dd className="text-right">
+            <Sensitive>{formatBRL(dividends)}</Sensitive>
+          </dd>
           <dt>= L/P com proventos</dt>
-          <dd className="text-right">{formatBRL(withDividends)}</dd>
+          <dd className="text-right">
+            <Sensitive>{formatBRL(withDividends)}</Sensitive>
+          </dd>
           <dt>+ Vendas (realizado)</dt>
-          <dd className="text-right">{formatBRL(realized)}</dd>
+          <dd className="text-right">
+            <Sensitive>{formatBRL(realized)}</Sensitive>
+          </dd>
           <dt className="border-t border-border pt-1 font-semibold">= Resultado total</dt>
           <dd className="border-t border-border pt-1 text-right font-semibold">
-            {formatBRL(total)}
+            <Sensitive>{formatBRL(total)}</Sensitive>
           </dd>
         </dl>
       </PopoverContent>

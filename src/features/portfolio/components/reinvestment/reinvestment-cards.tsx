@@ -14,6 +14,7 @@ import { Input } from "@/shared/ui/input";
 import { setReinvestmentPercentAction } from "../../actions";
 import { DEFAULT_REINVESTMENT_PERCENT, roundPercent, splitAporte } from "../../domain/reinvestment";
 import type { ReinvestmentMonth } from "../../domain/types";
+import { Sensitive } from "@/shared/components/sensitive";
 
 /**
  * Cards do mês: aporte, proventos, a % reinvestida (editável) e a divisão do aporte. No card
@@ -51,7 +52,7 @@ export function ReinvestmentCards({ current }: { current: ReinvestmentMonth }) {
         icon={WalletIcon}
         tile="[--tile:var(--tile-blue)]"
         label="Aporte no mês"
-        value={formatBRL(current.aporte)}
+        value={<Sensitive>{formatBRL(current.aporte)}</Sensitive>}
         className="@min-[720px]/reinv:hidden"
       >
         <div className="grid gap-3">
@@ -66,7 +67,7 @@ export function ReinvestmentCards({ current }: { current: ReinvestmentMonth }) {
                   Dos proventos · {formatPercent(dividendsShare, 0)}
                 </span>
               }
-              value={formatBRL(split.fromDividends)}
+              value={<Sensitive>{formatBRL(split.fromDividends)}</Sensitive>}
             />
             <StatRow
               label={
@@ -75,14 +76,18 @@ export function ReinvestmentCards({ current }: { current: ReinvestmentMonth }) {
                   Do bolso · {formatPercent(1 - dividendsShare, 0)}
                 </span>
               }
-              value={formatBRL(split.fromPocket)}
+              value={<Sensitive>{formatBRL(split.fromPocket)}</Sensitive>}
             />
-            <StatRow label="Proventos recebidos" value={formatBRL(current.dividends)} />
+            <StatRow
+              label="Proventos recebidos"
+              value={<Sensitive>{formatBRL(current.dividends)}</Sensitive>}
+            />
             <StatRow label="Compras" value={formatQuantity(current.purchaseCount)} />
           </StatList>
           {split.unspent > 0.005 ? (
             <p className="text-footnote text-muted-foreground">
-              {formatBRL(split.unspent)} dos proventos ficaram sem compra no mês.
+              <Sensitive>{formatBRL(split.unspent)}</Sensitive> dos proventos ficaram sem compra no
+              mês.
             </p>
           ) : null}
         </div>
@@ -92,7 +97,7 @@ export function ReinvestmentCards({ current }: { current: ReinvestmentMonth }) {
           icon={WalletIcon}
           tile="[--tile:var(--tile-blue)]"
           label="Aporte no mês"
-          value={formatBRL(current.aporte)}
+          value={<Sensitive>{formatBRL(current.aporte)}</Sensitive>}
           className="hidden @min-[720px]/reinv:flex"
         >
           <StatList>
@@ -103,7 +108,7 @@ export function ReinvestmentCards({ current }: { current: ReinvestmentMonth }) {
           icon={HandCoinsIcon}
           tile="[--tile:var(--tile-teal)]"
           label="Proventos recebidos no mês"
-          value={formatBRL(current.dividends)}
+          value={<Sensitive>{formatBRL(current.dividends)}</Sensitive>}
           className="hidden @min-[720px]/reinv:flex"
         >
           <StatList>
@@ -175,14 +180,19 @@ export function ReinvestmentCards({ current }: { current: ReinvestmentMonth }) {
                 <span className="flex items-center gap-2">
                   <span className="size-2.5 rounded-[2px] bg-(--chart-2)" aria-hidden="true" />
                   Proventos{" "}
-                  <strong className="tabular-nums">{formatBRL(split.fromDividends)}</strong>
+                  <strong className="tabular-nums">
+                    <Sensitive>{formatBRL(split.fromDividends)}</Sensitive>
+                  </strong>
                   <span className="text-muted-foreground tabular-nums">
                     {formatPercent(dividendsShare, 1)}
                   </span>
                 </span>
                 <span className="flex items-center gap-2">
                   <span className="size-2.5 rounded-[2px] bg-(--chart-1)" aria-hidden="true" />
-                  Bolso <strong className="tabular-nums">{formatBRL(split.fromPocket)}</strong>
+                  Bolso{" "}
+                  <strong className="tabular-nums">
+                    <Sensitive>{formatBRL(split.fromPocket)}</Sensitive>
+                  </strong>
                   <span className="text-muted-foreground tabular-nums">
                     {formatPercent(1 - dividendsShare, 1)}
                   </span>
@@ -192,7 +202,8 @@ export function ReinvestmentCards({ current }: { current: ReinvestmentMonth }) {
           )}
           {split.unspent > 0.005 ? (
             <p className="text-muted-foreground">
-              {formatBRL(split.unspent)} dos proventos ficaram sem compra no mês.
+              <Sensitive>{formatBRL(split.unspent)}</Sensitive> dos proventos ficaram sem compra no
+              mês.
             </p>
           ) : null}
         </CardContent>

@@ -10,6 +10,7 @@ import { AddAssetForm } from "./table/add-asset-form";
 import { PercentFixPanel } from "./table/percent-fix-panel";
 import { StrategyList } from "./table/strategy-list";
 import { StrategyRow } from "./table/strategy-row";
+import { Sensitive } from "@/shared/components/sensitive";
 
 const EXPLANATION =
   "Ranking, preço teto e % sugerida pela Suno. Os campos salvam ao sair. Sem teto, o ativo não recebe aporte.";
@@ -105,7 +106,9 @@ export function StrategyTable({
           </span>
           <span>
             Valor da estratégia:{" "}
-            <span className="text-foreground tabular-nums">{formatBRL(strategyValue)}</span>
+            <span className="text-foreground tabular-nums">
+              <Sensitive>{formatBRL(strategyValue)}</Sensitive>
+            </span>
           </span>
           {weightsWarning && !showFix ? <span className="text-warn">{weightsWarning}</span> : null}
         </div>

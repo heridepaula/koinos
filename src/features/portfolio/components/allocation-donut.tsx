@@ -5,6 +5,7 @@ import { formatBRL, formatPercent } from "@/shared/lib/format";
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/shared/ui/chart";
 import type { AllocationSlice } from "../domain/types";
 import { ChartTooltipRow } from "./chart-tooltip-row";
+import { Sensitive } from "@/shared/components/sensitive";
 
 /** O donut da alocação, com a cor de cada fatia já escolhida. Carregado sob demanda. */
 export function AllocationDonut({
@@ -25,7 +26,12 @@ export function AllocationDonut({
                 <ChartTooltipRow
                   color={String(item.payload?.fill)}
                   label={name}
-                  value={`${formatBRL(Number(value))} · ${formatPercent(Number(item.payload?.share ?? 0), 1)}`}
+                  value={
+                    <>
+                      <Sensitive>{formatBRL(Number(value))}</Sensitive> ·{" "}
+                      {formatPercent(Number(item.payload?.share ?? 0), 1)}
+                    </>
+                  }
                 />
               )}
             />

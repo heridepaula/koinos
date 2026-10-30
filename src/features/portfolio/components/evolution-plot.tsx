@@ -12,6 +12,7 @@ import {
 } from "@/shared/ui/chart";
 import type { EvolutionPoint } from "../domain/types";
 import { ChartTooltipRow } from "./chart-tooltip-row";
+import { Sensitive } from "@/shared/components/sensitive";
 
 const config = {
   patrimony: { label: "Patrimônio", color: "var(--chart-1)" },
@@ -29,7 +30,7 @@ export function EvolutionPlot({
   className: string;
 }) {
   return (
-    <ChartContainer config={config} className={className}>
+    <ChartContainer data-sensitive-axis="" config={config} className={className}>
       <ComposedChart data={points} margin={{ left: 4, right: 12, top: 8 }}>
         <CartesianGrid vertical={false} />
         <XAxis
@@ -55,7 +56,7 @@ export function EvolutionPlot({
                 <ChartTooltipRow
                   color={`var(--color-${name})`}
                   label={config[name as keyof typeof config]?.label ?? name}
-                  value={formatBRL(Number(value))}
+                  value={<Sensitive>{formatBRL(Number(value))}</Sensitive>}
                 />
               )}
             />

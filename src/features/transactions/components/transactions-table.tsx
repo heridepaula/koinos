@@ -19,6 +19,7 @@ import { TransactionFilters, TYPES } from "./table/transaction-filters";
 import { TransactionType } from "./table/transaction-type";
 import { TransactionsList } from "./table/transactions-list";
 import type { TransactionRow } from "./types";
+import { QUANTITY_MASK, Sensitive } from "@/shared/components/sensitive";
 
 const SORT_KEYS = ["data", "ativo", "qtd", "preco", "total"] as const;
 type SortKey = (typeof SORT_KEYS)[number];
@@ -171,14 +172,16 @@ export function TransactionsTable({ rows }: { rows: TransactionRow[] }) {
                       <TransactionType row={row} />
                     </TableCell>
                     <TableCell className="text-right tabular-nums">
-                      {formatQuantity(row.quantity)}
+                      <Sensitive mask={QUANTITY_MASK}>{formatQuantity(row.quantity)}</Sensitive>
                     </TableCell>
                     <TableCell className="text-right tabular-nums">
                       {formatBRL(row.unitPrice)}
                     </TableCell>
-                    <TableCell className="text-right tabular-nums">{formatBRL(row.fees)}</TableCell>
+                    <TableCell className="text-right tabular-nums">
+                      <Sensitive>{formatBRL(row.fees)}</Sensitive>
+                    </TableCell>
                     <TableCell className="text-right font-medium tabular-nums">
-                      {formatBRL(total(row))}
+                      <Sensitive>{formatBRL(total(row))}</Sensitive>
                     </TableCell>
                     <TableCell className="pr-(--card-spacing) text-right">
                       <TransactionActions row={row} />

@@ -12,6 +12,7 @@ import {
 } from "@/shared/ui/chart";
 import type { DividendsView } from "../../domain/types";
 import { ChartTooltipRow } from "../chart-tooltip-row";
+import { Sensitive } from "@/shared/components/sensitive";
 
 // Uma série só: o título nomeia o gráfico, sem legenda. Cor validada contra o card nos dois temas.
 const config = { amount: { label: "Proventos", color: "var(--chart-2)" } } satisfies ChartConfig;
@@ -35,7 +36,7 @@ function MonthDelta({ amount, previous }: { amount: number; previous: number | u
       <Icon className="size-3.5" aria-hidden />
       <span>
         {up ? "+" : "−"}
-        {formatBRL(Math.abs(delta))}
+        <Sensitive>{formatBRL(Math.abs(delta))}</Sensitive>
         {previous > 0 ? ` (${formatSignedPercent(delta / previous, 1)})` : null}
       </span>
       <span className="text-muted-foreground">vs. mês anterior</span>
@@ -56,7 +57,7 @@ export function DividendsPlot({
     chart.slice(1).map((point, index) => [point.month, chart[index].amount]),
   );
   return (
-    <ChartContainer config={config} className={className}>
+    <ChartContainer data-sensitive-axis="" config={config} className={className}>
       <BarChart data={chart} margin={{ left: 4, right: 12, top: 8 }}>
         <CartesianGrid vertical={false} />
         <XAxis
@@ -82,7 +83,7 @@ export function DividendsPlot({
                   <ChartTooltipRow
                     color="var(--color-amount)"
                     label="Proventos"
-                    value={formatBRL(Number(value))}
+                    value={<Sensitive>{formatBRL(Number(value))}</Sensitive>}
                   />
                   <MonthDelta
                     amount={Number(value)}

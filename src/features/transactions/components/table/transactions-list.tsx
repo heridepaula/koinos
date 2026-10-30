@@ -8,6 +8,7 @@ import { Button } from "@/shared/ui/button";
 import { TransactionDialog } from "../transaction-dialog";
 import type { TransactionRow } from "../types";
 import { KIND_LABELS } from "./transaction-type";
+import { QUANTITY_MASK, Sensitive } from "@/shared/components/sensitive";
 
 const STEP = 20;
 
@@ -81,7 +82,7 @@ function CellContent({ row, total }: { row: TransactionRow; total: number }) {
       <div className="flex items-baseline justify-between gap-3">
         <span className="text-headline">{row.ticker}</span>
         <span className="text-headline font-normal whitespace-nowrap tabular-nums">
-          {formatBRL(total)}
+          <Sensitive>{formatBRL(total)}</Sensitive>
         </span>
       </div>
       <p className="truncate text-footnote text-muted-foreground tabular-nums">
@@ -89,8 +90,14 @@ function CellContent({ row, total }: { row: TransactionRow; total: number }) {
           {row.type === "BUY" ? "Compra" : "Venda"}
         </span>
         {row.kind !== "NEGOCIO" ? ` · ${KIND_LABELS[row.kind]}` : ""} · {formatTradeDate(row.date)}{" "}
-        · {formatQuantity(row.quantity)} × {formatBRL(row.unitPrice)}
-        {row.fees > 0 ? ` · taxas ${formatBRL(row.fees)}` : ""}
+        · <Sensitive mask={QUANTITY_MASK}>{formatQuantity(row.quantity)}</Sensitive> ×{" "}
+        {formatBRL(row.unitPrice)}
+        {row.fees > 0 ? (
+          <>
+            {" "}
+            · taxas <Sensitive>{formatBRL(row.fees)}</Sensitive>
+          </>
+        ) : null}
       </p>
       {row.notes ? (
         <p className="truncate text-footnote text-muted-foreground">{row.notes}</p>

@@ -17,6 +17,7 @@ import {
   DrawerTrigger,
 } from "@/shared/ui/drawer";
 import type { PositionRow } from "../domain/types";
+import { QUANTITY_MASK, Sensitive } from "@/shared/components/sensitive";
 
 /**
  * Celular: as posições numa lista como a do app Bolsa. Cada célula traz só o essencial (o ativo,
@@ -40,7 +41,7 @@ export function PositionsList({ rows }: { rows: PositionRow[] }) {
               </div>
               <div className="grid justify-items-end gap-0.5">
                 <span className="text-headline font-normal tabular-nums">
-                  {formatBRL(row.currentValue)}
+                  <Sensitive>{formatBRL(row.currentValue)}</Sensitive>
                 </span>
                 <Delta pct={row.pnlPct} className="text-footnote" />
               </div>
@@ -72,22 +73,33 @@ function PositionSheet({ row }: { row: PositionRow }) {
       <DrawerBody className="grid content-start gap-5">
         <div className="grid justify-items-start gap-2 px-1">
           <p className="text-footnote text-muted-foreground">Valor atual</p>
-          <p className="text-title-1 tabular-nums">{formatBRL(row.currentValue)}</p>
+          <p className="text-title-1 tabular-nums">
+            <Sensitive>{formatBRL(row.currentValue)}</Sensitive>
+          </p>
           <DeltaChip value={row.pnl} pct={row.pnlPct} />
         </div>
         <InsetGroup title="Posição">
-          <InsetValueRow label="Cotas" value={formatQuantity(row.quantity)} />
+          <InsetValueRow
+            label="Cotas"
+            value={<Sensitive mask={QUANTITY_MASK}>{formatQuantity(row.quantity)}</Sensitive>}
+          />
           <InsetValueRow label="Preço médio" value={formatBRL(row.averagePrice)} />
           <InsetValueRow
             label="Preço atual"
             value={row.price === null ? "—" : formatBRL(row.price)}
           />
-          <InsetValueRow label="Investido" value={formatBRL(row.totalCost)} />
+          <InsetValueRow
+            label="Investido"
+            value={<Sensitive>{formatBRL(row.totalCost)}</Sensitive>}
+          />
           <InsetValueRow label="% da carteira" value={formatPercent(row.portfolioWeight, 1)} />
         </InsetGroup>
         <InsetGroup title="Resultado">
           <InsetValueRow label="Cotação" value={<Delta value={row.pnl} />} />
-          <InsetValueRow label="Proventos" value={formatBRL(row.dividends)} />
+          <InsetValueRow
+            label="Proventos"
+            value={<Sensitive>{formatBRL(row.dividends)}</Sensitive>}
+          />
           <InsetValueRow label="Com proventos" value={<Delta value={row.pnlWithDividends} />} />
           <InsetValueRow label="Vendas" value={<Delta value={row.realizedPnL} />} />
           <InsetValueRow label="Resultado total" value={<Delta value={row.totalResult} />} strong />

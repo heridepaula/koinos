@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import { Geist_Mono, Inter } from "next/font/google";
 import { NuqsAdapter } from "nuqs/adapters/next/app";
+import { PRIVACY_SCRIPT } from "@/shared/components/privacy";
 import { ThemeProvider } from "@/shared/components/theme-provider";
 import { Toaster } from "@/shared/ui/sonner";
 import { TooltipProvider } from "@/shared/ui/tooltip";
@@ -38,6 +39,8 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
       className={`${inter.variable} ${geistMono.variable} h-full antialiased`}
     >
       <body className="min-h-full">
+        {/* Antes de tudo: os valores ocultos ou à mostra já na primeira pintura. */}
+        <script dangerouslySetInnerHTML={{ __html: PRIVACY_SCRIPT }} />
         <ThemeProvider
           attribute="class"
           defaultTheme="system"

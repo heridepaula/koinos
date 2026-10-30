@@ -16,6 +16,7 @@ import {
 import { SegmentedControl } from "@/shared/ui/segmented-control";
 import { InsetGroup, insetRowClass } from "./inset-list";
 import { NAV_ITEMS, isWithin } from "./nav-items";
+import { setValuesVisible, useValuesVisible } from "./privacy-toggle";
 
 const MORE_ITEMS = NAV_ITEMS.filter((item) => !item.tab);
 
@@ -25,6 +26,12 @@ const THEME_OPTIONS = [
   { value: "dark", label: "Escuro" },
 ] as const;
 type ThemeChoice = (typeof THEME_OPTIONS)[number]["value"];
+
+const VALUES_OPTIONS = [
+  { value: "hidden", label: "Ocultos" },
+  { value: "visible", label: "À mostra" },
+] as const;
+type ValuesChoice = (typeof VALUES_OPTIONS)[number]["value"];
 
 /**
  * A aba "Mais" do iPhone: uma folha com as páginas que não cabem na tab bar (com os azulejos da
@@ -72,6 +79,7 @@ export function MoreSheet({
             })}
           </InsetGroup>
           <ThemeSection />
+          <ValuesSection />
           {account}
         </DrawerBody>
       </DrawerContent>
@@ -90,6 +98,23 @@ function ThemeSection() {
         value={(theme as ThemeChoice | undefined) ?? "system"}
         options={THEME_OPTIONS}
         onChange={setTheme}
+        className="w-full"
+      />
+    </section>
+  );
+}
+
+/** O olho da barra do computador, ao lado da aparência: ao logar, os valores começam ocultos. */
+function ValuesSection() {
+  const visible = useValuesVisible();
+  return (
+    <section className="grid gap-1.5">
+      <h3 className="px-4 text-footnote font-medium text-muted-foreground">Valores</h3>
+      <SegmentedControl<ValuesChoice>
+        label="Valores"
+        value={visible ? "visible" : "hidden"}
+        options={VALUES_OPTIONS}
+        onChange={(choice) => setValuesVisible(choice === "visible")}
         className="w-full"
       />
     </section>

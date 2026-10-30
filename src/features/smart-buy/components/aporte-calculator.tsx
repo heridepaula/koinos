@@ -22,6 +22,7 @@ import { sunoCascade, type CascadeAsset, type ExclusionReason } from "../domain/
 import { ExcludedCard } from "./aporte/excluded-card";
 import { PRINCIPLES } from "./principles-banner";
 import { OrdersList, OrdersTable, type AssetMeta } from "./aporte/orders";
+import { Sensitive } from "@/shared/components/sensitive";
 
 export type { AssetMeta };
 
@@ -125,9 +126,18 @@ export function AporteCalculator({ assets, meta }: { assets: CascadeAsset[]; met
             <Card size="sm" className="@min-[720px]:hidden">
               <CardContent>
                 <StatList className="border-t-0 pt-0">
-                  <StatRow label="Aporte" value={formatBRL(result.amount)} />
-                  <StatRow label="Ordens" value={formatBRL(result.spent)} />
-                  <StatRow label="Sobra para o próximo aporte" value={formatBRL(result.leftover)} />
+                  <StatRow
+                    label="Aporte"
+                    value={<Sensitive>{formatBRL(result.amount)}</Sensitive>}
+                  />
+                  <StatRow
+                    label="Ordens"
+                    value={<Sensitive>{formatBRL(result.spent)}</Sensitive>}
+                  />
+                  <StatRow
+                    label="Sobra para o próximo aporte"
+                    value={<Sensitive>{formatBRL(result.leftover)}</Sensitive>}
+                  />
                 </StatList>
               </CardContent>
             </Card>
@@ -136,19 +146,19 @@ export function AporteCalculator({ assets, meta }: { assets: CascadeAsset[]; met
                 icon={WalletIcon}
                 tile="[--tile:var(--tile-blue)]"
                 label="Aporte"
-                value={formatBRL(result.amount)}
+                value={<Sensitive>{formatBRL(result.amount)}</Sensitive>}
               />
               <MetricCard
                 icon={ShoppingCartIcon}
                 tile="[--tile:var(--tile-green)]"
                 label="Ordens"
-                value={formatBRL(result.spent)}
+                value={<Sensitive>{formatBRL(result.spent)}</Sensitive>}
               />
               <MetricCard
                 icon={PiggyBankIcon}
                 tile="[--tile:var(--tile-orange)]"
                 label="Sobra para o próximo aporte"
-                value={formatBRL(result.leftover)}
+                value={<Sensitive>{formatBRL(result.leftover)}</Sensitive>}
               />
             </div>
           </div>

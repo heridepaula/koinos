@@ -20,6 +20,7 @@ import {
 } from "@/shared/ui/table";
 import type { ClosedPositionsView } from "../../domain/types";
 import { ClosedList, ClosedNotes, ClosedTickerCell } from "./closed-parts";
+import { Sensitive } from "@/shared/components/sensitive";
 
 /**
  * Uma linha por FII zerado: custo, vendido e resultado (o IR fica na página própria). As colunas
@@ -67,10 +68,10 @@ export function ClosedPositionsTable({ rows, totals }: ClosedPositionsView) {
                   {formatTradeDate(row.closedAt)}
                 </TableCell>
                 <TableCell className="hidden text-right tabular-nums @min-[720px]:table-cell">
-                  {row.sales > 0 ? formatBRL(row.costBasis) : "—"}
+                  {row.sales > 0 ? <Sensitive>{formatBRL(row.costBasis)}</Sensitive> : "—"}
                 </TableCell>
                 <TableCell className="hidden text-right tabular-nums @min-[480px]:table-cell">
-                  {row.sales > 0 ? formatBRL(row.proceeds) : "—"}
+                  {row.sales > 0 ? <Sensitive>{formatBRL(row.proceeds)}</Sensitive> : "—"}
                 </TableCell>
                 <TableCell className="pr-(--card-spacing) text-right">
                   {row.sales > 0 ? (
@@ -87,10 +88,10 @@ export function ClosedPositionsTable({ rows, totals }: ClosedPositionsView) {
               <TableCell className="pl-(--card-spacing) font-medium">Total</TableCell>
               <TableCell className="hidden @min-[600px]:table-cell" />
               <TableCell className="hidden text-right font-semibold tabular-nums @min-[720px]:table-cell">
-                {formatBRL(totals.costBasis)}
+                <Sensitive>{formatBRL(totals.costBasis)}</Sensitive>
               </TableCell>
               <TableCell className="hidden text-right font-semibold tabular-nums @min-[480px]:table-cell">
-                {formatBRL(totals.proceeds)}
+                <Sensitive>{formatBRL(totals.proceeds)}</Sensitive>
               </TableCell>
               <TableCell className="pr-(--card-spacing) text-right font-semibold">
                 <Delta value={totals.realizedPnL} />

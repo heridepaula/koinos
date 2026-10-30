@@ -10,6 +10,7 @@ import {
   type ChartConfig,
 } from "@/shared/ui/chart";
 import { ChartTooltipRow } from "./chart-tooltip-row";
+import { Sensitive } from "@/shared/components/sensitive";
 
 const config = { amount: { label: "Aporte", color: "var(--chart-1)" } } satisfies ChartConfig;
 
@@ -22,7 +23,7 @@ export function ContributionsPlot({
   className: string;
 }) {
   return (
-    <ChartContainer config={config} className={className}>
+    <ChartContainer data-sensitive-axis="" config={config} className={className}>
       <BarChart data={data} margin={{ left: 4, right: 12, top: 8 }}>
         <CartesianGrid vertical={false} />
         <XAxis
@@ -47,7 +48,7 @@ export function ContributionsPlot({
                 <ChartTooltipRow
                   color="var(--color-amount)"
                   label="Aporte"
-                  value={formatBRL(Number(value))}
+                  value={<Sensitive>{formatBRL(Number(value))}</Sensitive>}
                 />
               )}
             />

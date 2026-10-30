@@ -10,6 +10,7 @@ import { SegmentedControl } from "@/shared/ui/segmented-control";
 import { OTHERS_KEY, UNCATEGORIZED_KEY } from "../domain/allocation";
 import type { AllocationSlice } from "../domain/types";
 import { categoryColor, NEUTRAL_COLOR } from "./category-colors";
+import { Sensitive } from "@/shared/components/sensitive";
 
 const DONUT_SIZE = "mx-auto aspect-square w-full max-w-48";
 
@@ -79,7 +80,9 @@ function Donut({
               <span className="ml-auto text-muted-foreground tabular-nums">
                 {formatPercent(slice.share, 1)}
               </span>
-              <span className="w-28 text-right tabular-nums">{formatBRL(slice.value)}</span>
+              <span className="w-28 text-right tabular-nums">
+                <Sensitive>{formatBRL(slice.value)}</Sensitive>
+              </span>
             </li>
           ))}
         </ul>

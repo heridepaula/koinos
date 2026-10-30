@@ -2,6 +2,7 @@ import { CircleCheckIcon, ClockIcon, HandCoinsIcon } from "lucide-react";
 import { MetricCard, StatList, StatRow } from "@/shared/components/metric";
 import { formatBRL, formatMonth, formatPercent } from "@/shared/lib/format";
 import type { DividendMonthSummary } from "../../domain/types";
+import { Sensitive } from "@/shared/components/sensitive";
 
 /**
  * Mês atual em três cards de número: o que já caiu (extrato da B3), o que falta cair (a lista da
@@ -27,14 +28,14 @@ export function DividendMonthCards({
           icon={CircleCheckIcon}
           tile="[--tile:var(--tile-green)]"
           label={`Recebido em ${formatMonth(month.month)}`}
-          value={formatBRL(month.received)}
+          value={<Sensitive>{formatBRL(month.received)}</Sensitive>}
           className="hidden @min-[720px]/month:flex"
         />
         <MetricCard
           icon={ClockIcon}
           tile="[--tile:var(--tile-orange)]"
           label={upcomingLabel}
-          value={formatBRL(month.upcoming)}
+          value={<Sensitive>{formatBRL(month.upcoming)}</Sensitive>}
           className="hidden @min-[720px]/month:flex"
         >
           {forecastAsOf ? null : (
@@ -54,7 +55,7 @@ export function DividendMonthCards({
               <span className="hidden @min-[720px]/month:inline">Total do mês</span>
             </>
           }
-          value={formatBRL(month.total)}
+          value={<Sensitive>{formatBRL(month.total)}</Sensitive>}
           className="metal-ring brushed"
         >
           <div className="grid gap-3">
@@ -62,11 +63,11 @@ export function DividendMonthCards({
             <StatList className="@min-[720px]/month:hidden">
               <StatRow
                 label={`Recebido · ${formatPercent(share, 0)}`}
-                value={formatBRL(month.received)}
+                value={<Sensitive>{formatBRL(month.received)}</Sensitive>}
               />
               <StatRow
                 label={`${upcomingLabel} · ${formatPercent(1 - share, 0)}`}
-                value={formatBRL(month.upcoming)}
+                value={<Sensitive>{formatBRL(month.upcoming)}</Sensitive>}
               />
             </StatList>
           </div>

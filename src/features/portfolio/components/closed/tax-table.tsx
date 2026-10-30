@@ -20,6 +20,7 @@ import {
 } from "@/shared/ui/table";
 import type { ClosedPositionsView } from "../../domain/types";
 import { ClosedList, ClosedNotes, ClosedTickerCell } from "./closed-parts";
+import { Sensitive } from "@/shared/components/sensitive";
 
 /**
  * IR estimado de cada FII zerado: o resultado das vendas e o imposto sobre o lucro. As colunas
@@ -46,7 +47,9 @@ export function ClosedTaxTable({ rows, totals }: ClosedPositionsView) {
           rows={rows}
           tax
           total={
-            <span className="text-right tabular-nums">IR {formatBRL(totals.estimatedTax)}</span>
+            <span className="text-right tabular-nums">
+              IR <Sensitive>{formatBRL(totals.estimatedTax)}</Sensitive>
+            </span>
           }
         />
         <Table className="hidden @min-[480px]:table">
@@ -77,7 +80,11 @@ export function ClosedTaxTable({ rows, totals }: ClosedPositionsView) {
                   )}
                 </TableCell>
                 <TableCell className="pr-(--card-spacing) text-right tabular-nums">
-                  {row.estimatedTax > 0 ? formatBRL(row.estimatedTax) : "—"}
+                  {row.estimatedTax > 0 ? (
+                    <Sensitive>{formatBRL(row.estimatedTax)}</Sensitive>
+                  ) : (
+                    "—"
+                  )}
                 </TableCell>
               </TableRow>
             ))}
@@ -90,7 +97,7 @@ export function ClosedTaxTable({ rows, totals }: ClosedPositionsView) {
                 <Delta value={totals.realizedPnL} />
               </TableCell>
               <TableCell className="pr-(--card-spacing) text-right font-semibold tabular-nums">
-                {formatBRL(totals.estimatedTax)}
+                <Sensitive>{formatBRL(totals.estimatedTax)}</Sensitive>
               </TableCell>
             </TableRow>
           </TableFooter>

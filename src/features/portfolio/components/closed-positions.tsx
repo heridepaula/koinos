@@ -6,6 +6,7 @@ import { Button } from "@/shared/ui/button";
 import { Card, CardContent } from "@/shared/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/shared/ui/table";
 import type { ClosedPositionRow } from "../domain/types";
+import { Sensitive } from "@/shared/components/sensitive";
 
 export function ClosedPositions({ rows }: { rows: readonly ClosedPositionRow[] }) {
   if (rows.length === 0) return null;
@@ -28,7 +29,10 @@ export function ClosedPositions({ rows }: { rows: readonly ClosedPositionRow[] }
                 Vendas <Delta value={sales} />
               </span>
               <span className="whitespace-nowrap">
-                Proventos <span className="tabular-nums">{formatBRL(dividends)}</span>
+                Proventos{" "}
+                <span className="tabular-nums">
+                  <Sensitive>{formatBRL(dividends)}</Sensitive>
+                </span>
               </span>
               <span className="whitespace-nowrap">
                 Total <Delta value={result} />
@@ -58,7 +62,7 @@ export function ClosedPositions({ rows }: { rows: readonly ClosedPositionRow[] }
                     <Delta value={row.realizedPnL} />
                   </TableCell>
                   <TableCell className="text-right tabular-nums">
-                    {formatBRL(row.dividends)}
+                    <Sensitive>{formatBRL(row.dividends)}</Sensitive>
                   </TableCell>
                   <TableCell className="pr-0 text-right">
                     <Delta value={row.totalResult} />

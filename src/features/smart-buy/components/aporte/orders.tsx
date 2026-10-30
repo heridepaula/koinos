@@ -17,6 +17,7 @@ import {
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/shared/ui/table";
 import type { CascadeOrder } from "../../domain/suno-cascade";
 import { explain, shortReason } from "./explain";
+import { QUANTITY_MASK, Sensitive } from "@/shared/components/sensitive";
 
 export type AssetMeta = { ticker: string; name: string | null; logoUrl: string | null };
 
@@ -52,11 +53,11 @@ export function OrdersTable({ orders, meta }: OrdersProps) {
                 <AssetLabel ticker={order.ticker} name={info?.name} logoUrl={info?.logoUrl} />
               </TableCell>
               <TableCell className="text-right font-medium tabular-nums">
-                {formatQuantity(order.quantity)}
+                <Sensitive mask={QUANTITY_MASK}>{formatQuantity(order.quantity)}</Sensitive>
               </TableCell>
               <TableCell className="text-right tabular-nums">{formatBRL(order.price)}</TableCell>
               <TableCell className="text-right font-medium tabular-nums">
-                {formatBRL(order.total)}
+                <Sensitive>{formatBRL(order.total)}</Sensitive>
               </TableCell>
               <TableCell className="text-right tabular-nums">
                 {formatPercent(order.weightBefore, 1)} → {formatPercent(order.weightAfter, 1)}
@@ -101,13 +102,13 @@ export function OrdersList({ orders, meta }: OrdersProps) {
                   <div className="flex items-center justify-between gap-3">
                     <AssetLabel ticker={order.ticker} name={info?.name} logoUrl={info?.logoUrl} />
                     <span className="text-headline whitespace-nowrap tabular-nums">
-                      {formatBRL(order.total)}
+                      <Sensitive>{formatBRL(order.total)}</Sensitive>
                     </span>
                   </div>
                   <p className="flex justify-between gap-3 text-footnote text-muted-foreground tabular-nums">
                     <span>
-                      {formatQuantity(order.quantity)} {order.quantity === 1 ? "cota" : "cotas"} ×{" "}
-                      {formatBRL(order.price)}
+                      <Sensitive mask={QUANTITY_MASK}>{formatQuantity(order.quantity)}</Sensitive>{" "}
+                      {order.quantity === 1 ? "cota" : "cotas"} × {formatBRL(order.price)}
                     </span>
                     <span className="whitespace-nowrap">
                       {formatPercent(order.weightBefore, 1)} → {formatPercent(order.weightAfter, 1)}
@@ -146,10 +147,12 @@ function OrderSheet({ order, info }: { order: CascadeOrder; info: AssetMeta | un
       <DrawerBody className="grid content-start gap-5">
         <div className="grid justify-items-start gap-1 px-1">
           <p className="text-footnote text-muted-foreground">Comprar</p>
-          <p className="text-title-1 tabular-nums">{formatBRL(order.total)}</p>
+          <p className="text-title-1 tabular-nums">
+            <Sensitive>{formatBRL(order.total)}</Sensitive>
+          </p>
           <p className="text-subheadline text-muted-foreground tabular-nums">
-            {formatQuantity(order.quantity)} {order.quantity === 1 ? "cota" : "cotas"} × ~
-            {formatBRL(order.price)}
+            <Sensitive mask={QUANTITY_MASK}>{formatQuantity(order.quantity)}</Sensitive>{" "}
+            {order.quantity === 1 ? "cota" : "cotas"} × ~{formatBRL(order.price)}
           </p>
         </div>
         <InsetGroup title="Peso na carteira">

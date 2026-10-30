@@ -22,6 +22,7 @@ import { Table, TableBody, TableCell, TableHeader, TableRow } from "@/shared/ui/
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/shared/ui/tooltip";
 import type { PositionRow } from "../domain/types";
 import { PositionsList } from "./positions-list";
+import { QUANTITY_MASK, Sensitive } from "@/shared/components/sensitive";
 
 const SORT_KEYS = [
   "ativo",
@@ -126,22 +127,32 @@ function AdjustedCell({ row }: { row: PositionRow }) {
       >
         <Delta value={row.pnlWithDividends} />
         <span className="text-xs text-muted-foreground tabular-nums">
-          prov. {formatBRL(row.dividends)}
+          prov. <Sensitive>{formatBRL(row.dividends)}</Sensitive>
         </span>
       </PopoverTrigger>
       <PopoverContent align="end" className="w-auto">
         <PopoverTitle className="sr-only">Conta do resultado de {row.ticker}</PopoverTitle>
         <dl className="grid grid-cols-[auto_auto] gap-x-3 gap-y-0.5 tabular-nums">
           <dt>Cotação</dt>
-          <dd className="text-right">{formatBRL(row.pnl)}</dd>
+          <dd className="text-right">
+            <Sensitive>{formatBRL(row.pnl)}</Sensitive>
+          </dd>
           <dt>+ Proventos</dt>
-          <dd className="text-right">{formatBRL(row.dividends)}</dd>
+          <dd className="text-right">
+            <Sensitive>{formatBRL(row.dividends)}</Sensitive>
+          </dd>
           <dt>= Com proventos</dt>
-          <dd className="text-right">{formatBRL(row.pnlWithDividends)}</dd>
+          <dd className="text-right">
+            <Sensitive>{formatBRL(row.pnlWithDividends)}</Sensitive>
+          </dd>
           <dt>+ Vendas</dt>
-          <dd className="text-right">{formatBRL(row.realizedPnL)}</dd>
+          <dd className="text-right">
+            <Sensitive>{formatBRL(row.realizedPnL)}</Sensitive>
+          </dd>
           <dt className="font-medium">= Resultado total</dt>
-          <dd className="text-right font-medium">{formatBRL(row.totalResult)}</dd>
+          <dd className="text-right font-medium">
+            <Sensitive>{formatBRL(row.totalResult)}</Sensitive>
+          </dd>
         </dl>
       </PopoverContent>
     </Popover>
@@ -243,7 +254,7 @@ export function PositionsTable({ rows }: { rows: PositionRow[] }) {
                   {row.sunoRank === null ? "—" : `${row.sunoRank}º`}
                 </TableCell>
                 <TableCell className="text-right tabular-nums">
-                  {formatQuantity(row.quantity)}
+                  <Sensitive mask={QUANTITY_MASK}>{formatQuantity(row.quantity)}</Sensitive>
                 </TableCell>
                 <TableCell className="text-right tabular-nums">
                   {row.price === null ? "—" : formatBRL(row.price)}
@@ -255,10 +266,10 @@ export function PositionsTable({ rows }: { rows: PositionRow[] }) {
                   <CeilingCell row={row} />
                 </TableCell>
                 <TableCell className="text-right tabular-nums">
-                  {formatBRL(row.currentValue)}
+                  <Sensitive>{formatBRL(row.currentValue)}</Sensitive>
                 </TableCell>
                 <TableCell className="text-right tabular-nums">
-                  {formatBRL(row.totalCost)}
+                  <Sensitive>{formatBRL(row.totalCost)}</Sensitive>
                 </TableCell>
                 <TableCell className="text-right">
                   <Delta value={row.pnl} pct={row.pnlPct} stacked />

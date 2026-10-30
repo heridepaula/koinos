@@ -5,6 +5,7 @@ import { ChartPlaceholder } from "@/shared/components/chart-placeholder";
 import { formatBRL, formatPercent } from "@/shared/lib/format";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/shared/ui/card";
 import type { ReinvestmentView } from "../../domain/types";
+import { Sensitive } from "@/shared/components/sensitive";
 
 const PLOT_SIZE = "aspect-auto h-56 w-full md:h-72";
 
@@ -23,9 +24,15 @@ export function ReinvestmentHistory({
       <CardHeader>
         <CardTitle>Histórico</CardTitle>
         <CardDescription>
-          {last12.share === null
-            ? "Nenhum aporte nos últimos 12 meses."
-            : `Nos últimos 12 meses, ${formatPercent(last12.share, 1)} dos aportes vieram de proventos (${formatBRL(last12.fromDividends)} de ${formatBRL(last12.aporte)}).`}
+          {last12.share === null ? (
+            "Nenhum aporte nos últimos 12 meses."
+          ) : (
+            <>
+              Nos últimos 12 meses, {formatPercent(last12.share, 1)} dos aportes vieram de proventos
+              (<Sensitive>{formatBRL(last12.fromDividends)}</Sensitive> de{" "}
+              <Sensitive>{formatBRL(last12.aporte)}</Sensitive>).
+            </>
+          )}
         </CardDescription>
       </CardHeader>
       <CardContent>

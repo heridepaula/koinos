@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { forgetValuesVisible } from "@/shared/components/privacy";
 import { Button } from "@/shared/ui/button";
 import { Spinner } from "@/shared/ui/spinner";
 import { authClient } from "../auth-client";
@@ -33,6 +34,8 @@ export function SignInButton() {
 
   async function signIn() {
     setPending(true);
+    // Ao logar, os valores sempre começam ocultos.
+    forgetValuesVisible();
     const { error } = await authClient.signIn.social({
       provider: "google",
       callbackURL: "/dashboard",

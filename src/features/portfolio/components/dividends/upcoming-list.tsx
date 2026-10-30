@@ -15,6 +15,7 @@ import {
 } from "@/shared/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/shared/ui/table";
 import type { DividendsView } from "../../domain/types";
+import { QUANTITY_MASK, Sensitive } from "@/shared/components/sensitive";
 
 type Row = DividendsView["upcoming"][number];
 
@@ -141,7 +142,9 @@ function UpcomingPhoneList({
             <AssetLabel ticker={row.ticker} name={row.name} logoUrl={row.logoUrl} size="lg" />
           </div>
           <div className="grid justify-items-end gap-0.5">
-            <span className="text-headline font-normal tabular-nums">{formatBRL(row.amount)}</span>
+            <span className="text-headline font-normal tabular-nums">
+              <Sensitive>{formatBRL(row.amount)}</Sensitive>
+            </span>
             <span className="text-footnote whitespace-nowrap text-muted-foreground tabular-nums">
               <PayBy row={row} />
             </span>
@@ -161,7 +164,7 @@ function UpcomingPhoneList({
               className="text-headline font-normal text-muted-foreground tabular-nums"
               title="Pago no mês passado, como referência."
             >
-              {formatBRL(row.lastAmount)}
+              <Sensitive>{formatBRL(row.lastAmount)}</Sensitive>
             </span>
             <NotDisclosedBadge />
           </div>
@@ -240,13 +243,17 @@ export function UpcomingDividends({
                       {row.exDate ? formatTradeDate(row.exDate) : "—"}
                     </TableCell>
                     <TableCell className="hidden text-right tabular-nums @min-[640px]:table-cell">
-                      {row.quantity !== null ? formatQuantity(row.quantity) : "—"}
+                      {row.quantity !== null ? (
+                        <Sensitive mask={QUANTITY_MASK}>{formatQuantity(row.quantity)}</Sensitive>
+                      ) : (
+                        "—"
+                      )}
                     </TableCell>
                     <TableCell className="hidden text-right tabular-nums @min-[640px]:table-cell">
                       {row.perShare !== null ? formatBRL(row.perShare) : "—"}
                     </TableCell>
                     <TableCell className="text-right font-medium tabular-nums">
-                      {formatBRL(row.amount)}
+                      <Sensitive>{formatBRL(row.amount)}</Sensitive>
                     </TableCell>
                     <TableCell className="pr-(--card-spacing) text-right whitespace-nowrap text-muted-foreground tabular-nums">
                       <PayBy row={row} />
@@ -268,7 +275,7 @@ export function UpcomingDividends({
                       className="text-right text-muted-foreground tabular-nums"
                       title="Pago no mês passado, como referência."
                     >
-                      {formatBRL(row.lastAmount)}
+                      <Sensitive>{formatBRL(row.lastAmount)}</Sensitive>
                     </TableCell>
                     <TableCell className="pr-(--card-spacing) text-right whitespace-nowrap text-muted-foreground">
                       {/* Na tela estreita a coluna Origem some: o aviso fica aqui. */}
