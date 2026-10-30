@@ -28,6 +28,12 @@ export interface AssetDoc {
   /** Fechamentos diários das últimas semanas (Yahoo), para o L/P da semana. */
   recentCloses?: { date: Date; close: number }[];
   recentClosesFetchedAt?: Date | null;
+  /** VP por cota (usebolsai, informe mensal da CVM) e o mês do informe (AAAA-MM). */
+  bookValuePerShare?: number | null;
+  bookValueMonth?: string | null;
+  /** Fechamento do pregão anterior ÷ VP, calculado às 2h. */
+  priceToBook?: number | null;
+  fundamentalsFetchedAt?: Date | null;
 }
 
 const assetSchema = new Schema<AssetDoc>(
@@ -58,6 +64,10 @@ const assetSchema = new Schema<AssetDoc>(
     dividendsFetchedAt: { type: Date, default: null },
     historyCheckedAt: { type: Date, default: null },
     historyFromMonth: { type: String, default: null },
+    bookValuePerShare: { type: Number, default: null },
+    bookValueMonth: { type: String, default: null },
+    priceToBook: { type: Number, default: null },
+    fundamentalsFetchedAt: { type: Date, default: null },
   },
   { timestamps: true, versionKey: false },
 );

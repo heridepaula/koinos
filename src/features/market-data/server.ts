@@ -16,4 +16,5 @@ export {
 } from "./server/history-service";
 export { getCatalogSubType, refreshCatalog, searchTickers } from "./server/catalog";
 export { runDailyMarketJob, type DailyJobSummary } from "./server/daily-job";
+export { refreshFundamentals, type FundamentalsSummary } from "./server/fundamentals-service";
 export { readCatalogTypes } from "./server/catalog-db";

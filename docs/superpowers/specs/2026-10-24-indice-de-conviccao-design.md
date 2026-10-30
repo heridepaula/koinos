@@ -57,6 +57,17 @@
   2. **brapi Pro** (R$ 139,99/mês): o mesmo número da CVM, automático.
   3. **VP por cota digitado na Carteira Alvo**, a partir do relatório da Suno: simples, mas manual e mensal.
 
+## 5.1 Fonte escolhida em 2026-10-30
+
+Depois de comparar as duas APIs nos planos gratuitos, com chamadas reais, ficou a **usebolsai gratuita** para o VP e a **brapi gratuita** para as cotações:
+
+- a brapi gratuita não tem dados de FII (P/VP, DY e proventos são do Pro, R$ 139,99/mês);
+- a usebolsai gratuita tem o VP da CVM para os 20 FIIs da carteira, inclusive os renomeados e o Fiagro, com 200 chamadas por dia;
+- o `pvp` dela vem com 2 casas, então o Koinos calcula fechamento ÷ VP;
+- o DY 12 meses dela erra para cima em 11 de 20 FIIs; DY e último provento seguem no Yahoo, que bate melhor com os extratos da B3.
+
+O cron `/api/cron/fundamentals` roda às 2h de Brasília. O StatusInvest não foi usado.
+
 ## 6. Verificação
 
 - `npm test`: 33 testes, incluindo invariantes em 500 carteiras aleatórias com semente fixa. Os mutantes "margem sempre ×1" e "sobra sem a trava" derrubam testes.

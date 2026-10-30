@@ -20,7 +20,12 @@ export type AssetSnapshot = {
   dividendAnnouncements: { exDate: Date; perShare: number }[];
   /** Fechamentos diários das últimas semanas, do mais antigo ao mais recente. */
   recentCloses: { date: Date; close: number }[];
+  /** P/VP do cron das 2h (fechamento ÷ VP). Null sem dado ou com dado de mais de 60 dias. */
+  priceToBook: number | null;
 };
+
+/** VP de mais de 60 dias sem atualizar: a fonte parou, e o multiplicador do P/VP fica neutro. */
+const FUNDAMENTALS_MAX_AGE_MS = 60 * 86_400_000;
 
 export async function getAssetSnapshots(
   tickers: readonly string[],
@@ -53,6 +58,11 @@ export async function getAssetSnapshots(
           date: item.date,
           close: item.close,
         })),
+        priceToBook:
+          doc.fundamentalsFetchedAt &&
+          Date.now() - doc.fundamentalsFetchedAt.getTime() <= FUNDAMENTALS_MAX_AGE_MS
+            ? (doc.priceToBook ?? null)
+            : null,
       },
     ]),
   );

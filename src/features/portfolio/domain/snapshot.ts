@@ -73,9 +73,8 @@ export function buildSnapshot({
       price: priceOf(member.ticker),
       quantity: position?.quantity ?? 0,
       averagePrice: position?.averagePrice ?? null,
-      // Ainda sem fonte do valor patrimonial (a brapi gratuita não tem): o multiplicador do P/VP
-      // fica neutro.
-      priceToBook: null,
+      // P/VP do cron das 2h (usebolsai). Sem dado, o multiplicador fica neutro.
+      priceToBook: prices.get(member.ticker)?.priceToBook ?? null,
     };
   });
   const priorities = aportePriorities(cascadeInput);

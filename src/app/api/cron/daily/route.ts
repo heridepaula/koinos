@@ -1,24 +1,15 @@
-import { timingSafeEqual } from "node:crypto";
 import { runDailyMarketJob } from "@/features/market-data/server";
 import { listAllTargetTickers } from "@/features/strategy/server";
 import { listTradedTickersWithFirstDate } from "@/features/transactions/server";
-import { env } from "@/shared/env";
 import { withSpan } from "@/shared/lib/tracing";
 import { currentMonthKey, monthKeyOfTradeDate } from "@/shared/lib/time";
+import { isCronAuthorized } from "../authorize";
 
 export const maxDuration = 300;
 
-/** Compara o cabeçalho com o segredo em tempo constante (sem vazar o tamanho por timing). */
-function isAuthorized(header: string | null): boolean {
-  if (!env.CRON_SECRET || !header) return false;
-  const expected = Buffer.from(`Bearer ${env.CRON_SECRET}`);
-  const received = Buffer.from(header);
-  return received.length === expected.length && timingSafeEqual(received, expected);
-}
-
 /** Chamado pela Vercel Cron (vercel.json). Responde só contagens, nunca dados de carteiras. */
 export async function GET(request: Request) {
-  if (!isAuthorized(request.headers.get("authorization"))) {
+  if (!isCronAuthorized(request.headers.get("authorization"))) {
     return Response.json({ error: "Não autorizado" }, { status: 401 });
   }
   const now = new Date();

@@ -13,6 +13,8 @@ export type PriceInfo = {
   quoteFetchedAt: Date | null;
   dy12m: number | null;
   lastDividend: { amount: number; exDate: Date } | null;
+  /** P/VP do fechamento (usebolsai, às 2h). Null sem dado. */
+  priceToBook: number | null;
 };
 
 export type TargetConfig = {

@@ -40,6 +40,7 @@ const quote: PriceInfo = {
   quoteFetchedAt: null,
   dy12m: null,
   lastDividend: null,
+  priceToBook: null,
 };
 
 /** Dois FIIs na estratégia (5% cada) e um em quarentena, fora dela, com a quantidade e a % dadas. */
@@ -91,5 +92,18 @@ describe("buildSnapshot: reescala de pesos com quarentena", () => {
       (row) => row.ticker === "QQQQ11",
     )!;
     expect(quarantined).toMatchObject({ inStrategy: false, targetWeight: null, priority: null });
+  });
+});
+
+describe("buildSnapshot: P/VP na cascata", () => {
+  it("o P/VP do ativo chega à cascata; sem dado, fica nulo", () => {
+    const input = portfolio(500, 0);
+    const prices = new Map(input.prices);
+    prices.set("AAAA11", { ...quote, priceToBook: 0.91 });
+    const snapshot = buildSnapshot({ ...input, prices });
+    expect(snapshot.cascadeInput.map((asset) => [asset.ticker, asset.priceToBook])).toEqual([
+      ["AAAA11", 0.91],
+      ["BBBB11", null],
+    ]);
   });
 });

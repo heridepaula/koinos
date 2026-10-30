@@ -43,7 +43,7 @@ Koinos is a single-owner FII (Brazilian REIT) portfolio dashboard that replaced 
 
 - `src/features/{auth,transactions,market-data,strategy,portfolio,smart-buy}`.
 - `src/shared`: `db`, `env`, `lib`, `ui`, `components`. `ui` is shadcn "base-nova" on Base UI, so components take a `render` prop instead of `asChild`.
-- `src/app`: the `(app)` group (authenticated), `(public)/login`, and `api/{auth,cron/daily,tickers,vitals}`.
+- `src/app`: the `(app)` group (authenticated), `(public)/login`, and `api/{auth,cron/daily,cron/fundamentals,tickers,vitals}`.
 
 **Pages** (`src/app/(app)`): each one renders a static header and streams a `<Suspense>` section that awaits a DAL view from `portfolio/server.ts` or `transactions/server.ts`.
 
@@ -116,8 +116,8 @@ Koinos is a single-owner FII (Brazilian REIT) portfolio dashboard that replaced 
 3. `smart-buy/domain/suno-cascade.ts` turns that into the buy recommendations. Dividends never reach the cascade input.
    - Only the strategy's FIIs enter it: one outside the strategy never receives and its value stays out of the targets, whatever its %. 0% (allowed only outside the strategy) marks it as quarantine.
    - Each FII asks for its gap to the target times the "Índice de Convicção" (`smart-buy/domain/conviction.ts`): ×1.2 with more than 5% margin to the ceiling, and ×1.2 below P/VP 0.95, ×1 from 0.95 to 1.00, ×0.5 above 1.00. The asked amount is rounded to the nearest share, then capped by the per-FII limit (33% of the aporte by default) and the balance.
-   - **P/VP has no source yet:** `CascadeAsset.priceToBook` is null and the multiplier stays at ×1. The free brapi plan has no book value (brapi Pro does, R$ 139.99/month), Yahoo has it for only 2 of the 17 FIIs, and the CVM data needed the B3 fund list to reach the tickers.
-   - **Not StatusInvest:** its internal search API has P/VP, but its terms (`/condicoes-de-uso`) forbid copying its data into a database or building programs that copy it, and it blocks non-browser clients. Don't scrape it, as with B3.
+   - **P/VP** comes from the asset's `priceToBook` (Market data, below). Without it, or with data older than 60 days, the multiplier stays at ×1.
+   - DY 12m and the last dividend stay on Yahoo (`dy12m`, `lastDividend`), which matched the B3 statements better than usebolsai's `dividend_yield_ttm` (it counts about one payment too many in half the FIIs).
 4. `portfolio/domain/dividends.ts` is pure and feeds `/proventos` (`portfolio/server/dividends-view.ts`):
    - "a receber": the B3 snapshot from the Eventos statement (`dividend_forecasts`), with the official pay date and source "B3";
    - plus Yahoo announcements × the shares held on the day before the ex-date, until a B3 dividend paid on or after the ex-date confirms it. With a snapshot, only announcements with an ex-date after its `asOf` count, as "estimado";
@@ -151,6 +151,7 @@ Koinos is a single-owner FII (Brazilian REIT) portfolio dashboard that replaced 
   - A quote goes stale after 30 min during the session (10:00 to 18:30 in São Paulo, counting brapi's delay). Outside it, the last close holds and no quota is spent. Holidays aren't handled (`market-data/domain/market-hours.ts`).
   - brapi requests are counted per month in Mongo (`server/usage.ts`). Above 90% of `BRAPI_MONTHLY_QUOTA`, only Yahoo is used until the month turns.
 - The daily Vercel cron (`/api/cron/daily`, bearer `CRON_SECRET`, see `vercel.json`) refreshes closes, dividends, monthly history, the recent daily closes (forced, so today's close enters the week's list) and the ticker catalog.
+- **Book value and P/VP:** usebolsai's free plan (`BOLSAI_API_KEY`, `adapters/bolsai.ts`, 200 calls/day, one per FII). The `/api/cron/fundamentals` cron runs at 05:00 UTC (02:00–02:59 in São Paulo on Hobby) over the Carteira Alvo tickers and stores `bookValuePerShare`, `bookValueMonth` (the CVM report month, 1–2 months behind) and `priceToBook` = the previous close ÷ book value, computed in `market-data/domain/fundamentals.ts`. The API's own `pvp` is rounded to 2 decimals and flips the multiplier near 0.95 and 1.00, so it's ignored. Comparison with brapi: `brapi-vs-usebolsai` notes in the conviction spec.
 - `refreshDividends` keeps the last 90 days of Yahoo dividend announcements on each asset (`dividendAnnouncements`), with the ex-date normalized to the São Paulo trade date at UTC midnight. It skips assets fetched in the last 20 h.
 - The brapi free plan has no dividends, and Yahoo has no FII dividends between 2018 and early 2022. Yahoo also has no monthly history for delisted FIIs (MALL11, IRDM11), so the evolution chart estimates those months.
 
