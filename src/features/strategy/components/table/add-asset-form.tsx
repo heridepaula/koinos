@@ -45,7 +45,7 @@ export function AddAssetForm() {
     <>
       <form className="flex items-center gap-2 max-md:hidden" onSubmit={submit}>
         <div className="w-32">
-          <TickerInput value={ticker} onChange={setTicker} />
+          <TickerInput value={ticker} onChange={setTicker} fiiOnly />
         </div>
         <Button type="submit" disabled={add.isPending || !ticker.trim()}>
           <PlusIcon />
@@ -62,7 +62,7 @@ export function AddAssetForm() {
           </DrawerHeader>
           <DrawerBody className="pb-0">
             <form id="add-target-asset" onSubmit={submit}>
-              <TickerInput value={ticker} onChange={setTicker} />
+              <TickerInput value={ticker} onChange={setTicker} fiiOnly />
             </form>
           </DrawerBody>
           <DrawerFooter>
