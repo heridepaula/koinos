@@ -5,6 +5,7 @@ import type { TransactionRow } from "../types";
 export const KIND_LABELS: Record<Exclude<TransactionKind, "NEGOCIO">, string> = {
   SUBSCRICAO: "Subscrição",
   DESDOBRO: "Desdobro",
+  BONIFICACAO: "Bonificação",
   INCORPORACAO: "Incorporação",
   FRACAO: "Leilão de fração",
   POSICAO_ANTERIOR: "Posição anterior",

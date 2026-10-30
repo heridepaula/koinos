@@ -27,7 +27,13 @@ export interface DividendForecastDoc {
 
 const itemSchema = new Schema<DividendForecastItem>(
   {
-    ticker: { type: String, required: true, uppercase: true, trim: true, match: /^[A-Z0-9]{4}11$/ },
+    ticker: {
+      type: String,
+      required: true,
+      uppercase: true,
+      trim: true,
+      match: /^[A-Z0-9]{4}\d{1,2}$/,
+    },
     kind: { type: String, required: true, enum: DIVIDEND_KINDS },
     payDate: { type: Date, default: null },
     quantity: { type: Number, default: null },

@@ -6,7 +6,8 @@ export type MonthlyContribution = { month: string; amount: number };
 
 /**
  * Valor comprado (aportado) em cada mês pedido, incluindo meses sem compra (zero).
- * A compra do destino numa incorporação só transfere custo: não é aporte.
+ * A compra do destino numa incorporação só transfere custo, e a bonificação não sai do bolso:
+ * nenhuma das duas é aporte.
  */
 export function monthlyContributions(
   entries: readonly LedgerEntry[],
@@ -14,7 +15,8 @@ export function monthlyContributions(
 ): MonthlyContribution[] {
   const totals = new Map(months.map((month) => [month, 0]));
   for (const entry of entries) {
-    if (entry.type !== "BUY" || entry.kind === "INCORPORACAO") continue;
+    if (entry.type !== "BUY" || entry.kind === "INCORPORACAO" || entry.kind === "BONIFICACAO")
+      continue;
     const month = monthKeyOfTradeDate(entry.date);
     const current = totals.get(month);
     if (current !== undefined) {

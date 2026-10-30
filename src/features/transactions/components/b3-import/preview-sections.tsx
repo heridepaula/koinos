@@ -21,6 +21,7 @@ const FILE_LABELS = {
 const KIND_LABELS: Record<Exclude<TransactionKind, "NEGOCIO">, string> = {
   SUBSCRICAO: "Subscrição",
   DESDOBRO: "Desdobro",
+  BONIFICACAO: "Bonificação",
   INCORPORACAO: "Incorporação",
   FRACAO: "Leilão de fração",
   POSICAO_ANTERIOR: "Posição anterior",
@@ -28,6 +29,9 @@ const KIND_LABELS: Record<Exclude<TransactionKind, "NEGOCIO">, string> = {
 const DIVIDEND_LABELS: Record<DividendKind, string> = {
   RENDIMENTO: "Rendimento",
   REEMBOLSO: "Reembolso",
+  DIVIDENDO: "Dividendo",
+  JCP: "JCP",
+  ALUGUEL: "Aluguel",
 };
 const SOURCE_LABELS: Record<StoredLedgerRow["source"], string> = {
   MANUAL: "manual",

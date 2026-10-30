@@ -20,7 +20,13 @@ export interface DividendDoc {
 const dividendSchema = new Schema<DividendDoc>(
   {
     portfolioId: { type: Schema.Types.ObjectId, required: true },
-    ticker: { type: String, required: true, uppercase: true, trim: true, match: /^[A-Z0-9]{4}11$/ },
+    ticker: {
+      type: String,
+      required: true,
+      uppercase: true,
+      trim: true,
+      match: /^[A-Z0-9]{4}\d{1,2}$/,
+    },
     paidAt: { type: Date, required: true },
     kind: { type: String, required: true, enum: DIVIDEND_KINDS },
     amount: { type: Number, required: true, min: 0 },

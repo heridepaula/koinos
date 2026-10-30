@@ -38,15 +38,21 @@ export const deleteTransactionSchema = z.object({
 
 const fiiCode = z.string().regex(/^[A-Z0-9]{4}11$/);
 
-/** Respostas às pendências da importação da B3 (spec §7). Os ids são recalculados no servidor. */
+/**
+ * Respostas às pendências da importação da B3 (spec §7). Os ids são recalculados no servidor.
+ * O custo da bonificação (`bon:`) aceita 0; nos outros preços, o plano ignora o que não for > 0.
+ */
 export const b3AnswersSchema = z.object({
   prices: z
-    .record(z.string().regex(/^(sub|prev):[A-Z0-9]{4}11\b/), z.number().positive().max(10_000_000))
+    .record(
+      z.string().regex(/^(sub|prev|bon):[A-Z0-9]{4}\d{1,2}\b/),
+      z.number().min(0).max(10_000_000),
+    )
     .default({}),
   conversions: z
     .record(z.string().regex(/^conv:[A-Z0-9]{4}11:/), z.union([fiiCode, z.literal("NONE")]))
     .default({}),
-  exclude: z.array(fiiCode).max(200).default([]),
+  exclude: z.array(z.string().regex(TICKER_REGEX)).max(200).default([]),
 });
 
 /** Formulário da importação: os arquivos, as respostas (JSON) e o "revisei as divergências". */

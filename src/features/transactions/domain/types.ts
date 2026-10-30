@@ -5,12 +5,14 @@ export type TransactionSource = (typeof TRANSACTION_SOURCES)[number];
 
 /**
  * O que originou o lançamento. O livro-razão só conhece compra e venda: subscrição é compra,
- * desdobro é compra a preço 0 e incorporação é venda da origem + compra do destino pelo mesmo custo.
+ * desdobro é compra a preço 0, bonificação é compra pelo custo que a empresa atribui e
+ * incorporação é venda da origem + compra do destino pelo mesmo custo.
  */
 export const TRANSACTION_KINDS = [
   "NEGOCIO",
   "SUBSCRICAO",
   "DESDOBRO",
+  "BONIFICACAO",
   "INCORPORACAO",
   "FRACAO",
   "POSICAO_ANTERIOR",
@@ -70,8 +72,11 @@ export type RealizedSale = {
   cost: number;
 };
 
-/** Provento recebido, como a B3 informa no extrato de Movimentação. */
-export const DIVIDEND_KINDS = ["RENDIMENTO", "REEMBOLSO"] as const;
+/**
+ * Provento recebido, como a B3 informa no extrato de Movimentação. `ALUGUEL` é a taxa do aluguel
+ * (linha "Empréstimo" com valor). No `JCP`, `amount` já vem líquido dos 15% e `perShare` é o bruto.
+ */
+export const DIVIDEND_KINDS = ["RENDIMENTO", "REEMBOLSO", "DIVIDENDO", "JCP", "ALUGUEL"] as const;
 export type DividendKind = (typeof DIVIDEND_KINDS)[number];
 
 export type DividendEntry = {
