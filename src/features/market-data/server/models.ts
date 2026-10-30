@@ -34,6 +34,8 @@ export interface AssetDoc {
   /** Fechamento do pregão anterior ÷ VP, calculado às 2h. */
   priceToBook?: number | null;
   fundamentalsFetchedAt?: Date | null;
+  /** Última tentativa na usebolsai, com ou sem dado: segura as novas tentativas ao abrir o app. */
+  fundamentalsCheckedAt?: Date | null;
 }
 
 const assetSchema = new Schema<AssetDoc>(
@@ -68,6 +70,7 @@ const assetSchema = new Schema<AssetDoc>(
     bookValueMonth: { type: String, default: null },
     priceToBook: { type: Number, default: null },
     fundamentalsFetchedAt: { type: Date, default: null },
+    fundamentalsCheckedAt: { type: Date, default: null },
   },
   { timestamps: true, versionKey: false },
 );

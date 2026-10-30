@@ -2,7 +2,11 @@
 
 import { refresh } from "next/cache";
 import { ActionError, authActionClient } from "@/features/auth/server";
-import { refreshDividends, refreshQuotes } from "@/features/market-data/server";
+import {
+  refreshDividends,
+  refreshMissingFundamentals,
+  refreshQuotes,
+} from "@/features/market-data/server";
 import { listTargetAssetsOf } from "@/features/strategy/server";
 import { computePositions } from "@/features/transactions";
 import { listTransactionsOf } from "@/features/transactions/server";
@@ -29,7 +33,15 @@ export const refreshMyQuotesAction = authActionClient
     // DY e último rendimento também sob demanda (antes só no cron): quem acabou de importar
     // já vê o DY. refreshDividends pula o que foi buscado nas últimas 20 h.
     const dividends = await refreshDividends(held);
-    if ((result.status === "done" && result.updated > 0) || dividends.updated > 0) refresh();
+    // VP/P/VP (usebolsai): o cron das 2h é o normal; aqui só entra o que estiver faltando.
+    const fundamentals = await refreshMissingFundamentals(targets.map((target) => target.ticker));
+    if (
+      (result.status === "done" && result.updated > 0) ||
+      dividends.updated > 0 ||
+      fundamentals.updated > 0
+    ) {
+      refresh();
+    }
     return result;
   });
 
