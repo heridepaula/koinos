@@ -26,7 +26,13 @@ export function allocationByCategory(
   return toSlices(
     [...totals].map(([key, value]) => ({
       key,
-      label: key === UNCATEGORIZED_KEY ? "Sem categoria" : CATEGORY_LABELS[key as Category],
+      // Na composição, a ação aparece no plural, como as outras fatias, que são grupos.
+      label:
+        key === UNCATEGORIZED_KEY
+          ? "Sem categoria"
+          : key === "ACAO"
+            ? "Ações"
+            : CATEGORY_LABELS[key as Category],
       value,
     })),
   );

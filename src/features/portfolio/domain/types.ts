@@ -1,3 +1,4 @@
+import type { AssetClass } from "@/features/market-data";
 import type { AportePriority, CascadeAsset } from "@/features/smart-buy";
 import type { Category } from "@/features/strategy";
 import type { MonthlyContribution } from "@/features/transactions";
@@ -39,6 +40,8 @@ export type TargetConfig = {
 
 export type PositionRow = {
   ticker: string;
+  /** FII ou ação (spec ações etapa 1, §4); null para o que o app não classifica. */
+  assetClass: AssetClass | null;
   name: string | null;
   logoUrl: string | null;
   category: Category | null;
@@ -122,6 +125,7 @@ export type ClosedPosition = {
 /** Linha das encerradas no dashboard: o resultado das vendas mais os proventos. */
 export type ClosedPositionRow = {
   ticker: string;
+  assetClass: AssetClass | null;
   realizedPnL: number;
   /** Proventos recebidos deste FII desde sempre. */
   dividends: number;

@@ -1,6 +1,6 @@
 import "server-only";
 import { connection } from "next/server";
-import { getAssetSnapshots } from "@/features/market-data/server";
+import { getAssetClasses, getAssetSnapshots } from "@/features/market-data/server";
 import {
   getMyDividendForecast,
   getMyDividends,
@@ -47,20 +47,28 @@ export const getDividendsView = traced(
         ...received.map((item) => item.ticker),
       ]),
     ];
-    const assets = await getAssetSnapshots(tickers);
+    const [assets, classes] = await Promise.all([
+      getAssetSnapshots(tickers),
+      getAssetClasses(tickers),
+    ]);
+    // A estimativa do Yahoo e o "não divulgado" são só de FIIs: na ação, o pagamento vem meses
+    // depois da data ex e o JCP do Yahoo é bruto (spec ações, §6.4).
+    const isFiiLike = (ticker: string) => classes.get(ticker) !== "ACAO";
     const meta = (ticker: string) => ({
       name: assets.get(ticker)?.name ?? null,
       logoUrl: assets.get(ticker)?.logoUrl ?? null,
     });
 
     const announcements = new Map(
-      [...assets].map(([ticker, asset]) => [ticker, asset.dividendAnnouncements]),
+      [...assets]
+        .filter(([ticker]) => isFiiLike(ticker))
+        .map(([ticker, asset]) => [ticker, asset.dividendAnnouncements]),
     );
     const upcoming = upcomingDividends({ now, transactions, received, announcements, forecast });
     const undisclosed = undisclosedDividends({
       now,
       transactions,
-      received,
+      received: received.filter((item) => isFiiLike(item.ticker)),
       announcements,
       upcoming,
     });

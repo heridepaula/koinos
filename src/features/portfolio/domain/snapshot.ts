@@ -1,4 +1,4 @@
-import { isQuoteStale } from "@/features/market-data";
+import { assetClassOf, isQuoteStale, type AssetClass } from "@/features/market-data";
 import { aportePriorities, classifyRisk, type CascadeAsset } from "@/features/smart-buy";
 import {
   effectiveWeights,
@@ -32,6 +32,8 @@ export type SnapshotInput = {
   /** Proventos recebidos: só afetam o resultado ajustado, não a cascata nem a renda estimada. */
   dividends: readonly DividendEntry[];
   prices: ReadonlyMap<string, PriceInfo>;
+  /** Classe de cada ticker pelo catálogo; o que faltar sai pelo código (spec ações, §4). */
+  classes: ReadonlyMap<string, AssetClass | null>;
 };
 
 export function buildSnapshot({
@@ -40,8 +42,13 @@ export function buildSnapshot({
   targets,
   dividends,
   prices,
+  classes,
 }: SnapshotInput): PortfolioSnapshot {
   const { positions } = replayLedger(transactions);
+  const classOf = (ticker: string): AssetClass | null =>
+    classes.has(ticker) ? (classes.get(ticker) ?? null) : assetClassOf(ticker, null);
+  // A Carteira Alvo e as Recomendações são só de FIIs: ação nunca entra na estratégia.
+  const isStock = (ticker: string) => classOf(ticker) === "ACAO";
   const received = dividendsByTicker(dividends);
   const open = positions.filter((position) => position.quantity > 0);
   const openByTicker = new Map(open.map((position) => [position.ticker, position]));
@@ -55,7 +62,7 @@ export function buildSnapshot({
   };
 
   // Estratégia: ativos com inStrategy, em carteira ou não.
-  const members = targets.filter((target) => target.inStrategy);
+  const members = targets.filter((target) => target.inStrategy && !isStock(target.ticker));
   const {
     weights,
     sumOfSuggested,
@@ -155,15 +162,18 @@ export function buildSnapshot({
       const target = targetByTicker.get(position.ticker);
       const price = info?.price ?? null;
       const value = valueOf(position.ticker);
-      const inStrategy = target?.inStrategy ?? false;
+      const stock = isStock(position.ticker);
+      const inStrategy = !stock && (target?.inStrategy ?? false);
       const pnl = value - position.totalCost;
       const dividendsOf = received.get(position.ticker) ?? 0;
       const adjusted = adjustedResult(pnl, dividendsOf, position.realizedPnL);
       return {
         ticker: position.ticker,
+        assetClass: classOf(position.ticker),
         name: info?.name ?? null,
         logoUrl: info?.logoUrl ?? null,
-        category: target?.category ?? null,
+        // A ação não tem configuração na Carteira Alvo: a categoria vem da classe.
+        category: stock ? "ACAO" : (target?.category ?? null),
         quantity: position.quantity,
         averagePrice: position.averagePrice,
         totalCost: position.totalCost,
@@ -190,10 +200,12 @@ export function buildSnapshot({
     })
     .sort((a, b) => b.currentValue - a.currentValue);
 
-  // Carteira Alvo: tudo o que está em carteira ou configurado.
-  const strategyTickers = [
+  // Carteira Alvo: tudo o que está em carteira ou configurado, menos as ações. As cotações
+  // vencidas contam todos os ativos.
+  const quoteTickers = [
     ...new Set([...open.map((p) => p.ticker), ...targets.map((t) => t.ticker)]),
   ];
+  const strategyTickers = quoteTickers.filter((ticker) => !isStock(ticker));
   const strategyRows: StrategyRow[] = strategyTickers
     .map((ticker) => {
       const target = targetByTicker.get(ticker);
@@ -237,6 +249,7 @@ export function buildSnapshot({
       const dividendsOf = received.get(position.ticker) ?? 0;
       return {
         ticker: position.ticker,
+        assetClass: classOf(position.ticker),
         realizedPnL: position.realizedPnL,
         dividends: dividendsOf,
         // Posição zerada: não há resultado de cotação, só vendas e proventos.
@@ -248,6 +261,7 @@ export function buildSnapshot({
       .filter(([ticker]) => !ledgerTickers.has(ticker))
       .map(([ticker, amount]) => ({
         ticker,
+        assetClass: classOf(ticker),
         realizedPnL: 0,
         dividends: amount,
         totalResult: adjustedResult(0, amount, 0).total,
@@ -256,7 +270,6 @@ export function buildSnapshot({
   ].sort((a, b) => timeOf(b.closedAt) - timeOf(a.closedAt) || a.ticker.localeCompare(b.ticker));
 
   const nowMonth = currentMonthKey(now);
-  const quoteTickers = strategyTickers;
   const fetchedTimes = quoteTickers
     .map((ticker) => prices.get(ticker)?.quoteFetchedAt?.getTime())
     .filter((time): time is number => time !== undefined);

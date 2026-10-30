@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import { sunoCascade } from "@/features/smart-buy";
 import type { ClosedLedgerEntry } from "./closed-positions";
 import { buildSnapshot, type SnapshotInput } from "./snapshot";
+import type { AssetClass } from "@/features/market-data";
 import type { PriceInfo, TargetConfig } from "./types";
 
 const day = new Date(Date.UTC(2026, 0, 2));
@@ -61,6 +62,7 @@ function portfolio(quarantineShares: number, quarantinePercent: number | null): 
       ["BBBB11", quote],
       ["QQQQ11", quote],
     ]),
+    classes: new Map(),
   };
 }
 
@@ -144,5 +146,43 @@ describe("buildSnapshot: entrada do motor 3.0", () => {
       macro: "Outros",
       sector: null,
     });
+  });
+});
+
+describe("buildSnapshot: ações", () => {
+  const withStock = (stockTarget: TargetConfig | null): SnapshotInput => {
+    const input = portfolio(500, 0);
+    return {
+      ...input,
+      transactions: [...input.transactions, buy("PETR4", 10)],
+      targets: stockTarget ? [...input.targets, stockTarget] : input.targets,
+      prices: new Map([...input.prices, ["PETR4", quote]]),
+      classes: new Map<string, AssetClass | null>([["PETR4", "ACAO"]]),
+    };
+  };
+
+  it("a ação fica fora da Carteira Alvo e do alerta de ativo sem configuração", () => {
+    const snapshot = buildSnapshot(withStock(null));
+    expect(snapshot.strategy.rows.map((row) => row.ticker)).not.toContain("PETR4");
+    expect(snapshot.alerts.map((alert) => alert.id)).not.toContain("sem-configuracao");
+  });
+
+  it("entra nas posições com a classe e na composição como 'Ações'", () => {
+    const snapshot = buildSnapshot(withStock(null));
+    expect(snapshot.positions.find((row) => row.ticker === "PETR4")).toMatchObject({
+      assetClass: "ACAO",
+      category: "ACAO",
+      inStrategy: false,
+      priority: null,
+    });
+    expect(snapshot.allocation.byCategory).toContainEqual(
+      expect.objectContaining({ key: "ACAO", label: "Ações" }),
+    );
+  });
+
+  it("nem um ativo-alvo de ação gravado antes entra na cascata", () => {
+    const snapshot = buildSnapshot(withStock(target("PETR4", true, 5, 3)));
+    expect(snapshot.cascadeInput.map((asset) => asset.ticker)).toEqual(["AAAA11", "BBBB11"]);
+    expect(snapshot.positions.find((row) => row.ticker === "PETR4")?.inStrategy).toBe(false);
   });
 });

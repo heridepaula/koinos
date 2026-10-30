@@ -4,6 +4,7 @@ import { cache } from "react";
 import {
   ensureMonthlyCloses,
   ensureRecentCloses,
+  getAssetClasses,
   getAssetSnapshots,
   getMonthlyCloses,
   type AssetSnapshot,
@@ -56,13 +57,17 @@ export const getPortfolioSnapshot = cache(
       const tickers = [
         ...new Set([...transactions.map((t) => t.ticker), ...targets.map((t) => t.ticker)]),
       ];
-      const assets = await getAssetSnapshots(tickers);
+      const [assets, classes] = await Promise.all([
+        getAssetSnapshots(tickers),
+        getAssetClasses(tickers),
+      ]);
       return buildSnapshot({
         now: new Date(),
         transactions,
         targets,
         dividends,
         prices: toPriceInfo(assets),
+        classes,
       });
     },
     (snapshot) => ({
