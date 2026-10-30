@@ -659,6 +659,53 @@
   [role="radio"] {
     -webkit-touch-callout: none;
   }
+  /*
+   * Mãozinha em tudo que é clicável. O preflight do Tailwind 4 deixa o botão com a seta, e os
+   * itens de menu, opções e abas do Base UI são divs com papel ARIA: sem isto, o mouse não mostra
+   * que dá para clicar. Desabilitado volta à seta.
+   */
+  a[href],
+  button,
+  summary,
+  select,
+  [role="button"],
+  [role="link"],
+  [role="tab"],
+  [role="radio"],
+  [role="checkbox"],
+  [role="switch"],
+  [role="option"],
+  [role="menuitem"],
+  [role="menuitemradio"],
+  [role="menuitemcheckbox"],
+  [role="combobox"]:not(input),
+  input[type="checkbox"],
+  input[type="radio"],
+  input[type="file"],
+  input[type="range"],
+  input[type="color"],
+  input[type="submit"],
+  input[type="button"],
+  input[type="reset"],
+  input::file-selector-button,
+  label:has(> input[type="checkbox"], > input[type="radio"], > input[type="file"]),
+  label:is([for]):has(+ input[type="checkbox"], + input[type="radio"]) {
+    cursor: pointer;
+  }
+  :is(button, select, input):disabled,
+  :is(
+    [role="button"],
+    [role="tab"],
+    [role="radio"],
+    [role="checkbox"],
+    [role="switch"],
+    [role="option"],
+    [role="menuitem"],
+    [role="menuitemradio"],
+    [role="menuitemcheckbox"]
+  ):is([aria-disabled="true"], [data-disabled]) {
+    cursor: default;
+  }
   body {
     @apply text-foreground;
     background-color: var(--background);
