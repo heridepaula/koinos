@@ -3,6 +3,7 @@ import { cacheLife, cacheTag, revalidateTag } from "next/cache";
 import { connectMongo } from "@/shared/db/mongo";
 import { env } from "@/shared/env";
 import { createBrapiClient } from "../adapters/brapi";
+import { assetClassOf, type AssetClass } from "../domain/asset-class";
 import type { CatalogEntry } from "../ports";
 import { CATALOG_ID, readCatalogFromDb } from "./catalog-db";
 import { withLock } from "@/shared/db/lock";
@@ -63,4 +64,24 @@ export async function searchTickers(query: string, limit = 12): Promise<CatalogE
 export async function getCatalogSubType(ticker: string): Promise<string | null> {
   const entries = await loadCatalog();
   return entries.find((entry) => entry.ticker === ticker)?.subType ?? null;
+}
+
+/**
+ * Classe de cada ticker (FII ou ação, spec ações etapa 1, §4) pelo catálogo em cache; fora dele,
+ * pelo código. As telas passam o mapa para as regras puras.
+ */
+export async function getAssetClasses(
+  tickers: readonly string[],
+): Promise<Map<string, AssetClass | null>> {
+  const entries = await loadCatalog();
+  const byTicker = new Map(entries.map((entry) => [entry.ticker, entry]));
+  return new Map(
+    [...new Set(tickers)].map((ticker) => {
+      const entry = byTicker.get(ticker);
+      return [
+        ticker,
+        assetClassOf(ticker, entry ? { type: entry.type, subType: entry.subType } : null),
+      ];
+    }),
+  );
 }

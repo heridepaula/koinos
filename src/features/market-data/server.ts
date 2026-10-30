@@ -15,7 +15,12 @@ export {
   refreshDividends,
   type HistoryRequest,
 } from "./server/history-service";
-export { getCatalogSubType, refreshCatalog, searchTickers } from "./server/catalog";
+export {
+  getAssetClasses,
+  getCatalogSubType,
+  refreshCatalog,
+  searchTickers,
+} from "./server/catalog";
 export { runDailyMarketJob, type DailyJobSummary } from "./server/daily-job";
 export {
   refreshFundamentals,

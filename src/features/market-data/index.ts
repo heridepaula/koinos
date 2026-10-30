@@ -5,4 +5,5 @@ export {
   lastCloseAtOrBefore,
   QUOTE_MAX_AGE_MS,
 } from "./domain/market-hours";
+export { assetClassOf, type AssetClass, type CatalogType } from "./domain/asset-class";
 export type { CatalogEntry, Quote, QuoteSource } from "./ports";
