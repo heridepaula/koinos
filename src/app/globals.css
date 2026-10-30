@@ -739,7 +739,9 @@
 @layer components {
   /*
    * O olho da barra (sensitive.tsx): sem `data-privacy="visible"` no <html>, cada valor dá lugar
-   * à máscara, e os gráficos de R$ perdem os rótulos do eixo Y (as barras e linhas ficam).
+   * à máscara, e os gráficos de R$ perdem os rótulos do eixo Y (as barras e linhas ficam). O
+   * recharts 3 desenha os rótulos numa camada à parte, fora do `.recharts-yAxis`: o alvo é o
+   * grupo deles.
    */
   :root:not([data-privacy="visible"]) [data-sensitive-value],
   :root[data-privacy="visible"] [data-sensitive-mask] {
@@ -748,10 +750,7 @@
   [data-sensitive-mask] {
     white-space: nowrap;
   }
-  :root:not([data-privacy="visible"])
-    [data-sensitive-axis]
-    .recharts-yAxis
-    .recharts-cartesian-axis-tick-value {
+  :root:not([data-privacy="visible"]) [data-sensitive-axis] .recharts-yAxis-tick-labels {
     visibility: hidden;
   }
   /*
