@@ -1,5 +1,6 @@
 import { Disclosure } from "@/shared/components/disclosure";
 import { formatBRL, formatQuantity, formatTradeDate } from "@/shared/lib/format";
+import { Badge } from "@/shared/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/shared/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/shared/ui/table";
 import type { DividendKind, TransactionKind } from "../../domain/types";
@@ -169,21 +170,21 @@ function SummaryBanner({
   if (open > 0) {
     return (
       <ToneBanner tone="bad" title={`${plural(open, "pendência", "pendências")} sem resposta`}>
-        Responda abaixo (ou deixe o FII de fora) para liberar a importação.
+        Responda abaixo (ou deixe o ativo de fora) para liberar a importação.
       </ToneBanner>
     );
   }
   if (divergences > 0 || warnings > 0) {
     const parts = [
       divergences > 0
-        ? `${plural(divergences, "divergência", "divergências")} nos rendimentos`
+        ? `${plural(divergences, "divergência", "divergências")} nos proventos`
         : null,
       warnings > 0 ? plural(warnings, "aviso", "avisos") : null,
     ].filter(Boolean);
     return (
       <ToneBanner tone="warn" title={`Vale conferir: ${parts.join(" e ")}`}>
         {divergences > 0
-          ? "Revise as divergências e confirme na conferência pelos rendimentos para importar."
+          ? "Revise as divergências e confirme na conferência pelos proventos para importar."
           : "Os avisos não bloqueiam a importação."}
       </ToneBanner>
     );
@@ -202,9 +203,9 @@ function EntryHead({ label }: { label?: string }) {
     <TableRow>
       {label ? <TableHead className="pl-(--card-spacing)">{label}</TableHead> : null}
       <TableHead className={label ? undefined : "pl-(--card-spacing)"}>Data</TableHead>
-      <TableHead>FII</TableHead>
+      <TableHead>Ativo</TableHead>
       <TableHead className="hidden @min-[480px]:table-cell">Tipo</TableHead>
-      <TableHead className="hidden text-right @min-[600px]:table-cell">Cotas</TableHead>
+      <TableHead className="hidden text-right @min-[600px]:table-cell">Qtd.</TableHead>
       <TableHead className="hidden text-right @min-[600px]:table-cell">Preço</TableHead>
       <TableHead className="pr-(--card-spacing) text-right">Valor</TableHead>
     </TableRow>
@@ -235,9 +236,9 @@ function DividendHead({ label }: { label?: string }) {
     <TableRow>
       {label ? <TableHead className="pl-(--card-spacing)">{label}</TableHead> : null}
       <TableHead className={label ? undefined : "pl-(--card-spacing)"}>Pagamento</TableHead>
-      <TableHead>FII</TableHead>
+      <TableHead>Ativo</TableHead>
       <TableHead className="hidden @min-[480px]:table-cell">Tipo</TableHead>
-      <TableHead className="hidden text-right @min-[600px]:table-cell">Cotas</TableHead>
+      <TableHead className="hidden text-right @min-[600px]:table-cell">Qtd.</TableHead>
       <TableHead className="pr-(--card-spacing) text-right">Valor</TableHead>
     </TableRow>
   );
@@ -401,17 +402,17 @@ export function UpcomingPreview({ preview }: { preview: B3ImportPreview }) {
       <CardContent className="@container px-0">
         {upcoming.items.length === 0 ? (
           <p className="px-(--card-spacing) text-sm text-muted-foreground">
-            A B3 não lista nenhum rendimento de FII a receber.
+            A B3 não lista nenhum provento a receber.
           </p>
         ) : (
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead className="pl-(--card-spacing)">FII</TableHead>
+                <TableHead className="pl-(--card-spacing)">Ativo</TableHead>
                 <TableHead className="hidden @min-[480px]:table-cell">Tipo</TableHead>
-                <TableHead className="hidden text-right @min-[600px]:table-cell">Cotas</TableHead>
+                <TableHead className="hidden text-right @min-[600px]:table-cell">Qtd.</TableHead>
                 <TableHead className="hidden text-right @min-[600px]:table-cell">
-                  Por cota
+                  Unitário
                 </TableHead>
                 <TableHead className="text-right">Valor</TableHead>
                 <TableHead className="pr-(--card-spacing) text-right">Pagamento</TableHead>
@@ -478,8 +479,8 @@ export function Inconsistencies({ preview }: { preview: B3ImportPreview }) {
               <span>
                 <span className="font-medium">{item.ticker}</span>:{" "}
                 {item.held < 1e-6
-                  ? "a B3 lista um provento a receber, mas a carteira não tem cotas dele."
-                  : `a B3 lista ${formatQuantity(item.quantity ?? 0)} cotas a receber, e a carteira tem ${formatQuantity(item.held)}.`}{" "}
+                  ? "a B3 lista um provento a receber, mas a carteira não tem posição nele."
+                  : `a B3 lista provento sobre ${formatQuantity(item.quantity ?? 0)}, e a carteira tem ${formatQuantity(item.held)}.`}{" "}
                 <span className="text-muted-foreground">
                   Confira: pode ser compra ou venda depois da data com.
                 </span>
@@ -516,13 +517,14 @@ function TickerList({ items }: { items: TickerStatus[] }) {
             <div className="flex items-center justify-between gap-3">
               <span className="flex items-center gap-2">
                 <span className="font-medium">{item.ticker}</span>
+                {item.assetClass === "ACAO" ? <Badge variant="outline">ação</Badge> : null}
                 {item.status !== "OK" ? (
                   <ToneBadge tone={STATUS[item.status].tone}>{STATUS[item.status].label}</ToneBadge>
                 ) : null}
               </span>
               <span className="text-footnote text-muted-foreground tabular-nums">
                 {item.quantity > 0
-                  ? `${formatQuantity(item.quantity)} cotas · PM ${formatBRL(item.averagePrice)}`
+                  ? `${formatQuantity(item.quantity)} ${item.assetClass === "ACAO" ? "ações" : "cotas"} · PM ${formatBRL(item.averagePrice)}`
                   : "posição zerada"}
               </span>
             </div>
@@ -544,8 +546,8 @@ export function TickerTable({ preview }: { preview: B3ImportPreview }) {
   return (
     <Card className="@container">
       <CardHeader>
-        <CardTitle>Situação por FII</CardTitle>
-        <CardDescription>Como cada FII fica depois da atualização.</CardDescription>
+        <CardTitle>Situação por ativo</CardTitle>
+        <CardDescription>Como cada ativo fica depois da atualização.</CardDescription>
       </CardHeader>
       <CardContent className="px-0">
         <div className="grid gap-2 @min-[640px]:hidden">
@@ -554,7 +556,7 @@ export function TickerTable({ preview }: { preview: B3ImportPreview }) {
           ) : (
             <p className="flex items-center gap-2 px-(--card-spacing) text-sm">
               <ToneIcon tone="ok" />
-              Todos os {formatQuantity(settled.length)} FIIs ficam ok.
+              Todos os {formatQuantity(settled.length)} ativos ficam ok.
             </p>
           )}
           {settled.length > 0 ? (
@@ -562,8 +564,8 @@ export function TickerTable({ preview }: { preview: B3ImportPreview }) {
               summaryClassName="mx-(--card-spacing)"
               summary={
                 attention.length > 0
-                  ? `Ver os ${formatQuantity(settled.length)} FIIs ok`
-                  : `Ver os ${formatQuantity(settled.length)} FIIs`
+                  ? `Ver os ${formatQuantity(settled.length)} ativos ok`
+                  : `Ver os ${formatQuantity(settled.length)} ativos`
               }
             >
               <TickerList items={settled} />
@@ -573,9 +575,9 @@ export function TickerTable({ preview }: { preview: B3ImportPreview }) {
         <Table className="hidden @min-[640px]:table">
           <TableHeader>
             <TableRow>
-              <TableHead className="pl-(--card-spacing)">FII</TableHead>
+              <TableHead className="pl-(--card-spacing)">Ativo</TableHead>
               <TableHead>Situação</TableHead>
-              <TableHead className="text-right">Cotas</TableHead>
+              <TableHead className="text-right">Qtd.</TableHead>
               <TableHead className="text-right">Preço médio</TableHead>
               <TableHead className="pr-(--card-spacing)">Observações</TableHead>
             </TableRow>
@@ -583,7 +585,12 @@ export function TickerTable({ preview }: { preview: B3ImportPreview }) {
           <TableBody>
             {preview.tickers.map((item) => (
               <TableRow key={item.ticker}>
-                <TableCell className="pl-(--card-spacing) font-medium">{item.ticker}</TableCell>
+                <TableCell className="pl-(--card-spacing) font-medium">
+                  <span className="flex items-center gap-2">
+                    {item.ticker}
+                    {item.assetClass === "ACAO" ? <Badge variant="outline">ação</Badge> : null}
+                  </span>
+                </TableCell>
                 <TableCell>
                   <ToneBadge tone={STATUS[item.status].tone}>{STATUS[item.status].label}</ToneBadge>
                 </TableCell>
@@ -612,7 +619,7 @@ export function IgnoredAndWarnings({ preview }: { preview: B3ImportPreview }) {
       <CardHeader>
         <CardTitle>Ignorados e avisos</CardTitle>
         <CardDescription>
-          O app acompanha só os FIIs: o resto dos extratos fica de fora, agrupado por motivo.
+          O app acompanha FIIs e ações: o resto dos extratos fica de fora, agrupado por motivo.
         </CardDescription>
       </CardHeader>
       <CardContent className="grid gap-2 text-sm">
@@ -650,13 +657,13 @@ export function DividendCheck({
       <CardHeader>
         <CardTitle>
           <ToneTitle tone={check.unexplained.length > 0 && !accepted ? "warn" : "ok"}>
-            Conferência pelos rendimentos
+            Conferência pelos proventos
           </ToneTitle>
         </CardTitle>
         <CardDescription>
-          {formatQuantity(check.matched)} de {formatQuantity(check.months)} meses batem com as cotas
-          em que a B3 pagou rendimento · {formatQuantity(check.explained.length)} diferenças
-          explicadas (aluguel, recibo pró-rata).
+          {formatQuantity(check.matched)} de {formatQuantity(check.months)} meses batem com a
+          quantidade sobre a qual a B3 pagou provento · {formatQuantity(check.explained.length)}{" "}
+          diferenças explicadas (aluguel, recibo pró-rata).
         </CardDescription>
       </CardHeader>
       {check.unexplained.length > 0 ? (
@@ -666,8 +673,8 @@ export function DividendCheck({
               <li key={`${item.ticker}-${item.month}`} className="flex items-start gap-2">
                 <ToneIcon tone="warn" className="mt-0.5" />
                 <span>
-                  {item.ticker} em {item.month}: a B3 pagou sobre {formatQuantity(item.official)}{" "}
-                  cotas, e a importação chega a {formatQuantity(item.rebuilt)}.
+                  {item.ticker} em {item.month}: a B3 pagou sobre {formatQuantity(item.official)}, e
+                  a importação chega a {formatQuantity(item.rebuilt)}.
                 </span>
               </li>
             ))}

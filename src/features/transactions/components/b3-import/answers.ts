@@ -24,7 +24,9 @@ export function toAnswers(draft: AnswersDraft, preview: B3ImportPreview | null) 
   const prices: Record<string, number> = {};
   for (const [id, text] of Object.entries(draft.prices)) {
     const value = parseNumberInput(text);
-    if (Number.isFinite(value) && value > 0) prices[id] = value;
+    // O custo da bonificação pode ser 0 (a empresa não atribuiu custo); os outros preços, não.
+    const allowsZero = id.startsWith("bon:");
+    if (Number.isFinite(value) && (value > 0 || (allowsZero && value === 0))) prices[id] = value;
   }
   const conversions: Record<string, string> = {};
   for (const item of preview?.pending ?? []) {

@@ -23,9 +23,29 @@ export const isOpen = (item: Pending) =>
   item.type === "CONVERSAO" ? item.source === null : item.price === null;
 
 /** A pergunta de cada pendência: o fato com o ticker em destaque e a pergunta em texto secundário. */
-function Question({ item, priorDate }: { item: Pending; priorDate: Date }) {
+function Question({
+  item,
+  priorDate,
+  units,
+}: {
+  item: Pending;
+  priorDate: Date;
+  /** "cotas" ou "ações", pela classe do ativo. */
+  units: string;
+}) {
   const ticker = <strong className="font-semibold">{item.ticker}</strong>;
   const quantity = formatQuantity(item.quantity);
+  if (item.type === "CUSTO_BONIFICACAO") {
+    return (
+      <>
+        Bonificação de {ticker}: {quantity} {units} em {formatTradeDate(item.date)}.{" "}
+        <span className="text-muted-foreground">
+          Qual o custo atribuído por ação? Ele consta no fato relevante da empresa; use 0 se ela não
+          atribuiu custo.
+        </span>
+      </>
+    );
+  }
   if (item.type === "PRECO_SUBSCRICAO") {
     return (
       <>
@@ -37,7 +57,7 @@ function Question({ item, priorDate }: { item: Pending; priorDate: Date }) {
   if (item.type === "POSICAO_ANTERIOR") {
     return (
       <>
-        {ticker} já tinha {quantity} cotas antes do extrato (em {formatTradeDate(priorDate)}).{" "}
+        {ticker} já tinha {quantity} {units} antes do extrato (em {formatTradeDate(priorDate)}).{" "}
         <span className="text-muted-foreground">Qual era o preço médio?</span>
       </>
     );
@@ -61,6 +81,8 @@ export function PendingList({
   onChange: (draft: AnswersDraft) => void;
 }) {
   const excluded = new Set(draft.exclude);
+  const classes = new Map(preview.tickers.map((row) => [row.ticker, row.assetClass]));
+  const unitsOf = (ticker: string) => (classes.get(ticker) === "ACAO" ? "ações" : "cotas");
   const toggleExclude = (ticker: string) =>
     onChange({
       ...draft,
@@ -84,7 +106,7 @@ export function PendingList({
             className="grid gap-3 border-b border-border pb-4 last:border-0 last:pb-0"
           >
             <p className="text-sm">
-              <Question item={item} priorDate={preview.priorDate} />
+              <Question item={item} priorDate={preview.priorDate} units={unitsOf(item.ticker)} />
             </p>
             <div className="flex flex-wrap items-center gap-3">
               {item.type === "CONVERSAO" ? (
@@ -117,7 +139,11 @@ export function PendingList({
                     R$
                   </span>
                   <Input
-                    aria-label={`Preço de ${item.ticker}`}
+                    aria-label={
+                      item.type === "CUSTO_BONIFICACAO"
+                        ? `Custo por ação da bonificação de ${item.ticker}`
+                        : `Preço de ${item.ticker}`
+                    }
                     inputMode="decimal"
                     className="w-36 pl-9 tabular-nums"
                     disabled={out}

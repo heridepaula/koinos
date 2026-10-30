@@ -200,7 +200,7 @@ export function B3ImportWizard() {
           {preview?.blocked && !dirty ? (
             <ToneBanner
               tone="bad"
-              title="Responda as pendências (ou deixe o FII de fora) para liberar a importação."
+              title="Responda as pendências (ou deixe o ativo de fora) para liberar a importação."
             />
           ) : null}
         </CardContent>

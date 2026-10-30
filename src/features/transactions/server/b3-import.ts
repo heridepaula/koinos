@@ -275,7 +275,7 @@ export async function confirmB3Import(
     }
     if (plan.check.unexplained.length > 0 && !request.acceptDivergences) {
       throw new ActionError(
-        "A conferência pelos rendimentos tem divergências. Confirme que revisou para importar mesmo assim.",
+        "A conferência pelos proventos tem divergências. Confirme que revisou para importar mesmo assim.",
       );
     }
     // Fora do escopo, o provento não seria comparado num reenvio e ficaria repetido.
