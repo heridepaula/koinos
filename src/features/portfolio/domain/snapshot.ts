@@ -245,7 +245,7 @@ export function buildSnapshot({
   const ledgerTickers = new Set(positions.map((position) => position.ticker));
   const timeOf = (date: Date | null) => date?.getTime() ?? 0;
   const closed: ClosedPositionRow[] = [
-    ...closedPositions(transactions).map((position) => {
+    ...closedPositions(transactions, classes).map((position) => {
       const dividendsOf = received.get(position.ticker) ?? 0;
       return {
         ticker: position.ticker,

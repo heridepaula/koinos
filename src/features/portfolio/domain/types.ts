@@ -102,6 +102,8 @@ export type StrategyRow = {
  */
 export type ClosedPosition = {
   ticker: string;
+  /** FII ou ação: decide a regra do IR. */
+  assetClass: AssetClass | null;
   /** Dia em que a posição zerou: a última venda ou, quando foi ela que zerou, a incorporação. */
   closedAt: Date;
   /** Quantas vendas de verdade (negócios e leilões de fração), somando todos os ciclos. */
@@ -114,8 +116,13 @@ export type ClosedPosition = {
   realizedPnL: number;
   /** Resultado sobre o custo; null sem custo (sem venda). */
   realizedPct: number | null;
-  /** 20% do lucro, sem isenção; zero no prejuízo. Por posição, sem compensar prejuízos. */
+  /**
+   * IR estimado, sem compensar prejuízos. FII: 20% do lucro da posição, sem isenção. Ação: 15% do
+   * lucro de cada mês em que as vendas de ações passaram de R$ 20 mil. Zero no prejuízo.
+   */
   estimatedTax: number;
+  /** Ação com lucro só em meses isentos (vendas de ações até R$ 20 mil): a tela mostra "Isento". */
+  taxExempt: boolean;
   /** FII que recebeu as cotas, quando foi uma incorporação que zerou a posição. */
   incorporatedInto: string | null;
   /** Algum preço de compra deste FII (ou do incorporado nele) foi estimado: o resultado também é. */

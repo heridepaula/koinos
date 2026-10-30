@@ -82,6 +82,8 @@ export function ClosedTaxTable({ rows, totals }: ClosedPositionsView) {
                 <TableCell className="pr-(--card-spacing) text-right tabular-nums">
                   {row.estimatedTax > 0 ? (
                     <Sensitive>{formatBRL(row.estimatedTax)}</Sensitive>
+                  ) : row.taxExempt ? (
+                    <span className="text-muted-foreground">Isento</span>
                   ) : (
                     "—"
                   )}

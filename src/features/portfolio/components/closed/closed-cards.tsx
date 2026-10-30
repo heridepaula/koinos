@@ -11,14 +11,13 @@ import Link from "next/link";
 import { Delta } from "@/shared/components/delta";
 import { InsetGroup, insetRowClass } from "@/shared/components/inset-list";
 import { MetricCard, MetricNote, StatList, StatRow } from "@/shared/components/metric";
-import { formatBRL, formatPercent, formatQuantity } from "@/shared/lib/format";
+import { formatBRL, formatQuantity } from "@/shared/lib/format";
 import { Button } from "@/shared/ui/button";
-import { FII_CAPITAL_GAINS_RATE } from "../../domain/closed-positions";
 import type { ClosedPositionsTotals } from "../../domain/types";
 import { Sensitive } from "@/shared/components/sensitive";
 
 const positions = (count: number) => `${count} ${count === 1 ? "posição" : "posições"}`;
-const taxLabel = `IR estimado (${formatPercent(FII_CAPITAL_GAINS_RATE, 0)} do lucro)`;
+const taxLabel = "IR estimado";
 
 /**
  * Cards de /encerradas: o resultado das vendas, as posições e o atalho para o IR estimado. No
@@ -59,7 +58,7 @@ export function ClosedPositionsCards({ totals }: { totals: ClosedPositionsTotals
             <span className="grid flex-1">
               IR estimado
               <span className="text-footnote text-muted-foreground">
-                {formatPercent(FII_CAPITAL_GAINS_RATE, 0)} do lucro de cada FII
+                Sobre o lucro de cada posição
               </span>
             </span>
             <span className="text-muted-foreground tabular-nums">
@@ -142,7 +141,7 @@ export function ClosedTaxCards({ totals }: { totals: ClosedPositionsTotals }) {
         <div className="grid gap-3">
           <StatList>
             <StatRow
-              label={`Lucro tributável · ${positions(totals.withProfit)}`}
+              label={`Lucro das vendas · ${positions(totals.withProfit)}`}
               value={<Delta value={totals.profit} />}
             />
             <StatRow
@@ -151,7 +150,8 @@ export function ClosedTaxCards({ totals }: { totals: ClosedPositionsTotals }) {
             />
           </StatList>
           <p className="text-footnote text-muted-foreground">
-            Por posição, sem isenção e sem compensar os prejuízos.
+            Por posição, sem compensar os prejuízos. Nas ações, o mês com até R$ 20 mil vendidos é
+            isento.
           </p>
         </div>
       </MetricCard>
@@ -162,15 +162,20 @@ export function ClosedTaxCards({ totals }: { totals: ClosedPositionsTotals }) {
           label={taxLabel}
           value={<Sensitive>{formatBRL(totals.estimatedTax)}</Sensitive>}
         >
-          <MetricNote>Por posição, sem isenção e sem compensar os prejuízos.</MetricNote>
+          <MetricNote>
+            Por posição, sem compensar os prejuízos. Nas ações, o mês com até R$ 20 mil vendidos é
+            isento.
+          </MetricNote>
         </MetricCard>
         <MetricCard
           icon={TrendingUpIcon}
           tile="[--tile:var(--tile-green)]"
-          label="Lucro tributável"
+          label="Lucro das vendas"
           value={<Delta value={totals.profit} />}
         >
-          <MetricNote>{positions(totals.withProfit)} com lucro: a base do IR.</MetricNote>
+          <MetricNote>
+            {positions(totals.withProfit)} com lucro. Nas ações, o do mês isento não paga IR.
+          </MetricNote>
         </MetricCard>
         <MetricCard
           icon={TrendingDownIcon}

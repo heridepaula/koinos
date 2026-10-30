@@ -4,7 +4,11 @@ import { Delta } from "@/shared/components/delta";
 import { formatBRL, formatPercent, formatTradeDate } from "@/shared/lib/format";
 import { cn } from "@/shared/lib/utils";
 import { Badge } from "@/shared/ui/badge";
-import { FII_CAPITAL_GAINS_RATE } from "../../domain/closed-positions";
+import {
+  FII_CAPITAL_GAINS_RATE,
+  STOCK_CAPITAL_GAINS_RATE,
+  STOCK_EXEMPTION_LIMIT,
+} from "../../domain/closed-positions";
 import type { ClosedPositionsView } from "../../domain/types";
 import { Sensitive } from "@/shared/components/sensitive";
 
@@ -92,6 +96,8 @@ export function ClosedList({
                     <>
                       IR <Sensitive>{formatBRL(row.estimatedTax)}</Sensitive>
                     </>
+                  ) : row.taxExempt ? (
+                    "isento"
                   ) : (
                     "sem IR"
                   )}
@@ -130,9 +136,11 @@ export function ClosedNotes({
     >
       {tax ? (
         <li>
-          <Term>IR estimado:</Term> {formatPercent(FII_CAPITAL_GAINS_RATE, 0)} do lucro de cada FII,
-          porque a venda de cotas de FII não tem isenção; prejuízo não paga. Na declaração, o IR é
-          apurado mês a mês, somando as vendas de FII do mês e compensando os prejuízos anteriores.
+          <Term>IR estimado:</Term> nos FIIs, {formatPercent(FII_CAPITAL_GAINS_RATE, 0)} do lucro de
+          cada posição, porque a venda de cotas de FII não tem isenção. Nas ações,{" "}
+          {formatPercent(STOCK_CAPITAL_GAINS_RATE, 0)} do lucro do mês em que as vendas de ações
+          passaram de {formatBRL(STOCK_EXEMPTION_LIMIT)}; até esse valor, o mês é isento. Prejuízo
+          não paga. Na declaração, o IR é apurado mês a mês, compensando os prejuízos anteriores.
           Esta estimativa não compensa.
         </li>
       ) : (
