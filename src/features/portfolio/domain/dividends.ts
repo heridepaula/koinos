@@ -168,7 +168,13 @@ export function dividendPace(now: Date, received: readonly DividendEntry[]): Div
     if (key.startsWith(year)) thisYear += item.amount;
     else if (key.startsWith(lastYear)) previousYear += item.amount;
   }
-  return { year: Number(year), monthlyAverage12m: last12 / 12, thisYear, lastYear: previousYear };
+  return {
+    year: Number(year),
+    last12m: last12,
+    monthlyAverage12m: last12 / 12,
+    thisYear,
+    lastYear: previousYear,
+  };
 }
 
 export function monthSummary(

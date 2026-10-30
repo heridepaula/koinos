@@ -160,6 +160,8 @@ export type PeriodResult = {
 export type DividendPace = {
   /** Ano atual, em São Paulo. */
   year: number;
+  /** Recebido nos últimos 12 meses fechados (sem o mês atual). */
+  last12m: number;
   /** Média por mês dos últimos 12 meses fechados (sem o mês atual). */
   monthlyAverage12m: number;
   /** Recebido no ano atual, até hoje. */
@@ -185,6 +187,10 @@ export type PortfolioSummary = {
   dayChangePct: number | null;
   dy12m: number | null;
   monthlyIncome: number;
+  /** Renda mensal estimada × 12 ÷ investido. Null sem custo. */
+  yieldOnCost: number | null;
+  /** Renda mensal estimada ÷ média recebida por mês nos últimos 12 meses − 1. Null sem uma das duas. */
+  incomeVsAverage: number | null;
   positionsCount: number;
 };
 

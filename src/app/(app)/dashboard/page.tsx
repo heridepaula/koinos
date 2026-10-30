@@ -49,7 +49,7 @@ async function DashboardContent() {
 
   return (
     <div className="grid gap-4 md:gap-6">
-      <SummaryCards summary={snapshot.summary} />
+      <SummaryCards summary={snapshot.summary} byCategory={snapshot.allocation.byCategory} />
       <Suspense fallback={<CardSkeleton />}>
         <PeriodSection />
       </Suspense>

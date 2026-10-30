@@ -125,6 +125,7 @@ export function buildSnapshot({
   const realizedPnL = positions.reduce((sum, position) => sum + position.realizedPnL, 0);
   const dividendsReceived = [...received.values()].reduce((sum, value) => sum + value, 0);
   const portfolioAdjusted = adjustedResult(patrimony - invested, dividendsReceived, realizedPnL);
+  const pace = dividendPace(now, dividends);
   const summary: PortfolioSummary = {
     patrimony,
     invested,
@@ -132,13 +133,18 @@ export function buildSnapshot({
     pnlPct: invested > 0 ? (patrimony - invested) / invested : null,
     realizedPnL,
     dividendsReceived,
-    dividendPace: dividendPace(now, dividends),
+    dividendPace: pace,
     pnlWithDividends: portfolioAdjusted.withDividends,
     totalResult: portfolioAdjusted.total,
     dayChange,
     dayChangePct: patrimony - dayChange > 0 ? dayChange / (patrimony - dayChange) : null,
     dy12m: dyBase > 0 ? dyWeighted / dyBase : null,
     monthlyIncome,
+    yieldOnCost: invested > 0 ? (monthlyIncome * 12) / invested : null,
+    incomeVsAverage:
+      monthlyIncome > 0 && pace.monthlyAverage12m > 0
+        ? monthlyIncome / pace.monthlyAverage12m - 1
+        : null,
     positionsCount: open.length,
   };
 

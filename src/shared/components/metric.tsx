@@ -39,7 +39,8 @@ export function MetricCard({
             na mesma linha em todos os cards. */}
         <div className="flex h-[2.125rem] items-center text-title-1 tabular-nums">{value}</div>
       </CardHeader>
-      {children ? <CardContent>{children}</CardContent> : null}
+      {/* Contêiner nomeado: as linhas encolhem um ponto quando o card fica estreito. */}
+      {children ? <CardContent className="@container/metric">{children}</CardContent> : null}
     </Card>
   );
 }
@@ -49,10 +50,14 @@ export function StatList({ children, className }: { children: ReactNode; classNa
   return <dl className={cn("grid border-t border-border/70 pt-3", className)}>{children}</dl>;
 }
 
-/** Linha "rótulo ······ valor", com 28 px de altura e o valor alinhado à direita. */
+/**
+ * Linha "rótulo ······ valor", com 28 px de altura e o valor alinhado à direita. Num card de
+ * número estreito (três colunas em telas de ~1.300 px), a letra desce para o Footnote e o vão
+ * encolhe, para rótulo e valor caberem numa linha.
+ */
 export function StatRow({ label, value }: { label: ReactNode; value: ReactNode }) {
   return (
-    <div className="flex min-h-7 items-center justify-between gap-4 text-sm">
+    <div className="flex min-h-7 items-center justify-between gap-4 text-sm @max-[289px]/metric:gap-3 @max-[289px]/metric:text-footnote">
       <dt className="text-muted-foreground">{label}</dt>
       <dd className="text-right font-medium tabular-nums">{value}</dd>
     </div>

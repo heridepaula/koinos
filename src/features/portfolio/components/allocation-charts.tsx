@@ -9,19 +9,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/sha
 import { SegmentedControl } from "@/shared/ui/segmented-control";
 import { OTHERS_KEY, UNCATEGORIZED_KEY } from "../domain/allocation";
 import type { AllocationSlice } from "../domain/types";
-
-// A cor segue a entidade: cada categoria tem sempre o mesmo slot da paleta.
-const CATEGORY_SLOT: Record<string, number> = {
-  FII_TIJOLO: 1,
-  FII_PAPEL: 2,
-  FII_HIBRIDO: 3,
-  FII_FOF: 4,
-  FIAGRO: 5,
-  ACAO: 6,
-  ETF: 7,
-  OUTRO: 8,
-};
-const NEUTRAL = "var(--muted-foreground)";
+import { categoryColor, NEUTRAL_COLOR } from "./category-colors";
 
 const DONUT_SIZE = "mx-auto aspect-square w-full max-w-48";
 
@@ -34,9 +22,9 @@ const AllocationDonut = dynamic(
 type Mode = "category" | "asset";
 
 function colorFor(slice: AllocationSlice, index: number, mode: Mode): string {
-  if (slice.key === OTHERS_KEY || slice.key === UNCATEGORIZED_KEY) return NEUTRAL;
-  const slot = mode === "category" ? CATEGORY_SLOT[slice.key] : index + 1;
-  return slot ? `var(--chart-${slot})` : NEUTRAL;
+  if (mode === "category") return categoryColor(slice.key);
+  if (slice.key === OTHERS_KEY || slice.key === UNCATEGORIZED_KEY) return NEUTRAL_COLOR;
+  return `var(--chart-${index + 1})`;
 }
 
 const MODE_OPTIONS = [
