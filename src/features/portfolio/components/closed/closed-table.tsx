@@ -36,7 +36,7 @@ export function ClosedPositionsTable({ rows, totals }: ClosedPositionsView) {
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Por FII</CardTitle>
+        <CardTitle>Por ativo</CardTitle>
         <CardDescription>Da encerrada mais recente para a mais antiga.</CardDescription>
         <CardAction className="md:hidden">
           <InfoSheet title="Como a conta é feita" label="Como a conta é feita">
@@ -49,7 +49,7 @@ export function ClosedPositionsTable({ rows, totals }: ClosedPositionsView) {
         <Table className="hidden @min-[480px]:table">
           <TableHeader>
             <TableRow>
-              <TableHead className="pl-(--card-spacing)">FII</TableHead>
+              <TableHead className="pl-(--card-spacing)">Ativo</TableHead>
               <TableHead className="hidden @min-[600px]:table-cell">Encerrada em</TableHead>
               <TableHead className="hidden text-right @min-[720px]:table-cell">
                 Custo (PM)

@@ -43,7 +43,7 @@ export function ClosedPositions({ rows }: { rows: readonly ClosedPositionRow[] }
           <Table className="mt-3">
             <TableHeader>
               <TableRow>
-                <TableHead className="pl-0">FII</TableHead>
+                <TableHead className="pl-0">Ativo</TableHead>
                 <TableHead className="hidden @min-[500px]:table-cell">Encerrada em</TableHead>
                 <TableHead className="hidden text-right @min-[400px]:table-cell">Vendas</TableHead>
                 <TableHead className="text-right">Proventos</TableHead>

@@ -10,8 +10,8 @@ export function EmptyClosedPositions() {
         </EmptyMedia>
         <EmptyTitle>Nenhuma posição encerrada</EmptyTitle>
         <EmptyDescription>
-          Quando você vender todas as cotas de um FII, ele aparece aqui com o resultado das vendas e
-          o IR estimado.
+          Quando você vender toda a posição de um ativo, ele aparece aqui com o resultado das vendas
+          e o IR estimado.
         </EmptyDescription>
       </EmptyHeader>
     </Empty>

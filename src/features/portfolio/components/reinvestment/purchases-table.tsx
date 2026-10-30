@@ -65,7 +65,7 @@ export function PurchasesTable({ rows }: { rows: ReinvestmentView["purchases"] }
               <TableHeader>
                 <TableRow>
                   <TableHead className="pl-(--card-spacing)">Data</TableHead>
-                  <TableHead>FII</TableHead>
+                  <TableHead>Ativo</TableHead>
                   <TableHead className="hidden @min-[560px]:table-cell">Tipo</TableHead>
                   <TableHead className="hidden text-right @min-[480px]:table-cell">Qtd.</TableHead>
                   <TableHead className="hidden text-right @min-[640px]:table-cell">Preço</TableHead>

@@ -34,7 +34,7 @@ export function ClosedTaxTable({ rows, totals }: ClosedPositionsView) {
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Por FII</CardTitle>
+        <CardTitle>Por ativo</CardTitle>
         <CardDescription>Da encerrada mais recente para a mais antiga.</CardDescription>
         <CardAction className="md:hidden">
           <InfoSheet title="Como o IR é estimado" label="Como o IR é estimado">
@@ -55,7 +55,7 @@ export function ClosedTaxTable({ rows, totals }: ClosedPositionsView) {
         <Table className="hidden @min-[480px]:table">
           <TableHeader>
             <TableRow>
-              <TableHead className="pl-(--card-spacing)">FII</TableHead>
+              <TableHead className="pl-(--card-spacing)">Ativo</TableHead>
               <TableHead className="hidden @min-[480px]:table-cell">Encerrada em</TableHead>
               <TableHead className="text-right">Resultado</TableHead>
               <TableHead className="pr-(--card-spacing) text-right whitespace-normal">

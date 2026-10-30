@@ -183,14 +183,14 @@ function MonthMatrix({ view }: { view: HistoryData }) {
           </TableBody>
         </Table>
         <p className="text-caption text-muted-foreground">
-          Cor mais forte, mês maior. Clique num mês para ver os FIIs.
+          Cor mais forte, mês maior. Clique num mês para ver os ativos.
         </p>
         {selected ? (
           <section aria-live="polite" className="grid gap-3 rounded-xl bg-secondary/60 p-4">
             <h3 className="flex flex-wrap items-baseline gap-x-2 text-sm font-semibold">
               <span>{capitalize(monthName(selected.month))}</span>
               <span className="font-normal text-muted-foreground">
-                {selected.byTicker.length} {selected.byTicker.length === 1 ? "FII" : "FIIs"}
+                {selected.byTicker.length} {selected.byTicker.length === 1 ? "ativo" : "ativos"}
               </span>
               <span className="ml-auto tabular-nums">
                 <Sensitive>{formatBRL(selected.total)}</Sensitive>
@@ -304,7 +304,7 @@ function MonthCalendar({
         })}
       </ol>
       <p className="text-caption text-muted-foreground">
-        Cor mais forte, mês maior. Toque num mês para ver os FIIs.
+        Cor mais forte, mês maior. Toque num mês para ver os ativos.
       </p>
       <Drawer open={opened !== null} onOpenChange={(open) => !open && setOpened(null)}>
         <DrawerContent>
@@ -319,7 +319,7 @@ function MonthCalendar({
                     <Sensitive>{formatBRL(group.total)}</Sensitive>
                   </p>
                   <p className="text-footnote text-muted-foreground">
-                    {group.byTicker.length} {group.byTicker.length === 1 ? "FII" : "FIIs"}
+                    {group.byTicker.length} {group.byTicker.length === 1 ? "ativo" : "ativos"}
                   </p>
                 </div>
                 <InsetGroup>
@@ -426,7 +426,7 @@ function ByTicker({ rows }: { rows: DividendsView["byTicker"] }) {
       <Table className="hidden @min-[640px]:table">
         <TableHeader>
           <TableRow>
-            <TableHead className="pl-(--card-spacing)">FII</TableHead>
+            <TableHead className="pl-(--card-spacing)">Ativo</TableHead>
             <TableHead className="text-right">Total</TableHead>
             <TableHead className="text-right">Pagamentos</TableHead>
             <TableHead className="pr-(--card-spacing) text-right">Último</TableHead>

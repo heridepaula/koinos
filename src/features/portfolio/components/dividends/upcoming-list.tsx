@@ -185,7 +185,7 @@ export function UpcomingDividends({
   forecastAsOf: Date | null;
 }) {
   const description = forecastAsOf
-    ? `Da lista Proventos a Receber da B3 (envio de ${formatTradeDate(forecastAsOf)}) e dos anúncios do Yahoo depois dela.`
+    ? `Da lista Proventos a Receber da B3 (envio de ${formatTradeDate(forecastAsOf)}) e, nos FIIs, dos anúncios do Yahoo depois dela.`
     : "Pelos anúncios do Yahoo, sobre as cotas da véspera da data ex.";
   return (
     <Card>
@@ -212,12 +212,12 @@ export function UpcomingDividends({
             <Table className="hidden @min-[400px]:table">
               <TableHeader>
                 <TableRow>
-                  <TableHead className="pl-(--card-spacing)">FII</TableHead>
+                  <TableHead className="pl-(--card-spacing)">Ativo</TableHead>
                   <TableHead className="hidden @min-[400px]:table-cell">Origem</TableHead>
                   <TableHead className="hidden @min-[520px]:table-cell">Data ex</TableHead>
-                  <TableHead className="hidden text-right @min-[640px]:table-cell">Cotas</TableHead>
+                  <TableHead className="hidden text-right @min-[640px]:table-cell">Qtd.</TableHead>
                   <TableHead className="hidden text-right @min-[640px]:table-cell">
-                    Por cota
+                    Unitário
                   </TableHead>
                   <TableHead className="text-right">Valor</TableHead>
                   <TableHead className="pr-(--card-spacing) text-right">Pagamento</TableHead>

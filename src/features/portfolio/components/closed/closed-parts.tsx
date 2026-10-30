@@ -158,7 +158,7 @@ export function ClosedNotes({
       {estimated ? (
         <li>
           <Term>Preço estimado:</Term> nem a B3 nem a planilha tinham o preço de compra de algum
-          lote deste FII, e ele foi estimado. O resultado e o IR também são estimativas.
+          lote deste ativo, e ele foi estimado. O resultado e o IR também são estimativas.
         </li>
       ) : null}
     </ul>
