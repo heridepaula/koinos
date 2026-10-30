@@ -140,7 +140,8 @@ Novo módulo `transactions/import/b3/lending.ts`, puro, que serve à conferênci
 1. **Liquidação de negócio:** é a `Transferência - Liquidação` que corresponde aos negócios do ativo num pregão:
    - mesmo sentido (crédito na compra, débito na venda);
    - a quantidade somada dos negócios do dia, fracionário incluso. A venda do ITSA4 de 28/12/2022 (2.300 + 10 no fracionário) liquidou numa linha só de 2.310;
-   - de 1 a 7 dias corridos depois do pregão. É D+2 somado a fins de semana e feriados: essa mesma venda liquidou em 02/01/2023.
+   - de 0 a 7 dias corridos depois do pregão. Em geral é D+2 somado a fins de semana e feriados: essa mesma venda liquidou em 02/01/2023. Também aparece D+0, como nas compras de MCCI11 e XPML11 de 01/11/2023;
+   - sem uma linha para a soma do dia, cada negócio sozinho.
 2. **Saída e volta de aluguel:** toda outra `Transferência - Liquidação` é saída de aluguel (débito) ou volta (crédito).
 3. **Pareamento:** cada volta fecha a saída aberta mais antiga de mesma quantidade. Se não houver, fecha a maior saída aberta menor que ela. Volta sem saída aberta é ignorada, sem aviso: na prática, é liquidação que o passo 1 não reconheceu, e não muda a posição.
 4. **Ações a mais:** volta maior que a saída quer dizer que houve um evento durante o aluguel. A diferença entra como o evento do ativo entre a saída e a volta:
@@ -149,13 +150,14 @@ Novo módulo `transactions/import/b3/lending.ts`, puro, que serve à conferênci
 
    A data do lançamento é a da volta. Na EGIE3, saíram 32 em 28/11/2025 e voltaram 44 em 02/12/2025: as 12 entram na bonificação de 28/11/2025, e a posição fecha em 139.
 5. **Sem evento entre a saída e a volta:** vira aviso na prévia ("voltaram N ações a mais do aluguel sem bonificação ou desdobro"), e a posição não muda. Assim, um pareamento errado nunca inventa ações.
-6. **Abrangência:** a regra vale para todos os ativos gerenciados. Nos extratos de 30/10/2026, nenhum FII volta com cotas a mais.
+6. **Abrangência:** a regra vale para todos os ativos gerenciados e lê os extratos inteiros, para parear também o aluguel aberto antes do período. Só a volta dentro do período gera lançamento. Nos extratos de 30/10/2026, há 147 contratos de aluguel, e só a EGIE3 volta com ações a mais.
 
 ### 5.6 Conferências
 
 - **Posição anterior ao extrato:** a mesma regra de hoje, para ações também. Nos extratos de 30/10/2026, nenhuma ação precisa dela.
 - **Quantidade × proventos (`dividendCheck`):** vale para ações também, pelas linhas de `Dividendo`, `Juros Sobre Capital Próprio` e `Rendimento` com quantidade.
   - **Janela:** a busca pela posição igual vai até **365 dias** antes do pagamento, contra 45 dias nos FIIs. A ação paga muito depois da data com: o JCP do ITSA4 de out/2023 era sobre a posição de dez/2022, e o dividendo da NEOE3 de dez/2021 sobre a posição vendida em mai/2021.
+  - **O mês de uma ação bate** quando a quantidade de alguma linha do mês, ou a soma das linhas do mesmo provento (mesmo tipo, dia e valor por ação, como em duas corretoras), é a posição de algum dia da janela. Não se soma o mês inteiro, como nos FIIs: o mesmo dia traz JCP, dividendo e rendimento, cada um sobre a posição inteira. Exigir que todas as linhas batam falharia em ago/2021 no ITSA4, que pagou três JCP no mesmo dia com o mesmo valor arredondado (R$ 0,01).
   - **Aluguel:** explica as diferenças como hoje. A janela é do `Empréstimo` que abre o contrato até o que fecha, mais 45 dias, e o pareamento do §5.5 entra junto.
 - **"A receber" com quantidade diferente da posição:** só aviso, como hoje, agora para ações também.
 
@@ -232,7 +234,8 @@ Na etapa 1, a tela de Proventos mistura os tipos. A quebra por tipo é da etapa 
   - **ações:** entram como uma fatia "Ações", com a chave `ACAO` e a cor que a categoria já tem em `category-colors.ts`;
   - **FIIs:** seguem pela categoria da Carteira Alvo;
   - **barra do card de patrimônio:** tem a mesma composição.
-- **Posições:** ações e FIIs na mesma tabela e na mesma lista do iPhone. A categoria da ação aparece como "Ação", e ranking, teto, prioridade e peso alvo ficam vazios.
+- **Posições:** ações e FIIs na mesma tabela e na mesma lista do iPhone. A tabela não tem coluna de categoria, e a ação se reconhece pelo nome (PETROLEO BRASILEIRO…). A categoria da ação vale `ACAO` nos dados, e é ela que leva a ação à fatia "Ações". Ranking, teto, prioridade e peso alvo ficam vazios.
+- **Textos das listas:** onde uma lista passa a mostrar ações, o cabeçalho "FII" vira "Ativo" e "Cotas" vira "Qtd.". Isso vale para as encerradas (página, IR e card do Dashboard), o histórico e o "a receber" de Proventos e as compras do reinvestimento.
 - **Encerradas (card e páginas):** incluem as ações. O IR está no §8.
 - **Aportes por mês (`monthlyContributions`):** a compra de ação conta, e a `BONIFICACAO` não, como a perna de compra da incorporação, porque não sai dinheiro. O desdobro já soma 0.
 - **Investido:** segue o custo da Receita. O custo atribuído da bonificação entra no investido no dia dela, e a evolução mostra isso.
@@ -271,6 +274,7 @@ Na etapa 1, a tela de Proventos mistura os tipos. A quebra por tipo é da etapa 
 - **Telas:**
   - **`ClosedPosition`:** ganha `assetClass` e `taxExempt`. `estimatedTax` passa a seguir a regra da classe;
   - **`/encerradas/ir`:** troca o texto dos 20% por um texto curto com as duas regras, e a tabela mostra "Isento";
+  - **cards do IR:** o rótulo "IR estimado (20% do lucro)" vira "IR estimado". O card "Lucro tributável" vira "Lucro das vendas", porque soma também o lucro isento das ações;
   - **somas (`ClosedPositionsTotals`):** não mudam de forma.
 - **Seus dados:** as vendas de ações foram R$ 4.204,00 em mai/2021 (NEOE3, ODPV3 e WIZS3) e R$ 19.542,60 em dez/2022 (ITSA4). Os dois meses são isentos.
 - **Fora da estimativa:** os mesmos limites de hoje, mais os das ações:
@@ -339,4 +343,5 @@ Na etapa 1, a tela de Proventos mistura os tipos. A quebra por tipo é da etapa 
 - **Reembolso de fração:** em 30/01/2026, um "Reembolso" de R$ 24,46 na EGIE3 é o dinheiro da fração de 0,8 ação que estava alugada (0,8 × 30,578). Entra como provento, porque a Movimentação não distingue esse reembolso dos outros.
 - **IR do aluguel:** o valor é o que a B3 mostra. O extrato não traz o IR retido sobre o aluguel, e o app não o calcula.
 - **Units fora do catálogo:** seriam lidas como FII (§4).
+- **Bonificação com todas as ações alugadas:** se todas as ações estavam alugadas na data com, a B3 pode não lançar a "Bonificação em Ativos" para você. Aí a regra do §5.5 não acha o evento e só avisa.
 - **IR:** os limites do §8.
