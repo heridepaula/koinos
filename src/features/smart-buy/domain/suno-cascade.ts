@@ -1,17 +1,24 @@
 import { round2 } from "@/shared/lib/money";
-import { marginMultiplier, priceToBookMultiplier } from "./conviction";
+import {
+  dividendRatio,
+  dividendTensor,
+  safetyTensor,
+  vacancyTensor,
+  valuationTensor,
+} from "./conviction";
+import { RISK_CAPS, type RiskMacro } from "./risk";
 
-// Motor de aporte pelo método Suno (orientações públicas da Suno no Suno Conecta):
-// 1. só comprar abaixo do preço teto;
-// 2. seguir o ranking respeitando a % sugerida: levar o 1º até a meta, depois o 2º, e assim por diante;
-// 3. se todos estiverem abaixo do teto e na meta, aportar no de menor peso ou mais abaixo do preço médio.
-// Na acumulação, a carteira se rebalanceia pelos aportes, sem vender.
-// Índice de Convicção (decisão do dono, 24/10/2026): o quanto cada FII pede é o que falta para a meta
-// vezes os multiplicadores da margem até o teto e do P/VP (conviction.ts). O descontado pede mais e
-// o caro pede menos.
-// Entrada aos poucos ("investir aos poucos, distribuindo as compras ao longo de alguns meses"):
-// nenhum ativo leva mais que uma parte do aporte. Uma posição nova se monta em vários aportes,
-// e o preço médio se forma em várias compras.
+// Motor de aporte Koinos 3.0 (documento do dono, 30/10/2026): cascata pelo ranking Suno, com
+// valuation contínuo e travas de risco. Nunca vende: o rebalanceamento é só com dinheiro novo.
+// 1. Elegível: na estratégia, com ranking, teto, cotação e preço abaixo do teto.
+// 2. Meta = peso × (estratégia + aporte); gap = meta − valor. Com gap > 0, o FII pede o gap vezes os
+//    tensores de valuation, proventos, segurança e vacância (conviction.ts).
+// 3. Passo 1, do 1º ao último do ranking: cada FII gasta o menor entre o pedido e o espaço que sobra
+//    no próprio FII (20% do aporte), no setor (35%), na macro, papel ou tijolo (60%), e no saldo, em
+//    cotas inteiras (risk.ts).
+// 4. Passo 2, a sobra: uma cota por vez para o FII mais abaixo da meta, dentro das mesmas travas, até
+//    nenhuma cota caber. Nesta conta a meta vem descontada pelos freios de proventos e de vacância:
+//    senão o FII freado, que costuma ser o mais abaixo da meta, voltaria a receber pela sobra.
 
 export type CascadeAsset = {
   ticker: string;
@@ -22,23 +29,34 @@ export type CascadeAsset = {
   price: number | null;
   quantity: number;
   averagePrice: number | null;
-  /** P/VP (cotação ÷ valor patrimonial por cota). Null sem dado: o multiplicador fica neutro. */
+  /** P/VP do fechamento (cron das 2h). Null sem dado: tensor neutro. */
   priceToBook: number | null;
+  /** Último provento por cota e a soma dos últimos 12 meses. Null sem histórico. */
+  lastDividend: number | null;
+  dividends12m: number | null;
+  /** Vacância física, como fração (0,05 = 5%). Só freia tijolo. */
+  vacancy: number | null;
+  /** Baldes das travas de risco (risk.ts). Setor null: não divide o limite com outros FIIs. */
+  macro: RiskMacro;
+  sector: string | null;
 };
 
 export type ExclusionReason =
-  "SEM_COTACAO" | "SEM_RANKING" | "SEM_TETO" | "ACIMA_DO_TETO" | "NA_META" | "SEM_SALDO";
+  | "SEM_COTACAO"
+  | "SEM_RANKING"
+  | "SEM_TETO"
+  | "ACIMA_DO_TETO"
+  | "NA_META"
+  | "PEDIDO_PEQUENO"
+  | "LIMITE_ATIVO"
+  | "LIMITE_SETOR"
+  | "LIMITE_MACRO"
+  | "SEM_SALDO";
 
-/** Limites por ativo que a tela oferece, em % do aporte. 100 = sem limite. */
-export const MAX_SHARE_PERCENTS = [25, 33, 50, 75, 100] as const;
-export type MaxSharePercent = (typeof MAX_SHARE_PERCENTS)[number];
-/** Padrão da entrada aos poucos: nenhum ativo leva mais que um terço do aporte (decisão do dono, 24/10/2026). */
-export const DEFAULT_MAX_SHARE_PERCENT: MaxSharePercent = 33;
+/** O que segurou o passo 1 abaixo do pedido. */
+export type CascadeLimit = "ativo" | "setor" | "macro" | "saldo";
 
-export type CascadeOptions = {
-  /** Máximo que um ativo pode receber neste aporte, em %. 100 ou mais = sem limite. */
-  maxSharePercent?: number;
-};
+export type Tensors = { valuation: number; dividends: number; safety: number; vacancy: number };
 
 export type CascadeOrder = {
   ticker: string;
@@ -48,27 +66,29 @@ export type CascadeOrder = {
   fromLeftover: number;
   price: number;
   total: number;
+  /** Peso na estratégia antes (÷ valor da estratégia) e depois (÷ estratégia + gasto). */
   weightBefore: number;
   weightAfter: number;
   targetWeight: number;
   /** (teto − preço) / teto */
   marginToCeiling: number;
   priceToBook: number | null;
-  /** Multiplicadores do Índice de Convicção usados (1 = neutro). */
-  marginMultiplier: number;
-  priceToBookMultiplier: number;
-  /** Quanto faltava (R$) para a meta antes do aporte (o gap base). */
+  vacancy: number | null;
+  /** Último provento ÷ média mensal de 12 meses, sem o teto de 1. Null sem histórico. */
+  dividendRatio: number | null;
+  tensors: Tensors;
+  macro: RiskMacro;
+  sector: string | null;
+  /** Valor ÷ meta antes do aporte. */
+  fillBefore: number;
+  /** Quanto faltava (R$) para a meta antes do aporte. */
   gapBefore: number;
-  /** Gap base × multiplicadores: o quanto o FII pediu neste aporte. */
-  adjustedGap: number;
-  /** Cotas desejadas: gap ajustado ÷ preço, arredondado para a cota mais próxima. */
-  desired: number;
-  /** Parou no limite por ativo antes das cotas desejadas (entrada aos poucos). */
-  limited: boolean;
+  /** Gap × tensores: quanto o FII pediu (R$). */
+  need: number;
+  /** A trava ou o saldo que cortou o pedido no passo 1. Null quando não cortou. */
+  limitedBy: CascadeLimit | null;
   /** Quanto falta (R$) para a meta depois desta ordem. */
   gapAfter: number;
-  /** Só em ordem limitada: quantos aportes iguais a este ainda faltam para a meta (estimativa). */
-  aportesLeft: number | null;
 };
 
 export type CascadeExclusion = { ticker: string; rank: number | null; reason: ExclusionReason };
@@ -79,8 +99,9 @@ export type CascadeResult = {
   leftover: number;
   /** Valor atual dos ativos da estratégia (antes do aporte). */
   strategyValue: number;
-  /** Limite por ativo usado, em % do aporte (100 = sem limite). */
-  maxSharePercent: number;
+  /** As travas deste aporte, em R$. */
+  caps: { asset: number; sector: number; macro: number };
+  /** Na ordem do ranking. */
   orders: CascadeOrder[];
   excluded: CascadeExclusion[];
 };
@@ -88,22 +109,28 @@ export type CascadeResult = {
 const EPSILON = 1e-9;
 const MAX_LEFTOVER_STEPS = 100_000;
 
-type Eligible = CascadeAsset & {
-  price: number;
-  rank: number;
-  ceiling: number;
-  value: number;
-  target: number;
-  marginMultiplier: number;
-  priceToBookMultiplier: number;
-  adjustedGap: number;
-  desired: number;
+type Slot = {
+  readonly asset: CascadeAsset;
+  readonly ticker: string;
+  readonly rank: number;
+  readonly price: number;
+  readonly ceiling: number;
+  readonly value: number;
+  readonly target: number;
+  readonly gap: number;
+  readonly tensors: Tensors;
+  readonly need: number;
+  /** Meta da sobra: a meta descontada pelos freios de proventos e de vacância. */
+  readonly leftoverTarget: number;
   bought: number;
   fromLeftover: number;
+  limitedBy: CascadeLimit | null;
 };
 
+type EligibilityReason = "SEM_COTACAO" | "SEM_RANKING" | "SEM_TETO" | "ACIMA_DO_TETO";
+
 /** A primeira regra de elegibilidade que falhar define o motivo de exclusão. */
-function eligibilityFailure(asset: CascadeAsset): ExclusionReason | null {
+function eligibilityFailure(asset: CascadeAsset): EligibilityReason | null {
   if (asset.price === null || !(asset.price > 0)) return "SEM_COTACAO";
   if (asset.rank === null) return "SEM_RANKING";
   if (asset.ceiling === null) return "SEM_TETO";
@@ -120,18 +147,14 @@ const byRankThenTicker = (
   b: { rank: number | null; ticker: string },
 ) => (a.rank ?? Infinity) - (b.rank ?? Infinity) || a.ticker.localeCompare(b.ticker);
 
-export function sunoCascade(
-  amount: number,
-  assets: readonly CascadeAsset[],
-  { maxSharePercent = DEFAULT_MAX_SHARE_PERCENT }: CascadeOptions = {},
-): CascadeResult {
+/** A meta, o gap, os tensores e o pedido de cada elegível; os outros saem com o motivo. */
+function prepare(amount: number, assets: readonly CascadeAsset[]) {
   const budget = Math.max(0, round2(amount));
   const strategyValue = assets.reduce((sum, asset) => sum + positionValue(asset), 0);
   const total = strategyValue + budget;
-
-  const excluded: CascadeExclusion[] = [];
-  const eligible: Eligible[] = [];
-  for (const asset of assets) {
+  const excluded: { ticker: string; rank: number | null; reason: EligibilityReason }[] = [];
+  const slots: Slot[] = [];
+  for (const asset of [...assets].sort(byRankThenTicker)) {
     const reason = eligibilityFailure(asset);
     if (reason) {
       excluded.push({ ticker: asset.ticker, rank: asset.rank, reason });
@@ -142,150 +165,182 @@ export function sunoCascade(
     const value = positionValue(asset);
     const target = asset.weight * total;
     const gap = target - value;
-    // Os multiplicadores só valem para quem está abaixo da meta.
-    const byMargin = gap > 0 ? marginMultiplier((ceiling - price) / ceiling) : 1;
-    const byPriceToBook = gap > 0 ? priceToBookMultiplier(asset.priceToBook) : 1;
-    const adjustedGap = gap > 0 ? gap * byMargin * byPriceToBook : 0;
-    eligible.push({
-      ...asset,
-      price,
+    const tensors: Tensors = {
+      valuation: valuationTensor(asset.priceToBook),
+      dividends: dividendTensor(asset.lastDividend, asset.dividends12m),
+      safety: safetyTensor((ceiling - price) / ceiling),
+      vacancy: vacancyTensor(asset.vacancy, asset.macro),
+    };
+    const need =
+      gap > 0 ? gap * tensors.valuation * tensors.dividends * tensors.safety * tensors.vacancy : 0;
+    slots.push({
+      asset,
+      ticker: asset.ticker,
       rank: asset.rank!,
+      price,
       ceiling,
       value,
       target,
-      marginMultiplier: byMargin,
-      priceToBookMultiplier: byPriceToBook,
-      adjustedGap,
-      // Arredonda para a cota mais próxima: só compra se o gap ajustado pagar meia cota ou mais.
-      desired: Math.floor(adjustedGap / price + 0.5),
+      gap,
+      tensors,
+      need,
+      leftoverTarget: target * tensors.dividends * tensors.vacancy,
       bought: 0,
       fromLeftover: 0,
+      limitedBy: null,
     });
   }
-  eligible.sort(byRankThenTicker);
+  return { budget, strategyValue, slots, excluded };
+}
 
+/** Pediu ao menos uma cota inteira. */
+const asksForAShare = (slot: Slot) => slot.gap > 0 && slot.need >= slot.price - EPSILON;
+
+function exclusionReason(slot: Slot): ExclusionReason {
+  if (slot.gap <= 0) return "NA_META";
+  if (!asksForAShare(slot)) return "PEDIDO_PEQUENO";
+  switch (slot.limitedBy) {
+    case "ativo":
+      return "LIMITE_ATIVO";
+    case "setor":
+      return "LIMITE_SETOR";
+    case "macro":
+      return "LIMITE_MACRO";
+    default:
+      return "SEM_SALDO";
+  }
+}
+
+export function sunoCascade(amount: number, assets: readonly CascadeAsset[]): CascadeResult {
+  const { budget, strategyValue, slots, excluded } = prepare(amount, assets);
+  const caps = {
+    asset: RISK_CAPS.asset * budget,
+    sector: RISK_CAPS.sector * budget,
+    macro: RISK_CAPS.macro * budget,
+  };
+  const usedBySector = new Map<string, number>();
+  const usedByMacro = new Map<RiskMacro, number>();
   let cash = budget;
-  // Cotas desejadas que ainda faltam comprar.
-  const wanted = (asset: Eligible) => Math.max(0, asset.desired - asset.bought);
-  const affordable = (asset: Eligible) => Math.floor(cash / asset.price + EPSILON);
-  // Entrada aos poucos: teto de cotas por ativo neste aporte, com pelo menos 1 cota (senão um
-  // ativo caro nunca entraria com aportes pequenos). Com 100%, não há teto.
-  const limit = maxSharePercent >= 100 ? Infinity : (maxSharePercent / 100) * budget;
-  const maxQuantity = (asset: Eligible) => Math.max(1, Math.floor(limit / asset.price + EPSILON));
-  const room = (asset: Eligible) => maxQuantity(asset) - asset.bought;
 
-  // Passo 1: cascata pelo ranking, cada ativo até as cotas desejadas ou até o limite. Se o dinheiro
-  // não alcança um ativo, segue para os próximos (um mais barato ainda pode caber).
-  for (const asset of eligible) {
-    const quantity = Math.min(wanted(asset), room(asset), affordable(asset));
-    if (quantity > 0) {
-      asset.bought += quantity;
-      cash = round2(cash - quantity * asset.price);
+  const spentOn = (slot: Slot) => slot.bought * slot.price;
+  /** Espaço em cada balde, em R$, na ordem usada para dizer qual trava cortou o pedido. */
+  const spaces = (slot: Slot): [CascadeLimit, number][] => [
+    ["ativo", caps.asset - spentOn(slot)],
+    [
+      "setor",
+      slot.asset.sector === null
+        ? Infinity
+        : caps.sector - (usedBySector.get(slot.asset.sector) ?? 0),
+    ],
+    ["macro", caps.macro - (usedByMacro.get(slot.asset.macro) ?? 0)],
+    ["saldo", cash],
+  ];
+  const tightest = (slot: Slot) =>
+    spaces(slot).reduce((min, entry) => (entry[1] < min[1] ? entry : min));
+  const buy = (slot: Slot, shares: number, leftover: boolean) => {
+    const cost = shares * slot.price;
+    slot.bought += shares;
+    if (leftover) slot.fromLeftover += shares;
+    if (slot.asset.sector !== null) {
+      usedBySector.set(slot.asset.sector, (usedBySector.get(slot.asset.sector) ?? 0) + cost);
     }
+    usedByMacro.set(slot.asset.macro, (usedByMacro.get(slot.asset.macro) ?? 0) + cost);
+    cash = round2(cash - cost);
+  };
+
+  // Passo 1: a cascata pelo ranking, com as travas.
+  for (const slot of slots) {
+    if (slot.need <= 0) continue;
+    const [binding, allowed] = tightest(slot);
+    const shares = Math.floor(Math.min(slot.need, allowed) / slot.price + EPSILON);
+    if (shares > 0) buy(slot, shares, false);
+    if (allowed < slot.need) slot.limitedBy = binding;
   }
 
-  // Passo 2: sobra. Só quando todos os elegíveis compraram as cotas desejadas ou estão no limite;
-  // senão o dinheiro fica guardado para o próximo aporte do ativo que ainda pede cotas.
-  if (eligible.every((asset) => wanted(asset) === 0 || room(asset) <= 0)) {
-    const weightVsTarget = (asset: Eligible) =>
-      (asset.value + asset.bought * asset.price) / asset.target;
-    const discountToAverage = (asset: Eligible) =>
-      asset.averagePrice && asset.averagePrice > 0
-        ? (asset.averagePrice - asset.price) / asset.averagePrice
-        : 0;
-    for (let step = 0; step < MAX_LEFTOVER_STEPS; step++) {
-      const candidates = eligible.filter(
-        (asset) => asset.target > 0 && asset.price <= cash + EPSILON && room(asset) > 0,
-      );
-      if (candidates.length === 0) break;
-      candidates.sort(
-        (a, b) =>
-          weightVsTarget(a) - weightVsTarget(b) ||
-          discountToAverage(b) - discountToAverage(a) ||
-          a.rank - b.rank,
-      );
-      const pick = candidates[0]!;
-      pick.bought += 1;
-      pick.fromLeftover += 1;
-      cash = round2(cash - pick.price);
-    }
+  // Passo 2: a sobra, uma cota por vez para o mais abaixo da meta (no empate, o melhor ranking).
+  const leftoverFill = (slot: Slot) => (slot.value + spentOn(slot)) / slot.leftoverTarget;
+  for (let step = 0; step < MAX_LEFTOVER_STEPS; step++) {
+    const pick = slots.reduce<Slot | null>((best, slot) => {
+      if (!(slot.leftoverTarget > 0) || slot.price > tightest(slot)[1] + EPSILON) return best;
+      return best === null || leftoverFill(slot) < leftoverFill(best) ? slot : best;
+    }, null);
+    if (pick === null) break;
+    buy(pick, 1, true);
   }
 
   const spent = round2(budget - cash);
-  const totalAfter = strategyValue + spent;
-  const orders: CascadeOrder[] = eligible
-    .filter((asset) => asset.bought > 0)
-    .map((asset) => {
-      const limited = room(asset) <= 0 && wanted(asset) > 0;
-      const total = round2(asset.bought * asset.price);
-      // Cada aporte igual compra cerca do mesmo total, e a meta cresce peso × aporte.
-      const pace = total - asset.weight * budget;
-      const gapAfter = round2(asset.target - (asset.value + asset.bought * asset.price));
-      const estimate = limited && pace > 0 && gapAfter > 0;
+  const strategyAfter = strategyValue + spent;
+  const orders: CascadeOrder[] = slots
+    .filter((slot) => slot.bought > 0)
+    .map((slot) => {
+      const held = slot.value + spentOn(slot);
       return {
-        ticker: asset.ticker,
-        rank: asset.rank,
-        quantity: asset.bought,
-        fromLeftover: asset.fromLeftover,
-        price: asset.price,
-        total,
-        weightBefore: strategyValue > 0 ? asset.value / strategyValue : 0,
-        weightAfter: totalAfter > 0 ? (asset.value + asset.bought * asset.price) / totalAfter : 0,
-        targetWeight: asset.weight,
-        marginToCeiling: (asset.ceiling - asset.price) / asset.ceiling,
-        priceToBook: asset.priceToBook,
-        marginMultiplier: asset.marginMultiplier,
-        priceToBookMultiplier: asset.priceToBookMultiplier,
-        gapBefore: round2(asset.target - asset.value),
-        adjustedGap: round2(asset.adjustedGap),
-        desired: asset.desired,
-        limited,
-        gapAfter,
-        aportesLeft: estimate ? Math.ceil(gapAfter / pace) : null,
+        ticker: slot.ticker,
+        rank: slot.rank,
+        quantity: slot.bought,
+        fromLeftover: slot.fromLeftover,
+        price: slot.price,
+        total: round2(spentOn(slot)),
+        weightBefore: strategyValue > 0 ? slot.value / strategyValue : 0,
+        weightAfter: strategyAfter > 0 ? held / strategyAfter : 0,
+        targetWeight: slot.asset.weight,
+        marginToCeiling: (slot.ceiling - slot.price) / slot.ceiling,
+        priceToBook: slot.asset.priceToBook,
+        vacancy: slot.asset.vacancy,
+        dividendRatio: dividendRatio(slot.asset.lastDividend, slot.asset.dividends12m),
+        tensors: slot.tensors,
+        macro: slot.asset.macro,
+        sector: slot.asset.sector,
+        fillBefore: slot.target > 0 ? slot.value / slot.target : 0,
+        gapBefore: round2(slot.gap),
+        need: round2(slot.need),
+        limitedBy: slot.limitedBy,
+        gapAfter: round2(slot.target - held),
       };
     });
 
-  for (const asset of eligible) {
-    if (asset.bought === 0) {
-      excluded.push({
-        ticker: asset.ticker,
-        rank: asset.rank,
-        reason: wanted(asset) > 0 ? "SEM_SALDO" : "NA_META",
-      });
-    }
-  }
-  excluded.sort(byRankThenTicker);
+  const unbought = slots
+    .filter((slot) => slot.bought === 0)
+    .map((slot): CascadeExclusion => ({
+      ticker: slot.ticker,
+      rank: slot.rank,
+      reason: exclusionReason(slot),
+    }));
 
   return {
     amount: budget,
     spent,
     leftover: round2(budget - spent),
     strategyValue,
-    maxSharePercent,
+    caps,
     orders,
-    excluded,
+    excluded: [...excluded, ...unbought].sort(byRankThenTicker),
   };
 }
 
+/** Motivos que não dependem do aporte: valem para a coluna Prioridade. */
+type StaticReason = EligibilityReason | "NA_META" | "PEDIDO_PEQUENO";
+
 export type AportePriority =
-  | { kind: "fila"; position: number }
-  | { kind: "fora"; reason: Exclude<ExclusionReason, "SEM_SALDO"> };
+  { kind: "fila"; position: number } | { kind: "fora"; reason: StaticReason };
 
 /**
- * "Prioridade de aporte" (a coluna que substitui o IPA): a cascata com aporte zero.
- * Os elegíveis abaixo da meta formam a fila, na ordem do ranking; os outros mostram o motivo.
+ * "Prioridade de aporte" (a coluna que substitui o IPA), com aporte zero: os elegíveis que pedem ao
+ * menos uma cota formam a fila, na ordem do ranking; os outros mostram o motivo.
  */
 export function aportePriorities(assets: readonly CascadeAsset[]): Map<string, AportePriority> {
-  const { excluded } = sunoCascade(0, assets);
+  const { slots, excluded } = prepare(0, assets);
   const priorities = new Map<string, AportePriority>();
   let position = 0;
-  for (const item of excluded) {
-    if (item.reason === "SEM_SALDO") {
-      priorities.set(item.ticker, { kind: "fila", position: ++position });
-    } else {
-      priorities.set(item.ticker, { kind: "fora", reason: item.reason });
-    }
+  for (const slot of slots) {
+    priorities.set(
+      slot.ticker,
+      asksForAShare(slot)
+        ? { kind: "fila", position: ++position }
+        : { kind: "fora", reason: slot.gap <= 0 ? "NA_META" : "PEDIDO_PEQUENO" },
+    );
   }
+  for (const item of excluded) priorities.set(item.ticker, { kind: "fora", reason: item.reason });
   return priorities;
 }
 
@@ -295,5 +350,9 @@ export const EXCLUSION_LABELS: Record<ExclusionReason, string> = {
   SEM_TETO: "Sem preço teto",
   ACIMA_DO_TETO: "Acima do teto",
   NA_META: "Já na meta",
+  PEDIDO_PEQUENO: "Pede menos de 1 cota",
+  LIMITE_ATIVO: "Cota acima do limite",
+  LIMITE_SETOR: "Limite do setor",
+  LIMITE_MACRO: "Limite de papel ou tijolo",
   SEM_SALDO: "Faltou saldo",
 };

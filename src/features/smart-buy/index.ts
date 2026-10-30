@@ -1,16 +1,21 @@
 // API pública da feature smart-buy (regras puras; os componentes entram na tela de recomendações).
 export {
+  classifyRisk,
+  RISK_CAPS,
+  type RiskBuckets,
+  type RiskInput,
+  type RiskMacro,
+} from "./domain/risk";
+export {
   aportePriorities,
-  DEFAULT_MAX_SHARE_PERCENT,
   EXCLUSION_LABELS,
-  MAX_SHARE_PERCENTS,
   sunoCascade,
   type AportePriority,
   type CascadeAsset,
   type CascadeExclusion,
-  type CascadeOptions,
+  type CascadeLimit,
   type CascadeOrder,
   type CascadeResult,
   type ExclusionReason,
-  type MaxSharePercent,
+  type Tensors,
 } from "./domain/suno-cascade";

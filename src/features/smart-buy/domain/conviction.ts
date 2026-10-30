@@ -1,19 +1,46 @@
-// Índice de Convicção: dois multiplicadores ajustam quanto do que falta para a meta o FII pede neste
-// aporte. Aceleram os descontados e freiam os caros, e só valem para quem está abaixo da meta.
+import type { RiskMacro } from "./risk";
 
-/** Margem de segurança, (teto − preço) ÷ teto, acima de 5%: ×1,2. Até 5%: ×1,0. */
-export function marginMultiplier(marginToCeiling: number): number {
-  return marginToCeiling > 0.05 ? 1.2 : 1;
+// Tensores do Koinos 3.0: multiplicadores contínuos sobre o que falta para a meta. Os de valuation e
+// de segurança aceleram os descontados; os de proventos e de vacância freiam quem perdeu fundamento.
+
+/** Valuation: 1 + (1 − P/VP). P/VP 0,90 dá 1,10; 1,05 dá 0,95. Sem P/VP, 1. Nunca negativo. */
+export function valuationTensor(priceToBook: number | null): number {
+  if (priceToBook === null || !(priceToBook > 0)) return 1;
+  return Math.max(0, 2 - priceToBook);
 }
 
 /**
- * P/VP (cotação ÷ valor patrimonial por cota): abaixo de 0,95, ×1,2; de 0,95 a 1,00, ×1,0; acima de
- * 1,00, ×0,5 (ágio). Sem P/VP, ×1,0: ainda não há fonte gratuita do valor patrimonial para todos os
- * FIIs (a brapi gratuita não tem, e a ligação da CVM ao ticker falhava sem a B3).
+ * Freio de corte: último provento ÷ média mensal dos últimos 12 meses, no máximo 1 (provento
+ * extraordinário não acelera). Sem histórico, 1.
  */
-export function priceToBookMultiplier(priceToBook: number | null): number {
-  if (priceToBook === null || !(priceToBook > 0)) return 1;
-  if (priceToBook < 0.95) return 1.2;
-  if (priceToBook > 1) return 0.5;
-  return 1;
+export function dividendTensor(lastDividend: number | null, dividends12m: number | null): number {
+  const ratio = dividendRatio(lastDividend, dividends12m);
+  return ratio === null ? 1 : Math.min(1, ratio);
+}
+
+/** Último provento ÷ média mensal de 12 meses, sem teto (para explicar). Null sem histórico. */
+export function dividendRatio(
+  lastDividend: number | null,
+  dividends12m: number | null,
+): number | null {
+  if (
+    lastDividend === null ||
+    !(lastDividend >= 0) ||
+    dividends12m === null ||
+    !(dividends12m > 0)
+  ) {
+    return null;
+  }
+  return lastDividend / (dividends12m / 12);
+}
+
+/** Segurança: 1 + margem até o teto, (teto − preço) ÷ teto. */
+export function safetyTensor(marginToCeiling: number): number {
+  return 1 + Math.max(0, marginToCeiling);
+}
+
+/** Vacância: 1 − vacância física, só em tijolo. Sem dado, 1. */
+export function vacancyTensor(vacancy: number | null, macro: RiskMacro): number {
+  if (macro !== "Tijolo" || vacancy === null || !(vacancy >= 0)) return 1;
+  return Math.max(0, 1 - Math.min(1, vacancy));
 }

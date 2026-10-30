@@ -199,6 +199,7 @@ export async function refreshDividends(
           {
             $set: {
               dy12m: price && price > 0 ? total / price : null,
+              dividends12m: total,
               lastDividend: latest ? { amount: latest.amount, exDate: latest.exDate } : null,
               // O Yahoo manda a data ex às 13:00Z (10:00 em São Paulo): guarda só o dia, como
               // data de negócio (meia-noite UTC), o formato que as regras de proventos esperam.

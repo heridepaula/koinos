@@ -41,6 +41,8 @@ const quote: PriceInfo = {
   dy12m: null,
   lastDividend: null,
   priceToBook: null,
+  dividends12m: null,
+  fii: null,
 };
 
 /** Dois FIIs na estratégia (5% cada) e um em quarentena, fora dela, com a quantidade e a % dadas. */
@@ -77,13 +79,13 @@ describe("buildSnapshot: reescala de pesos com quarentena", () => {
     const small = buildSnapshot(portfolio(500, 0));
     const large = buildSnapshot(portfolio(50_000, 5));
     const ordersOf = (snapshot: typeof small) =>
-      sunoCascade(200, snapshot.cascadeInput, { maxSharePercent: 100 }).orders.map((item) => [
-        item.ticker,
-        item.quantity,
-      ]);
-    // Metas de 300 (50% de 400 + 200): só o AAAA11, com 100, está abaixo. Com 16,7% de margem até
-    // o teto, ele pede 200 × 1,2, e o saldo paga 20 cotas.
-    expect(ordersOf(small)).toEqual([["AAAA11", 20]]);
+      sunoCascade(1_000, snapshot.cascadeInput).orders.map((item) => [item.ticker, item.quantity]);
+    // Metas de 700 (50% de 400 + 1.000): os dois pedem mais que o limite de 20% do aporte
+    // (R$ 200, 20 cotas de R$ 10).
+    expect(ordersOf(small)).toEqual([
+      ["AAAA11", 20],
+      ["BBBB11", 20],
+    ]);
     expect(ordersOf(large)).toEqual(ordersOf(small));
   });
 
@@ -105,5 +107,42 @@ describe("buildSnapshot: P/VP na cascata", () => {
       ["AAAA11", 0.91],
       ["BBBB11", null],
     ]);
+  });
+});
+
+describe("buildSnapshot: entrada do motor 3.0", () => {
+  it("leva o perfil do FII, os proventos e os baldes de risco para a cascata", () => {
+    const input = portfolio(500, 0);
+    const prices = new Map(input.prices);
+    prices.set("AAAA11", {
+      ...quote,
+      priceToBook: 0.9,
+      lastDividend: { amount: 0.8, exDate: day },
+      dividends12m: 9.6,
+      fii: {
+        vacancyPct: 5,
+        segment: "Shoppings",
+        fundType: "Tijolo",
+        paperPct: 0,
+        realEstatePct: 95,
+      },
+    });
+    const [first, second] = buildSnapshot({ ...input, prices }).cascadeInput;
+    expect(first).toMatchObject({
+      ticker: "AAAA11",
+      priceToBook: 0.9,
+      lastDividend: 0.8,
+      dividends12m: 9.6,
+      vacancy: 0.05,
+      macro: "Tijolo",
+      sector: "Shoppings",
+    });
+    // Sem perfil e sem categoria na Carteira Alvo: tensores neutros e macro "Outros".
+    expect(second).toMatchObject({
+      ticker: "BBBB11",
+      vacancy: null,
+      macro: "Outros",
+      sector: null,
+    });
   });
 });

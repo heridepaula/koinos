@@ -16,18 +16,20 @@ import {
 } from "@/shared/ui/drawer";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/shared/ui/table";
 import type { CascadeOrder } from "../../domain/suno-cascade";
-import { explain } from "./explain";
+import { explain, shortReason } from "./explain";
 
 export type AssetMeta = { ticker: string; name: string | null; logoUrl: string | null };
 
 type OrdersProps = {
   orders: CascadeOrder[];
   meta: ReadonlyMap<string, AssetMeta>;
-  maxSharePercent: number;
 };
 
-/** Tabela das ordens (a partir de 760 px de card). */
-export function OrdersTable({ orders, meta, maxSharePercent }: OrdersProps) {
+/**
+ * Tabela das ordens (a partir de 760 px de card). O porquê é um comentário curto e discreto; a
+ * conta inteira (cada tensor, o pedido e a trava) fica na dica ao passar o mouse.
+ */
+export function OrdersTable({ orders, meta }: OrdersProps) {
   return (
     <Table>
       <TableHeader>
@@ -62,9 +64,11 @@ export function OrdersTable({ orders, meta, maxSharePercent }: OrdersProps) {
               <TableCell className="text-right tabular-nums">
                 {formatPercent(order.targetWeight, 1)}
               </TableCell>
-              {/* A explicação quebra linha: a tabela cabe em telas menores. */}
-              <TableCell className="min-w-64 pr-(--card-spacing) text-caption whitespace-normal text-muted-foreground">
-                {explain(order, maxSharePercent)}
+              <TableCell
+                className="min-w-48 pr-(--card-spacing) text-caption whitespace-normal text-muted-foreground"
+                title={capitalize(explain(order).join(" · "))}
+              >
+                {shortReason(order)}
               </TableCell>
             </TableRow>
           );
@@ -75,11 +79,11 @@ export function OrdersTable({ orders, meta, maxSharePercent }: OrdersProps) {
 }
 
 /**
- * Celular: cada ordem numa célula de duas linhas, como uma tabela do iOS: o ativo e o total; as
- * cotas × preço e o peso antes → depois. O porquê (ranking, teto, meta, limite) sai da lista e
- * abre numa folha ao tocar, com o chevron dizendo que há mais.
+ * Celular: cada ordem numa célula, como uma tabela do iOS: o ativo e o total; as cotas × preço e o
+ * peso antes → depois; e, discreto, o porquê em poucas palavras. A conta inteira abre numa folha
+ * ao tocar, com o chevron dizendo que há mais.
  */
-export function OrdersList({ orders, meta, maxSharePercent }: OrdersProps) {
+export function OrdersList({ orders, meta }: OrdersProps) {
   const [sheet] = useState(() => createDrawerHandle<CascadeOrder>());
   return (
     <>
@@ -109,6 +113,7 @@ export function OrdersList({ orders, meta, maxSharePercent }: OrdersProps) {
                       {formatPercent(order.weightBefore, 1)} → {formatPercent(order.weightAfter, 1)}
                     </span>
                   </p>
+                  <p className="text-caption text-muted-foreground">{shortReason(order)}</p>
                 </div>
                 <ChevronRightIcon
                   className="size-4 shrink-0 text-muted-foreground"
@@ -121,28 +126,16 @@ export function OrdersList({ orders, meta, maxSharePercent }: OrdersProps) {
       </ul>
       <Drawer handle={sheet}>
         {({ payload }) =>
-          payload ? (
-            <OrderSheet
-              order={payload}
-              info={meta.get(payload.ticker)}
-              maxSharePercent={maxSharePercent}
-            />
-          ) : null
+          payload ? <OrderSheet order={payload} info={meta.get(payload.ticker)} /> : null
         }
       </Drawer>
     </>
   );
 }
 
-function OrderSheet({
-  order,
-  info,
-  maxSharePercent,
-}: {
-  order: CascadeOrder;
-  info: AssetMeta | undefined;
-  maxSharePercent: number;
-}) {
+const capitalize = (text: string) => text.charAt(0).toUpperCase() + text.slice(1);
+
+function OrderSheet({ order, info }: { order: CascadeOrder; info: AssetMeta | undefined }) {
   return (
     <DrawerContent>
       <DrawerHeader className="justify-items-start pr-16 pl-5 text-left">
@@ -165,13 +158,11 @@ function OrderSheet({
           <InsetValueRow label="Meta" value={formatPercent(order.targetWeight, 1)} />
         </InsetGroup>
         <InsetGroup title="Por quê">
-          {explain(order, maxSharePercent)
-            .split(" · ")
-            .map((reason) => (
-              <div key={reason} className="flex min-h-11 items-center px-4 py-2 text-subheadline">
-                {reason.charAt(0).toUpperCase() + reason.slice(1)}
-              </div>
-            ))}
+          {explain(order).map((reason) => (
+            <div key={reason} className="flex min-h-11 items-center px-4 py-2 text-subheadline">
+              {capitalize(reason)}
+            </div>
+          ))}
         </InsetGroup>
       </DrawerBody>
     </DrawerContent>

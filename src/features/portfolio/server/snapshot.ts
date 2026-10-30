@@ -32,6 +32,8 @@ function toPriceInfo(assets: ReadonlyMap<string, AssetSnapshot>): Map<string, Pr
         dy12m: asset.dy12m,
         lastDividend: asset.lastDividend,
         priceToBook: asset.priceToBook,
+        dividends12m: asset.dividends12m,
+        fii: asset.fii,
       },
     ]),
   );

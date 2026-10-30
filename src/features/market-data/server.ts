@@ -7,6 +7,7 @@ export {
   getAssetSnapshots,
   getMonthlyCloses,
   type AssetSnapshot,
+  type FiiProfile,
 } from "./server/assets-read";
 export {
   ensureMonthlyCloses,

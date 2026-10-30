@@ -15,6 +15,17 @@ export type PriceInfo = {
   lastDividend: { amount: number; exDate: Date } | null;
   /** P/VP do fechamento (usebolsai, às 2h). Null sem dado. */
   priceToBook: number | null;
+  /** Soma dos proventos por cota dos últimos 12 meses (Yahoo). */
+  dividends12m: number | null;
+  /** Perfil do FII na usebolsai, para as travas de risco. Null sem dado. */
+  fii: {
+    /** Vacância física em % (5,2 = 5,2%). */
+    vacancyPct: number | null;
+    segment: string | null;
+    fundType: string | null;
+    paperPct: number | null;
+    realEstatePct: number | null;
+  } | null;
 };
 
 export type TargetConfig = {

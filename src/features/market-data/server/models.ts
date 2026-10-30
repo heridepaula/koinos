@@ -36,6 +36,14 @@ export interface AssetDoc {
   fundamentalsFetchedAt?: Date | null;
   /** Última tentativa na usebolsai, com ou sem dado: segura as novas tentativas ao abrir o app. */
   fundamentalsCheckedAt?: Date | null;
+  /** Vacância (%), segmento, tipo e composição do ativo (usebolsai), para as travas de risco. */
+  vacancyPct?: number | null;
+  segment?: string | null;
+  fundType?: string | null;
+  paperPct?: number | null;
+  realEstatePct?: number | null;
+  /** Soma dos proventos por cota com data ex nos últimos 12 meses (Yahoo). */
+  dividends12m?: number | null;
 }
 
 const assetSchema = new Schema<AssetDoc>(
@@ -71,6 +79,12 @@ const assetSchema = new Schema<AssetDoc>(
     priceToBook: { type: Number, default: null },
     fundamentalsFetchedAt: { type: Date, default: null },
     fundamentalsCheckedAt: { type: Date, default: null },
+    vacancyPct: { type: Number, default: null },
+    segment: { type: String, default: null },
+    fundType: { type: String, default: null },
+    paperPct: { type: Number, default: null },
+    realEstatePct: { type: Number, default: null },
+    dividends12m: { type: Number, default: null },
   },
   { timestamps: true, versionKey: false },
 );

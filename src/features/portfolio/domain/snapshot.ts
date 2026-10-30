@@ -1,5 +1,5 @@
 import { isQuoteStale } from "@/features/market-data";
-import { aportePriorities, type CascadeAsset } from "@/features/smart-buy";
+import { aportePriorities, classifyRisk, type CascadeAsset } from "@/features/smart-buy";
 import {
   effectiveWeights,
   isSuspiciousCeiling,
@@ -63,8 +63,19 @@ export function buildSnapshot({
   } = effectiveWeights(
     members.map((member) => ({ ticker: member.ticker, suggestedPercent: member.suggestedPercent })),
   );
+  // Entrada do motor 3.0: P/VP e perfil do FII (usebolsai, cron das 2h), proventos (Yahoo) e os
+  // baldes de risco. Sem dado, cada tensor fica neutro.
   const cascadeInput: CascadeAsset[] = members.map((member) => {
     const position = openByTicker.get(member.ticker);
+    const info = prices.get(member.ticker);
+    const fii = info?.fii ?? null;
+    const { macro, sector } = classifyRisk({
+      fundType: fii?.fundType ?? null,
+      segment: fii?.segment ?? null,
+      paperPct: fii?.paperPct ?? null,
+      realEstatePct: fii?.realEstatePct ?? null,
+      category: member.category,
+    });
     return {
       ticker: member.ticker,
       rank: member.sunoRank,
@@ -73,8 +84,12 @@ export function buildSnapshot({
       price: priceOf(member.ticker),
       quantity: position?.quantity ?? 0,
       averagePrice: position?.averagePrice ?? null,
-      // P/VP do cron das 2h (usebolsai). Sem dado, o multiplicador fica neutro.
-      priceToBook: prices.get(member.ticker)?.priceToBook ?? null,
+      priceToBook: info?.priceToBook ?? null,
+      lastDividend: info?.lastDividend?.amount ?? null,
+      dividends12m: info?.dividends12m ?? null,
+      vacancy: fii?.vacancyPct != null ? fii.vacancyPct / 100 : null,
+      macro,
+      sector,
     };
   });
   const priorities = aportePriorities(cascadeInput);

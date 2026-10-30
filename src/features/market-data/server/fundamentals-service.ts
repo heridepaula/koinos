@@ -57,6 +57,11 @@ export async function refreshFundamentals(
             bookValuePerShare: data.bookValuePerShare,
             bookValueMonth: data.bookValueMonth,
             priceToBook: data.priceToBook,
+            vacancyPct: data.vacancyPct,
+            segment: data.segment,
+            fundType: data.fundType,
+            paperPct: data.paperPct,
+            realEstatePct: data.realEstatePct,
             fundamentalsFetchedAt: now,
             fundamentalsCheckedAt: now,
           },
@@ -78,7 +83,7 @@ export async function refreshFundamentals(
 }
 
 /**
- * Ao abrir o app: busca só os tickers sem VP (ou com VP de mais de 60 dias) que não foram tentados
+ * Ao abrir o app: busca só os tickers sem VP (ou com VP de mais de 60 dias, ou sem o perfil) que não foram tentados
  * nas últimas 6 h. Assim o P/VP aparece sem esperar o cron das 2h, e um ticker que a usebolsai
  * não tem não gasta a cota a cada página.
  */
@@ -93,13 +98,15 @@ export async function refreshMissingFundamentals(
   await connectMongo();
   const docs = await AssetModel.find(
     { _id: mongoose.trusted({ $in: unique }) },
-    { bookValuePerShare: 1, fundamentalsFetchedAt: 1, fundamentalsCheckedAt: 1 },
+    { bookValuePerShare: 1, fundType: 1, fundamentalsFetchedAt: 1, fundamentalsCheckedAt: 1 },
   ).lean();
   const byTicker = new Map(docs.map((doc) => [doc._id, doc]));
   const due = unique.filter((ticker) => {
     const doc = byTicker.get(ticker);
+    // fundType ausente (undefined) = gravado antes da vacância e do tipo existirem: busca de novo.
     const fresh =
       doc?.bookValuePerShare != null &&
+      doc.fundType !== undefined &&
       (doc.fundamentalsFetchedAt?.getTime() ?? 0) >= now.getTime() - FUNDAMENTALS_MAX_AGE_MS;
     const triedRecently =
       (doc?.fundamentalsCheckedAt?.getTime() ?? 0) >= now.getTime() - RETRY_AFTER_MS;

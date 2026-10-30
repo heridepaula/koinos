@@ -22,10 +22,24 @@ export type AssetSnapshot = {
   recentCloses: { date: Date; close: number }[];
   /** P/VP do cron das 2h (fechamento ÷ VP). Null sem dado ou com dado de mais de 60 dias. */
   priceToBook: number | null;
+  /** Soma dos proventos por cota dos últimos 12 meses (Yahoo). */
+  dividends12m: number | null;
+  /** Perfil do FII na usebolsai (vacância só com dado de até 60 dias). Null sem dado. */
+  fii: FiiProfile | null;
+};
+
+export type FiiProfile = {
+  vacancyPct: number | null;
+  segment: string | null;
+  fundType: string | null;
+  paperPct: number | null;
+  realEstatePct: number | null;
 };
 
 /** VP de mais de 60 dias sem atualizar: a fonte parou, e o multiplicador do P/VP fica neutro. */
 const FUNDAMENTALS_MAX_AGE_MS = 60 * 86_400_000;
+const fresh = (fetchedAt: Date | null | undefined) =>
+  Boolean(fetchedAt) && Date.now() - fetchedAt!.getTime() <= FUNDAMENTALS_MAX_AGE_MS;
 
 export async function getAssetSnapshots(
   tickers: readonly string[],
@@ -58,11 +72,17 @@ export async function getAssetSnapshots(
           date: item.date,
           close: item.close,
         })),
-        priceToBook:
-          doc.fundamentalsFetchedAt &&
-          Date.now() - doc.fundamentalsFetchedAt.getTime() <= FUNDAMENTALS_MAX_AGE_MS
-            ? (doc.priceToBook ?? null)
-            : null,
+        priceToBook: fresh(doc.fundamentalsFetchedAt) ? (doc.priceToBook ?? null) : null,
+        dividends12m: doc.dividends12m ?? null,
+        fii: doc.fundamentalsFetchedAt
+          ? {
+              vacancyPct: fresh(doc.fundamentalsFetchedAt) ? (doc.vacancyPct ?? null) : null,
+              segment: doc.segment ?? null,
+              fundType: doc.fundType ?? null,
+              paperPct: doc.paperPct ?? null,
+              realEstatePct: doc.realEstatePct ?? null,
+            }
+          : null,
       },
     ]),
   );

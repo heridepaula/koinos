@@ -325,6 +325,8 @@ A **estratégia** é o conjunto de `target_assets` com `inStrategy = true`, este
 ## 9. Motor de aporte (método Suno)
 
 > **Atualizado em 2026-10-24:** o quanto cada FII pede passou a ser o gap até a meta vezes o Índice de Convicção (margem até o teto e P/VP), a sobra só roda quando todos compraram as cotas desejadas, e o limite por FII padrão é 33%. Ver `2026-10-24-indice-de-conviccao-design.md`.
+>
+> **Atualizado em 2026-10-30:** motor Koinos 3.0. O pedido é o gap vezes os tensores de valuation, proventos, segurança e vacância; as travas são 20% do aporte por FII, 35% por setor e 60% por macro; a sobra vai uma cota por vez para o mais abaixo da meta. Ver `2026-10-30-koinos-3-0-design.md`.
 
 ### 9.1 Regras de origem
 

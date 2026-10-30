@@ -13,8 +13,8 @@ export const PRINCIPLES = [
   { icon: CalendarCheckIcon, text: "Aporte todo mês" },
   { icon: ShieldCheckIcon, text: "Só abaixo do preço teto" },
   { icon: ListOrderedIcon, text: "Siga o ranking até a % sugerida" },
-  { icon: BadgePercentIcon, text: "Compre mais do que está descontado" },
-  { icon: LayersIcon, text: "Monte posições aos poucos" },
+  { icon: BadgePercentIcon, text: "Mais no descontado, menos no que perdeu fundamento" },
+  { icon: LayersIcon, text: "Limite por FII, setor e papel ou tijolo" },
   { icon: ScaleIcon, text: "Rebalanceie com aportes, não com vendas" },
 ] as const;
 
