@@ -1,5 +1,6 @@
 import "server-only";
 import mongoose, { Schema, type Model, type Types } from "mongoose";
+import { BIASES, type Bias } from "../domain/bias";
 import { CATEGORIES, type Category } from "../domain/categories";
 
 export interface TargetAssetDoc {
@@ -11,6 +12,7 @@ export interface TargetAssetDoc {
   ceilingPrice: number | null;
   suggestedPercent: number | null;
   category: Category | null;
+  bias: Bias | null;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -25,6 +27,7 @@ const targetAssetSchema = new Schema<TargetAssetDoc>(
     // 0 é a quarentena (fora da estratégia).
     suggestedPercent: { type: Number, default: null, min: 0, max: 100 },
     category: { type: String, enum: [...CATEGORIES, null], default: null },
+    bias: { type: String, enum: [...BIASES, null], default: null },
   },
   { timestamps: true },
 );

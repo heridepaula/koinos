@@ -1,6 +1,6 @@
 import type { AssetClass } from "@/features/market-data";
-import type { AportePriority, CascadeAsset } from "@/features/smart-buy";
-import type { Category } from "@/features/strategy";
+import type { AportePriority, CascadeAsset, StockBuyAsset } from "@/features/smart-buy";
+import type { Bias, Category } from "@/features/strategy";
 import type { DividendKind, MonthlyContribution } from "@/features/transactions";
 
 // DTOs entregues às telas. Nenhum carrega userId, portfolioId ou documento cru do banco.
@@ -36,6 +36,7 @@ export type TargetConfig = {
   ceilingPrice: number | null;
   suggestedPercent: number | null;
   category: Category | null;
+  bias: Bias | null;
 };
 
 export type PositionRow = {
@@ -88,6 +89,8 @@ export type StrategyRow = {
   suggestedPercent: number | null;
   category: Category | null;
   suggestedCategory: Category | null;
+  /** Viés da ação (Comprar/Aguardar); sempre null num FII. */
+  bias: Bias | null;
   price: number | null;
   marginToCeiling: number | null;
   suspiciousCeiling: boolean;
@@ -225,10 +228,10 @@ export type PortfolioSnapshot = {
     weightsWarning: string | null;
   };
   cascadeInput: CascadeAsset[];
-  /** Entrada da cascata das ações (sem P/VP, vacância nem setor). */
-  stockCascadeInput: CascadeAsset[];
+  /** Entrada do Smart Buy de ações: a % gravada, sem reescalar (a soma pode ser menor que 100%). */
+  stockBuyInput: StockBuyAsset[];
   /** Nome e logo das ações da estratégia (inclusive as não detidas), para a tela de recomendações. */
-  stockStrategyMeta: { ticker: string; name: string | null; logoUrl: string | null }[];
+  stockMeta: { ticker: string; name: string | null; logoUrl: string | null }[];
   /** Patrimônio de cada classe, na carteira inteira. */
   classValues: { FII: number; ACAO: number };
   allocation: { byCategory: AllocationSlice[]; byAsset: AllocationSlice[] };

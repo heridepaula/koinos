@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { tickerSchema } from "@/features/transactions";
+import { BIASES } from "./domain/bias";
 import { CATEGORIES } from "./domain/categories";
 
 export const targetPatchSchema = z.object({
@@ -20,6 +21,7 @@ export const targetPatchSchema = z.object({
     .nullable()
     .optional(),
   category: z.enum(CATEGORIES).nullable().optional(),
+  bias: z.enum(BIASES).nullable().optional(),
 });
 
 export type TargetPatchInput = z.infer<typeof targetPatchSchema>;

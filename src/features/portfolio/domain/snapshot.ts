@@ -1,5 +1,10 @@
 import { assetClassOf, isQuoteStale, type AssetClass } from "@/features/market-data";
-import { aportePriorities, classifyRisk, type CascadeAsset } from "@/features/smart-buy";
+import {
+  aportePriorities,
+  classifyRisk,
+  type CascadeAsset,
+  type StockBuyAsset,
+} from "@/features/smart-buy";
 import {
   effectiveWeights,
   isSuspiciousCeiling,
@@ -149,10 +154,6 @@ export function buildSnapshot({
   const cascadeInput = strategies.FII.members.map((member) =>
     toCascadeAsset(member, strategies.FII.weights, false),
   );
-  // Carteira de ações (spec aporte por classe, §4.5): só a margem até o teto age.
-  const stockCascadeInput = strategies.ACAO.members.map((member) =>
-    toCascadeAsset(member, strategies.ACAO.weights, true),
-  );
   // Patrimônio de cada classe, para repartir o aporte entre elas.
   const classValues = { FII: 0, ACAO: 0 };
   for (const position of open) classValues[classKey(position.ticker)] += valueOf(position.ticker);
@@ -281,6 +282,7 @@ export function buildSnapshot({
           ceilingPrice: target?.ceilingPrice ?? null,
           suggestedPercent: target?.suggestedPercent ?? null,
           category: cls === "ACAO" ? "ACAO" : (target?.category ?? null),
+          bias: cls === "ACAO" ? (target?.bias ?? null) : null,
           suggestedCategory: cls === "ACAO" ? "ACAO" : suggestCategory(info?.subType ?? null),
           price,
           marginToCeiling: marginToCeiling(target?.ceilingPrice ?? null, price),
@@ -300,6 +302,18 @@ export function buildSnapshot({
   const viewClass: StrategyClass = view === "ACAO" ? "ACAO" : "FII";
   const alertClasses: StrategyClass[] = view === "TODOS" ? ["FII", "ACAO"] : [viewClass];
   const rowsByClass = { FII: rowsOf("FII"), ACAO: rowsOf("ACAO") };
+  // Smart Buy de ações (spec smart-buy-acoes, §3): a % gravada vale como está, sem reescalar.
+  const stockBuyInput: StockBuyAsset[] = rowsByClass.ACAO.filter((row) => row.inStrategy).map(
+    (row) => ({
+      ticker: row.ticker,
+      rank: row.sunoRank,
+      ceiling: row.ceilingPrice,
+      price: row.price,
+      quantity: row.quantity,
+      targetPercent: row.suggestedPercent,
+      bias: row.bias,
+    }),
+  );
 
   // Encerradas: as posições zeradas e os FIIs que só aparecem pelos proventos (sem lançamento),
   // para o total de proventos do resumo fechar com a soma das linhas das duas tabelas.
@@ -346,8 +360,8 @@ export function buildSnapshot({
       weightsWarning: strategies[viewClass].weightsWarning,
     },
     cascadeInput,
-    stockCascadeInput,
-    stockStrategyMeta: rowsByClass.ACAO.map((row) => ({
+    stockBuyInput,
+    stockMeta: rowsByClass.ACAO.map((row) => ({
       ticker: row.ticker,
       name: row.name,
       logoUrl: row.logoUrl,

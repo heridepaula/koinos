@@ -32,6 +32,7 @@ const target = (
   ceilingPrice: 12,
   suggestedPercent,
   category: null,
+  bias: null,
 });
 
 const quote: PriceInfo = {
@@ -267,20 +268,30 @@ describe("buildSnapshot: Carteira Alvo de ações", () => {
     targets: input.targets.filter((item) => !["PETR4", "VALE3"].includes(item.ticker)),
   };
 
-  it("stockCascadeInput traz só as ações da estratégia, sem P/VP, vacância nem setor", () => {
-    const { stockCascadeInput } = buildSnapshot(input);
-    expect(stockCascadeInput.map((asset) => asset.ticker)).toEqual(["PETR4", "VALE3"]);
-    expect(stockCascadeInput.map((asset) => asset.weight)).toEqual([0.7, 0.3]);
-    for (const asset of stockCascadeInput) {
-      expect(asset).toMatchObject({
-        priceToBook: null,
-        lastDividend: null,
-        dividends12m: null,
-        vacancy: null,
-        macro: "Outros",
-        sector: null,
-      });
-    }
+  it("stockBuyInput traz as ações da estratégia com a % gravada, sem reescalar, e o viés", () => {
+    const { stockBuyInput } = buildSnapshot({
+      ...input,
+      targets: input.targets.map((item) =>
+        item.ticker === "VALE3" ? { ...item, bias: "AGUARDAR" as const } : item,
+      ),
+    });
+    expect(stockBuyInput.map((asset) => asset.ticker)).toEqual(["PETR4", "VALE3"]);
+    expect(stockBuyInput.map((asset) => asset.targetPercent)).toEqual([70, 30]);
+    expect(stockBuyInput.map((asset) => asset.bias)).toEqual([null, "AGUARDAR"]);
+  });
+
+  it("stockBuyInput mantém 10% quando as % das ações somam 81,5", () => {
+    const { stockBuyInput } = buildSnapshot({
+      ...input,
+      targets: input.targets.map((item) =>
+        item.ticker === "PETR4"
+          ? { ...item, suggestedPercent: 71.5 }
+          : item.ticker === "VALE3"
+            ? { ...item, suggestedPercent: 10 }
+            : item,
+      ),
+    });
+    expect(stockBuyInput.map((asset) => asset.targetPercent)).toEqual([71.5, 10]);
   });
 
   it("classValues soma o patrimônio", () => {

@@ -1,6 +1,7 @@
 import "server-only";
 import { Types } from "mongoose";
 import { connectMongo } from "@/shared/db/mongo";
+import type { Bias } from "../domain/bias";
 import type { Category } from "../domain/categories";
 import { TargetAssetModel, type TargetAssetDoc } from "./target-asset.model";
 
@@ -13,6 +14,7 @@ export type TargetAssetRecord = {
   ceilingPrice: number | null;
   suggestedPercent: number | null;
   category: Category | null;
+  bias: Bias | null;
 };
 
 export type TargetAssetPatch = Partial<Omit<TargetAssetRecord, "ticker">>;
@@ -25,6 +27,7 @@ const DEFAULTS: Omit<TargetAssetRecord, "ticker"> = {
   ceilingPrice: null,
   suggestedPercent: null,
   category: null,
+  bias: null,
 };
 
 function toRecord(doc: TargetAssetDoc): TargetAssetRecord {
@@ -35,6 +38,7 @@ function toRecord(doc: TargetAssetDoc): TargetAssetRecord {
     ceilingPrice: doc.ceilingPrice ?? null,
     suggestedPercent: doc.suggestedPercent ?? null,
     category: doc.category ?? null,
+    bias: doc.bias ?? null,
   };
 }
 
