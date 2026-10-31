@@ -46,7 +46,7 @@ Com os dados de produção de 31/10/2026:
 ## 4. Filtro e URL
 
 - **URL:** `?classe=fiis` ou `?classe=acoes`. Sem o parâmetro, ou com um valor desconhecido, a página mostra Geral.
-- **Código puro** (`portfolio/domain/asset-class-filter.ts`, exportado por `portfolio/index.ts`):
+- **Código puro** (`shared/lib/class-filter.ts`: Transações usa o mesmo filtro no cliente, e `shared` não importa features):
   - `ClassFilter = "TODOS" | "FII" | "ACAO"`;
   - `parseClassParam(value: string | string[] | undefined): ClassFilter`: `"fiis"` → `FII`, `"acoes"` → `ACAO`, o resto → `TODOS`;
   - `byClass<T extends { ticker: string }>(items, classOf, filter)`: devolve os itens da classe, ou todos com `TODOS`. `classOf` é o mesmo `assetClassOf` com o mapa do catálogo que o snapshot usa hoje.
@@ -76,16 +76,16 @@ Cada view recebe o filtro, com `"TODOS"` como padrão, e separa os lançamentos 
   - FIIs: as categorias, sem a fatia "Ações";
   - Ações: a rosca de categorias e a barra somem; fica a rosca por ativo.
 - **Alertas:** só em Geral e em FIIs.
-- A página vazia (`EmptyPortfolio`) continua dependendo da carteira toda. Uma visão sem nenhum ativo da classe mostra os cartões zerados com o texto "Nenhum FII na carteira" ou "Nenhuma ação na carteira".
+- A página vazia (`EmptyPortfolio`) continua dependendo da carteira toda. Uma visão sem nenhum ativo da classe, nem aberto nem encerrado, mostra no lugar dos cartões um aviso "Nenhum FII na carteira" ou "Nenhuma ação na carteira".
 
 ### 6.2 Proventos
 
 - **Classe:** o "a receber" das ações continua vindo só do snapshot da B3, e a estimativa do Yahoo e o "não divulgado" continuam só para FIIs. A visão Ações mostra só o snapshot da B3 no "a receber".
-- **Tipo:** `?tipo=rendimento|reembolso|dividendo|jcp|aluguel`, sem parâmetro = "Todos os tipos", num `NativeSelect` ao lado do agrupar (são 6 opções, muitas para um `SegmentedControl`).
+- **Tipo:** `?tipo=rendimento|reembolso|dividendo|jcp|aluguel`, sem parâmetro = "Todos os tipos", num `NativeSelect` no topo da página, ao lado do seletor de classe, porque filtra a página toda (são 6 opções, muitas para um `SegmentedControl`).
   - Filtra os recebidos e o "a receber" da B3, que já guardam o tipo (`DividendKind`).
   - A estimativa do Yahoo e o "não divulgado" contam como `RENDIMENTO`.
 - **Soma por tipo:** os totais do mês e do ano ganham uma linha por tipo, só para os tipos com valor. Com um tipo escolhido, a linha é uma só.
-- Os agrupamentos (mês, ano, FII) usam o que sobrou do filtro. O agrupamento por FII passa a se chamar "por ativo", porque pode ter ações.
+- Os agrupamentos (mês, ano, papel) usam o que sobrou do filtro. O rótulo "Papel" já serve para ações e fica.
 
 ### 6.3 Encerradas e IR
 
@@ -113,7 +113,7 @@ Cada view recebe o filtro, com `"TODOS"` como padrão, e separa os lançamentos 
 ## 7. Celular
 
 - O seletor de classe ocupa a largura toda no topo do conteúdo, com os 44 px de toque do `SegmentedControl`.
-- Em Proventos, o tipo fica ao lado do agrupar, na mesma linha de controles, e quebra para a linha de baixo quando não cabe.
+- Em Proventos, o tipo fica ao lado do seletor de classe, na mesma linha, e desce para a linha de baixo quando não cabe.
 
 ## 8. Erros e limites
 
@@ -125,7 +125,7 @@ Cada view recebe o filtro, com `"TODOS"` como padrão, e separa os lançamentos 
 
 Vitest, só no código puro, ao lado do código:
 
-- `portfolio/domain/asset-class-filter.test.ts`: `parseClassParam` (fiis, acoes, vazio, desconhecido, array) e `byClass`.
+- `shared/lib/class-filter.test.ts`: `parseClassParam` (fiis, acoes, vazio, desconhecido, array) e `byClass`.
 - `portfolio/domain/snapshot.test.ts`: FIIs + Ações = Geral em patrimônio, investido e proventos; o % de cada visão soma 100%; a visão Ações não tem linhas de estratégia nem alertas.
 - `portfolio/domain/closed-positions.test.ts`: o IR de uma ação é o mesmo com o razão de ações e com o razão todo, num mês acima e num abaixo dos R$ 20 mil.
 - `portfolio/domain/reinvestment.test.ts` (novo): o rateio soma o total; mês sem compra da classe dá 0; aporte total 0 dá 0.
