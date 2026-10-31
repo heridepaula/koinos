@@ -2,8 +2,6 @@ import type { Metadata } from "next";
 import { Suspense } from "react";
 import { getPortfolioSnapshot } from "@/features/portfolio/server";
 import { QuoteRefresher } from "@/features/portfolio/ui";
-import type { CascadeAsset } from "@/features/smart-buy";
-import { getMyClassTarget } from "@/features/strategy/server";
 import { AporteCalculator, PrinciplesBanner, type AssetMeta } from "@/features/smart-buy/ui";
 import { PageHeader } from "@/shared/components/page-header";
 import { CardSkeleton } from "@/shared/components/skeletons";
@@ -15,7 +13,7 @@ export default function RecommendationsPage() {
     <>
       <PageHeader
         title="Recomendações"
-        description="Onde aportar hoje, pelo método Suno."
+        description="Onde aportar hoje: FIIs pelo método Suno e ações pela margem de segurança."
         actions={
           <Suspense fallback={null}>
             <QuoteStatus />
@@ -36,36 +34,18 @@ async function QuoteStatus() {
 }
 
 async function RecommendationsContent() {
-  const [{ cascadeInput, stockBuyInput, stockMeta, classValues, strategy, positions }, target] =
-    await Promise.all([getPortfolioSnapshot(), getMyClassTarget()]);
+  const { cascadeInput, stockBuyInput, stockMeta, classValues, strategy, positions } =
+    await getPortfolioSnapshot();
   const meta = new Map<string, AssetMeta>();
   for (const row of [...strategy.rows, ...stockMeta, ...positions]) {
     if (!meta.has(row.ticker)) {
       meta.set(row.ticker, { ticker: row.ticker, name: row.name, logoUrl: row.logoUrl });
     }
   }
-  // Adaptador provisório até o Task 3 (que passa a rodar o stockSmartBuy): normaliza as % gravadas.
-  const percentSum = stockBuyInput.reduce((sum, asset) => sum + (asset.targetPercent ?? 0), 0);
-  const stockCascadeInput: CascadeAsset[] = stockBuyInput.map((asset) => ({
-    ticker: asset.ticker,
-    rank: asset.rank,
-    ceiling: asset.ceiling,
-    weight: percentSum > 0 ? (asset.targetPercent ?? 0) / percentSum : 0,
-    price: asset.price,
-    quantity: asset.quantity,
-    averagePrice: null,
-    priceToBook: null,
-    lastDividend: null,
-    dividends12m: null,
-    vacancy: null,
-    macro: "Outros",
-    sector: null,
-  }));
   return (
     <AporteCalculator
       fiiAssets={cascadeInput}
-      stockAssets={stockCascadeInput}
-      target={target}
+      stockAssets={stockBuyInput}
       values={classValues}
       meta={[...meta.values()]}
     />

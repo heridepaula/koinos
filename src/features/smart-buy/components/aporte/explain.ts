@@ -1,5 +1,6 @@
 import { formatBRL, formatPercent, formatQuantity } from "@/shared/lib/format";
-import { RISK_CAPS, STOCK_CAPS } from "../../domain/risk";
+import { RISK_CAPS } from "../../domain/risk";
+import type { StockBuyOrder, StockExclusionReason } from "../../domain/stock-buy";
 import type { CascadeOrder, ExclusionReason } from "../../domain/suno-cascade";
 
 export const REASON_HELP: Record<ExclusionReason, string> = {
@@ -15,18 +16,6 @@ export const REASON_HELP: Record<ExclusionReason, string> = {
   SEM_RANKING: "Sem ranking cadastrado na Carteira Alvo.",
   SEM_COTACAO: "Ainda sem cotação.",
 };
-
-export type OrderClass = "FII" | "ACAO";
-
-/** A ajuda dos motivos: nas ações, o limite por ativo é sobre a parte das ações. */
-export function reasonHelp(kind: OrderClass): Record<ExclusionReason, string> {
-  if (kind === "FII") return REASON_HELP;
-  return {
-    ...REASON_HELP,
-    PEDIDO_PEQUENO: "Falta pouco para a meta: não chega a uma ação.",
-    LIMITE_ATIVO: `Uma cota custa mais que o limite de ${formatPercent(STOCK_CAPS.asset, 0)} da parte das ações por ação.`,
-  };
-}
 
 export const REASON_ORDER: ExclusionReason[] = [
   "SEM_SALDO",
@@ -47,12 +36,10 @@ const times = (tensor: number) =>
 
 const onlyLeftover = (order: CascadeOrder) => order.fromLeftover === order.quantity;
 
-function limitText(order: CascadeOrder, kind: OrderClass): string | null {
+function limitText(order: CascadeOrder): string | null {
   switch (order.limitedBy) {
     case "ativo":
-      return kind === "ACAO"
-        ? `limite de ${formatPercent(STOCK_CAPS.asset, 0)} da parte das ações`
-        : `limite de ${formatPercent(RISK_CAPS.asset, 0)} do aporte por FII`;
+      return `limite de ${formatPercent(RISK_CAPS.asset, 0)} do aporte por FII`;
     case "setor":
       return `limite de ${formatPercent(RISK_CAPS.sector, 0)} do aporte em ${order.sector}`;
     case "macro":
@@ -69,7 +56,7 @@ function limitText(order: CascadeOrder, kind: OrderClass): string | null {
  * pedido, o pedido, a trava que o cortou e as cotas da sobra. Vai para a folha do celular e para
  * a dica da tabela.
  */
-export function explain(order: CascadeOrder, kind: OrderClass = "FII"): string[] {
+export function explain(order: CascadeOrder): string[] {
   const { tensors } = order;
   const parts = [`${order.rank}º do ranking`];
   parts.push(
@@ -93,7 +80,7 @@ export function explain(order: CascadeOrder, kind: OrderClass = "FII"): string[]
     }
     parts.push(`pediu ${formatBRL(order.need)}`);
   }
-  const limit = limitText(order, kind);
+  const limit = limitText(order);
   if (limit) parts.push(limit);
   if (order.fromLeftover > 0) parts.push(`${order.fromLeftover} cota(s) da sobra`);
   return parts;
@@ -103,7 +90,7 @@ export function explain(order: CascadeOrder, kind: OrderClass = "FII"): string[]
  * Um comentário curto do porquê da recomendação: a posição no ranking e a distância da meta, mais
  * o sinal que mais pesou (uma trava, um freio ou o desconto).
  */
-export function shortReason(order: CascadeOrder, kind: OrderClass = "FII"): string {
+export function shortReason(order: CascadeOrder): string {
   const shortfall = 1 - order.fillBefore;
   const distance =
     order.gapBefore <= 0
@@ -120,12 +107,53 @@ export function shortReason(order: CascadeOrder, kind: OrderClass = "FII"): stri
     );
   } else if (tensors.dividends < 0.95) {
     parts.push("provento caiu");
-  } else if (kind === "FII" && tensors.vacancy < 0.9) {
+  } else if (tensors.vacancy < 0.9) {
     parts.push(`vacância de ${formatPercent(order.vacancy ?? 0, 0)}`);
-  } else if (kind === "FII" && order.priceToBook !== null && tensors.valuation >= 1.05) {
+  } else if (order.priceToBook !== null && tensors.valuation >= 1.05) {
     parts.push(`P/VP ${formatQuantity(order.priceToBook)}`);
   } else if (tensors.safety >= 1.1) {
     parts.push(`${formatPercent(order.marginToCeiling, 0)} abaixo do teto`);
   }
   return parts.join(" · ");
+}
+
+export const STOCK_REASON_LABELS: Record<StockExclusionReason, string> = {
+  SEM_COTACAO: "Sem cotação",
+  SEM_TETO: "Sem preço teto",
+  ACIMA_DO_TETO: "Acima do teto",
+  AGUARDAR: "Viés Aguardar",
+  NA_META: "Já na meta",
+  PEDIDO_PEQUENO: "Pede menos de 1 ação",
+  SEM_SALDO: "Faltou saldo",
+};
+
+export const STOCK_REASON_HELP: Record<StockExclusionReason, string> = {
+  SEM_COTACAO: "Ainda sem cotação.",
+  SEM_TETO: "Sem preço teto cadastrado na Carteira Alvo.",
+  ACIMA_DO_TETO: "Preço acima do teto: a regra é só comprar abaixo dele.",
+  AGUARDAR: "Marcada como Aguardar na Carteira Alvo: não recebe aporte.",
+  NA_META: "Já está na % sugerida (ou a ação não tem %).",
+  PEDIDO_PEQUENO: "Falta pouco para a meta: não chega a uma ação.",
+  SEM_SALDO: "Está abaixo da meta, mas o valor não alcançou: fica para o próximo aporte.",
+};
+
+export const STOCK_REASON_ORDER: StockExclusionReason[] = [
+  "SEM_SALDO",
+  "PEDIDO_PEQUENO",
+  "NA_META",
+  "AGUARDAR",
+  "ACIMA_DO_TETO",
+  "SEM_TETO",
+  "SEM_COTACAO",
+];
+
+/** O porquê completo de uma ordem de ação: a margem de segurança e o que faltava para a meta. */
+export function explainStock(order: StockBuyOrder): string {
+  const ceiling = order.price * (1 + order.marginOfSafety);
+  return `Margem de segurança de ${formatPercent(order.marginOfSafety, 0)} (teto ${formatBRL(ceiling)}, preço ${formatBRL(order.price)}) · faltavam ${formatBRL(order.deficitBefore)} para a meta de ${formatPercent(order.targetPercent / 100, 1)}`;
+}
+
+/** A linha curta de uma ordem de ação. */
+export function shortStockReason(order: StockBuyOrder): string {
+  return `${formatPercent(order.marginOfSafety, 0)} abaixo do teto · faltavam ${formatBRL(order.deficitBefore)}`;
 }

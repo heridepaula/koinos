@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { CascadeOrder } from "../../domain/suno-cascade";
-import { explain, reasonHelp, shortReason } from "./explain";
+import type { StockBuyOrder } from "../../domain/stock-buy";
+import { explain, explainStock, shortReason, shortStockReason } from "./explain";
 
 const neutral = { valuation: 1, dividends: 1, safety: 1, vacancy: 1 };
 
@@ -79,21 +80,28 @@ describe("explain", () => {
 });
 
 describe("ações", () => {
-  const stock = order({ priceToBook: null, vacancy: null, macro: "Outros", limitedBy: "ativo" });
+  const stock: StockBuyOrder = {
+    ticker: "WEGE3",
+    rank: 1,
+    quantity: 10,
+    price: 51,
+    total: 510,
+    marginOfSafety: 70 / 51 - 1,
+    deficitBefore: 1_200,
+    targetValue: 2_000,
+    targetPercent: 20,
+    weightBefore: 0.1,
+    weightAfter: 0.15,
+  };
+  const plain = (text: string) => text.replace(/ /g, " ");
 
-  it("o limite fala da parte das ações e não há P/VP nem vacância", () => {
-    const text = explain(stock, "ACAO").join(" · ");
-    expect(text).toContain("limite de 25% da parte das ações");
-    expect(text).not.toContain("P/VP");
-    expect(text).not.toContain("vacância");
+  it("a margem de segurança e o que faltava para a meta", () => {
+    expect(plain(explainStock(stock))).toBe(
+      "Margem de segurança de 37% (teto R$ 70,00, preço R$ 51,00) · faltavam R$ 1.200,00 para a meta de 20,0%",
+    );
   });
 
-  it("o FII segue falando do aporte", () => {
-    expect(explain(stock).join(" · ")).toContain("limite de 25% do aporte por FII");
-  });
-
-  it("a ajuda do limite por ativo muda para ações", () => {
-    expect(reasonHelp("ACAO").LIMITE_ATIVO).toContain("da parte das ações");
-    expect(reasonHelp("FII").LIMITE_ATIVO).toContain("por FII");
+  it("a linha curta", () => {
+    expect(plain(shortStockReason(stock))).toBe("37% abaixo do teto · faltavam R$ 1.200,00");
   });
 });

@@ -2,8 +2,6 @@
 export {
   classifyRisk,
   RISK_CAPS,
-  STOCK_CAPS,
-  type RiskCaps,
   type RiskBuckets,
   type RiskInput,
   type RiskMacro,
@@ -22,14 +20,6 @@ export {
   type Tensors,
 } from "./domain/suno-cascade";
 export {
-  DEFAULT_CLASS_TARGET,
-  splitByClassTarget,
-  type ClassKey,
-  type ClassShare,
-  type ClassSplit,
-  type ClassTarget,
-} from "./domain/class-split";
-export {
   stockSmartBuy,
   type StockBias,
   type StockBuyAsset,
@@ -37,4 +27,3 @@ export {
   type StockBuyResult,
   type StockExclusionReason,
 } from "./domain/stock-buy";
-export { classAporte, type ClassAporteResult } from "./domain/class-aporte";
