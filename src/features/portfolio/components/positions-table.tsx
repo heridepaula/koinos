@@ -238,7 +238,7 @@ export function PositionsTable({ rows }: { rows: PositionRow[] }) {
                 direction={direction}
                 onSort={() => toggle("prioridade")}
                 className="pr-(--card-spacing)"
-                title="Prioridade de aporte pelo método Suno"
+                title="Prioridade de aporte: FIIs pelo método Suno, ações pela margem de segurança"
               >
                 Prioridade
               </SortableHead>

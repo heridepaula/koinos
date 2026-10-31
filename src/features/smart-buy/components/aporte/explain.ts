@@ -199,7 +199,10 @@ export function explainStock(order: StockBuyOrder): string {
   return `Margem de segurança de ${formatPercent(order.marginOfSafety, 0)} (teto ${formatBRL(ceiling)}, preço ${formatBRL(order.price)}) · faltavam ${formatBRL(order.deficitBefore)} para a meta de ${formatPercent(order.targetWeight, 1)}`;
 }
 
-/** A linha curta de uma ordem de ação. */
+/**
+ * A linha curta de uma ordem de ação. A margem de segurança (teto ÷ preço − 1) não é o quanto o
+ * preço está abaixo do teto, a conta dos FIIs: por isso vai com o nome.
+ */
 export function shortStockReason(order: StockBuyOrder): string {
-  return `${formatPercent(order.marginOfSafety, 0)} abaixo do teto · faltavam ${formatBRL(order.deficitBefore)}`;
+  return `margem de segurança de ${formatPercent(order.marginOfSafety, 0)} · faltavam ${formatBRL(order.deficitBefore)}`;
 }

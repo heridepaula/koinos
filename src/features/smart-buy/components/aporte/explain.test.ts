@@ -113,7 +113,9 @@ describe("ações", () => {
   });
 
   it("a linha curta", () => {
-    expect(plain(shortStockReason(stock))).toBe("37% abaixo do teto · faltavam R$ 1.200,00");
+    expect(plain(shortStockReason(stock))).toBe(
+      "margem de segurança de 37% · faltavam R$ 1.200,00",
+    );
   });
 });
 
