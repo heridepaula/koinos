@@ -66,9 +66,13 @@ export const getDividendsView = traced(
     // um FII alugado recebe Reembolso no lugar do Rendimento.
     const classReceived = allReceived.filter((item) => ofClass(item.ticker));
     const received = classReceived.filter((item) => ofKind(item.kind));
-    const forecast = allForecast && {
+    const classForecast = allForecast && {
       ...allForecast,
-      items: allForecast.items.filter((item) => ofClass(item.ticker) && ofKind(item.kind)),
+      items: allForecast.items.filter((item) => ofClass(item.ticker)),
+    };
+    const forecast = classForecast && {
+      ...classForecast,
+      items: classForecast.items.filter((item) => ofKind(item.kind)),
     };
     // O Yahoo só estima Rendimento de FII (spec etapa 2, §6.2).
     const withYahoo = kind === null || kind === "RENDIMENTO";
@@ -89,13 +93,25 @@ export const getDividendsView = traced(
       announcements,
       forecast,
     });
+    // O "não divulgado" olha o "a receber" de todos os tipos da classe: um FII alugado tem
+    // Reembolso na previsão da B3 e não deve aparecer só porque o filtro é Rendimento.
+    const classUpcoming =
+      kind === null
+        ? upcoming
+        : upcomingDividends({
+            now,
+            transactions,
+            received: classReceived,
+            announcements,
+            forecast: classForecast,
+          });
     const undisclosed = withYahoo
       ? undisclosedDividends({
           now,
           transactions,
           received: classReceived.filter((item) => isFiiLike(item.ticker)),
           announcements,
-          upcoming,
+          upcoming: classUpcoming,
         })
       : [];
     const today = todayTradeDate(now);

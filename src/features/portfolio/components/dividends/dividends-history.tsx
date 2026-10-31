@@ -231,7 +231,8 @@ function MonthCalendar({
   const byMonth = new Map(view.byMonth.map((group) => [group.month, group]));
   const [yearIndex, setYearIndex] = useState(0);
   const [opened, setOpened] = useState<string | null>(null);
-  const year = view.byYear[yearIndex];
+  // Defensivo: se os anos diminuírem, o índice nunca aponta para fora da lista.
+  const year = view.byYear[Math.min(yearIndex, view.byYear.length - 1)];
   if (!year) return null;
   const group = opened ? byMonth.get(opened) : undefined;
 

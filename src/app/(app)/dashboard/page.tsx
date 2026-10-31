@@ -32,7 +32,7 @@ export default function DashboardPage({ searchParams }: PageProps<"/dashboard">)
         description="Visão geral da carteira."
         actions={
           <Suspense fallback={null}>
-            <QuoteStatus searchParams={searchParams} />
+            <QuoteStatus />
           </Suspense>
         }
       />
@@ -49,8 +49,9 @@ async function filterOf(searchParams: SearchParams): Promise<ClassFilter> {
   return parseClassParam((await searchParams).classe);
 }
 
-async function QuoteStatus({ searchParams }: { searchParams: SearchParams }) {
-  const { quotes } = await getPortfolioSnapshot(await filterOf(searchParams));
+// Sempre a carteira toda: o atualizador renova todas as cotações, seja qual for a classe aberta.
+async function QuoteStatus() {
+  const { quotes } = await getPortfolioSnapshot();
   return <QuoteRefresher staleCount={quotes.staleCount} lastFetchedAt={quotes.lastFetchedAt} />;
 }
 
@@ -58,7 +59,11 @@ async function DashboardContent({ searchParams }: { searchParams: SearchParams }
   const filter = await filterOf(searchParams);
   const snapshot = await getPortfolioSnapshot(filter);
   if (snapshot.positions.length === 0 && snapshot.closed.length === 0) {
-    return filter === "TODOS" ? <EmptyPortfolio /> : <EmptyClass filter={filter} />;
+    if (filter === "TODOS") return <EmptyPortfolio />;
+    // A página vazia depende da carteira toda, não só da classe filtrada.
+    const whole = await getPortfolioSnapshot();
+    if (whole.positions.length === 0 && whole.closed.length === 0) return <EmptyPortfolio />;
+    return <EmptyClass filter={filter} />;
   }
 
   return (

@@ -53,7 +53,9 @@ export default function DividendsPage({ searchParams }: PageProps<"/proventos">)
 
 async function DividendsContent({ searchParams }: Pick<PageProps<"/proventos">, "searchParams">) {
   const params = await searchParams;
-  const view = await getDividendsView(parseClassParam(params.classe), parseKindParam(params.tipo));
+  const classe = parseClassParam(params.classe);
+  const tipo = parseKindParam(params.tipo);
+  const view = await getDividendsView(classe, tipo);
   if (!view.imported) return <EmptyDividends />;
   return (
     <div className="grid gap-6">
@@ -79,7 +81,9 @@ async function DividendsContent({ searchParams }: Pick<PageProps<"/proventos">, 
         undisclosed={view.undisclosed}
         forecastAsOf={view.forecastAsOf}
       />
+      {/* A chave zera o estado (ano do calendário) quando o filtro muda os anos disponíveis. */}
       <DividendsHistory
+        key={`${classe}|${tipo ?? ""}`}
         since={view.since}
         chart={view.chart}
         byMonth={view.byMonth}
