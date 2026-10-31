@@ -358,7 +358,7 @@ export const EXCLUSION_LABELS: Record<ExclusionReason, string> = {
   ACIMA_DO_TETO: "Acima do teto",
   AGUARDAR: "Viés Aguardar",
   NA_META: "Já na meta",
-  PEDIDO_PEQUENO: "Pede menos de 1 cota",
+  PEDIDO_PEQUENO: "Pede menos de 1 papel",
   LIMITE_ATIVO: "Cota acima do limite",
   LIMITE_SETOR: "Limite do setor",
   LIMITE_MACRO: "Limite de papel ou tijolo",

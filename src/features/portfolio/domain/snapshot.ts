@@ -75,7 +75,8 @@ export function buildSnapshot({
   const { positions } = replayLedger(transactions);
   const classOf = (ticker: string): AssetClass | null =>
     classes.has(ticker) ? (classes.get(ticker) ?? null) : assetClassOf(ticker, null);
-  // A cascata (Recomendações) é só de FIIs; cada classe tem a sua Carteira Alvo.
+  // A cascata é só de FIIs e as ações têm o motor próprio (stockSmartBuy); cada classe tem a sua
+  // Carteira Alvo.
   const isStock = (ticker: string) => classOf(ticker) === "ACAO";
   const received = dividendsByTicker(dividends);
   const open = positions.filter((position) => position.quantity > 0);
@@ -121,20 +122,17 @@ export function buildSnapshot({
   const toCascadeAsset = (
     member: (typeof strategies.FII.members)[number],
     weights: Map<string, number>,
-    stock: boolean,
   ): CascadeAsset => {
     const position = openByTicker.get(member.ticker);
     const info = prices.get(member.ticker);
     const fii = info?.fii ?? null;
-    const { macro, sector } = stock
-      ? { macro: "Outros" as const, sector: null }
-      : classifyRisk({
-          fundType: fii?.fundType ?? null,
-          segment: fii?.segment ?? null,
-          paperPct: fii?.paperPct ?? null,
-          realEstatePct: fii?.realEstatePct ?? null,
-          category: member.category,
-        });
+    const { macro, sector } = classifyRisk({
+      fundType: fii?.fundType ?? null,
+      segment: fii?.segment ?? null,
+      paperPct: fii?.paperPct ?? null,
+      realEstatePct: fii?.realEstatePct ?? null,
+      category: member.category,
+    });
     return {
       ticker: member.ticker,
       rank: member.sunoRank,
@@ -143,12 +141,10 @@ export function buildSnapshot({
       price: priceOf(member.ticker),
       quantity: position?.quantity ?? 0,
       averagePrice: position?.averagePrice ?? null,
-      priceToBook: stock ? null : (info?.priceToBook ?? null),
-      // O freio de proventos supõe pagador mensal: ação mistura JCP pequeno e dividendo grande,
-      // e o freio cortaria o pedido à toa. Nas ações só age a margem até o teto.
-      lastDividend: stock ? null : (info?.lastDividend?.amount ?? null),
-      dividends12m: stock ? null : (info?.dividends12m ?? null),
-      vacancy: !stock && fii?.vacancyPct != null ? fii.vacancyPct / 100 : null,
+      priceToBook: info?.priceToBook ?? null,
+      lastDividend: info?.lastDividend?.amount ?? null,
+      dividends12m: info?.dividends12m ?? null,
+      vacancy: fii?.vacancyPct != null ? fii.vacancyPct / 100 : null,
       macro,
       sector,
       // Viés da casa de análise: Aguardar tira o FII deste aporte (spec tabelas-unificadas, §3.1).
@@ -156,7 +152,7 @@ export function buildSnapshot({
     };
   };
   const cascadeInput = strategies.FII.members.map((member) =>
-    toCascadeAsset(member, strategies.FII.weights, false),
+    toCascadeAsset(member, strategies.FII.weights),
   );
   // Smart Buy de ações (spec smart-buy-acoes, §3): os membros da estratégia de ações com o peso
   // efetivo, reescalado para 100% como nos FIIs (spec tabelas-unificadas, §3.3). Na ordem das
@@ -252,7 +248,7 @@ export function buildSnapshot({
         assetClass: classOf(position.ticker),
         name: info?.name ?? null,
         logoUrl: info?.logoUrl ?? null,
-        // A ação não tem configuração na Carteira Alvo: a categoria vem da classe.
+        // A categoria da ação é sempre Ação (a classe); a do FII vem da Carteira Alvo.
         category: stock ? "ACAO" : (target?.category ?? null),
         quantity: position.quantity,
         averagePrice: position.averagePrice,

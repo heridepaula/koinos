@@ -10,7 +10,11 @@ export type StrategyAlertInput = {
   weightsWarning: string | null;
   /** Em Geral, a carteira de ações se identifica no id e no título. null: sem sufixo. */
   tag: { id: string; label: string } | null;
-  /** Só a estratégia de FIIs recebe aporte (as Recomendações são só de FIIs). */
+  /**
+   * true: o alerta diz que sem ranking ou sem teto o ativo não recebe aporte, a regra da cascata de
+   * FIIs. As ações também recebem aporte (stockSmartBuy), mas esse motor só exige o teto e usa o
+   * ranking para desempatar: o texto delas não promete a exclusão.
+   */
   receivesAporte: boolean;
 };
 
