@@ -38,11 +38,13 @@ export function CategorySelect({
           ? `Sugestão: ${CATEGORY_LABELS[row.suggestedCategory]}`
           : "Sem categoria"}
       </option>
-      {CATEGORIES.map((category) => (
-        <option key={category} value={category}>
-          {CATEGORY_LABELS[category]}
-        </option>
-      ))}
+      {CATEGORIES.filter((category) => category !== "ACAO" || row.category === "ACAO").map(
+        (category) => (
+          <option key={category} value={category}>
+            {CATEGORY_LABELS[category]}
+          </option>
+        ),
+      )}
     </NativeSelect>
   );
 }

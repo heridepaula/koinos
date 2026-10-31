@@ -48,8 +48,14 @@ export const updateTargetAssetAction = authActionClient
   .inputSchema(targetPatchSchema)
   .action(async ({ parsedInput, ctx }) => {
     const { ticker, ...patch } = parsedInput;
-    if (patch.category != null && patch.category !== "ACAO" && (await classOf(ticker)) === "ACAO") {
-      throw new ActionError("A categoria de uma ação é sempre Ação.");
+    if (patch.category != null) {
+      const isStock = (await classOf(ticker)) === "ACAO";
+      if (isStock && patch.category !== "ACAO") {
+        throw new ActionError("A categoria de uma ação é sempre Ação.");
+      }
+      if (!isStock && patch.category === "ACAO") {
+        throw new ActionError("A categoria Ação é só para ações.");
+      }
     }
     const stored = await findTargetAsset(ctx.tenant.portfolioId, ticker);
     const inStrategy = patch.inStrategy ?? stored?.inStrategy ?? false;
