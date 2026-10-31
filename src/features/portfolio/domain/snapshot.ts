@@ -7,6 +7,7 @@ import {
   suggestCategory,
 } from "@/features/strategy";
 import { monthlyContributions, replayLedger, type DividendEntry } from "@/features/transactions";
+import { byClass, type ClassFilter } from "@/shared/lib/class-filter";
 import { addMonths, currentMonthKey, monthRange } from "@/shared/lib/time";
 import { buildAlerts } from "./alerts";
 import { allocationByAsset, allocationByCategory } from "./allocation";
@@ -34,7 +35,27 @@ export type SnapshotInput = {
   prices: ReadonlyMap<string, PriceInfo>;
   /** Classe de cada ticker pelo catálogo; o que faltar sai pelo código (spec ações, §4). */
   classes: ReadonlyMap<string, AssetClass | null>;
+  /** Falso na visão Ações: os alertas são da estratégia de FIIs. Padrão: verdadeiro. */
+  withAlerts?: boolean;
 };
+
+/**
+ * A entrada do snapshot só com a classe pedida (spec etapa 2 das ações, §5). Ação nunca entra na
+ * estratégia: na visão Ações, sem alvos, a Carteira Alvo e os alertas somem.
+ */
+export function scopeToClass(input: SnapshotInput, filter: ClassFilter): SnapshotInput {
+  if (filter === "TODOS") return input;
+  // A mesma regra do buildSnapshot: o que faltar no mapa sai pelo código.
+  const classOf = (ticker: string) =>
+    input.classes.has(ticker) ? (input.classes.get(ticker) ?? null) : assetClassOf(ticker, null);
+  return {
+    ...input,
+    transactions: byClass(input.transactions, classOf, filter),
+    dividends: byClass(input.dividends, classOf, filter),
+    targets: filter === "ACAO" ? [] : input.targets,
+    withAlerts: filter !== "ACAO",
+  };
+}
 
 export function buildSnapshot({
   now,
@@ -43,6 +64,7 @@ export function buildSnapshot({
   dividends,
   prices,
   classes,
+  withAlerts = true,
 }: SnapshotInput): PortfolioSnapshot {
   const { positions } = replayLedger(transactions);
   const classOf = (ticker: string): AssetClass | null =>
@@ -288,7 +310,9 @@ export function buildSnapshot({
       transactions,
       monthRange(addMonths(nowMonth, -(CONTRIBUTION_MONTHS - 1)), nowMonth),
     ),
-    alerts: buildAlerts({ positions: positionRows, strategyRows, weightsWarning }),
+    alerts: withAlerts
+      ? buildAlerts({ positions: positionRows, strategyRows, weightsWarning })
+      : [],
     quotes: {
       staleCount: quoteTickers.filter((ticker) =>
         isQuoteStale(prices.get(ticker)?.quoteFetchedAt, now),

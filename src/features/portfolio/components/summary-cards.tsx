@@ -144,10 +144,12 @@ function PatrimonyCard({
             <Stat label="Investido" value={<Sensitive>{formatBRL(summary.invested)}</Sensitive>} />
             <Stat label="Ativos" value={summary.positionsCount} />
           </dl>
-          <Composition
-            slices={byCategory}
-            className="@min-[560px]:col-span-2 @min-[960px]:col-span-1"
-          />
+          {byCategory.length > 0 ? (
+            <Composition
+              slices={byCategory}
+              className="@min-[560px]:col-span-2 @min-[960px]:col-span-1"
+            />
+          ) : null}
         </div>
       </CardContent>
     </Card>

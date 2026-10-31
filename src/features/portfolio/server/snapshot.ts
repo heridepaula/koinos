@@ -12,11 +12,12 @@ import {
 import { getMyTargetAssets } from "@/features/strategy/server";
 import { replayLedger } from "@/features/transactions";
 import { getMyDividends, getMyTransactions } from "@/features/transactions/server";
+import { byClass, type ClassFilter } from "@/shared/lib/class-filter";
 import { currentMonthKey, monthKeyOfTradeDate } from "@/shared/lib/time";
 import { traced } from "@/shared/lib/tracing";
 import { computeEvolution } from "../domain/evolution";
 import { periodResults } from "../domain/period-results";
-import { buildSnapshot } from "../domain/snapshot";
+import { buildSnapshot, scopeToClass } from "../domain/snapshot";
 import type { EvolutionPoint, PeriodResult, PortfolioSnapshot, PriceInfo } from "../domain/types";
 
 function toPriceInfo(assets: ReadonlyMap<string, AssetSnapshot>): Map<string, PriceInfo> {
@@ -40,14 +41,10 @@ function toPriceInfo(assets: ReadonlyMap<string, AssetSnapshot>): Map<string, Pr
   );
 }
 
-/**
- * Visão consolidada da carteira do usuário logado (dashboard, Carteira Alvo, Recomendações).
- * Os dados vêm da sessão (DAL); o resultado é um DTO sem ids internos.
- */
-export const getPortfolioSnapshot = cache(
+const snapshotFor = cache(
   traced(
     "view.portfolio-snapshot",
-    async (): Promise<PortfolioSnapshot> => {
+    async (filter: ClassFilter): Promise<PortfolioSnapshot> => {
       await connection(); // usa a hora atual: só em tempo de requisição
       const [transactions, targets, dividends] = await Promise.all([
         getMyTransactions(),
@@ -61,32 +58,53 @@ export const getPortfolioSnapshot = cache(
         getAssetSnapshots(tickers),
         getAssetClasses(tickers),
       ]);
-      return buildSnapshot({
-        now: new Date(),
-        transactions,
-        targets,
-        dividends,
-        prices: toPriceInfo(assets),
-        classes,
-      });
+      return buildSnapshot(
+        scopeToClass(
+          {
+            now: new Date(),
+            transactions,
+            targets,
+            dividends,
+            prices: toPriceInfo(assets),
+            classes,
+          },
+          filter,
+        ),
+      );
     },
-    (snapshot) => ({
+    (snapshot, filter) => ({
       "koinos.view.positions": snapshot.positions.length,
       "koinos.view.closed": snapshot.closed.length,
       "koinos.view.strategy_rows": snapshot.strategy.rows.length,
       "koinos.view.stale_quotes": snapshot.quotes.staleCount,
       "koinos.view.alerts": snapshot.alerts.length,
+      "koinos.view.class_filter": filter,
     }),
   ),
 );
 
+/**
+ * Visão consolidada da carteira do usuário logado (dashboard, Carteira Alvo, Recomendações), na
+ * classe pedida. O `cache` é por argumento: a função normaliza o padrão para que `()` e
+ * `("TODOS")` sejam a mesma consulta. O resultado é um DTO sem ids internos.
+ */
+export const getPortfolioSnapshot = (filter: ClassFilter = "TODOS") => snapshotFor(filter);
+
+/** Os lançamentos da classe. Com "TODOS", nem lê o catálogo. */
+async function transactionsOf(filter: ClassFilter) {
+  const transactions = await getMyTransactions();
+  if (filter === "TODOS") return transactions;
+  const classes = await getAssetClasses(transactions.map((entry) => entry.ticker));
+  return byClass(transactions, (ticker) => classes.get(ticker) ?? null, filter);
+}
+
 /** Evolução mensal. Completa no Yahoo os fechamentos que faltam (uma vez por mês e ticker). */
 export const getEvolution = traced(
   "view.evolution",
-  async (): Promise<EvolutionPoint[]> => {
+  async (filter: ClassFilter = "TODOS"): Promise<EvolutionPoint[]> => {
     await connection();
     const now = new Date();
-    const transactions = await getMyTransactions();
+    const transactions = await transactionsOf(filter);
     if (transactions.length === 0) return [];
     const { positions } = replayLedger(transactions);
     await ensureMonthlyCloses(
@@ -104,7 +122,8 @@ export const getEvolution = traced(
     const currentPrices = new Map([...assets].map(([ticker, asset]) => [ticker, asset.price]));
     return computeEvolution(transactions, closes, currentPrices, currentMonthKey(now));
   },
-  (points) => ({
+  (points, filter = "TODOS") => ({
+    "koinos.view.class_filter": filter,
     "koinos.view.months": points.length,
     "koinos.view.estimated_months": points.filter((point) => point.estimated).length,
   }),
@@ -117,10 +136,10 @@ export const getEvolution = traced(
  */
 export const getPeriodResults = traced(
   "view.period-results",
-  async (): Promise<PeriodResult[]> => {
+  async (filter: ClassFilter = "TODOS"): Promise<PeriodResult[]> => {
     await connection();
     const now = new Date();
-    const transactions = await getMyTransactions();
+    const transactions = await transactionsOf(filter);
     const held = replayLedger(transactions).positions.filter((position) => position.quantity > 0);
     if (held.length === 0) return [];
     const tickers = held.map((position) => position.ticker);
@@ -148,7 +167,8 @@ export const getPeriodResults = traced(
       recentCloses: new Map([...assets].map(([ticker, asset]) => [ticker, asset.recentCloses])),
     });
   },
-  (results) => ({
+  (results, filter = "TODOS") => ({
+    "koinos.view.class_filter": filter,
     "koinos.view.periods": results.length,
     "koinos.view.missing": results.reduce((sum, result) => sum + result.missing.length, 0),
   }),

@@ -40,6 +40,7 @@ function Donut({
   mode,
   shown,
   onShow,
+  toggle = true,
 }: {
   title: string;
   description: string;
@@ -48,6 +49,8 @@ function Donut({
   /** No iPhone, os dois donuts dividem um card: só o escolhido aparece. */
   shown: Mode;
   onShow: (mode: Mode) => void;
+  /** O seletor de iPhone só faz sentido com os dois donuts. */
+  toggle?: boolean;
 }) {
   const data = slices.map((slice, index) => ({ ...slice, fill: colorFor(slice, index, mode) }));
   return (
@@ -58,13 +61,15 @@ function Donut({
           <span className="max-md:hidden">{title}</span>
         </CardTitle>
         <CardDescription>{description}</CardDescription>
-        <SegmentedControl
-          label="Alocação por"
-          value={shown}
-          options={MODE_OPTIONS}
-          onChange={onShow}
-          className="mt-2 w-full md:hidden"
-        />
+        {toggle ? (
+          <SegmentedControl
+            label="Alocação por"
+            value={shown}
+            options={MODE_OPTIONS}
+            onChange={onShow}
+            className="mt-2 w-full md:hidden"
+          />
+        ) : null}
       </CardHeader>
       <CardContent className="grid items-center gap-4 sm:grid-cols-[minmax(0,12rem)_1fr]">
         <AllocationDonut data={data} className={DONUT_SIZE} />
@@ -98,11 +103,27 @@ function Donut({
 export function AllocationCharts({
   byCategory,
   byAsset,
+  showCategory = true,
 }: {
   byCategory: AllocationSlice[];
   byAsset: AllocationSlice[];
+  /** Na visão Ações não há categoria (spec etapa 2, §6.1): fica só a rosca por ativo. */
+  showCategory?: boolean;
 }) {
   const [shown, setShown] = useState<Mode>("category");
+  if (!showCategory) {
+    return (
+      <Donut
+        title="Por ativo"
+        description="Os 5 maiores e o restante em Outros"
+        slices={byAsset}
+        mode="asset"
+        shown="asset"
+        onShow={setShown}
+        toggle={false}
+      />
+    );
+  }
   return (
     <div className="grid gap-4 md:gap-6 xl:grid-cols-2">
       <Donut

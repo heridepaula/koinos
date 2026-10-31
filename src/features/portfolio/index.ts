@@ -1,5 +1,5 @@
 // API pública pura da feature portfolio (regras e tipos).
-export { buildSnapshot } from "./domain/snapshot";
+export { buildSnapshot, scopeToClass } from "./domain/snapshot";
 export { computeEvolution } from "./domain/evolution";
 export {
   closedPositions,

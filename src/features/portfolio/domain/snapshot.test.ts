@@ -1,7 +1,9 @@
 import { describe, expect, it } from "vitest";
 import { sunoCascade } from "@/features/smart-buy";
 import type { ClosedLedgerEntry } from "./closed-positions";
-import { buildSnapshot, type SnapshotInput } from "./snapshot";
+import { buildSnapshot, scopeToClass, type SnapshotInput } from "./snapshot";
+import type { ClassFilter } from "@/shared/lib/class-filter";
+import type { DividendEntry } from "@/features/transactions";
 import type { AssetClass } from "@/features/market-data";
 import type { PriceInfo, TargetConfig } from "./types";
 
@@ -184,5 +186,58 @@ describe("buildSnapshot: ações", () => {
     const snapshot = buildSnapshot(withStock(target("PETR4", true, 5, 3)));
     expect(snapshot.cascadeInput.map((asset) => asset.ticker)).toEqual(["AAAA11", "BBBB11"]);
     expect(snapshot.positions.find((row) => row.ticker === "PETR4")?.inStrategy).toBe(false);
+  });
+});
+
+describe("scopeToClass: visões Geral, FIIs e Ações", () => {
+  const dividend = (ticker: string, amount: number): DividendEntry => ({
+    ticker,
+    paidAt: new Date(Date.UTC(2026, 5, 15)),
+    kind: "RENDIMENTO",
+    amount,
+    quantity: null,
+    perShare: null,
+  });
+  const input: SnapshotInput = {
+    now: new Date(Date.UTC(2026, 9, 31)),
+    transactions: [buy("AAAA11", 10), buy("BBBB11", 30), buy("PETR4", 20)],
+    targets: [target("AAAA11", true, 50, 1), target("BBBB11", true, 50, 2)],
+    dividends: [dividend("AAAA11", 5), dividend("PETR4", 7)],
+    prices: new Map([
+      ["AAAA11", quote],
+      ["BBBB11", quote],
+      ["PETR4", quote],
+    ]),
+    classes: new Map<string, AssetClass | null>([
+      ["AAAA11", "FII"],
+      ["BBBB11", "FII"],
+      ["PETR4", "ACAO"],
+    ]),
+  };
+  const view = (filter: ClassFilter) => buildSnapshot(scopeToClass(input, filter));
+
+  it("FIIs + Ações somam o Geral", () => {
+    const [all, fiis, stocks] = [view("TODOS"), view("FII"), view("ACAO")];
+    for (const key of ["patrimony", "invested", "dividendsReceived"] as const) {
+      expect(fiis.summary[key] + stocks.summary[key]).toBeCloseTo(all.summary[key], 6);
+    }
+  });
+
+  it("o % de cada visão é sobre a classe", () => {
+    for (const filter of ["FII", "ACAO"] as const) {
+      const total = view(filter).allocation.byAsset.reduce((sum, slice) => sum + slice.share, 0);
+      expect(total).toBeCloseTo(1, 6);
+    }
+  });
+
+  it("a visão Ações não tem estratégia nem alertas", () => {
+    const stocks = view("ACAO");
+    expect(stocks.strategy.rows).toEqual([]);
+    expect(stocks.cascadeInput).toEqual([]);
+    expect(stocks.alerts).toEqual([]);
+  });
+
+  it("Geral devolve a entrada como veio", () => {
+    expect(scopeToClass(input, "TODOS")).toBe(input);
   });
 });

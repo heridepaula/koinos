@@ -13,13 +13,18 @@ import {
   QuoteRefresher,
   SummaryCards,
 } from "@/features/portfolio/ui";
+import { AssetClassControl } from "@/shared/components/asset-class-control";
 import { PageHeader } from "@/shared/components/page-header";
 import { CardSkeleton, DashboardSkeleton } from "@/shared/components/skeletons";
+import { parseClassParam, type ClassFilter } from "@/shared/lib/class-filter";
+import { Empty, EmptyDescription, EmptyHeader, EmptyTitle } from "@/shared/ui/empty";
 
 export const metadata: Metadata = { title: "Dashboard" };
 
 // O cabeçalho vai no shell estático; tudo o que depende da sessão chega por streaming.
-export default function DashboardPage() {
+type SearchParams = PageProps<"/dashboard">["searchParams"];
+
+export default function DashboardPage({ searchParams }: PageProps<"/dashboard">) {
   return (
     <>
       <PageHeader
@@ -27,42 +32,55 @@ export default function DashboardPage() {
         description="Visão geral da carteira."
         actions={
           <Suspense fallback={null}>
-            <QuoteStatus />
+            <QuoteStatus searchParams={searchParams} />
           </Suspense>
         }
       />
+      <AssetClassControl className="mb-4 md:mb-6" />
+      {/* searchParams é dado da requisição: fica dentro de <Suspense>. */}
       <Suspense fallback={<DashboardSkeleton />}>
-        <DashboardContent />
+        <DashboardContent searchParams={searchParams} />
       </Suspense>
     </>
   );
 }
 
-async function QuoteStatus() {
-  const { quotes } = await getPortfolioSnapshot();
+async function filterOf(searchParams: SearchParams): Promise<ClassFilter> {
+  return parseClassParam((await searchParams).classe);
+}
+
+async function QuoteStatus({ searchParams }: { searchParams: SearchParams }) {
+  const { quotes } = await getPortfolioSnapshot(await filterOf(searchParams));
   return <QuoteRefresher staleCount={quotes.staleCount} lastFetchedAt={quotes.lastFetchedAt} />;
 }
 
-async function DashboardContent() {
-  const snapshot = await getPortfolioSnapshot();
-  if (snapshot.positions.length === 0 && snapshot.closed.length === 0) return <EmptyPortfolio />;
+async function DashboardContent({ searchParams }: { searchParams: SearchParams }) {
+  const filter = await filterOf(searchParams);
+  const snapshot = await getPortfolioSnapshot(filter);
+  if (snapshot.positions.length === 0 && snapshot.closed.length === 0) {
+    return filter === "TODOS" ? <EmptyPortfolio /> : <EmptyClass filter={filter} />;
+  }
 
   return (
     <div className="grid gap-4 md:gap-6">
-      <SummaryCards summary={snapshot.summary} byCategory={snapshot.allocation.byCategory} />
+      <SummaryCards
+        summary={snapshot.summary}
+        byCategory={filter === "ACAO" ? [] : snapshot.allocation.byCategory}
+      />
       <Suspense fallback={<CardSkeleton />}>
-        <PeriodSection />
+        <PeriodSection filter={filter} />
       </Suspense>
-      <AlertsPanel alerts={snapshot.alerts} />
+      {filter === "ACAO" ? null : <AlertsPanel alerts={snapshot.alerts} />}
       <div className="grid gap-4 md:gap-6 xl:grid-cols-2">
         <Suspense fallback={<CardSkeleton />}>
-          <EvolutionSection />
+          <EvolutionSection filter={filter} />
         </Suspense>
         <ContributionsChart data={snapshot.contributions} />
       </div>
       <AllocationCharts
         byCategory={snapshot.allocation.byCategory}
         byAsset={snapshot.allocation.byAsset}
+        showCategory={filter !== "ACAO"}
       />
       <PositionsTable rows={snapshot.positions} />
       <ClosedPositions rows={snapshot.closed} />
@@ -70,12 +88,26 @@ async function DashboardContent() {
   );
 }
 
+/** Visão de uma classe sem nenhum ativo, aberto ou encerrado. */
+function EmptyClass({ filter }: { filter: Exclude<ClassFilter, "TODOS"> }) {
+  return (
+    <Empty className="border">
+      <EmptyHeader>
+        <EmptyTitle>
+          {filter === "FII" ? "Nenhum FII na carteira" : "Nenhuma ação na carteira"}
+        </EmptyTitle>
+        <EmptyDescription>Escolha Geral para ver a carteira toda.</EmptyDescription>
+      </EmptyHeader>
+    </Empty>
+  );
+}
+
 // Pode buscar histórico no Yahoo na primeira vez: fica no próprio Suspense para não segurar o resto.
-async function EvolutionSection() {
-  return <EvolutionChart points={await getEvolution()} />;
+async function EvolutionSection({ filter }: { filter: ClassFilter }) {
+  return <EvolutionChart points={await getEvolution(filter)} />;
 }
 
 // Pode buscar fechamentos no Yahoo (no máximo a cada 12 h): também fica no próprio Suspense.
-async function PeriodSection() {
-  return <PeriodResults results={await getPeriodResults()} />;
+async function PeriodSection({ filter }: { filter: ClassFilter }) {
+  return <PeriodResults results={await getPeriodResults(filter)} />;
 }
