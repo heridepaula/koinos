@@ -49,7 +49,7 @@ Recomendar o aporte nas duas carteiras: o valor é dividido entre FIIs e ações
 Entrada: o aporte, a meta, o patrimônio de cada classe e se cada classe pode receber.
 
 - **Patrimônio da classe:** o valor de todas as posições abertas dela (preço atual × quantidade, ou o preço médio sem cotação), inclusive as em quarentena ou fora da estratégia, como em "80% do patrimônio".
-- **Pode receber:** a classe tem ao menos um ativo na estratégia com teto e preço. Se uma classe não pode, a parte inteira vai para a outra. Se nenhuma pode, as duas partes são zero.
+- **Pode receber:** a meta da classe é maior que 0% e ela tem ao menos um ativo na estratégia com rank, teto e preço. Se uma classe não pode, a parte inteira vai para a outra. Se nenhuma pode, as duas partes são zero. Uma classe com meta 0% nunca recebe, nem troco.
 - **Pedido:** meta da classe = % × (patrimônio das duas + aporte); pedido = max(0, meta − patrimônio).
 - **Divisão:**
   - pedidos somando mais que o aporte: o aporte é dividido na proporção dos pedidos;
@@ -67,8 +67,8 @@ Entrada: o aporte, a meta, o patrimônio de cada classe e se cada classe pode re
 
 1. Divide o aporte pela meta (§4.2).
 2. Roda as ações com a parte delas (`STOCK_CAPS`).
-3. Roda os FIIs com a parte deles + o troco das ações (`RISK_CAPS`).
-4. Se o troco dos FIIs é maior que zero e alguma ação pode receber, roda as ações de novo com a parte original + o troco dos FIIs. Essa rodada substitui a do passo 2.
+3. Roda os FIIs com a parte deles + o troco das ações (`RISK_CAPS`), se os FIIs podem receber; senão, o troco das ações fica no troco final.
+4. Se o troco dos FIIs é maior que zero e as ações podem receber, roda as ações de novo com o que elas gastaram no passo 2 + o troco dos FIIs (o troco delas já foi para os FIIs, então não entra de novo). Essa rodada substitui a do passo 2 só se gastar mais.
 5. O troco final é aporte − gasto nas duas carteiras.
 
 Os limites de 25% são sobre a parte final de cada classe (a da rodada que vale). Saída: `{ split, fii: CascadeResult, stock: CascadeResult, leftover }`.
