@@ -4,13 +4,22 @@ import type { PortfolioAlert, PositionRow, StrategyRow } from "./types";
 /** Um único ativo acima desta fatia do patrimônio gera alerta de concentração. */
 export const CONCENTRATION_ALERT = 0.1;
 
+/** A estratégia de uma classe, para os alertas dela. */
+export type StrategyAlertInput = {
+  rows: readonly StrategyRow[];
+  weightsWarning: string | null;
+  /** Em Geral, a carteira de ações se identifica no id e no título. null: sem sufixo. */
+  tag: { id: string; label: string } | null;
+  /** Só a estratégia de FIIs recebe aporte (as Recomendações são só de FIIs). */
+  receivesAporte: boolean;
+};
+
 export function buildAlerts(input: {
   positions: readonly PositionRow[];
-  strategyRows: readonly StrategyRow[];
-  weightsWarning: string | null;
+  strategies: readonly StrategyAlertInput[];
 }): PortfolioAlert[] {
   const alerts: PortfolioAlert[] = [];
-  const { positions, strategyRows } = input;
+  const { positions } = input;
 
   const concentrated = positions
     .filter((row) => row.portfolioWeight > CONCENTRATION_ALERT)
@@ -37,25 +46,43 @@ export function buildAlerts(input: {
     });
   }
 
-  const members = strategyRows.filter((row) => row.inStrategy);
+  for (const strategy of input.strategies) alerts.push(...strategyAlerts(strategy));
+
+  return alerts;
+}
+
+function strategyAlerts({
+  rows,
+  weightsWarning,
+  tag,
+  receivesAporte,
+}: StrategyAlertInput): PortfolioAlert[] {
+  const alerts: PortfolioAlert[] = [];
+  const id = (base: string) => (tag ? `${base}-${tag.id}` : base);
+  const title = (base: string) => (tag ? `${base} (${tag.label})` : base);
+
+  const members = rows.filter((row) => row.inStrategy);
 
   const suspicious = members.filter((row) => row.suspiciousCeiling);
   if (suspicious.length > 0) {
     alerts.push({
-      id: "teto-suspeito",
+      id: id("teto-suspeito"),
       level: "warning",
-      title: "Preço teto suspeito",
+      title: title("Preço teto suspeito"),
       detail: `${suspicious.map((row) => row.ticker).join(", ")}: teto menor que metade ou maior que o dobro do preço. Pode ser erro de digitação ou teto desatualizado.`,
     });
   }
 
   const incomplete = members.filter((row) => row.sunoRank === null || row.ceilingPrice === null);
   if (incomplete.length > 0) {
+    const list = incomplete.map((row) => row.ticker).join(", ");
     alerts.push({
-      id: "configuracao-incompleta",
+      id: id("configuracao-incompleta"),
       level: "info",
-      title: "Estratégia incompleta",
-      detail: `${incomplete.map((row) => row.ticker).join(", ")}: sem ranking ou sem preço teto não recebem aporte.`,
+      title: title("Estratégia incompleta"),
+      detail: receivesAporte
+        ? `${list}: sem ranking ou sem preço teto não recebem aporte.`
+        : `${list}: sem ranking ou sem preço teto.`,
     });
   }
 
@@ -67,28 +94,28 @@ export function buildAlerts(input: {
   const duplicated = [...ranks].filter(([, tickers]) => tickers.length > 1);
   if (duplicated.length > 0) {
     alerts.push({
-      id: "ranking-repetido",
+      id: id("ranking-repetido"),
       level: "info",
-      title: "Ranking repetido",
+      title: title("Ranking repetido"),
       detail: duplicated.map(([rank, tickers]) => `${rank}º: ${tickers.join(", ")}`).join(" · "),
     });
   }
 
-  if (input.weightsWarning) {
+  if (weightsWarning) {
     alerts.push({
-      id: "pesos",
+      id: id("pesos"),
       level: "info",
-      title: "% sugeridas",
-      detail: input.weightsWarning,
+      title: title("% sugeridas"),
+      detail: weightsWarning,
     });
   }
 
-  const unconfigured = strategyRows.filter((row) => row.held && !row.configured);
+  const unconfigured = rows.filter((row) => row.held && !row.configured);
   if (unconfigured.length > 0) {
     alerts.push({
-      id: "sem-configuracao",
+      id: id("sem-configuracao"),
       level: "info",
-      title: "Ativos fora da Carteira Alvo",
+      title: title("Ativos fora da Carteira Alvo"),
       detail: `${unconfigured.map((row) => row.ticker).join(", ")} estão na carteira, mas não na estratégia.`,
     });
   }

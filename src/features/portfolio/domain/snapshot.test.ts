@@ -182,10 +182,10 @@ describe("buildSnapshot: ações", () => {
     );
   });
 
-  it("nem um ativo-alvo de ação gravado antes entra na cascata", () => {
+  it("o ativo-alvo de ação não entra na cascata, mas está na estratégia das ações", () => {
     const snapshot = buildSnapshot(withStock(target("PETR4", true, 5, 3)));
     expect(snapshot.cascadeInput.map((asset) => asset.ticker)).toEqual(["AAAA11", "BBBB11"]);
-    expect(snapshot.positions.find((row) => row.ticker === "PETR4")?.inStrategy).toBe(false);
+    expect(snapshot.positions.find((row) => row.ticker === "PETR4")?.inStrategy).toBe(true);
   });
 });
 
@@ -230,14 +230,93 @@ describe("scopeToClass: visões Geral, FIIs e Ações", () => {
     }
   });
 
-  it("a visão Ações não tem estratégia nem alertas", () => {
+  it("a visão Ações tem a estratégia das ações e nenhuma cascata", () => {
     const stocks = view("ACAO");
-    expect(stocks.strategy.rows).toEqual([]);
+    expect(stocks.strategy.rows.map((row) => row.ticker)).toEqual(["PETR4"]);
     expect(stocks.cascadeInput).toEqual([]);
-    expect(stocks.alerts).toEqual([]);
   });
 
   it("Geral devolve a entrada como veio", () => {
     expect(scopeToClass(input, "TODOS")).toBe(input);
+  });
+});
+
+describe("buildSnapshot: Carteira Alvo de ações", () => {
+  const input: SnapshotInput = {
+    now: new Date(Date.UTC(2026, 9, 31)),
+    transactions: [buy("AAAA11", 10), buy("BBBB11", 30), buy("PETR4", 20), buy("VALE3", 5)],
+    targets: [
+      target("AAAA11", true, 60, 1),
+      target("BBBB11", true, 40, 2),
+      { ...target("PETR4", true, 70, 1), category: "ACAO" },
+      { ...target("VALE3", true, 30, 2), category: "ACAO" },
+    ],
+    dividends: [],
+    prices: new Map(
+      ["AAAA11", "BBBB11", "PETR4", "VALE3"].map((ticker) => [ticker, quote] as const),
+    ),
+    classes: new Map<string, AssetClass | null>([
+      ["AAAA11", "FII"],
+      ["BBBB11", "FII"],
+      ["PETR4", "ACAO"],
+      ["VALE3", "ACAO"],
+    ]),
+  };
+  const fiiOnly: SnapshotInput = {
+    ...input,
+    targets: input.targets.filter((item) => !["PETR4", "VALE3"].includes(item.ticker)),
+  };
+
+  it("cada carteira fecha 100% sozinha", () => {
+    const { positions } = buildSnapshot(input);
+    const sum = (tickers: string[]) =>
+      positions
+        .filter((row) => tickers.includes(row.ticker))
+        .reduce((total, row) => total + (row.targetWeight ?? 0), 0);
+    expect(sum(["AAAA11", "BBBB11"])).toBeCloseTo(1, 6);
+    expect(sum(["PETR4", "VALE3"])).toBeCloseTo(1, 6);
+  });
+
+  it("a cascata só tem FIIs e as ordens não mudam com as ações configuradas", () => {
+    const withStocks = buildSnapshot(input);
+    const without = buildSnapshot(fiiOnly);
+    expect(withStocks.cascadeInput.map((asset) => asset.ticker)).toEqual(["AAAA11", "BBBB11"]);
+    expect(withStocks.cascadeInput).toEqual(without.cascadeInput);
+    expect(sunoCascade(10_000, withStocks.cascadeInput)).toEqual(
+      sunoCascade(10_000, without.cascadeInput),
+    );
+  });
+
+  it("em Geral, a ação configurada está na estratégia dela, sem prioridade de aporte", () => {
+    const petr = buildSnapshot(input).positions.find((row) => row.ticker === "PETR4")!;
+    expect(petr.inStrategy).toBe(true);
+    expect(petr.targetWeight).toBeCloseTo(0.7, 6);
+    expect(petr.priority).toBeNull();
+  });
+
+  it("Geral e FIIs: snapshot.strategy é a de FIIs", () => {
+    expect(buildSnapshot(input).strategy.rows.map((row) => row.ticker)).toEqual([
+      "AAAA11",
+      "BBBB11",
+    ]);
+  });
+
+  it("os alertas de 'fora da Carteira Alvo' seguem a visão", () => {
+    const loose: SnapshotInput = {
+      ...input,
+      transactions: [...input.transactions, buy("ITUB4", 3), buy("CCCC11", 3)],
+      prices: new Map([...input.prices, ["ITUB4", quote], ["CCCC11", quote]]),
+      classes: new Map([...input.classes, ["ITUB4", "ACAO"], ["CCCC11", "FII"]]),
+    };
+    const alertOf = (filter: ClassFilter, id: string) =>
+      buildSnapshot(scopeToClass(loose, filter)).alerts.find((alert) => alert.id === id);
+    expect(alertOf("TODOS", "sem-configuracao-acoes")?.title).toContain(" (ações)");
+    expect(alertOf("TODOS", "sem-configuracao")?.detail).toContain("CCCC11");
+    const stocks = alertOf("ACAO", "sem-configuracao");
+    expect(stocks?.title).toBe("Ativos fora da Carteira Alvo");
+    expect(stocks?.detail).toContain("ITUB4");
+    expect(alertOf("ACAO", "sem-configuracao-acoes")).toBeUndefined();
+    expect(alertOf("FII", "sem-configuracao-acoes")).toBeUndefined();
+    expect(alertOf("FII", "sem-configuracao")?.detail).not.toContain("ITUB4");
   });
 });

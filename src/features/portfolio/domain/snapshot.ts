@@ -35,13 +35,13 @@ export type SnapshotInput = {
   prices: ReadonlyMap<string, PriceInfo>;
   /** Classe de cada ticker pelo catálogo; o que faltar sai pelo código (spec ações, §4). */
   classes: ReadonlyMap<string, AssetClass | null>;
-  /** Falso na visão Ações: os alertas são da estratégia de FIIs. Padrão: verdadeiro. */
-  withAlerts?: boolean;
+  /** Visão do snapshot (spec etapa 2): decide a estratégia de `strategy` e os alertas. Padrão: Geral. */
+  view?: ClassFilter;
 };
 
 /**
- * A entrada do snapshot só com a classe pedida (spec etapa 2 das ações, §5). Ação nunca entra na
- * estratégia: na visão Ações, sem alvos, a Carteira Alvo e os alertas somem.
+ * A entrada do snapshot só com a classe pedida (spec etapa 2 das ações, §5). Cada classe tem a sua
+ * Carteira Alvo: na visão Ações, só os alvos de ações.
  */
 export function scopeToClass(input: SnapshotInput, filter: ClassFilter): SnapshotInput {
   if (filter === "TODOS") return input;
@@ -52,8 +52,8 @@ export function scopeToClass(input: SnapshotInput, filter: ClassFilter): Snapsho
     ...input,
     transactions: byClass(input.transactions, classOf, filter),
     dividends: byClass(input.dividends, classOf, filter),
-    targets: filter === "ACAO" ? [] : input.targets,
-    withAlerts: filter !== "ACAO",
+    targets: byClass(input.targets, classOf, filter),
+    view: filter,
   };
 }
 
@@ -64,12 +64,12 @@ export function buildSnapshot({
   dividends,
   prices,
   classes,
-  withAlerts = true,
+  view = "TODOS",
 }: SnapshotInput): PortfolioSnapshot {
   const { positions } = replayLedger(transactions);
   const classOf = (ticker: string): AssetClass | null =>
     classes.has(ticker) ? (classes.get(ticker) ?? null) : assetClassOf(ticker, null);
-  // A Carteira Alvo e as Recomendações são só de FIIs: ação nunca entra na estratégia.
+  // A cascata (Recomendações) é só de FIIs; cada classe tem a sua Carteira Alvo.
   const isStock = (ticker: string) => classOf(ticker) === "ACAO";
   const received = dividendsByTicker(dividends);
   const open = positions.filter((position) => position.quantity > 0);
@@ -83,18 +83,35 @@ export function buildSnapshot({
     return position.quantity * (priceOf(ticker) ?? position.averagePrice);
   };
 
-  // Estratégia: ativos com inStrategy, em carteira ou não.
-  const members = targets.filter((target) => target.inStrategy && !isStock(target.ticker));
-  const {
-    weights,
-    sumOfSuggested,
-    warning: weightsWarning,
-  } = effectiveWeights(
-    members.map((member) => ({ ticker: member.ticker, suggestedPercent: member.suggestedPercent })),
-  );
+  type StrategyClass = "FII" | "ACAO";
+  const classKey = (ticker: string): StrategyClass => (isStock(ticker) ? "ACAO" : "FII");
+
+  // Estratégia de uma classe: os membros, os pesos que fecham 100% dentro dela e o valor.
+  const strategyOf = (cls: StrategyClass) => {
+    const members = targets.filter(
+      (target) => target.inStrategy && classKey(target.ticker) === cls,
+    );
+    const { weights, sumOfSuggested, warning } = effectiveWeights(
+      members.map((member) => ({
+        ticker: member.ticker,
+        suggestedPercent: member.suggestedPercent,
+      })),
+    );
+    const value = members.reduce((sum, member) => sum + valueOf(member.ticker), 0);
+    return {
+      members,
+      weights,
+      sumOfSuggested,
+      weightsWarning: warning,
+      strategyValue: value,
+      weightOf: (ticker: string) => (value > 0 ? valueOf(ticker) / value : 0),
+    };
+  };
+  const strategies = { FII: strategyOf("FII"), ACAO: strategyOf("ACAO") } as const;
+
   // Entrada do motor 3.0: P/VP e perfil do FII (usebolsai, cron das 2h), proventos (Yahoo) e os
   // baldes de risco. Sem dado, cada tensor fica neutro.
-  const cascadeInput: CascadeAsset[] = members.map((member) => {
+  const cascadeInput: CascadeAsset[] = strategies.FII.members.map((member) => {
     const position = openByTicker.get(member.ticker);
     const info = prices.get(member.ticker);
     const fii = info?.fii ?? null;
@@ -109,7 +126,7 @@ export function buildSnapshot({
       ticker: member.ticker,
       rank: member.sunoRank,
       ceiling: member.ceilingPrice,
-      weight: weights.get(member.ticker) ?? 0,
+      weight: strategies.FII.weights.get(member.ticker) ?? 0,
       price: priceOf(member.ticker),
       quantity: position?.quantity ?? 0,
       averagePrice: position?.averagePrice ?? null,
@@ -122,9 +139,6 @@ export function buildSnapshot({
     };
   });
   const priorities = aportePriorities(cascadeInput);
-  const strategyValue = members.reduce((sum, member) => sum + valueOf(member.ticker), 0);
-  const strategyWeightOf = (ticker: string) =>
-    strategyValue > 0 ? valueOf(ticker) / strategyValue : 0;
 
   // Resumo.
   const patrimony = open.reduce((sum, position) => sum + valueOf(position.ticker), 0);
@@ -185,7 +199,8 @@ export function buildSnapshot({
       const price = info?.price ?? null;
       const value = valueOf(position.ticker);
       const stock = isStock(position.ticker);
-      const inStrategy = !stock && (target?.inStrategy ?? false);
+      const strategy = strategies[classKey(position.ticker)];
+      const inStrategy = target?.inStrategy ?? false;
       const pnl = value - position.totalCost;
       const dividendsOf = received.get(position.ticker) ?? 0;
       const adjusted = adjustedResult(pnl, dividendsOf, position.realizedPnL);
@@ -215,52 +230,58 @@ export function buildSnapshot({
         ceilingPrice: target?.ceilingPrice ?? null,
         marginToCeiling: marginToCeiling(target?.ceilingPrice ?? null, price),
         suspiciousCeiling: isSuspiciousCeiling(target?.ceilingPrice ?? null, price),
-        strategyWeight: inStrategy ? strategyWeightOf(position.ticker) : null,
-        targetWeight: inStrategy ? (weights.get(position.ticker) ?? 0) : null,
+        strategyWeight: inStrategy ? strategy.weightOf(position.ticker) : null,
+        targetWeight: inStrategy ? (strategy.weights.get(position.ticker) ?? 0) : null,
         priority: inStrategy ? (priorities.get(position.ticker) ?? null) : null,
       };
     })
     .sort((a, b) => b.currentValue - a.currentValue);
 
-  // Carteira Alvo: tudo o que está em carteira ou configurado, menos as ações. As cotações
-  // vencidas contam todos os ativos.
+  // Carteira Alvo: tudo o que está em carteira ou configurado, por classe. As cotações vencidas
+  // contam todos os ativos.
   const quoteTickers = [
     ...new Set([...open.map((p) => p.ticker), ...targets.map((t) => t.ticker)]),
   ];
-  const strategyTickers = quoteTickers.filter((ticker) => !isStock(ticker));
-  const strategyRows: StrategyRow[] = strategyTickers
-    .map((ticker) => {
-      const target = targetByTicker.get(ticker);
-      const info = prices.get(ticker);
-      const price = info?.price ?? null;
-      const inStrategy = target?.inStrategy ?? false;
-      return {
-        ticker,
-        name: info?.name ?? null,
-        logoUrl: info?.logoUrl ?? null,
-        configured: Boolean(target),
-        held: openByTicker.has(ticker),
-        quantity: openByTicker.get(ticker)?.quantity ?? 0,
-        inStrategy,
-        sunoRank: target?.sunoRank ?? null,
-        ceilingPrice: target?.ceilingPrice ?? null,
-        suggestedPercent: target?.suggestedPercent ?? null,
-        category: target?.category ?? null,
-        suggestedCategory: suggestCategory(info?.subType ?? null),
-        price,
-        marginToCeiling: marginToCeiling(target?.ceilingPrice ?? null, price),
-        suspiciousCeiling: isSuspiciousCeiling(target?.ceilingPrice ?? null, price),
-        strategyWeight: inStrategy ? strategyWeightOf(ticker) : null,
-        targetWeight: inStrategy ? (weights.get(ticker) ?? 0) : null,
-        priority: inStrategy ? (priorities.get(ticker) ?? null) : null,
-      };
-    })
-    .sort(
-      (a, b) =>
-        Number(b.inStrategy) - Number(a.inStrategy) ||
-        (a.sunoRank ?? Infinity) - (b.sunoRank ?? Infinity) ||
-        a.ticker.localeCompare(b.ticker),
-    );
+  const rowsOf = (cls: StrategyClass): StrategyRow[] => {
+    const strategy = strategies[cls];
+    return quoteTickers
+      .filter((ticker) => classKey(ticker) === cls)
+      .map((ticker) => {
+        const target = targetByTicker.get(ticker);
+        const info = prices.get(ticker);
+        const price = info?.price ?? null;
+        const inStrategy = target?.inStrategy ?? false;
+        return {
+          ticker,
+          name: info?.name ?? null,
+          logoUrl: info?.logoUrl ?? null,
+          configured: Boolean(target),
+          held: openByTicker.has(ticker),
+          quantity: openByTicker.get(ticker)?.quantity ?? 0,
+          inStrategy,
+          sunoRank: target?.sunoRank ?? null,
+          ceilingPrice: target?.ceilingPrice ?? null,
+          suggestedPercent: target?.suggestedPercent ?? null,
+          category: cls === "ACAO" ? "ACAO" : (target?.category ?? null),
+          suggestedCategory: cls === "ACAO" ? "ACAO" : suggestCategory(info?.subType ?? null),
+          price,
+          marginToCeiling: marginToCeiling(target?.ceilingPrice ?? null, price),
+          suspiciousCeiling: isSuspiciousCeiling(target?.ceilingPrice ?? null, price),
+          strategyWeight: inStrategy ? strategy.weightOf(ticker) : null,
+          targetWeight: inStrategy ? (strategy.weights.get(ticker) ?? 0) : null,
+          priority: inStrategy ? (priorities.get(ticker) ?? null) : null,
+        };
+      })
+      .sort(
+        (a, b) =>
+          Number(b.inStrategy) - Number(a.inStrategy) ||
+          (a.sunoRank ?? Infinity) - (b.sunoRank ?? Infinity) ||
+          a.ticker.localeCompare(b.ticker),
+      );
+  };
+  const viewClass: StrategyClass = view === "ACAO" ? "ACAO" : "FII";
+  const alertClasses: StrategyClass[] = view === "TODOS" ? ["FII", "ACAO"] : [viewClass];
+  const rowsByClass = { FII: rowsOf("FII"), ACAO: rowsOf("ACAO") };
 
   // Encerradas: as posições zeradas e os FIIs que só aparecem pelos proventos (sem lançamento),
   // para o total de proventos do resumo fechar com a soma das linhas das duas tabelas.
@@ -300,7 +321,12 @@ export function buildSnapshot({
     summary,
     positions: positionRows,
     closed,
-    strategy: { rows: strategyRows, strategyValue, sumOfSuggested, weightsWarning },
+    strategy: {
+      rows: rowsByClass[viewClass],
+      strategyValue: strategies[viewClass].strategyValue,
+      sumOfSuggested: strategies[viewClass].sumOfSuggested,
+      weightsWarning: strategies[viewClass].weightsWarning,
+    },
     cascadeInput,
     allocation: {
       byCategory: allocationByCategory(positionRows),
@@ -310,9 +336,15 @@ export function buildSnapshot({
       transactions,
       monthRange(addMonths(nowMonth, -(CONTRIBUTION_MONTHS - 1)), nowMonth),
     ),
-    alerts: withAlerts
-      ? buildAlerts({ positions: positionRows, strategyRows, weightsWarning })
-      : [],
+    alerts: buildAlerts({
+      positions: positionRows,
+      strategies: alertClasses.map((cls) => ({
+        rows: rowsByClass[cls],
+        weightsWarning: strategies[cls].weightsWarning,
+        tag: cls === "ACAO" && view === "TODOS" ? { id: "acoes", label: "ações" } : null,
+        receivesAporte: cls === "FII",
+      })),
+    }),
     quotes: {
       staleCount: quoteTickers.filter((ticker) =>
         isQuoteStale(prices.get(ticker)?.quoteFetchedAt, now),
