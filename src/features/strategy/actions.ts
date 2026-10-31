@@ -7,10 +7,12 @@ import { suggestCategory } from "./domain/categories";
 import { suggestedPercentProblem } from "./domain/quarantine";
 import {
   addTargetSchema,
+  classTargetSchema,
   suggestedPercentsSchema,
   targetPatchSchema,
   targetTickerSchema,
 } from "./schemas";
+import { saveClassTarget } from "./server/class-target-repo";
 import { deleteTargetAsset, findTargetAsset, upsertTargetAsset } from "./server/target-asset-repo";
 
 /** A classe pelo catálogo: ACAO, ou FII para todo o resto (como o snapshot). */
@@ -106,6 +108,16 @@ export const removeTargetAssetAction = authActionClient
     if (!(await deleteTargetAsset(ctx.tenant.portfolioId, parsedInput.ticker))) {
       throw new ActionError("Ativo não encontrado na Carteira Alvo.");
     }
+    refresh();
+    return { ok: true as const };
+  });
+
+/** Grava a meta entre FIIs e ações (spec aporte por classe, §5). */
+export const setClassTargetAction = authActionClient
+  .metadata({ actionName: "setClassTarget" })
+  .inputSchema(classTargetSchema)
+  .action(async ({ parsedInput, ctx }) => {
+    await saveClassTarget(ctx.tenant.portfolioId, parsedInput.fiiPercent);
     refresh();
     return { ok: true as const };
   });

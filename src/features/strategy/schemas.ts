@@ -44,3 +44,7 @@ export const suggestedPercentsSchema = z.object({
     .min(1)
     .max(200),
 });
+
+export const classTargetSchema = z.object({
+  fiiPercent: z.number().int("Use um número inteiro").min(0).max(100),
+});
