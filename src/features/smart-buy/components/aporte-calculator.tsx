@@ -38,7 +38,7 @@ import { Sensitive } from "@/shared/components/sensitive";
 export type { AssetMeta };
 
 const CALCULATION_NOTE =
-  "O cálculo usa as cotações atuais, a Carteira Alvo e os dados de cada ativo. A meta entre FIIs e ações divide o aporte; em cada carteira, cada ativo pede o que falta para a meta, mais quando está descontado (P/VP e margem até o teto) e menos quando o provento caiu ou o imóvel está vago. Nas ações só agem o teto e os proventos. A cascata segue o ranking, e o que sobra vai para o mais abaixo da meta.";
+  "O cálculo usa as cotações atuais, a Carteira Alvo e os dados de cada ativo. A meta entre FIIs e ações divide o aporte; em cada carteira, cada ativo pede o que falta para a meta, mais quando está descontado (P/VP e margem até o teto) e menos quando o provento caiu ou o imóvel está vago. Nas ações só age a margem até o teto. A cascata segue o ranking, e o que sobra vai para o mais abaixo da meta.";
 
 const RISK_NOTE = `Travas de risco: nenhum FII leva mais de ${formatPercent(RISK_CAPS.asset, 0)} do aporte, nenhum setor mais de ${formatPercent(RISK_CAPS.sector, 0)}, e nem papel nem tijolo mais de ${formatPercent(RISK_CAPS.macro, 0)}. Nas ações, nenhuma leva mais de ${formatPercent(STOCK_CAPS.asset, 0)} da parte das ações.`;
 
@@ -143,19 +143,21 @@ export function AporteCalculator({
   const spent = result ? result.fii.spent + result.stock.spent : 0;
   // O card de ações só aparece quando a carteira tem parte do aporte ou ordens.
   const showStock = result ? result.split.ACAO.share > 0 || result.stock.orders.length > 0 : false;
+  // Com 0% para FIIs, o card deles some (a linha da divisão explica), como o das ações.
+  const showFii = result ? result.split.FII.share > 0 || result.fii.orders.length > 0 : true;
   const totalValue = values.FII + values.ACAO;
   const currentStockPercent = totalValue > 0 ? values.ACAO / totalValue : 0;
 
   async function copyOrders() {
     if (!result) return;
-    const line = (order: CascadeResult["orders"][number]) =>
-      `${order.ticker}: comprar ${formatQuantity(order.quantity)} cotas a ~${formatBRL(order.price)} = ${formatBRL(order.total)}`;
+    const line = (unit: string) => (order: CascadeResult["orders"][number]) =>
+      `${order.ticker}: comprar ${formatQuantity(order.quantity)} ${unit} a ~${formatBRL(order.price)} = ${formatBRL(order.total)}`;
     const lines: string[] = [];
     if (showStock) {
-      lines.push("FIIs:", ...result.fii.orders.map(line));
-      lines.push("", "Ações:", ...result.stock.orders.map(line), "");
+      lines.push("FIIs:", ...result.fii.orders.map(line("cotas")));
+      lines.push("", "Ações:", ...result.stock.orders.map(line("ações")), "");
     } else {
-      lines.push(...result.fii.orders.map(line));
+      lines.push(...result.fii.orders.map(line("cotas")));
     }
     lines.push(`Total: ${formatBRL(spent)} · Sobra: ${formatBRL(result.leftover)}`);
     await navigator.clipboard.writeText(lines.join("\n"));
@@ -229,7 +231,7 @@ export function AporteCalculator({
               </Button>
             </div>
           ) : null}
-          {result && showStock ? (
+          {result && target !== null ? (
             <div className="grid gap-1 text-sm">
               <p className="font-medium">
                 FIIs <Sensitive>{formatBRL(result.split.FII.share)}</Sensitive> · Ações{" "}
@@ -295,12 +297,14 @@ export function AporteCalculator({
             </div>
           </div>
 
-          <OrdersCard
-            title={showStock ? "FIIs" : "Ordens de compra"}
-            result={result.fii}
-            kind="FII"
-            metaByTicker={metaByTicker}
-          />
+          {showFii ? (
+            <OrdersCard
+              title={showStock ? "FIIs" : "Ordens de compra"}
+              result={result.fii}
+              kind="FII"
+              metaByTicker={metaByTicker}
+            />
+          ) : null}
           {showStock ? (
             <OrdersCard
               title="Ações"

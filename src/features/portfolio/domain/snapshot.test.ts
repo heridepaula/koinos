@@ -274,6 +274,8 @@ describe("buildSnapshot: Carteira Alvo de ações", () => {
     for (const asset of stockCascadeInput) {
       expect(asset).toMatchObject({
         priceToBook: null,
+        lastDividend: null,
+        dividends12m: null,
         vacancy: null,
         macro: "Outros",
         sector: null,

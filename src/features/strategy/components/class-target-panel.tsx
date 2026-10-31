@@ -25,7 +25,7 @@ const EXPLANATION =
   "Quanto do aporte vai para FIIs e quanto para ações. O campo salva ao sair; as ações ficam com o resto.";
 
 const validatePercent = (value: number | null) =>
-  value === null || (value >= 0 && value <= 100) ? null : "A % de FIIs fica entre 0 e 100.";
+  value !== null && value >= 0 && value <= 100 ? null : "Informe a % de FIIs, de 0 a 100.";
 
 /** Meta entre as classes: a % de FIIs é editável e a de ações é o que sobra (spec aporte por classe). */
 export function ClassTargetPanel({

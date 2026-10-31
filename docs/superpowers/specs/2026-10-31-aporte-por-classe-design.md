@@ -61,7 +61,7 @@ Entrada: o aporte, a meta, o patrimônio de cada classe e se cada classe pode re
 
 - `sunoCascade(amount, assets, caps = RISK_CAPS)`: o parâmetro novo é opcional, então FIIs não mudam.
 - `STOCK_CAPS = { asset: 0.25, sector: Infinity, macro: Infinity }`.
-- A ação entra como `CascadeAsset` com `priceToBook: null`, `vacancy: null`, `macro: "Outros"`, `sector: null`: os tensores de valuation e vacância ficam em 1; agem a margem até o teto e o freio de dividendos (último provento ÷ a média de 12 meses, do Yahoo). Sem histórico de proventos, o freio fica em 1.
+- A ação entra como `CascadeAsset` com `priceToBook: null`, `vacancy: null`, `macro: "Outros"`, `sector: null`: `lastDividend: null` e `dividends12m: null`: os tensores de valuation, vacância e dividendos ficam em 1; só age a margem até o teto. O freio de dividendos supõe pagador mensal, e ação mistura JCP pequeno com dividendo grande: o freio cortaria o pedido em ~80% à toa.
 
 ### 4.4 Aporte combinado (`classAporte`, `class-aporte.ts`)
 
@@ -77,7 +77,7 @@ Com `fiiPercent = 100` e as ações sem parte, o resultado dos FIIs é exatament
 
 ### 4.5 Snapshot
 
-- `stockCascadeInput`: a estratégia de ações vira `CascadeAsset[]` com as mesmas regras da de FIIs (rank, teto, peso efetivo, preço, posição, proventos do Yahoo), com os campos de §4.3.
+- `stockCascadeInput`: a estratégia de ações vira `CascadeAsset[]` com as mesmas regras da de FIIs (rank, teto, peso efetivo, preço, posição), com os campos de §4.3 (sem proventos).
 - `classValues: { FII: number; ACAO: number }`: o patrimônio de cada classe (§4.2), calculado na visão Geral.
 - `cascadeInput` não muda.
 
@@ -101,16 +101,16 @@ Com `fiiPercent = 100` e as ações sem parte, o resultado dos FIIs é exatament
 ### 6.2 Recomendações (`/recomendacoes?valor=`)
 
 - A página passa à `AporteCalculator`: `cascadeInput`, `stockCascadeInput`, a meta (ou null), `classValues`.
-- **Divisão:** acima das ordens, "FIIs R$ X · Ações R$ Y", com a meta e a alocação atual ("Ações em 3% contra a meta de 20%"). Quando o troco passou de uma carteira para a outra, uma linha diz quanto.
+- **Divisão:** com a meta salva (mesmo que as ações levem R$ 0), acima das ordens, "FIIs R$ X · Ações R$ Y", com a meta e a alocação atual ("Ações em 3% contra a meta de 20%"). Quando o troco passou de uma carteira para a outra, uma linha diz quanto.
 - **Ordens:** dois grupos, "FIIs" e "Ações", cada um com as suas ordens e exclusões; a soma geral e o troco final embaixo.
-- **"Por quê" da ação** (`explain.ts`): rank, distância até a meta da carteira de ações, margem até o teto e o freio de dividendos quando age; sem P/VP e sem vacância. O limite que cortou fala "25% da parte das ações".
+- **"Por quê" da ação** (`explain.ts`): rank, distância até a meta da carteira de ações, margem até o teto; sem P/VP, sem vacância e sem freio de dividendos. O limite que cortou fala "25% da parte das ações".
 - **Sem meta salva:** um aviso com link para a Carteira Alvo ("Defina a meta entre FIIs e ações"); a divisão usa 100% FIIs.
 - `?valor=` continua sendo o único parâmetro.
 
 ## 7. Erros e limites
 
 - Ação sem cotação ou sem teto fica de fora com o motivo de sempre (`EXCLUSION_LABELS`).
-- O JCP do Yahoo é bruto: o freio de dividendos da ação compara bruto com bruto, então a razão continua válida.
+- Ação não tem freio de dividendos (JCP bruto e dividendo grande distorceriam a razão).
 - A meta é uma por portfólio; não há meta por período.
 - O patrimônio da classe usa o preço médio quando falta cotação, como o resto do app.
 

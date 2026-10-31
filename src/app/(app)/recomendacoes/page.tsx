@@ -35,10 +35,12 @@ async function QuoteStatus() {
 }
 
 async function RecommendationsContent() {
-  const [{ cascadeInput, stockCascadeInput, classValues, strategy, positions }, target] =
-    await Promise.all([getPortfolioSnapshot(), getMyClassTarget()]);
+  const [
+    { cascadeInput, stockCascadeInput, stockStrategyMeta, classValues, strategy, positions },
+    target,
+  ] = await Promise.all([getPortfolioSnapshot(), getMyClassTarget()]);
   const meta = new Map<string, AssetMeta>();
-  for (const row of [...strategy.rows, ...positions]) {
+  for (const row of [...strategy.rows, ...stockStrategyMeta, ...positions]) {
     if (!meta.has(row.ticker)) {
       meta.set(row.ticker, { ticker: row.ticker, name: row.name, logoUrl: row.logoUrl });
     }

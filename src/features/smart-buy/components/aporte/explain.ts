@@ -23,6 +23,7 @@ export function reasonHelp(kind: OrderClass): Record<ExclusionReason, string> {
   if (kind === "FII") return REASON_HELP;
   return {
     ...REASON_HELP,
+    PEDIDO_PEQUENO: "Falta pouco para a meta: não chega a uma ação.",
     LIMITE_ATIVO: `Uma cota custa mais que o limite de ${formatPercent(STOCK_CAPS.asset, 0)} da parte das ações por ação.`,
   };
 }

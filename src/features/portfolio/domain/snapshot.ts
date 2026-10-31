@@ -137,8 +137,10 @@ export function buildSnapshot({
       quantity: position?.quantity ?? 0,
       averagePrice: position?.averagePrice ?? null,
       priceToBook: stock ? null : (info?.priceToBook ?? null),
-      lastDividend: info?.lastDividend?.amount ?? null,
-      dividends12m: info?.dividends12m ?? null,
+      // O freio de proventos supõe pagador mensal: ação mistura JCP pequeno e dividendo grande,
+      // e o freio cortaria o pedido à toa. Nas ações só age a margem até o teto.
+      lastDividend: stock ? null : (info?.lastDividend?.amount ?? null),
+      dividends12m: stock ? null : (info?.dividends12m ?? null),
       vacancy: !stock && fii?.vacancyPct != null ? fii.vacancyPct / 100 : null,
       macro,
       sector,
@@ -147,7 +149,7 @@ export function buildSnapshot({
   const cascadeInput = strategies.FII.members.map((member) =>
     toCascadeAsset(member, strategies.FII.weights, false),
   );
-  // Carteira de ações (spec aporte por classe, §4.5): só a margem até o teto e o freio de proventos agem.
+  // Carteira de ações (spec aporte por classe, §4.5): só a margem até o teto age.
   const stockCascadeInput = strategies.ACAO.members.map((member) =>
     toCascadeAsset(member, strategies.ACAO.weights, true),
   );
@@ -345,6 +347,11 @@ export function buildSnapshot({
     },
     cascadeInput,
     stockCascadeInput,
+    stockStrategyMeta: rowsByClass.ACAO.map((row) => ({
+      ticker: row.ticker,
+      name: row.name,
+      logoUrl: row.logoUrl,
+    })),
     classValues,
     allocation: {
       byCategory: allocationByCategory(positionRows),

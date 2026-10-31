@@ -227,6 +227,8 @@ export type PortfolioSnapshot = {
   cascadeInput: CascadeAsset[];
   /** Entrada da cascata das ações (sem P/VP, vacância nem setor). */
   stockCascadeInput: CascadeAsset[];
+  /** Nome e logo das ações da estratégia (inclusive as não detidas), para a tela de recomendações. */
+  stockStrategyMeta: { ticker: string; name: string | null; logoUrl: string | null }[];
   /** Patrimônio de cada classe, na carteira inteira. */
   classValues: { FII: number; ACAO: number };
   allocation: { byCategory: AllocationSlice[]; byAsset: AllocationSlice[] };
