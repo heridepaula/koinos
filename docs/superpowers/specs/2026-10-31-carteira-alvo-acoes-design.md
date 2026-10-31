@@ -2,6 +2,7 @@
 
 - **Data:** 2026-10-31
 - **Status:** aprovado e implementado (branch feat/carteira-alvo-acoes)
+- **Nota:** as Recomendações passaram a incluir ações: ver `2026-10-31-aporte-por-classe-design.md`.
 - **Origem:** Fase 2 do plano colado pelo dono em 2026-10-31 ("várias carteiras de recomendação"). O dono escolheu uma carteira por classe, sem CRUD de carteiras (§2).
 - **Muda uma regra de 2026-10-30:** "ação nunca entra na estratégia" (spec `2026-10-30-acoes-etapa-1-design.md`) passa a ser "a ação tem a sua própria Carteira Alvo, fora das Recomendações".
 

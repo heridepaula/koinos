@@ -1,7 +1,7 @@
 # Aporte entre FIIs e ações: especificação de design
 
 - **Data:** 2026-10-31
-- **Status:** a revisar pelo dono (branch feat/aporte-por-classe)
+- **Status:** aprovado e implementado (branch feat/aporte-por-classe)
 - **Origem:** Fase 3 do plano colado pelo dono em 2026-10-31 ("motor de sugestões e aportes"), depois da Carteira Alvo de ações (`2026-10-31-carteira-alvo-acoes-design.md`).
 - **Muda uma regra de 2026-10-31:** "as Recomendações são só de FIIs" passa a "as Recomendações dividem o aporte entre as duas carteiras pela meta por classe".
 
