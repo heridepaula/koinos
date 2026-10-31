@@ -10,6 +10,7 @@ import {
 import { Pagination } from "@/shared/components/pagination";
 import { SortableHead } from "@/shared/components/sortable-head";
 import { useSortState } from "@/shared/hooks/use-sort-state";
+import { CLASS_PARAMS, inClass, parseClassParam } from "@/shared/lib/class-filter";
 import { formatBRL, formatQuantity, formatTradeDate } from "@/shared/lib/format";
 import { sortRows } from "@/shared/lib/sort";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/shared/ui/card";
@@ -45,6 +46,7 @@ export function TransactionsTable({ rows }: { rows: TransactionRow[] }) {
       ativo: parseAsString.withDefault(""),
       tipo: parseAsStringLiteral(TYPES).withDefault("todos"),
       ano: parseAsString.withDefault(""),
+      classe: parseAsStringLiteral(CLASS_PARAMS),
       pagina: parseAsInteger.withDefault(1),
       por: parseAsNumberLiteral(PAGE_SIZES).withDefault(10),
     },
@@ -56,10 +58,12 @@ export function TransactionsTable({ rows }: { rows: TransactionRow[] }) {
     void setFilters({ pagina: 1 });
   };
 
+  const classFilter = parseClassParam(filters.classe);
   const years = [...new Set(rows.map((row) => String(row.date.getUTCFullYear())))].sort().reverse();
   const tickerFilter = filters.ativo.trim().toUpperCase();
   const filtered = rows.filter(
     (row) =>
+      inClass(classFilter, row.assetClass) &&
       (!tickerFilter || row.ticker.includes(tickerFilter)) &&
       (filters.tipo === "todos" || (filters.tipo === "compra") === (row.type === "BUY")) &&
       (!filters.ano || String(row.date.getUTCFullYear()) === filters.ano),
@@ -102,7 +106,7 @@ export function TransactionsTable({ rows }: { rows: TransactionRow[] }) {
             {/* A lista do celular rola sem páginas ("Mostrar mais"); volta ao começo a cada filtro. */}
             <div className="@min-[640px]:hidden">
               <TransactionsList
-                key={`${tickerFilter}|${filters.tipo}|${filters.ano}|${sortKey}|${direction}`}
+                key={`${classFilter}|${tickerFilter}|${filters.tipo}|${filters.ano}|${sortKey}|${direction}`}
                 rows={sorted}
                 total={total}
               />
