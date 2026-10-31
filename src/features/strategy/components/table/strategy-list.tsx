@@ -19,6 +19,7 @@ import {
   DrawerTrigger,
 } from "@/shared/ui/drawer";
 import { Switch } from "@/shared/ui/switch";
+import { BiasSelect } from "./bias-select";
 import { CategorySelect } from "./category-select";
 import { suggestedPercentProblem } from "../../domain/quarantine";
 import { NumberField } from "./number-field";
@@ -86,6 +87,11 @@ function RowList({
               {row.inStrategy ? (
                 <span className="text-footnote text-muted-foreground tabular-nums">
                   {summary(row)}
+                  {stock && row.bias === "AGUARDAR" ? (
+                    <span className="ml-2 rounded-full bg-secondary px-2 py-0.5 text-caption">
+                      Aguardar
+                    </span>
+                  ) : null}
                 </span>
               ) : null}
             </div>
@@ -168,7 +174,16 @@ function StrategySheet({
               onCommit={(value) => save({ suggestedPercent: value })}
             />
           </SheetRow>
-          {stock ? null : (
+          {stock ? (
+            <SheetRow label="Viés">
+              <BiasSelect
+                row={row}
+                quiet="sheet"
+                className="w-44"
+                onChange={(bias) => save({ bias })}
+              />
+            </SheetRow>
+          ) : (
             <SheetRow label="Categoria">
               <CategorySelect
                 row={row}

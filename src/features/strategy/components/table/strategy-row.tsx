@@ -8,6 +8,7 @@ import { formatBRL } from "@/shared/lib/format";
 import { Button } from "@/shared/ui/button";
 import { Switch } from "@/shared/ui/switch";
 import { TableCell, TableRow } from "@/shared/ui/table";
+import { BiasSelect } from "./bias-select";
 import { CategorySelect } from "./category-select";
 import { suggestedPercentProblem } from "../../domain/quarantine";
 import { NumberField } from "./number-field";
@@ -55,7 +56,16 @@ export function StrategyRow({ row, stock = false }: { row: StrategyRowData; stoc
           onCommit={(value) => save({ suggestedPercent: value })}
         />
       </TableCell>
-      {stock ? null : (
+      {stock ? (
+        <TableCell>
+          <BiasSelect
+            row={row}
+            quiet="table"
+            className="w-32"
+            onChange={(bias) => save({ bias })}
+          />
+        </TableCell>
+      ) : (
         <TableCell>
           <CategorySelect
             row={row}

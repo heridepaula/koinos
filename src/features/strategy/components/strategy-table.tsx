@@ -37,9 +37,12 @@ export function StrategyTable({
 }) {
   const stock = assetClass === "ACAO";
   const members = rows.filter((row) => row.inStrategy);
-  const fixes = suggestPercentFix(
-    members.map((row) => ({ ticker: row.ticker, suggestedPercent: row.suggestedPercent })),
-  );
+  // Na aba Ações as % ficam como o dono as digitou: sem ajuste para 100%.
+  const fixes = stock
+    ? null
+    : suggestPercentFix(
+        members.map((row) => ({ ticker: row.ticker, suggestedPercent: row.suggestedPercent })),
+      );
   const showFix = fixes !== null && fixes.length > 0;
 
   return (
@@ -55,7 +58,7 @@ export function StrategyTable({
             <p>{EXPLANATION}</p>
             <p>
               {stock
-                ? "Toque num ativo para editar o rank, o teto e a % sugerida."
+                ? "Toque num ativo para editar o rank, o teto, a % sugerida e o viés."
                 : "Toque num ativo para editar o rank, o teto, a % sugerida e a categoria."}
             </p>
           </InfoSheet>
@@ -85,7 +88,7 @@ export function StrategyTable({
                   <TableHead>Rank</TableHead>
                   <TableHead>Teto (R$)</TableHead>
                   <TableHead>% sugerida</TableHead>
-                  {stock ? null : <TableHead>Categoria</TableHead>}
+                  <TableHead>{stock ? "Viés" : "Categoria"}</TableHead>
                   <TableHead className="text-right">Preço atual</TableHead>
                   <TableHead className="text-right" title="Margem até o preço teto">
                     Margem
@@ -121,7 +124,9 @@ export function StrategyTable({
               <Sensitive>{formatBRL(strategyValue)}</Sensitive>
             </span>
           </span>
-          {weightsWarning && !showFix ? <span className="text-warn">{weightsWarning}</span> : null}
+          {weightsWarning && !stock && !showFix ? (
+            <span className="text-warn">{weightsWarning}</span>
+          ) : null}
         </div>
       </CardContent>
     </Card>

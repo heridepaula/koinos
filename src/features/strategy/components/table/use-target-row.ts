@@ -4,6 +4,7 @@ import { useAction } from "next-safe-action/hooks";
 import { toast } from "sonner";
 import { actionErrorMessage } from "@/shared/lib/action-error";
 import { removeTargetAssetAction, updateTargetAssetAction } from "../../actions";
+import type { Bias } from "../../domain/bias";
 import type { Category } from "../../domain/categories";
 
 export type TargetPatch = {
@@ -12,6 +13,7 @@ export type TargetPatch = {
   ceilingPrice?: number | null;
   suggestedPercent?: number | null;
   category?: Category | null;
+  bias?: Bias | null;
 };
 
 /**
