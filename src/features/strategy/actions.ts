@@ -57,9 +57,6 @@ export const updateTargetAssetAction = authActionClient
         throw new ActionError("A categoria Ação é só para ações.");
       }
     }
-    if (patch.bias != null && (await classOf(ticker)) !== "ACAO") {
-      throw new ActionError("O viés é só para ações.");
-    }
     const stored = await findTargetAsset(ctx.tenant.portfolioId, ticker);
     const inStrategy = patch.inStrategy ?? stored?.inStrategy ?? false;
     const problem = suggestedPercentProblem(patch.suggestedPercent ?? null, inStrategy);

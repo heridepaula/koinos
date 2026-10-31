@@ -2,6 +2,7 @@ import { assetClassOf, isQuoteStale, type AssetClass } from "@/features/market-d
 import {
   aportePriorities,
   classifyRisk,
+  stockPriorities,
   type CascadeAsset,
   type StockBuyAsset,
 } from "@/features/smart-buy";
@@ -91,24 +92,18 @@ export function buildSnapshot({
   type StrategyClass = "FII" | "ACAO";
   const classKey = (ticker: string): StrategyClass => (isStock(ticker) ? "ACAO" : "FII");
 
-  // Estratégia de uma classe: os membros, os pesos que fecham 100% dentro dela e o valor.
+  // Estratégia de uma classe: os membros, os pesos que fecham 100% dentro dela e o valor. As duas
+  // classes reescalam as % e avisam quando a soma não fecha (spec tabelas-unificadas, §3.3).
   const strategyOf = (cls: StrategyClass) => {
     const members = targets.filter(
       (target) => target.inStrategy && classKey(target.ticker) === cls,
     );
-    const scaled = effectiveWeights(
+    const { weights, sumOfSuggested, warning } = effectiveWeights(
       members.map((member) => ({
         ticker: member.ticker,
         suggestedPercent: member.suggestedPercent,
       })),
     );
-    // Ações: a % vale como gravada (o resto fica em caixa), sem reescalar nem aviso de soma.
-    const weights =
-      cls === "ACAO"
-        ? new Map(members.map((member) => [member.ticker, (member.suggestedPercent ?? 0) / 100]))
-        : scaled.weights;
-    const { sumOfSuggested } = scaled;
-    const warning = cls === "ACAO" ? null : scaled.warning;
     const value = members.reduce((sum, member) => sum + valueOf(member.ticker), 0);
     return {
       members,
@@ -156,15 +151,37 @@ export function buildSnapshot({
       vacancy: !stock && fii?.vacancyPct != null ? fii.vacancyPct / 100 : null,
       macro,
       sector,
+      // Viés da casa de análise: Aguardar tira o FII deste aporte (spec tabelas-unificadas, §3.1).
+      bias: member.bias ?? null,
     };
   };
   const cascadeInput = strategies.FII.members.map((member) =>
     toCascadeAsset(member, strategies.FII.weights, false),
   );
+  // Smart Buy de ações (spec smart-buy-acoes, §3): os membros da estratégia de ações com o peso
+  // efetivo, reescalado para 100% como nos FIIs (spec tabelas-unificadas, §3.3). Na ordem das
+  // linhas (rank, ticker): o motor lista os de fora na ordem da entrada.
+  const stockBuyInput: StockBuyAsset[] = strategies.ACAO.members
+    .map((member) => ({
+      ticker: member.ticker,
+      rank: member.sunoRank,
+      ceiling: member.ceilingPrice,
+      price: priceOf(member.ticker),
+      quantity: openByTicker.get(member.ticker)?.quantity ?? 0,
+      weight: strategies.ACAO.weights.get(member.ticker) ?? 0,
+      bias: member.bias ?? null,
+    }))
+    .sort(
+      (a, b) => (a.rank ?? Infinity) - (b.rank ?? Infinity) || a.ticker.localeCompare(b.ticker),
+    );
   // Patrimônio de cada classe, para repartir o aporte entre elas.
   const classValues = { FII: 0, ACAO: 0 };
   for (const position of open) classValues[classKey(position.ticker)] += valueOf(position.ticker);
-  const priorities = aportePriorities(cascadeInput);
+  // A coluna Prioridade: a fila da cascata nos FIIs e a do motor de ações nas ações.
+  const priorities = new Map([
+    ...aportePriorities(cascadeInput),
+    ...stockPriorities(stockBuyInput),
+  ]);
 
   // Resumo.
   const patrimony = open.reduce((sum, position) => sum + valueOf(position.ticker), 0);
@@ -289,7 +306,7 @@ export function buildSnapshot({
           ceilingPrice: target?.ceilingPrice ?? null,
           suggestedPercent: target?.suggestedPercent ?? null,
           category: cls === "ACAO" ? "ACAO" : (target?.category ?? null),
-          bias: cls === "ACAO" ? (target?.bias ?? null) : null,
+          bias: target?.bias ?? null,
           suggestedCategory: cls === "ACAO" ? "ACAO" : suggestCategory(info?.subType ?? null),
           price,
           marginToCeiling: marginToCeiling(target?.ceilingPrice ?? null, price),
@@ -309,18 +326,6 @@ export function buildSnapshot({
   const viewClass: StrategyClass = view === "ACAO" ? "ACAO" : "FII";
   const alertClasses: StrategyClass[] = view === "TODOS" ? ["FII", "ACAO"] : [viewClass];
   const rowsByClass = { FII: rowsOf("FII"), ACAO: rowsOf("ACAO") };
-  // Smart Buy de ações (spec smart-buy-acoes, §3): a % gravada vale como está, sem reescalar.
-  const stockBuyInput: StockBuyAsset[] = rowsByClass.ACAO.filter((row) => row.inStrategy).map(
-    (row) => ({
-      ticker: row.ticker,
-      rank: row.sunoRank,
-      ceiling: row.ceilingPrice,
-      price: row.price,
-      quantity: row.quantity,
-      weight: (row.suggestedPercent ?? 0) / 100,
-      bias: row.bias,
-    }),
-  );
 
   // Encerradas: as posições zeradas e os FIIs que só aparecem pelos proventos (sem lançamento),
   // para o total de proventos do resumo fechar com a soma das linhas das duas tabelas.

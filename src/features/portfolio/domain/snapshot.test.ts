@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { sunoCascade } from "@/features/smart-buy";
+import { aportePriorities, sunoCascade } from "@/features/smart-buy";
 import type { ClosedLedgerEntry } from "./closed-positions";
 import { buildSnapshot, scopeToClass, type SnapshotInput } from "./snapshot";
 import type { ClassFilter } from "@/shared/lib/class-filter";
@@ -152,6 +152,50 @@ describe("buildSnapshot: entrada do motor 3.0", () => {
   });
 });
 
+describe("buildSnapshot: viés nos FIIs (spec tabelas-unificadas, §3.3)", () => {
+  const withBias = (bias: "COMPRAR" | "AGUARDAR", tickers: string[]): SnapshotInput => {
+    const input = portfolio(500, 0);
+    return {
+      ...input,
+      targets: input.targets.map((item) =>
+        tickers.includes(item.ticker) ? { ...item, bias } : item,
+      ),
+    };
+  };
+  const ordersOf = (snapshot: ReturnType<typeof buildSnapshot>) =>
+    sunoCascade(1_000, snapshot.cascadeInput).orders.map((item) => [item.ticker, item.quantity]);
+
+  it("o viés chega à cascata e às linhas; Aguardar tira o FII do aporte com o motivo", () => {
+    const snapshot = buildSnapshot(withBias("AGUARDAR", ["AAAA11"]));
+    expect(snapshot.cascadeInput.map((asset) => [asset.ticker, asset.bias])).toEqual([
+      ["AAAA11", "AGUARDAR"],
+      ["BBBB11", null],
+    ]);
+    const waiting = { kind: "fora", reason: "AGUARDAR" };
+    expect(aportePriorities(snapshot.cascadeInput).get("AAAA11")).toEqual(waiting);
+    expect(snapshot.strategy.rows.find((row) => row.ticker === "AAAA11")).toMatchObject({
+      bias: "AGUARDAR",
+      priority: waiting,
+    });
+    expect(snapshot.positions.find((row) => row.ticker === "AAAA11")?.priority).toEqual(waiting);
+    const result = sunoCascade(1_000, snapshot.cascadeInput);
+    expect(result.excluded).toContainEqual({ ticker: "AAAA11", rank: 1, reason: "AGUARDAR" });
+    expect(result.orders.map((order) => order.ticker)).toEqual(["BBBB11"]);
+  });
+
+  it("sem viés, ou com Comprar, a cascata de FIIs é a de antes", () => {
+    const neutral = buildSnapshot(portfolio(500, 0));
+    expect(neutral.cascadeInput.map((asset) => asset.bias)).toEqual([null, null]);
+    expect(ordersOf(neutral)).toEqual([
+      ["AAAA11", 25],
+      ["BBBB11", 25],
+    ]);
+    expect(ordersOf(buildSnapshot(withBias("COMPRAR", ["AAAA11", "BBBB11"])))).toEqual(
+      ordersOf(neutral),
+    );
+  });
+});
+
 describe("buildSnapshot: ações", () => {
   const withStock = (stockTarget: TargetConfig | null): SnapshotInput => {
     const input = portfolio(500, 0);
@@ -267,31 +311,56 @@ describe("buildSnapshot: Carteira Alvo de ações", () => {
     ...input,
     targets: input.targets.filter((item) => !["PETR4", "VALE3"].includes(item.ticker)),
   };
+  // As % das ações somam 81,5 (71,5 + 10); as dos FIIs continuam em 100.
+  const partial: SnapshotInput = {
+    ...input,
+    targets: input.targets.map((item) =>
+      item.ticker === "PETR4"
+        ? { ...item, suggestedPercent: 71.5 }
+        : item.ticker === "VALE3"
+          ? { ...item, suggestedPercent: 10 }
+          : item,
+    ),
+  };
 
-  it("stockBuyInput traz as ações da estratégia com a % gravada, sem reescalar, e o viés", () => {
+  it("stockBuyInput traz as ações da estratégia com o peso efetivo, a posição e o viés", () => {
     const { stockBuyInput } = buildSnapshot({
       ...input,
       targets: input.targets.map((item) =>
         item.ticker === "VALE3" ? { ...item, bias: "AGUARDAR" as const } : item,
       ),
     });
-    expect(stockBuyInput.map((asset) => asset.ticker)).toEqual(["PETR4", "VALE3"]);
-    expect(stockBuyInput.map((asset) => asset.weight)).toEqual([0.7, 0.3]);
-    expect(stockBuyInput.map((asset) => asset.bias)).toEqual([null, "AGUARDAR"]);
+    expect(stockBuyInput).toEqual([
+      { ticker: "PETR4", rank: 1, ceiling: 12, price: 10, quantity: 20, weight: 0.7, bias: null },
+      {
+        ticker: "VALE3",
+        rank: 2,
+        ceiling: 12,
+        price: 10,
+        quantity: 5,
+        weight: 0.3,
+        bias: "AGUARDAR",
+      },
+    ]);
   });
 
-  it("stockBuyInput mantém 10% quando as % das ações somam 81,5", () => {
+  it("stockBuyInput fica na ordem das linhas: rank, depois ticker", () => {
     const { stockBuyInput } = buildSnapshot({
       ...input,
       targets: input.targets.map((item) =>
-        item.ticker === "PETR4"
-          ? { ...item, suggestedPercent: 71.5 }
-          : item.ticker === "VALE3"
-            ? { ...item, suggestedPercent: 10 }
-            : item,
+        item.ticker === "PETR4" ? { ...item, sunoRank: 3 } : item,
       ),
     });
-    expect(stockBuyInput.map((asset) => asset.weight)).toEqual([0.715, 0.1]);
+    expect(stockBuyInput.map((asset) => asset.ticker)).toEqual(["VALE3", "PETR4"]);
+  });
+
+  // Regra nova (spec tabelas-unificadas, §3.3): antes a % das ações valia como gravada (0,715 e
+  // 0,10, o resto em caixa); agora reescala para 100% como nos FIIs.
+  it("stockBuyInput reescala: com as % das ações somando 81,5, a de 10% pesa 10/81,5", () => {
+    const { stockBuyInput } = buildSnapshot(partial);
+    const [petr, vale] = stockBuyInput;
+    expect(petr.weight).toBeCloseTo(71.5 / 81.5, 9);
+    expect(vale.weight).toBeCloseTo(10 / 81.5, 9); // 0,1227
   });
 
   it("classValues soma o patrimônio", () => {
@@ -303,37 +372,34 @@ describe("buildSnapshot: Carteira Alvo de ações", () => {
     expect(snapshot.classValues.ACAO).toBeCloseTo(250, 6); // 20 PETR4 + 5 VALE3 a R$ 10
   });
 
-  it("a carteira de FIIs fecha 100% e a de ações mostra a % gravada, sem reescalar", () => {
+  it("as carteiras de FIIs e de ações fecham 100% cada uma, mesmo com as ações somando 81,5", () => {
     const sum = (rows: { ticker: string; targetWeight: number | null }[], tickers: string[]) =>
       rows
         .filter((row) => tickers.includes(row.ticker))
         .reduce((total, row) => total + (row.targetWeight ?? 0), 0);
-    const { positions } = buildSnapshot(input);
+    const { positions } = buildSnapshot(partial);
     expect(sum(positions, ["AAAA11", "BBBB11"])).toBeCloseTo(1, 6);
-    // Ações a 70 + 30 = 100: sem reescala, igual ao gravado.
     expect(sum(positions, ["PETR4", "VALE3"])).toBeCloseTo(1, 6);
   });
 
-  it("ações somando 81,5: targetWeight é 0,10 para 10 gravado e não há aviso de % sugeridas", () => {
-    const partial: SnapshotInput = {
-      ...input,
-      targets: input.targets.map((item) =>
-        item.ticker === "PETR4"
-          ? { ...item, suggestedPercent: 71.5 }
-          : item.ticker === "VALE3"
-            ? { ...item, suggestedPercent: 10 }
-            : item,
-      ),
-    };
+  // Regra nova: antes era 0,10 (a % gravada) e sem aviso; agora reescala e avisa, como nos FIIs.
+  it("ações somando 81,5: targetWeight é 10/81,5, com o aviso da soma e o alerta em Geral", () => {
+    const warning = "As % sugeridas somam 81,5%. Foram ajustadas proporcionalmente para 100%.";
     const stocks = buildSnapshot(scopeToClass(partial, "ACAO"));
     const row = (ticker: string) => stocks.positions.find((item) => item.ticker === ticker)!;
-    expect(row("VALE3").targetWeight).toBeCloseTo(0.1, 6);
-    expect(row("PETR4").targetWeight).toBeCloseTo(0.715, 6);
-    expect(stocks.strategy.weightsWarning).toBeNull();
-    expect(stocks.alerts.some((alert) => alert.id.startsWith("pesos"))).toBe(false);
-    // FIIs inalterados: ainda fecham 100%.
+    expect(row("VALE3").targetWeight).toBeCloseTo(10 / 81.5, 9);
+    expect(row("PETR4").targetWeight).toBeCloseTo(71.5 / 81.5, 9);
+    expect(stocks.strategy.weightsWarning).toBe(warning);
+    expect(stocks.alerts.find((alert) => alert.id === "pesos")?.detail).toBe(warning);
     const all = buildSnapshot(partial);
+    expect(all.alerts.find((alert) => alert.id === "pesos-acoes")).toMatchObject({
+      title: "% sugeridas (ações)",
+      detail: warning,
+    });
+    // FIIs inalterados: 60 + 40 fecham 100%, sem aviso.
     expect(all.strategy.rows.map((r) => r.targetWeight)).toEqual([0.6, 0.4]);
+    expect(all.strategy.weightsWarning).toBeNull();
+    expect(all.alerts.some((alert) => alert.id === "pesos")).toBe(false);
   });
 
   it("a cascata só tem FIIs e as ordens não mudam com as ações configuradas", () => {
@@ -346,11 +412,40 @@ describe("buildSnapshot: Carteira Alvo de ações", () => {
     );
   });
 
-  it("em Geral, a ação configurada está na estratégia dela, sem prioridade de aporte", () => {
-    const petr = buildSnapshot(input).positions.find((row) => row.ticker === "PETR4")!;
+  // Regra nova: antes a ação não tinha prioridade; agora vem do motor de ações (stockPriorities).
+  // Base de R$ 250 com aporte zero: PETR4 vale 200 e a meta é 175 (já na meta); VALE3 vale 50 e a
+  // meta é 75, então pede 2 ações e é a 1ª da fila.
+  it("em Geral, a posição da ação configurada tem a Prioridade do motor de ações", () => {
+    const { positions } = buildSnapshot(input);
+    const petr = positions.find((row) => row.ticker === "PETR4")!;
     expect(petr.inStrategy).toBe(true);
     expect(petr.targetWeight).toBeCloseTo(0.7, 6);
-    expect(petr.priority).toBeNull();
+    expect(petr.priority).toEqual({ kind: "fora", reason: "NA_META" });
+    expect(positions.find((row) => row.ticker === "VALE3")?.priority).toEqual({
+      kind: "fila",
+      position: 1,
+    });
+  });
+
+  it("as linhas da Carteira Alvo de ações têm a Prioridade: a fila ou o motivo", () => {
+    const priorityOf = (snapshot: ReturnType<typeof buildSnapshot>, ticker: string) =>
+      snapshot.strategy.rows.find((row) => row.ticker === ticker)?.priority;
+    const stocks = buildSnapshot(scopeToClass(input, "ACAO"));
+    expect(priorityOf(stocks, "VALE3")).toEqual({ kind: "fila", position: 1 });
+    expect(priorityOf(stocks, "PETR4")).toEqual({ kind: "fora", reason: "NA_META" });
+    const waiting = buildSnapshot(
+      scopeToClass(
+        {
+          ...input,
+          targets: input.targets.map((item) =>
+            item.ticker === "VALE3" ? { ...item, bias: "AGUARDAR" as const } : item,
+          ),
+        },
+        "ACAO",
+      ),
+    );
+    expect(waiting.strategy.rows.find((row) => row.ticker === "VALE3")?.bias).toBe("AGUARDAR");
+    expect(priorityOf(waiting, "VALE3")).toEqual({ kind: "fora", reason: "AGUARDAR" });
   });
 
   it("Geral e FIIs: snapshot.strategy é a de FIIs", () => {

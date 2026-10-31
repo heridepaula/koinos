@@ -89,7 +89,7 @@ export type StrategyRow = {
   suggestedPercent: number | null;
   category: Category | null;
   suggestedCategory: Category | null;
-  /** Viés da ação (Comprar/Aguardar); sempre null num FII. */
+  /** Viés da casa de análise (Comprar/Aguardar), nas duas classes: Aguardar tira o ativo do aporte. */
   bias: Bias | null;
   price: number | null;
   marginToCeiling: number | null;
@@ -228,7 +228,7 @@ export type PortfolioSnapshot = {
     weightsWarning: string | null;
   };
   cascadeInput: CascadeAsset[];
-  /** Entrada do Smart Buy de ações: a % gravada, sem reescalar (a soma pode ser menor que 100%). */
+  /** Entrada do Smart Buy de ações: o peso efetivo, reescalado para 100% como nos FIIs. */
   stockBuyInput: StockBuyAsset[];
   /** Nome e logo das ações da estratégia (inclusive as não detidas), para a tela de recomendações. */
   stockMeta: { ticker: string; name: string | null; logoUrl: string | null }[];
