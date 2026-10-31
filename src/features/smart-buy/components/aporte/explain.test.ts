@@ -1,7 +1,18 @@
 import { describe, expect, it } from "vitest";
 import type { CascadeOrder } from "../../domain/suno-cascade";
-import type { StockBuyOrder } from "../../domain/stock-buy";
-import { explain, explainStock, shortReason, shortStockReason } from "./explain";
+import type { StockBuyOrder, StockExclusionReason } from "../../domain/stock-buy";
+import {
+  explain,
+  explainStock,
+  groupExcluded,
+  NEUTRAL_REASON_HELP,
+  REASON_HELP,
+  reasonHelp,
+  shortReason,
+  shortStockReason,
+  STOCK_REASON_HELP,
+  unitOf,
+} from "./explain";
 
 const neutral = { valuation: 1, dividends: 1, safety: 1, vacancy: 1 };
 
@@ -103,5 +114,77 @@ describe("ações", () => {
 
   it("a linha curta", () => {
     expect(plain(shortStockReason(stock))).toBe("37% abaixo do teto · faltavam R$ 1.200,00");
+  });
+});
+
+describe("unitOf", () => {
+  it("cota(s) nos FIIs e ação(ões) nas ações", () => {
+    expect([unitOf("FII", 1), unitOf("FII", 3), unitOf("ACAO", 1), unitOf("ACAO", 3)]).toEqual([
+      "cota",
+      "cotas",
+      "ação",
+      "ações",
+    ]);
+  });
+});
+
+describe("fora deste aporte", () => {
+  const fii = { ticker: "HGLG11", kind: "FII" } as const;
+  const stock = { ticker: "VALE3", kind: "ACAO" } as const;
+  const shared: StockExclusionReason[] = [
+    "SEM_COTACAO",
+    "SEM_TETO",
+    "ACIMA_DO_TETO",
+    "AGUARDAR",
+    "NA_META",
+    "PEDIDO_PEQUENO",
+    "SEM_SALDO",
+  ];
+
+  it("só FIIs no motivo: o texto dos FIIs", () => {
+    for (const reason of shared) expect(reasonHelp(reason, [fii])).toBe(REASON_HELP[reason]);
+    expect(reasonHelp("LIMITE_SETOR", [fii])).toBe(REASON_HELP.LIMITE_SETOR);
+    expect(reasonHelp("PEDIDO_PEQUENO", [fii])).toContain("não chega a uma cota");
+  });
+
+  it("só ações no motivo: o texto das ações", () => {
+    for (const reason of shared) {
+      expect(reasonHelp(reason, [stock, stock])).toBe(STOCK_REASON_HELP[reason]);
+    }
+    expect(reasonHelp("PEDIDO_PEQUENO", [stock])).toBe(
+      "Falta pouco para a meta: não chega a uma ação.",
+    );
+  });
+
+  it("FIIs e ações no mesmo motivo: um texto que serve para as duas classes", () => {
+    for (const reason of shared) {
+      expect(reasonHelp(reason, [fii, stock])).toBe(NEUTRAL_REASON_HELP[reason]);
+      expect(reasonHelp(reason, [stock, fii])).toBe(NEUTRAL_REASON_HELP[reason]);
+    }
+    expect(reasonHelp("AGUARDAR", [fii, stock])).toBe(
+      "Com viés Aguardar na Carteira Alvo: não recebe aporte.",
+    );
+    expect(reasonHelp("PEDIDO_PEQUENO", [fii, stock])).toContain("não chega a uma cota ou ação");
+  });
+
+  it("junta as duas carteiras por motivo, os FIIs antes das ações", () => {
+    const byReason = groupExcluded(
+      [
+        { ticker: "KNRI11", reason: "ACIMA_DO_TETO" },
+        { ticker: "HGLG11", reason: "LIMITE_SETOR" },
+        { ticker: "XPML11", reason: "ACIMA_DO_TETO" },
+      ],
+      [
+        { ticker: "VALE3", reason: "ACIMA_DO_TETO" },
+        { ticker: "ITSA4", reason: "AGUARDAR" },
+      ],
+    );
+    expect([...byReason.keys()]).toEqual(["ACIMA_DO_TETO", "LIMITE_SETOR", "AGUARDAR"]);
+    expect(byReason.get("ACIMA_DO_TETO")).toEqual([
+      { ticker: "KNRI11", kind: "FII" },
+      { ticker: "XPML11", kind: "FII" },
+      { ticker: "VALE3", kind: "ACAO" },
+    ]);
+    expect(byReason.get("AGUARDAR")).toEqual([{ ticker: "ITSA4", kind: "ACAO" }]);
   });
 });

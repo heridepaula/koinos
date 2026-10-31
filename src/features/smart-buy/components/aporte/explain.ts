@@ -1,8 +1,19 @@
 import { formatBRL, formatPercent, formatQuantity } from "@/shared/lib/format";
+import type { MergedOrder } from "../../domain/merge-orders";
 import { RISK_CAPS } from "../../domain/risk";
 import type { StockBuyOrder, StockExclusionReason } from "../../domain/stock-buy";
 import type { CascadeOrder, ExclusionReason } from "../../domain/suno-cascade";
 
+/** A classe de uma ordem ou de um ativo de fora: FII ou ação. */
+export type OrderKind = MergedOrder["kind"];
+
+/** "cota(s)" nos FIIs e "ação(ões)" nas ações, conforme a quantidade. */
+export function unitOf(kind: OrderKind, quantity: number): string {
+  if (kind === "FII") return quantity === 1 ? "cota" : "cotas";
+  return quantity === 1 ? "ação" : "ações";
+}
+
+/** O texto de ajuda de cada motivo quando só há FIIs nele. */
 export const REASON_HELP: Record<ExclusionReason, string> = {
   ACIMA_DO_TETO: "Preço igual ou acima do teto: a regra é só comprar abaixo dele.",
   AGUARDAR: "Marcado como Aguardar na Carteira Alvo: não recebe aporte.",
@@ -31,6 +42,69 @@ export const REASON_ORDER: ExclusionReason[] = [
   "SEM_RANKING",
   "SEM_COTACAO",
 ];
+
+/** Os mesmos motivos quando só há ações neles (as ações não têm os motivos só de FIIs). */
+export const STOCK_REASON_HELP: Record<StockExclusionReason, string> = {
+  SEM_COTACAO: "Ainda sem cotação.",
+  SEM_TETO: "Sem preço teto cadastrado na Carteira Alvo.",
+  ACIMA_DO_TETO: "Preço acima do teto: a regra é só comprar abaixo dele.",
+  AGUARDAR: "Marcada como Aguardar na Carteira Alvo: não recebe aporte.",
+  NA_META: "Já está na % sugerida (ou passou dela).",
+  PEDIDO_PEQUENO: "Falta pouco para a meta: não chega a uma ação.",
+  SEM_SALDO: "Está abaixo da meta, mas o valor não alcançou: fica para o próximo aporte.",
+};
+
+/** Os motivos com FIIs e ações juntos: um texto que serve para as duas classes. */
+export const NEUTRAL_REASON_HELP: Record<StockExclusionReason, string> = {
+  SEM_COTACAO: "Ainda sem cotação.",
+  SEM_TETO: "Sem preço teto cadastrado na Carteira Alvo.",
+  ACIMA_DO_TETO:
+    "Preço acima do teto (nos FIIs, também igual a ele): a regra é só comprar abaixo dele.",
+  AGUARDAR: "Com viés Aguardar na Carteira Alvo: não recebe aporte.",
+  NA_META: "Já está na % sugerida (ou passou dela).",
+  PEDIDO_PEQUENO:
+    "Falta pouco para a meta, ou os freios de provento e vacância dos FIIs cortaram o pedido: não chega a uma cota ou ação.",
+  SEM_SALDO: "Está abaixo da meta, mas o valor não alcançou: fica para o próximo aporte.",
+};
+
+const isStockReason = (reason: ExclusionReason): reason is StockExclusionReason =>
+  Object.hasOwn(STOCK_REASON_HELP, reason);
+
+/**
+ * O texto de ajuda de um motivo fala da classe dos ativos que estão nele: só FIIs, só ações ou as
+ * duas juntas.
+ */
+export function reasonHelp(
+  reason: ExclusionReason,
+  assets: readonly { kind: OrderKind }[],
+): string {
+  const hasStock = assets.some((asset) => asset.kind === "ACAO");
+  if (!hasStock || !isStockReason(reason)) return REASON_HELP[reason];
+  const hasFii = assets.some((asset) => asset.kind === "FII");
+  return hasFii ? NEUTRAL_REASON_HELP[reason] : STOCK_REASON_HELP[reason];
+}
+
+/** Um ativo da estratégia que ficou fora deste aporte, com a sua classe. */
+export type ExcludedAsset = { ticker: string; kind: OrderKind };
+
+/**
+ * Os de fora das duas carteiras juntos, por motivo: em cada motivo, os FIIs (na ordem da cascata)
+ * e depois as ações (na ordem do motor de ações).
+ */
+export function groupExcluded(
+  fii: readonly { ticker: string; reason: ExclusionReason }[],
+  stock: readonly { ticker: string; reason: StockExclusionReason }[],
+): Map<ExclusionReason, ExcludedAsset[]> {
+  const byReason = new Map<ExclusionReason, ExcludedAsset[]>();
+  const add = (reason: ExclusionReason, asset: ExcludedAsset) => {
+    const assets = byReason.get(reason);
+    if (assets) assets.push(asset);
+    else byReason.set(reason, [asset]);
+  };
+  for (const item of fii) add(item.reason, { ticker: item.ticker, kind: "FII" });
+  for (const item of stock) add(item.reason, { ticker: item.ticker, kind: "ACAO" });
+  return byReason;
+}
 
 /** " (×1,16)" quando o tensor mexe no pedido; nada quando é neutro. */
 const times = (tensor: number) =>
@@ -118,36 +192,6 @@ export function shortReason(order: CascadeOrder): string {
   }
   return parts.join(" · ");
 }
-
-export const STOCK_REASON_LABELS: Record<StockExclusionReason, string> = {
-  SEM_COTACAO: "Sem cotação",
-  SEM_TETO: "Sem preço teto",
-  ACIMA_DO_TETO: "Acima do teto",
-  AGUARDAR: "Viés Aguardar",
-  NA_META: "Já na meta",
-  PEDIDO_PEQUENO: "Pede menos de 1 ação",
-  SEM_SALDO: "Faltou saldo",
-};
-
-export const STOCK_REASON_HELP: Record<StockExclusionReason, string> = {
-  SEM_COTACAO: "Ainda sem cotação.",
-  SEM_TETO: "Sem preço teto cadastrado na Carteira Alvo.",
-  ACIMA_DO_TETO: "Preço acima do teto: a regra é só comprar abaixo dele.",
-  AGUARDAR: "Marcada como Aguardar na Carteira Alvo: não recebe aporte.",
-  NA_META: "Já está na % sugerida (ou a ação não tem %).",
-  PEDIDO_PEQUENO: "Falta pouco para a meta: não chega a uma ação.",
-  SEM_SALDO: "Está abaixo da meta, mas o valor não alcançou: fica para o próximo aporte.",
-};
-
-export const STOCK_REASON_ORDER: StockExclusionReason[] = [
-  "SEM_SALDO",
-  "PEDIDO_PEQUENO",
-  "NA_META",
-  "AGUARDAR",
-  "ACIMA_DO_TETO",
-  "SEM_TETO",
-  "SEM_COTACAO",
-];
 
 /** O porquê completo de uma ordem de ação: a margem de segurança e o que faltava para a meta. */
 export function explainStock(order: StockBuyOrder): string {

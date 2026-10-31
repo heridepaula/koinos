@@ -27,45 +27,25 @@ import {
 } from "@/shared/ui/card";
 import { Slider } from "@/shared/ui/slider";
 import { splitAmount } from "../domain/aporte-split";
+import { mergeOrders, type MergedOrder } from "../domain/merge-orders";
 import { RISK_CAPS } from "../domain/risk";
-import { stockSmartBuy, type StockBuyAsset, type StockBuyResult } from "../domain/stock-buy";
-import {
-  sunoCascade,
-  type CascadeAsset,
-  type CascadeResult,
-  type ExclusionReason,
-} from "../domain/suno-cascade";
+import { stockSmartBuy, type StockBuyAsset, type StockBuyOrder } from "../domain/stock-buy";
+import { sunoCascade, type CascadeAsset, type CascadeOrder } from "../domain/suno-cascade";
 import { ExcludedCard } from "./aporte/excluded-card";
+import { groupExcluded, unitOf } from "./aporte/explain";
 import { OrdersList, OrdersTable, type AssetMeta } from "./aporte/orders";
-import { StockExcludedCard } from "./aporte/stock-excluded-card";
-import { StockOrdersList, StockOrdersTable } from "./aporte/stock-orders";
 import { PRINCIPLES } from "./principles-banner";
 
 export type { AssetMeta };
 
 const CALCULATION_NOTE =
-  "O cálculo usa as cotações atuais, a Carteira Alvo e os dados de cada ativo. Você escolhe quanto do aporte vai para FIIs e quanto vai para ações. Entre os FIIs, cada um pede o que falta para a meta, mais quando está descontado (P/VP e margem até o teto) e menos quando o provento caiu ou o imóvel está vago; a cascata segue o ranking, e o que sobra vai para o mais abaixo da meta. Nas ações, só entram as abaixo do teto e da meta, e a maior margem de segurança é atendida primeiro.";
+  "O cálculo usa as cotações atuais, a Carteira Alvo e os dados de cada ativo. Você escolhe quanto do aporte vai para FIIs e quanto vai para ações. FII ou ação com viés Aguardar na Carteira Alvo fica fora do aporte, e as % sugeridas das ações são reescaladas para somar 100%, como as dos FIIs. Entre os FIIs, cada um pede o que falta para a meta, mais quando está descontado (P/VP e margem até o teto) e menos quando o provento caiu ou o imóvel está vago; a cascata segue o ranking, e o que sobra vai para o mais abaixo da meta. Nas ações, só entram as abaixo do teto e da meta, e a maior margem de segurança é atendida primeiro.";
 
 const RISK_NOTE = `Travas de risco: nenhum FII leva mais de ${formatPercent(RISK_CAPS.asset, 0)} do aporte, nenhum setor mais de ${formatPercent(RISK_CAPS.sector, 0)}, e nem papel nem tijolo mais de ${formatPercent(RISK_CAPS.macro, 0)}.`;
 
-function groupExcluded(result: CascadeResult) {
-  const byReason = new Map<ExclusionReason, string[]>();
-  for (const item of result.excluded) {
-    byReason.set(item.reason, [...(byReason.get(item.reason) ?? []), item.ticker]);
-  }
-  return byReason;
-}
-
-function groupStockExcluded(result: StockBuyResult) {
-  const byReason = new Map<StockBuyResult["excluded"][number]["reason"], string[]>();
-  for (const item of result.excluded) {
-    byReason.set(item.reason, [...(byReason.get(item.reason) ?? []), item.ticker]);
-  }
-  return byReason;
-}
-
 /** Visão da página: FIIs (o padrão, como antes), Ações ou Geral, que divide pelo controle. */
 const VIEWS = ["geral", "fiis", "acoes"] as const;
+type View = (typeof VIEWS)[number];
 /** No Geral, sem `?fiis=`, o controle começa no meio. */
 const DEFAULT_GERAL_FIIS = 50;
 const FIIS_STEP = 5;
@@ -74,99 +54,82 @@ const FIIS_STEP = 5;
 const fiisFromUrl = (value: number | null) =>
   value !== null && value >= 0 && value <= 100 ? value : DEFAULT_GERAL_FIIS;
 
-const ORDERS_DESCRIPTION = (
-  <>
-    <span className="max-md:hidden">Na ordem do ranking. </span>Os preços são de referência: confira
-    na corretora.
-  </>
-);
+/** A ordem das linhas, dita na descrição do card. */
+const ORDER_TEXT: Record<View, string> = {
+  geral: "Da maior para a menor ordem.",
+  fiis: "Na ordem do ranking.",
+  acoes: "Na ordem da margem de segurança.",
+};
 
-/** O card de ordens dos FIIs, com a lista de quem ficou fora logo abaixo. */
-function FiiOrdersCard({
-  title,
-  result,
-  metaByTicker,
-}: {
-  title: string;
-  result: CascadeResult;
-  metaByTicker: ReadonlyMap<string, AssetMeta>;
-}) {
-  // Alguma trava de risco cortou um pedido (o saldo acabar não conta).
-  const limitedAny = result.orders.some(
-    (order) => order.limitedBy !== null && order.limitedBy !== "saldo",
-  );
-  return (
-    <>
-      <Card className="@container">
-        <CardHeader>
-          <CardTitle>{title}</CardTitle>
-          <CardDescription>{ORDERS_DESCRIPTION}</CardDescription>
-          {limitedAny ? (
-            <p className="mt-2 flex items-start gap-3 text-sm">
-              <LayersIcon className="mt-0.5 size-4 shrink-0 text-info" aria-hidden="true" />
-              {RISK_NOTE}
-            </p>
-          ) : null}
-        </CardHeader>
-        <CardContent className="px-0">
-          {result.orders.length === 0 ? (
-            <p className="px-(--card-spacing) text-sm text-muted-foreground">
-              Nenhuma compra atende às regras com esse valor. Veja abaixo o motivo de cada FII.
-            </p>
-          ) : (
-            <>
-              <div className="@min-[760px]:hidden">
-                <OrdersList orders={result.orders} meta={metaByTicker} />
-              </div>
-              <div className="hidden @min-[760px]:block">
-                <OrdersTable orders={result.orders} meta={metaByTicker} />
-              </div>
-            </>
-          )}
-        </CardContent>
-      </Card>
-      <ExcludedCard byReason={groupExcluded(result)} />
-    </>
-  );
+/** Sem nenhuma ordem, o card manda ver o motivo de cada um no card de baixo. */
+const NO_ORDERS_TEXT: Record<View, string> = {
+  geral: "Veja abaixo o motivo de cada ativo.",
+  fiis: "Veja abaixo o motivo de cada FII.",
+  acoes: "Veja abaixo o motivo de cada ação.",
+};
+
+/**
+ * As linhas da tabela: em Geral, as duas carteiras juntas, da maior para a menor ordem; em FIIs e
+ * em Ações, a ordem do motor de cada uma (ranking; margem de segurança).
+ */
+function orderRows(
+  view: View,
+  fii: readonly CascadeOrder[],
+  stock: readonly StockBuyOrder[],
+): MergedOrder[] {
+  if (view === "geral") return mergeOrders(fii, stock);
+  if (view === "fiis") return fii.map((order) => ({ kind: "FII" as const, order }));
+  return stock.map((order) => ({ kind: "ACAO" as const, order }));
 }
 
-/** O card de ordens das ações, na ordem da margem de segurança. */
-function StockOrdersCard({
-  result,
+/** O card das ordens das carteiras da visão, numa tabela só (no celular, uma lista). */
+function OrdersCard({
+  view,
+  rows,
+  riskLimited,
   metaByTicker,
 }: {
-  result: StockBuyResult;
+  view: View;
+  rows: readonly MergedOrder[];
+  /** Alguma trava de risco cortou o pedido de um FII. */
+  riskLimited: boolean;
   metaByTicker: ReadonlyMap<string, AssetMeta>;
 }) {
+  // O selo da classe só ajuda quando a tabela mistura FIIs e ações.
+  const showClass =
+    rows.some((row) => row.kind === "FII") && rows.some((row) => row.kind === "ACAO");
   return (
-    <>
-      <Card className="@container">
-        <CardHeader>
-          <CardTitle>Ações</CardTitle>
-          <CardDescription>
-            <span className="max-md:hidden">Na ordem da margem de segurança. </span>Os preços são de
-            referência: confira na corretora.
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="px-0">
-          {result.orders.length === 0 ? (
-            <p className="px-(--card-spacing) text-sm text-muted-foreground">
-              Nenhuma compra atende às regras com esse valor. Veja abaixo o motivo de cada ação.
-            </p>
-          ) : (
-            <>
-              <div className="@min-[760px]:hidden">
-                <StockOrdersList orders={result.orders} meta={metaByTicker} />
-              </div>
-              <div className="hidden @min-[760px]:block">
-                <StockOrdersTable orders={result.orders} meta={metaByTicker} />
-              </div>
-            </>
-          )}
-        </CardContent>
-      </Card>
-      <StockExcludedCard byReason={groupStockExcluded(result)} />
-    </>
+    <Card className="@container">
+      <CardHeader>
+        <CardTitle>Ordens de compra</CardTitle>
+        <CardDescription>
+          <span className="max-md:hidden">{ORDER_TEXT[view]} </span>Os preços são de referência:
+          confira na corretora.
+        </CardDescription>
+        {riskLimited ? (
+          <p className="mt-2 flex items-start gap-3 text-sm">
+            <LayersIcon className="mt-0.5 size-4 shrink-0 text-info" aria-hidden="true" />
+            {RISK_NOTE}
+          </p>
+        ) : null}
+      </CardHeader>
+      <CardContent className="px-0">
+        {rows.length === 0 ? (
+          <p className="px-(--card-spacing) text-sm text-muted-foreground">
+            Nenhuma compra atende às regras com esse valor. {NO_ORDERS_TEXT[view]}
+          </p>
+        ) : (
+          <>
+            <div className="@min-[760px]:hidden">
+              <OrdersList rows={rows} meta={metaByTicker} showClass={showClass} />
+            </div>
+            <div className="hidden @min-[760px]:block">
+              <OrdersTable rows={rows} meta={metaByTicker} showClass={showClass} />
+            </div>
+          </>
+        )}
+      </CardContent>
+    </Card>
   );
 }
 
@@ -175,7 +138,8 @@ function StockOrdersCard({
  * Apple Pay, e os motores rodam no navegador a cada tecla (o valor e a divisão ficam na URL).
  * A visão (`?classe=`) escolhe a carteira: FIIs (o padrão), Ações ou Geral, em que um controle
  * deslizante divide o aporte (`?fiis=`). Os FIIs vão pela cascata Suno e as ações pela margem de
- * segurança. Embaixo, o resumo em cards de número, as ordens de cada carteira e quem ficou fora.
+ * segurança. Embaixo, o resumo em cards de número, as ordens das carteiras numa tabela só e quem
+ * ficou fora.
  */
 export function AporteCalculator({
   fiiAssets,
@@ -211,27 +175,24 @@ export function AporteCalculator({
   const spent = (fiiResult?.spent ?? 0) + (stockResult?.spent ?? 0);
   const leftover = (fiiResult?.leftover ?? 0) + (stockResult?.leftover ?? 0);
   const hasResult = fiiResult !== null || stockResult !== null;
-  const hasOrders = (fiiResult?.orders.length ?? 0) + (stockResult?.orders.length ?? 0) > 0;
+  const rows = orderRows(view, fiiResult?.orders ?? [], stockResult?.orders ?? []);
+  const hasOrders = rows.length > 0;
+  // Alguma trava de risco cortou o pedido de um FII (o saldo acabar não conta).
+  const riskLimited = (fiiResult?.orders ?? []).some(
+    (order) => order.limitedBy !== null && order.limitedBy !== "saldo",
+  );
 
   const totalValue = values.FII + values.ACAO;
   const todayFii = totalValue > 0 ? values.FII / totalValue : 0;
   const todayStock = totalValue > 0 ? values.ACAO / totalValue : 0;
 
   async function copyOrders() {
-    if (!fiiResult && !stockResult) return;
-    const line =
-      (unit: string) =>
-      (order: { ticker: string; quantity: number; price: number; total: number }) =>
-        `${order.ticker}: comprar ${formatQuantity(order.quantity)} ${unit} a ~${formatBRL(order.price)} = ${formatBRL(order.total)}`;
-    const lines: string[] = [];
-    if (fiiResult && stockResult) {
-      lines.push("FIIs:", ...fiiResult.orders.map(line("cotas")));
-      lines.push("", "Ações:", ...stockResult.orders.map(line("ações")), "");
-    } else if (stockResult) {
-      lines.push(...stockResult.orders.map(line("ações")));
-    } else if (fiiResult) {
-      lines.push(...fiiResult.orders.map(line("cotas")));
-    }
+    if (rows.length === 0) return;
+    // Na ordem da tabela, cada linha com a sua unidade (cotas ou ações).
+    const lines = rows.map(
+      ({ kind, order }) =>
+        `${order.ticker}: comprar ${formatQuantity(order.quantity)} ${unitOf(kind, order.quantity)} a ~${formatBRL(order.price)} = ${formatBRL(order.total)}`,
+    );
     lines.push(`Total: ${formatBRL(spent)} · Sobra: ${formatBRL(leftover)}`);
     await navigator.clipboard.writeText(lines.join("\n"));
     toast.success("Ordens copiadas.");
@@ -365,16 +326,15 @@ export function AporteCalculator({
             </div>
           </div>
 
-          {fiiResult ? (
-            <FiiOrdersCard
-              title={view === "geral" && showStock ? "FIIs" : "Ordens de compra"}
-              result={fiiResult}
-              metaByTicker={metaByTicker}
-            />
-          ) : null}
-          {stockResult ? (
-            <StockOrdersCard result={stockResult} metaByTicker={metaByTicker} />
-          ) : null}
+          <OrdersCard
+            view={view}
+            rows={rows}
+            riskLimited={riskLimited}
+            metaByTicker={metaByTicker}
+          />
+          <ExcludedCard
+            byReason={groupExcluded(fiiResult?.excluded ?? [], stockResult?.excluded ?? [])}
+          />
         </>
       ) : null}
     </div>
