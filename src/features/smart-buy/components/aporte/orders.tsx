@@ -16,7 +16,7 @@ import {
 } from "@/shared/ui/drawer";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/shared/ui/table";
 import type { CascadeOrder } from "../../domain/suno-cascade";
-import { explain, shortReason } from "./explain";
+import { explain, shortReason, type OrderClass } from "./explain";
 import { QUANTITY_MASK, Sensitive } from "@/shared/components/sensitive";
 
 export type AssetMeta = { ticker: string; name: string | null; logoUrl: string | null };
@@ -24,13 +24,14 @@ export type AssetMeta = { ticker: string; name: string | null; logoUrl: string |
 type OrdersProps = {
   orders: CascadeOrder[];
   meta: ReadonlyMap<string, AssetMeta>;
+  kind?: OrderClass;
 };
 
 /**
  * Tabela das ordens (a partir de 760 px de card). O porquê é um comentário curto e discreto; a
  * conta inteira (cada tensor, o pedido e a trava) fica na dica ao passar o mouse.
  */
-export function OrdersTable({ orders, meta }: OrdersProps) {
+export function OrdersTable({ orders, meta, kind = "FII" }: OrdersProps) {
   return (
     <Table>
       <TableHeader>
@@ -67,9 +68,9 @@ export function OrdersTable({ orders, meta }: OrdersProps) {
               </TableCell>
               <TableCell
                 className="min-w-48 pr-(--card-spacing) text-caption whitespace-normal text-muted-foreground"
-                title={capitalize(explain(order).join(" · "))}
+                title={capitalize(explain(order, kind).join(" · "))}
               >
-                {shortReason(order)}
+                {shortReason(order, kind)}
               </TableCell>
             </TableRow>
           );
@@ -84,7 +85,7 @@ export function OrdersTable({ orders, meta }: OrdersProps) {
  * peso antes → depois; e, discreto, o porquê em poucas palavras. A conta inteira abre numa folha
  * ao tocar, com o chevron dizendo que há mais.
  */
-export function OrdersList({ orders, meta }: OrdersProps) {
+export function OrdersList({ orders, meta, kind = "FII" }: OrdersProps) {
   const [sheet] = useState(() => createDrawerHandle<CascadeOrder>());
   return (
     <>
@@ -114,7 +115,7 @@ export function OrdersList({ orders, meta }: OrdersProps) {
                       {formatPercent(order.weightBefore, 1)} → {formatPercent(order.weightAfter, 1)}
                     </span>
                   </p>
-                  <p className="text-caption text-muted-foreground">{shortReason(order)}</p>
+                  <p className="text-caption text-muted-foreground">{shortReason(order, kind)}</p>
                 </div>
                 <ChevronRightIcon
                   className="size-4 shrink-0 text-muted-foreground"
@@ -127,7 +128,9 @@ export function OrdersList({ orders, meta }: OrdersProps) {
       </ul>
       <Drawer handle={sheet}>
         {({ payload }) =>
-          payload ? <OrderSheet order={payload} info={meta.get(payload.ticker)} /> : null
+          payload ? (
+            <OrderSheet order={payload} info={meta.get(payload.ticker)} kind={kind} />
+          ) : null
         }
       </Drawer>
     </>
@@ -136,7 +139,15 @@ export function OrdersList({ orders, meta }: OrdersProps) {
 
 const capitalize = (text: string) => text.charAt(0).toUpperCase() + text.slice(1);
 
-function OrderSheet({ order, info }: { order: CascadeOrder; info: AssetMeta | undefined }) {
+function OrderSheet({
+  order,
+  info,
+  kind,
+}: {
+  order: CascadeOrder;
+  info: AssetMeta | undefined;
+  kind: OrderClass;
+}) {
   return (
     <DrawerContent>
       <DrawerHeader className="justify-items-start pr-16 pl-5 text-left">
@@ -161,7 +172,7 @@ function OrderSheet({ order, info }: { order: CascadeOrder; info: AssetMeta | un
           <InsetValueRow label="Meta" value={formatPercent(order.targetWeight, 1)} />
         </InsetGroup>
         <InsetGroup title="Por quê">
-          {explain(order).map((reason) => (
+          {explain(order, kind).map((reason) => (
             <div key={reason} className="flex min-h-11 items-center px-4 py-2 text-subheadline">
               {capitalize(reason)}
             </div>

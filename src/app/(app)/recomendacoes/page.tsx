@@ -2,7 +2,8 @@ import type { Metadata } from "next";
 import { Suspense } from "react";
 import { getPortfolioSnapshot } from "@/features/portfolio/server";
 import { QuoteRefresher } from "@/features/portfolio/ui";
-import { AporteCalculator, PrinciplesBanner } from "@/features/smart-buy/ui";
+import { getMyClassTarget } from "@/features/strategy/server";
+import { AporteCalculator, PrinciplesBanner, type AssetMeta } from "@/features/smart-buy/ui";
 import { PageHeader } from "@/shared/components/page-header";
 import { CardSkeleton } from "@/shared/components/skeletons";
 
@@ -34,11 +35,21 @@ async function QuoteStatus() {
 }
 
 async function RecommendationsContent() {
-  const { cascadeInput, strategy } = await getPortfolioSnapshot();
-  const meta = strategy.rows.map((row) => ({
-    ticker: row.ticker,
-    name: row.name,
-    logoUrl: row.logoUrl,
-  }));
-  return <AporteCalculator assets={cascadeInput} meta={meta} />;
+  const [{ cascadeInput, stockCascadeInput, classValues, strategy, positions }, target] =
+    await Promise.all([getPortfolioSnapshot(), getMyClassTarget()]);
+  const meta = new Map<string, AssetMeta>();
+  for (const row of [...strategy.rows, ...positions]) {
+    if (!meta.has(row.ticker)) {
+      meta.set(row.ticker, { ticker: row.ticker, name: row.name, logoUrl: row.logoUrl });
+    }
+  }
+  return (
+    <AporteCalculator
+      fiiAssets={cascadeInput}
+      stockAssets={stockCascadeInput}
+      target={target}
+      values={classValues}
+      meta={[...meta.values()]}
+    />
+  );
 }

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { CascadeOrder } from "../../domain/suno-cascade";
-import { explain, shortReason } from "./explain";
+import { explain, reasonHelp, shortReason } from "./explain";
 
 const neutral = { valuation: 1, dividends: 1, safety: 1, vacancy: 1 };
 
@@ -75,5 +75,25 @@ describe("explain", () => {
     expect(parts).toContain("último provento 50% da média de 12 meses (×0,5)");
     expect(parts).toContain("vacância de 10,0% (×0,9)");
     expect(parts).toContain("limite de 25% do aporte por FII");
+  });
+});
+
+describe("ações", () => {
+  const stock = order({ priceToBook: null, vacancy: null, macro: "Outros", limitedBy: "ativo" });
+
+  it("o limite fala da parte das ações e não há P/VP nem vacância", () => {
+    const text = explain(stock, "ACAO").join(" · ");
+    expect(text).toContain("limite de 25% da parte das ações");
+    expect(text).not.toContain("P/VP");
+    expect(text).not.toContain("vacância");
+  });
+
+  it("o FII segue falando do aporte", () => {
+    expect(explain(stock).join(" · ")).toContain("limite de 25% do aporte por FII");
+  });
+
+  it("a ajuda do limite por ativo muda para ações", () => {
+    expect(reasonHelp("ACAO").LIMITE_ATIVO).toContain("da parte das ações");
+    expect(reasonHelp("FII").LIMITE_ATIVO).toContain("por FII");
   });
 });
