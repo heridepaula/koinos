@@ -54,6 +54,26 @@ export function splitAporte(aporte: number, dividends: number, percent: number):
   };
 }
 
+/**
+ * A parte de uma classe no mês (spec etapa 2 das ações, §6.4). A conta continua sobre a carteira
+ * toda; o "de proventos" é rateado pelo aporte da classe. O "não gasto" é da carteira: fica zero.
+ */
+export function shareReinvestment(
+  total: ReinvestmentMonth,
+  own: { aporte: number; purchaseCount: number },
+): ReinvestmentMonth {
+  const fromDividends = total.aporte > 0 ? (total.fromDividends * own.aporte) / total.aporte : 0;
+  return {
+    ...total,
+    aporte: own.aporte,
+    purchaseCount: own.purchaseCount,
+    fromDividends,
+    fromPocket: own.aporte - fromDividends,
+    unspent: 0,
+    dividendsShare: own.aporte > 0 ? fromDividends / own.aporte : null,
+  };
+}
+
 /** §3.3: um item por mês pedido, com a % salva ou a padrão. */
 export function reinvestmentHistory(input: {
   transactions: readonly LedgerEntry[];

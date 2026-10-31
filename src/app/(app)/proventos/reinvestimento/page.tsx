@@ -9,8 +9,10 @@ import {
   ReinvestmentCards,
   ReinvestmentHistory,
 } from "@/features/portfolio/ui";
+import { AssetClassControl } from "@/shared/components/asset-class-control";
 import { PageHeader } from "@/shared/components/page-header";
 import { CardSkeleton } from "@/shared/components/skeletons";
+import { parseClassParam } from "@/shared/lib/class-filter";
 import { Button } from "@/shared/ui/button";
 import { Skeleton } from "@/shared/ui/skeleton";
 
@@ -30,6 +32,7 @@ export default function ReinvestmentPage({ searchParams }: PageProps<"/proventos
         }
         mobileActions={false}
       />
+      <AssetClassControl className="mb-6" />
       {/* searchParams é dado da requisição: fica dentro de <Suspense>, como no login. */}
       <Suspense fallback={<ReinvestmentSkeleton />}>
         <ReinvestmentContent searchParams={searchParams} />
@@ -42,11 +45,18 @@ async function ReinvestmentContent({
   searchParams,
 }: Pick<PageProps<"/proventos/reinvestimento">, "searchParams">) {
   const params = await searchParams;
-  const view = await getReinvestmentView(typeof params.mes === "string" ? params.mes : null);
+  const view = await getReinvestmentView(
+    typeof params.mes === "string" ? params.mes : null,
+    parseClassParam(params.classe),
+  );
   return (
     <div className="grid gap-6">
       <MonthPicker month={view.month} months={view.months} />
-      <ReinvestmentCards key={view.month} current={view.current} />
+      <ReinvestmentCards
+        key={`${view.month}|${view.currentClass ? "c" : "g"}`}
+        current={view.current}
+        currentClass={view.currentClass}
+      />
       <PurchasesTable rows={view.purchases} />
       <ReinvestmentHistory history={view.history} last12={view.last12} />
     </div>

@@ -28,6 +28,7 @@ export {
   reinvestmentHistory,
   reinvestmentMonths,
   roundPercent,
+  shareReinvestment,
   splitAporte,
   summarizeReinvestment,
 } from "./domain/reinvestment";

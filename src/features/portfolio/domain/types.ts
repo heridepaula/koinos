@@ -363,6 +363,8 @@ export type ReinvestmentView = {
   /** Meses do seletor (do mais recente ao mais antigo): os com compra ou provento e o atual. */
   months: string[];
   current: ReinvestmentMonth;
+  /** Aporte e compras da classe no mês escolhido; null em Geral. A prévia da % rateia por ele. */
+  currentClass: { aporte: number; purchaseCount: number } | null;
   purchases: (MonthPurchase & AssetMeta)[];
   /** Os últimos 24 meses, do mais antigo ao mais recente. */
   history: ReinvestmentMonth[];

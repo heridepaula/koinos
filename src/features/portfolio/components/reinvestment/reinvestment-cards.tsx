@@ -12,15 +12,26 @@ import { MetricCard, StatList, StatRow } from "@/shared/components/metric";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/shared/ui/card";
 import { Input } from "@/shared/ui/input";
 import { setReinvestmentPercentAction } from "../../actions";
-import { DEFAULT_REINVESTMENT_PERCENT, roundPercent, splitAporte } from "../../domain/reinvestment";
-import type { ReinvestmentMonth } from "../../domain/types";
+import {
+  DEFAULT_REINVESTMENT_PERCENT,
+  roundPercent,
+  shareReinvestment,
+  splitAporte,
+} from "../../domain/reinvestment";
+import type { ReinvestmentMonth, ReinvestmentView } from "../../domain/types";
 import { Sensitive } from "@/shared/components/sensitive";
 
 /**
  * Cards do mês: aporte, proventos, a % reinvestida (editável) e a divisão do aporte. No card
  * estreito (o celular), o aporte, a divisão e os proventos viram um card só, e a % fica no seu.
  */
-export function ReinvestmentCards({ current }: { current: ReinvestmentMonth }) {
+export function ReinvestmentCards({
+  current,
+  currentClass,
+}: {
+  current: ReinvestmentMonth;
+  currentClass: ReinvestmentView["currentClass"];
+}) {
   const labelId = useId();
   const hintId = useId();
   const [text, setText] = useState(numberToInput(current.percent));
@@ -29,7 +40,11 @@ export function ReinvestmentCards({ current }: { current: ReinvestmentMonth }) {
   // A prévia usa a % como ela será gravada (uma casa decimal), para não mostrar uma divisão
   // que o salvo não reproduz. Inválido mostra a % que está valendo.
   const percent = valid ? roundPercent(typed) : current.percent;
-  const split = splitAporte(current.aporte, current.dividends, percent);
+  const whole = { ...current, percent, ...splitAporte(current.aporte, current.dividends, percent) };
+  // Numa classe, o "de proventos" é a parte dela no rateio do mês (spec etapa 2, §6.4).
+  const shown = currentClass ? shareReinvestment(whole, currentClass) : whole;
+  const split = shown;
+  const dividendsLabel = currentClass ? "Proventos da carteira" : "Proventos recebidos";
   const changed = valid && percent !== current.percent;
   const save = useAction(setReinvestmentPercentAction, {
     onSuccess: ({ input }) => {
@@ -52,11 +67,11 @@ export function ReinvestmentCards({ current }: { current: ReinvestmentMonth }) {
         icon={WalletIcon}
         tile="[--tile:var(--tile-blue)]"
         label="Aporte no mês"
-        value={<Sensitive>{formatBRL(current.aporte)}</Sensitive>}
+        value={<Sensitive>{formatBRL(shown.aporte)}</Sensitive>}
         className="@min-[720px]/reinv:hidden"
       >
         <div className="grid gap-3">
-          {current.aporte > 0 ? (
+          {shown.aporte > 0 ? (
             <SplitBar fromDividends={split.fromDividends} fromPocket={split.fromPocket} />
           ) : null}
           <StatList>
@@ -79,10 +94,10 @@ export function ReinvestmentCards({ current }: { current: ReinvestmentMonth }) {
               value={<Sensitive>{formatBRL(split.fromPocket)}</Sensitive>}
             />
             <StatRow
-              label="Proventos recebidos"
+              label={dividendsLabel}
               value={<Sensitive>{formatBRL(current.dividends)}</Sensitive>}
             />
-            <StatRow label="Compras" value={formatQuantity(current.purchaseCount)} />
+            <StatRow label="Compras" value={formatQuantity(shown.purchaseCount)} />
           </StatList>
           {split.unspent > 0.005 ? (
             <p className="text-footnote text-muted-foreground">
@@ -97,17 +112,17 @@ export function ReinvestmentCards({ current }: { current: ReinvestmentMonth }) {
           icon={WalletIcon}
           tile="[--tile:var(--tile-blue)]"
           label="Aporte no mês"
-          value={<Sensitive>{formatBRL(current.aporte)}</Sensitive>}
+          value={<Sensitive>{formatBRL(shown.aporte)}</Sensitive>}
           className="hidden @min-[720px]/reinv:flex"
         >
           <StatList>
-            <StatRow label="Compras" value={formatQuantity(current.purchaseCount)} />
+            <StatRow label="Compras" value={formatQuantity(shown.purchaseCount)} />
           </StatList>
         </MetricCard>
         <MetricCard
           icon={HandCoinsIcon}
           tile="[--tile:var(--tile-teal)]"
-          label="Proventos recebidos no mês"
+          label={currentClass ? "Proventos da carteira no mês" : "Proventos recebidos no mês"}
           value={<Sensitive>{formatBRL(current.dividends)}</Sensitive>}
           className="hidden @min-[720px]/reinv:flex"
         >
@@ -171,7 +186,7 @@ export function ReinvestmentCards({ current }: { current: ReinvestmentMonth }) {
           <CardDescription>Proventos reinvestidos e dinheiro do bolso no mês.</CardDescription>
         </CardHeader>
         <CardContent className="grid gap-3 text-sm">
-          {current.aporte <= 0 ? (
+          {shown.aporte <= 0 ? (
             <p className="text-muted-foreground">Nenhuma compra no mês.</p>
           ) : (
             <>
