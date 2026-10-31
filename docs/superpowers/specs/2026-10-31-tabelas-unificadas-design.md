@@ -1,7 +1,7 @@
 # Carteira Alvo e Recomendações com tabelas iguais para FIIs e ações: especificação de design
 
 - **Data:** 2026-10-31
-- **Status:** aprovado, a implementar (branch feat/tabelas-unificadas)
+- **Status:** aprovado e implementado (branch feat/tabelas-unificadas)
 - **Origem:** pedido do dono: "a tabela de carteira alvo de ações está divergente da de FIIs, ela deve seguir os padrões da de FIIs, com os mesmos campos, colunas. Nas recomendações no modo geral, os papéis devem vir juntos, FIIs e ações, não em tabelas separadas."
 - **Muda regras de** `2026-10-31-smart-buy-acoes-design.md`: o viés passa a valer para FIIs, e as % das ações passam a ser reescaladas para 100% (§3).
 

@@ -33,7 +33,7 @@
 
 ## 3. Novos motivos de exclusão
 
-- **Pede menos de 1 cota** (`PEDIDO_PEQUENO`): falta pouco, ou os freios cortaram o pedido.
+- **Pede menos de 1 papel** (`PEDIDO_PEQUENO`): falta pouco, ou os freios cortaram o pedido. (O rótulo era "Pede menos de 1 cota" até a spec `2026-10-31-tabelas-unificadas-design.md`: a tabela de motivos agora serve a FIIs e ações.)
 - **Cota acima do limite** (`LIMITE_ATIVO`), **Limite do setor** (`LIMITE_SETOR`) e **Limite de papel ou tijolo** (`LIMITE_MACRO`).
 
 A coluna Prioridade (aporte zero) põe na fila, pelo ranking, quem pede ao menos uma cota.
