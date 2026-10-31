@@ -1,7 +1,7 @@
 # Ações na carteira, etapa 2 (telas por classe): especificação de design
 
 - **Data:** 2026-10-31
-- **Status:** aprovado, a implementar (branch feat/acoes-etapa-2)
+- **Status:** aprovado e implementado (branch feat/acoes-etapa-2)
 - **Origem:** pedido do usuário com um plano em três fases: filtro Ações/FIIs/Ambos, várias Carteiras Alvo e aporte em várias carteiras. O dono escolheu fazer só a primeira fase, que é a etapa 2 prevista no spec `2026-10-30-acoes-etapa-1-design.md` (§12). As diferenças entre o plano e o código estão no §2.
 - **Ciclo:** etapa 2 de 2. A etapa 1 trouxe as ações para os dados e as contas; esta separa as telas por classe.
 
@@ -58,13 +58,13 @@ Com os dados de produção de 31/10/2026:
 
 Cada view recebe o filtro, com `"TODOS"` como padrão, e separa os lançamentos e os proventos da classe antes de chamar o código puro que já existe. O `cache` do React guarda o resultado por argumento: todas as seções de uma página passam o mesmo filtro, e `getMyTransactions`/`getMyDividends` continuam rodando uma vez por requisição.
 
-- **`getPortfolioSnapshot(filter)`:** filtra lançamentos e proventos. Na visão Ações, os alvos vão vazios, e com eles a Carteira Alvo e os alertas. Na visão FIIs, os alvos vão inteiros (já são só FIIs). A Carteira Alvo e as Recomendações continuam chamando sem argumento.
+- **`getPortfolioSnapshot(filter)`:** filtra lançamentos e proventos. Na visão Ações, os alvos vão vazios, e com eles a Carteira Alvo, e `scopeToClass` liga `withAlerts: false` para não gerar alertas. Na visão FIIs, os alvos vão inteiros (já são só FIIs). A Carteira Alvo e as Recomendações continuam chamando sem argumento.
 - **`getEvolution(filter)` e `getPeriodResults(filter)`:** filtram os lançamentos antes de `replayLedger`. O Yahoo só é chamado para os tickers da classe.
 - **`getDividendsView(filter, kind)`:** §6.2.
 - **`getClosedPositionsView(filter)`:** filtra o razão antes de `closedPositions`. A isenção das ações não precisa de caso especial: na visão Ações e em Geral, o razão filtrado ainda tem todas as vendas de ações; na visão FIIs, não há ação para isentar.
 - **`getReinvestmentView(month, filter)`:** §6.4.
 - **Classes:** as views que ainda não têm o mapa chamam `getAssetClasses` sobre os tickers que já leram.
-- **Observabilidade:** os spans `view.*` ganham o atributo `koinos.view.class_filter` (`TODOS`, `FII` ou `ACAO`). Não é valor da carteira nem id.
+- **Observabilidade:** os spans `view.*` ganham o atributo `koinos.view.class_filter` (`TODOS`, `FII` ou `ACAO`). `getDividendsView` também grava `koinos.view.kind_filter` (`TODOS` ou o tipo). Não é valor da carteira nem id.
 
 ## 6. Páginas
 

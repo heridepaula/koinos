@@ -30,7 +30,9 @@ Koinos is a single-owner dashboard for a Brazilian portfolio of FIIs (REITs) and
   - usebolsai's parsing (`market-data/domain/fundamentals.test.ts`);
   - the asset class (`market-data/domain/asset-class.test.ts`);
   - the B3 lending pairing and the shares that come back from lending (`transactions/import/b3/lending.test.ts`), and the dividend kinds and the check by dividends (`transactions/import/b3/dividends.test.ts`);
-  - the estimated tax of closed positions: FIIs at 20%, stocks at 15% with the R$ 20,000 monthly exemption (`portfolio/domain/closed-positions.test.ts`).
+  - the estimated tax of closed positions: FIIs at 20%, stocks at 15% with the R$ 20,000 monthly exemption, and that FIIs plus Ações add up to Geral (`portfolio/domain/closed-positions.test.ts`);
+  - the Geral/FIIs/Ações filter (`shared/lib/class-filter.test.ts`) and `scopeToClass` with `withAlerts` (`portfolio/domain/snapshot.test.ts`);
+  - the dividends by kind (`portfolio/domain/dividends.test.ts`) and the reinvestment split by class (`portfolio/domain/reinvestment.test.ts`).
 - Verify with `format:check`, `lint`, `typecheck`, `test` and `build`. CI runs the same checks on Node 24 and 26.
 - Check behavior with throwaway scripts kept outside the repo:
 
@@ -56,7 +58,8 @@ Koinos is a single-owner dashboard for a Brazilian portfolio of FIIs (REITs) and
 **Pages** (`src/app/(app)`): each one renders a static header and streams a `<Suspense>` section that awaits a DAL view from `portfolio/server.ts` or `transactions/server.ts`.
 
 - `/dashboard`: `getPortfolioSnapshot` (summary, alerts, monthly aportes, allocation, positions and the closed card), plus `getEvolution` (Domain flow, item 7) and `getPeriodResults` (item 8), each in its own `<Suspense>`.
-- `/transacoes`: `getMyTransactions`, with filters, pagination and the create, edit and delete actions.
+- **Class filter:** the Dashboard, `/proventos` (and its reinvestment subpage), `/encerradas` (and its IR) and `/transacoes` take `?classe=` (Geral, FIIs or Ações, default Geral) through `AssetClassControl` and `shared/lib/class-filter.ts`. Every view takes the filter and splits the ledger and the dividends by class before calling the pure code. Carteira Alvo and Recomendações stay FII-only and take no filter.
+- `/transacoes`: `getMyTransactions`, with filters (the class one runs in the client, through `assetClass` in `TransactionRow`), pagination and the create, edit and delete actions.
 - `/encerradas`: `getClosedPositionsView` (item 6): cost, proceeds and result per closed FII. Its subpage `/encerradas/ir` shows the estimated tax from the same view, and the sidebar lists it as a sub-item. The Dashboard's closed card links here, and `/dashboard/encerradas` redirects here from `next.config.ts`.
 - `/proventos`: `getDividendsView` (item 4). Its subpage `/proventos/reinvestimento?mes=AAAA-MM` uses `getReinvestmentView` (item 5), and the sidebar lists it as a sub-item, like the IR under `/encerradas`.
 - `/atualizacao-b3`: the client `B3ImportWizard`, which calls the preview and confirm actions (see B3 update).
@@ -93,7 +96,7 @@ Koinos is a single-owner dashboard for a Brazilian portfolio of FIIs (REITs) and
 - `getCurrentUser` uses `'use cache: private'`.
 - `getTenant` calls `connection()` before touching the database. Any new database path reached from rendering must go through `getTenant` or call `await connection()` first. Otherwise prerendering fails on the Mongo driver's internal `new Date()`.
 - The DAL readers (`getMyTransactions`, `getMyDividends`, `getPortfolioSnapshot`…) are wrapped in React `cache`, so several `<Suspense>` sections of one page can call them and each query runs once per request.
-- Client state that should survive a reload or a shared link lives in the URL through `nuqs`: the tables' filters, page and sort (`shared/hooks/use-sort-state.ts`), the dividends grouping and month (`?agrupar=&mes=`), and the aporte amount. The reinvestment month uses `shallow: false`, because the server reads it.
+- Client state that should survive a reload or a shared link lives in the URL through `nuqs`: the tables' filters, page and sort (`shared/hooks/use-sort-state.ts`), the dividends grouping and month (`?agrupar=&mes=`), the class (`?classe=`), the dividend kind (`?tipo=`, `DividendKindSelect`) and the aporte amount. The reinvestment month uses `shallow: false`, because the server reads it.
 
 **Mutations:**
 
@@ -126,6 +129,7 @@ Koinos is a single-owner dashboard for a Brazilian portfolio of FIIs (REITs) and
    - The ledger only knows BUY and SELL. `kind` says where an entry came from: a subscrição is a buy, a desdobro is a buy at price 0, a bonificação is a buy at the cost the company assigns (answered in the preview, 0 allowed), a posição anterior is a buy for what was held before the first statement, a leilão de fração is a sale, and an incorporation is a sale of the origin plus a buy of the destination at the same cost (`relatedTicker` names the other side). An entry without `kind` counts as a negócio.
    - Each view picks its kinds: the Dashboard's monthly aportes skip the incorporation buy and the bonificação, reinvestment counts only negócios and subscrições, and closed positions skip the incorporation sale.
 2. `portfolio/domain/snapshot.ts` (`buildSnapshot`) builds positions, allocation, alerts and the cascade input. It also adds the dividends received per FII and the adjusted results: "com proventos" (quote result + dividends) and "total" (+ realized sales). The Dashboard's top cards (`summary-cards.tsx`) each carry four detail rows, so they line up with no empty space:
+   - `scopeToClass` (pure) narrows the input to one class before `buildSnapshot`. In the Ações view it empties the strategy targets and sets `withAlerts` to false, so there are no alerts there; FIIs and Geral keep them.
    - the patrimony card adds the composition by category, a bar in the donut's colors (`category-colors.ts`);
    - the L/P card holds the results: return %, sales, "com proventos" and "total", whose sum opens in a popover (`ResultBreakdown`);
    - the dividends card shows `dividendPace`: the last 12 closed months' total and average, this year and last year;
@@ -150,12 +154,14 @@ Koinos is a single-owner dashboard for a Brazilian portfolio of FIIs (REITs) and
    - plus Yahoo announcements × the shares held on the day before the ex-date, until a B3 dividend paid on or after the ex-date confirms it. With a snapshot, only announcements with an ex-date after its `asOf` count, as "estimado";
    - the month totals: B3 items count only when they pay in the current month;
    - "não divulgado" (`undisclosedDividends`): a held FII that was paid in each of the two previous months but has nothing this month (no receipt, no "a receber" item, no Yahoo ex-date in the month) is listed with last month's amount as a reference. It never enters the totals;
-   - the groupings by month (a year × month matrix: clicking a month lists its FIIs), year or FII.
+   - the groupings by month (a year × month matrix: clicking a month lists its FIIs), year or FII;
+   - by kind: `DIVIDEND_KIND_LABELS` (transactions domain) names the kinds, the month summary and the year groups carry `byKind`, and `?tipo=` filters the rows (`getDividendsView(filter, kind)`).
    - stocks: their "a receber" comes only from the B3 snapshot. The Yahoo estimate and "não divulgado" are FII-only (`dividends-view.ts` filters their inputs).
 5. `portfolio/domain/reinvestment.ts` is pure and feeds `/proventos/reinvestimento?mes=AAAA-MM` (`portfolio/server/reinvestment-view.ts`):
    - each month's cash purchases (negócios and subscrições, with fees) are split into money from dividends and money from the pocket;
    - the % reinvested is saved per month in `reinvestments` (`setReinvestmentPercentAction`), and a month without one uses 100%;
-   - the stored % has one decimal (`roundPercent`), and the preview uses the same rounding.
+   - the stored % has one decimal (`roundPercent`), and the preview uses the same rounding;
+   - by class: the calculation stays on the whole portfolio. `shareReinvestment` gives a class its own aporte and prorates the "from dividends" part by it; the unspent amount belongs to the portfolio and shows as zero in a class.
 6. `portfolio/domain/closed-positions.ts` is pure and feeds `/encerradas` and `/encerradas/ir` (`portfolio/server/closed-positions-view.ts`) and the Dashboard's closed card:
    - a closed position is a FII with zero quantity today. It sums the real sales of every cycle (negócios and leilões de fração), each at its day's average price;
    - an incorporation's exit leg is not a sale: its cost moves to the destination, with no result;
@@ -196,6 +202,7 @@ Koinos is a single-owner dashboard for a Brazilian portfolio of FIIs (REITs) and
   - MongoDB statements go with `?` for every value; Redis spans carry only the command name.
   - Action inputs go only for the fields in `TRACEABLE_INPUT_FIELDS` (`ticker`, `type`, `month`) in `auth/server/action-client.ts`. Adding one is a privacy decision.
 - **Server Actions:** every action needs `.metadata({ actionName })`, because the metadata schema requires it. The first middleware wraps the action in `action <name>` with `koinos.action.outcome` and, on failure, `error.type` and `koinos.action.error_kind` (`expected` for `ActionError` and `UnauthorizedError`).
+- **View filters:** the `view.*` spans carry `koinos.view.class_filter` (`TODOS`, `FII` or `ACAO`) and, in the dividends view, `koinos.view.kind_filter`. Neither is a portfolio value or id.
 - **Custom spans** (`shared/lib/tracing.ts`): `withSpan`, `traced` (a span around a function, with counts taken from its result), `recordSpan` and `recordError`.
   - Names: the page loaders are `view.*`, the B3 update steps `b3.*`, the cron steps `cron.*`, the quote sources `quotes.brapi` and `quotes.yahoo-fallback`, and `withLock` opens `lock <name>` with `koinos.lock.acquired`.
   - Attributes carry counts, never portfolio values or ids.
@@ -260,7 +267,7 @@ Koinos is a single-owner dashboard for a Brazilian portfolio of FIIs (REITs) and
   - The risk caps are fixed: 25% of the aporte per FII, 35% per sector and 60% per macro. On 2026-10-30 they replaced the "entrada gradual" cap (33% by default) and its "Máximo por FII" selector. The document says 20% per FII; the owner set 25% the same day.
   - The continuous tensors replaced the Índice de Convicção of 2026-10-24 (×1.2, ×1 and ×0.5 steps). Don't bring back the old spreadsheet's IPA formula either.
 - **No B3 calls:** don't call B3 systems or endpoints. B3 offers integrations only to companies, so B3 data enters only through statements the user uploads. A P/VP feature built on B3 lookups was dropped. Its spec and plan are marked discarded.
-- **Stocks (2026-10-30):** they enter positions, dividends, lending and the estimated tax, never the Carteira Alvo or the recommendations. Spec: `2026-10-30-acoes-etapa-1-design.md`. Stage 2 (the Geral/FIIs/Ações views) gets its own spec.
+- **Stocks (2026-10-30):** they enter positions, dividends, lending and the estimated tax, never the Carteira Alvo or the recommendations. Spec: `2026-10-30-acoes-etapa-1-design.md`. Stage 2 (the Geral/FIIs/Ações views): `2026-10-31-acoes-etapa-2-design.md`.
 - **Dividends start at the first B3 statement (Nov 2019).** The owner decided not to estimate older ones: before that, the app only knows the prior positions of 2019-11-07, without purchase dates.
 - **Read the spec first:** design specs and implementation plans per feature are in `docs/superpowers/specs` and `docs/superpowers/plans`. Read the relevant spec before changing behavior.
 

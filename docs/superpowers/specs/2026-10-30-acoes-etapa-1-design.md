@@ -333,7 +333,7 @@ Na etapa 1, a tela de Proventos mistura os tipos. A quebra por tipo é da etapa 
 
 ## 12. Fora do escopo e limitações
 
-- **Etapa 2:**
+- **Etapa 2:** feita no spec `2026-10-31-acoes-etapa-2-design.md`. O que estava listado aqui:
   - Geral, FIIs e Ações no Dashboard e em Proventos;
   - a rosca por classe com detalhe por setor;
   - os proventos por tipo ("só aluguel", "só JCP");
