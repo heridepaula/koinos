@@ -5,7 +5,7 @@ import { cn } from "@/shared/lib/utils";
 import { NativeSelect } from "@/shared/ui/native-select";
 import { BIASES, BIAS_LABELS, type Bias } from "../../domain/bias";
 
-/** Viés da ação: "Aguardar" tira a ação das compras; sem viés, ela entra pela margem até o teto. */
+/** Viés do ativo (FII ou ação): "Aguardar" tira o ativo das compras; sem viés, ele segue as regras. */
 export function BiasSelect({
   row,
   onChange,

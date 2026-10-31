@@ -21,6 +21,7 @@ import {
 import { Switch } from "@/shared/ui/switch";
 import { BiasSelect } from "./bias-select";
 import { CategorySelect } from "./category-select";
+import { CATEGORY_LABELS } from "../../domain/categories";
 import { suggestedPercentProblem } from "../../domain/quarantine";
 import { NumberField } from "./number-field";
 import { MarginValue, WeightValue } from "./read-only-cells";
@@ -29,10 +30,11 @@ import { useTargetRow } from "./use-target-row";
 type SheetHandle = ReturnType<typeof createDrawerHandle<string>>;
 
 /**
- * Celular: a tabela editável de 11 colunas vira uma lista, como os Ajustes do iOS, em duas
- * seções: os ativos da estratégia (o resumo e, quando entram no aporte, a posição na fila) e os
- * que estão fora. O toque abre a folha de edição. Uma folha só para a lista, com o ticker como
- * carga: ela lê a linha atual a cada salvamento, e não uma cópia do momento do toque.
+ * Celular: a tabela editável de 12 colunas vira uma lista, como os Ajustes do iOS, em duas
+ * seções: os ativos da estratégia (o resumo, o selo "Aguardar" e, quando entram no aporte, a
+ * posição na fila) e os que estão fora. O toque abre a folha de edição. Uma folha só para a
+ * lista, com o ticker como carga: ela lê a linha atual a cada salvamento, e não uma cópia do
+ * momento do toque. FIIs e ações usam a mesma lista; `stock` só deixa a Categoria da folha fixa.
  */
 export function StrategyList({ rows, stock = false }: { rows: StrategyRow[]; stock?: boolean }) {
   const [sheet] = useState(() => createDrawerHandle<string>());
@@ -40,13 +42,13 @@ export function StrategyList({ rows, stock = false }: { rows: StrategyRow[]; sto
   const others = rows.filter((row) => !row.inStrategy);
   return (
     <>
-      <RowList rows={members} sheet={sheet} stock={stock} />
+      <RowList rows={members} sheet={sheet} />
       {others.length > 0 ? (
         <>
           <h3 className="border-t px-(--card-spacing) pt-6 pb-2 text-footnote font-medium text-muted-foreground">
             Fora da estratégia
           </h3>
-          <RowList rows={others} sheet={sheet} stock={stock} />
+          <RowList rows={others} sheet={sheet} />
         </>
       ) : null}
       <Drawer handle={sheet}>
@@ -61,15 +63,7 @@ export function StrategyList({ rows, stock = false }: { rows: StrategyRow[]; sto
   );
 }
 
-function RowList({
-  rows,
-  sheet,
-  stock,
-}: {
-  rows: StrategyRow[];
-  sheet: SheetHandle;
-  stock: boolean;
-}) {
+function RowList({ rows, sheet }: { rows: StrategyRow[]; sheet: SheetHandle }) {
   return (
     <ul className="divide-y divide-border">
       {rows.map((row) => (
@@ -87,7 +81,7 @@ function RowList({
               {row.inStrategy ? (
                 <span className="text-footnote text-muted-foreground tabular-nums">
                   {summary(row)}
-                  {stock && row.bias === "AGUARDAR" ? (
+                  {row.bias === "AGUARDAR" ? (
                     <span className="ml-2 rounded-full bg-secondary px-2 py-0.5 text-caption">
                       Aguardar
                     </span>
@@ -95,7 +89,7 @@ function RowList({
                 </span>
               ) : null}
             </div>
-            {row.inStrategy && !stock ? <PriorityBadge priority={row.priority} quiet /> : null}
+            {row.inStrategy ? <PriorityBadge priority={row.priority} quiet /> : null}
             <ChevronRightIcon
               className="size-4 shrink-0 text-muted-foreground"
               aria-hidden="true"
@@ -174,25 +168,26 @@ function StrategySheet({
               onCommit={(value) => save({ suggestedPercent: value })}
             />
           </SheetRow>
-          {stock ? (
-            <SheetRow label="Viés">
-              <BiasSelect
-                row={row}
-                quiet="sheet"
-                className="w-44"
-                onChange={(bias) => save({ bias })}
-              />
-            </SheetRow>
-          ) : (
-            <SheetRow label="Categoria">
+          <SheetRow label="Categoria">
+            {stock ? (
+              CATEGORY_LABELS.ACAO
+            ) : (
               <CategorySelect
                 row={row}
                 quiet="sheet"
                 className="w-44"
                 onChange={(category) => save({ category })}
               />
-            </SheetRow>
-          )}
+            )}
+          </SheetRow>
+          <SheetRow label="Viés">
+            <BiasSelect
+              row={row}
+              quiet="sheet"
+              className="w-44"
+              onChange={(bias) => save({ bias })}
+            />
+          </SheetRow>
         </SheetGroup>
         <SheetGroup>
           <SheetRow label="Preço atual">{row.price === null ? "—" : formatBRL(row.price)}</SheetRow>
@@ -202,11 +197,9 @@ function StrategySheet({
           <SheetRow label="Peso / meta">
             <WeightValue row={row} />
           </SheetRow>
-          {stock ? null : (
-            <SheetRow label="Prioridade">
-              <PriorityBadge priority={row.priority} />
-            </SheetRow>
-          )}
+          <SheetRow label="Prioridade">
+            <PriorityBadge priority={row.priority} />
+          </SheetRow>
         </SheetGroup>
         {row.configured ? (
           <Button variant="destructive" className="h-12" disabled={removing} onClick={remove}>

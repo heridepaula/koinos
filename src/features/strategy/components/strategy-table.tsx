@@ -13,14 +13,15 @@ import { StrategyRow } from "./table/strategy-row";
 import { Sensitive } from "@/shared/components/sensitive";
 
 const EXPLANATION =
-  "Ranking, preço teto e % sugerida pela Suno. Os campos salvam ao sair. Sem teto, o ativo não recebe aporte.";
+  "Ranking, preço teto, % sugerida e viés pela Suno. Os campos salvam ao sair. Sem teto, ou com viés Aguardar, o ativo não recebe aporte.";
 
 /**
  * Carteira Alvo: a partir de 900 px de card, a tabela editável; abaixo disso, a lista do celular,
- * em que cada ativo abre uma folha de edição. O painel de ajuste aparece quando as % não fecham
- * 100%; com ele à vista, o rodapé não repete o aviso. No iPhone, o título e a explicação saem
- * (o título grande da página já diz o que é; a explicação vai para o ⓘ), fica a contagem, e o
- * "Adicionar" vai para o "+" ao lado da tab bar.
+ * em que cada ativo abre uma folha de edição. As duas abas (FIIs e Ações) têm as mesmas colunas:
+ * só a categoria muda, porque a ação tem uma só. O painel de ajuste aparece quando as % não
+ * fecham 100%; com ele à vista, o rodapé não repete o aviso. No iPhone, o título e a explicação
+ * saem (o título grande da página já diz o que é; a explicação vai para o ⓘ), fica a contagem, e
+ * o "Adicionar" vai para o "+" ao lado da tab bar.
  */
 export function StrategyTable({
   assetClass,
@@ -37,12 +38,10 @@ export function StrategyTable({
 }) {
   const stock = assetClass === "ACAO";
   const members = rows.filter((row) => row.inStrategy);
-  // Na aba Ações as % ficam como o dono as digitou: sem ajuste para 100%.
-  const fixes = stock
-    ? null
-    : suggestPercentFix(
-        members.map((row) => ({ ticker: row.ticker, suggestedPercent: row.suggestedPercent })),
-      );
+  // `rows` são só os da aba: o ajuste nunca mistura FIIs e ações.
+  const fixes = suggestPercentFix(
+    members.map((row) => ({ ticker: row.ticker, suggestedPercent: row.suggestedPercent })),
+  );
   const showFix = fixes !== null && fixes.length > 0;
 
   return (
@@ -59,7 +58,7 @@ export function StrategyTable({
             <p>
               {stock
                 ? "Toque num ativo para editar o rank, o teto, a % sugerida e o viés."
-                : "Toque num ativo para editar o rank, o teto, a % sugerida e a categoria."}
+                : "Toque num ativo para editar o rank, o teto, a % sugerida, a categoria e o viés."}
             </p>
           </InfoSheet>
         </div>
@@ -88,7 +87,8 @@ export function StrategyTable({
                   <TableHead>Rank</TableHead>
                   <TableHead>Teto (R$)</TableHead>
                   <TableHead>% sugerida</TableHead>
-                  <TableHead>{stock ? "Viés" : "Categoria"}</TableHead>
+                  <TableHead>Categoria</TableHead>
+                  <TableHead>Viés</TableHead>
                   <TableHead className="text-right">Preço atual</TableHead>
                   <TableHead className="text-right" title="Margem até o preço teto">
                     Margem
@@ -96,9 +96,7 @@ export function StrategyTable({
                   <TableHead className="text-right" title="Peso atual na estratégia / peso-alvo">
                     Peso / meta
                   </TableHead>
-                  {stock ? null : (
-                    <TableHead title="Prioridade de aporte pelo método Suno">Prioridade</TableHead>
-                  )}
+                  <TableHead title="Prioridade de aporte">Prioridade</TableHead>
                   <TableHead className="pr-(--card-spacing)" />
                 </TableRow>
               </TableHeader>
@@ -124,9 +122,7 @@ export function StrategyTable({
               <Sensitive>{formatBRL(strategyValue)}</Sensitive>
             </span>
           </span>
-          {weightsWarning && !stock && !showFix ? (
-            <span className="text-warn">{weightsWarning}</span>
-          ) : null}
+          {weightsWarning && !showFix ? <span className="text-warn">{weightsWarning}</span> : null}
         </div>
       </CardContent>
     </Card>

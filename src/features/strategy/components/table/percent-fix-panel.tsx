@@ -14,7 +14,8 @@ const percentText = (value: number) => formatPercent(value / 100, 1);
 
 /**
  * Quando as % sugeridas não somam 100%: quanto falta (ou sobra), a sugestão e o botão que grava o
- * ajuste. A lista de cada FII fica num recolhível: com 21 ativos, ela tomava a tela do celular.
+ * ajuste. A lista de cada ativo fica num recolhível: com 21 ativos, ela tomava a tela do celular.
+ * Serve às duas abas: `rows` são só os da aba, então o ajuste nunca mistura FIIs e ações.
  */
 export function PercentFixPanel({ rows, fixes }: { rows: StrategyRow[]; fixes: PercentFix[] }) {
   const apply = useAction(setSuggestedPercentsAction, {
@@ -43,7 +44,7 @@ export function PercentFixPanel({ rows, fixes }: { rows: StrategyRow[]; fixes: P
       </p>
       <details className="group pl-7">
         <summary className="flex w-fit cursor-pointer list-none items-center gap-1 rounded-sm font-medium outline-none select-none focus-visible:ring-3 focus-visible:ring-ring/50 pointer-coarse:min-h-11 [&::-webkit-details-marker]:hidden">
-          Ver o ajuste de cada FII ({fixes.length})
+          Ver o ajuste de cada ativo ({fixes.length})
           <ChevronDownIcon
             className="size-4 transition-transform duration-420 ease-snappy group-open:rotate-180 motion-reduce:transition-none"
             aria-hidden="true"

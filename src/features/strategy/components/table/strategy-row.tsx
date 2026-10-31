@@ -10,12 +10,16 @@ import { Switch } from "@/shared/ui/switch";
 import { TableCell, TableRow } from "@/shared/ui/table";
 import { BiasSelect } from "./bias-select";
 import { CategorySelect } from "./category-select";
+import { CATEGORY_LABELS } from "../../domain/categories";
 import { suggestedPercentProblem } from "../../domain/quarantine";
 import { NumberField } from "./number-field";
 import { MarginValue, WeightValue } from "./read-only-cells";
 import { useTargetRow } from "./use-target-row";
 
-/** Linha editável da tabela (a partir de 900 px de card). */
+/**
+ * Linha editável da tabela (a partir de 900 px de card), com as mesmas 12 colunas para FIIs e
+ * ações. `stock` só troca a Categoria, que na ação é fixa.
+ */
 export function StrategyRow({ row, stock = false }: { row: StrategyRowData; stock?: boolean }) {
   const { save, remove, removing } = useTargetRow(row.ticker);
   return (
@@ -56,25 +60,25 @@ export function StrategyRow({ row, stock = false }: { row: StrategyRowData; stoc
           onCommit={(value) => save({ suggestedPercent: value })}
         />
       </TableCell>
-      {stock ? (
-        <TableCell>
-          <BiasSelect
-            row={row}
-            quiet="table"
-            className="w-32"
-            onChange={(bias) => save({ bias })}
-          />
-        </TableCell>
-      ) : (
-        <TableCell>
+      <TableCell>
+        {stock ? (
+          // A ação só tem a categoria "Ação": texto no lugar do select, com a mesma largura e o
+          // mesmo recuo, para a coluna ficar igual à da aba FIIs.
+          <span className="inline-block w-36 border border-transparent pl-3 text-sm">
+            {CATEGORY_LABELS.ACAO}
+          </span>
+        ) : (
           <CategorySelect
             row={row}
             quiet="table"
             className="w-36"
             onChange={(category) => save({ category })}
           />
-        </TableCell>
-      )}
+        )}
+      </TableCell>
+      <TableCell>
+        <BiasSelect row={row} quiet="table" className="w-32" onChange={(bias) => save({ bias })} />
+      </TableCell>
       <TableCell className="text-right tabular-nums">
         {row.price === null ? "—" : formatBRL(row.price)}
       </TableCell>
@@ -84,11 +88,9 @@ export function StrategyRow({ row, stock = false }: { row: StrategyRowData; stoc
       <TableCell className="text-right tabular-nums">
         <WeightValue row={row} />
       </TableCell>
-      {stock ? null : (
-        <TableCell>
-          <PriorityBadge priority={row.priority} />
-        </TableCell>
-      )}
+      <TableCell>
+        <PriorityBadge priority={row.priority} />
+      </TableCell>
       <TableCell className="pr-(--card-spacing) text-right">
         {row.configured ? (
           <Button
