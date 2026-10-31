@@ -181,6 +181,72 @@ describe("sunoCascade: dinheiro sobrando", () => {
   });
 });
 
+describe("sunoCascade: viés Aguardar", () => {
+  it("sai com o motivo AGUARDAR, e o valor dele continua na base da estratégia", () => {
+    // O AAAA11 seria o 1º da fila. Em Aguardar, os R$ 1.000 dele ainda contam na meta dos outros.
+    const result = sunoCascade(4_000, [
+      fii("AAAA11", { rank: 1, quantity: 10, bias: "AGUARDAR" }),
+      fii("BBBB11", { rank: 2, quantity: 30 }),
+    ]);
+    expect(reasonOf(result, "AAAA11")).toBe("AGUARDAR");
+    expect(order(result, "AAAA11")).toBeUndefined();
+    expect(result.strategyValue).toBe(4_000);
+    // Meta do BBBB11: 0,5 × (4.000 + 4.000) = 4.000, com 3.000 na carteira.
+    expect(order(result, "BBBB11")?.gapBefore).toBe(1_000);
+  });
+
+  it("não recebe nem pela sobra: a cota dele vai para o próximo mais abaixo da meta", () => {
+    // O cenário da sobra (acima) com o mais abaixo da meta em Aguardar: ele sai, e o mais perto
+    // da meta, que antes ficava sem, leva a última cota.
+    const quantities = [10, 10.04, 10.08, 10.12, 10.16, 10.2];
+    const assets = quantities.map((quantity, index) =>
+      fii(`FII${index + 1}11`, {
+        rank: index === 5 ? 1 : index + 2,
+        weight: 1 / 6,
+        ceiling: 101,
+        quantity,
+        macro: index < 3 ? "Tijolo" : "Papel",
+        bias: index === 0 ? "AGUARDAR" : null,
+      }),
+    );
+    const result = sunoCascade(500, assets);
+    expect(reasonOf(result, "FII111")).toBe("AGUARDAR");
+    expect(result.orders.map((item) => [item.ticker, item.quantity, item.fromLeftover])).toEqual([
+      ["FII611", 1, 1],
+      ["FII211", 1, 1],
+      ["FII311", 1, 1],
+      ["FII411", 1, 1],
+      ["FII511", 1, 1],
+    ]);
+    expect(result.leftover).toBe(0);
+  });
+
+  it("as regras de antes vêm primeiro: acima do teto ou sem teto mostram esse motivo", () => {
+    const result = sunoCascade(1_000, [
+      fii("AAAA11", { rank: 1, ceiling: 90, bias: "AGUARDAR" }),
+      fii("BBBB11", { rank: 2, ceiling: null, bias: "AGUARDAR" }),
+    ]);
+    expect(reasonOf(result, "AAAA11")).toBe("ACIMA_DO_TETO");
+    expect(reasonOf(result, "BBBB11")).toBe("SEM_TETO");
+  });
+
+  it("Comprar ou sem viés: o mesmo resultado", () => {
+    const assets = [
+      fii("AAAA11", { rank: 1, quantity: 10 }),
+      fii("BBBB11", { rank: 2, quantity: 30 }),
+    ];
+    const plain = sunoCascade(4_000, assets);
+    for (const bias of ["COMPRAR", null] as const) {
+      expect(
+        sunoCascade(
+          4_000,
+          assets.map((asset) => ({ ...asset, bias })),
+        ),
+      ).toEqual(plain);
+    }
+  });
+});
+
 describe("sunoCascade: invariantes", () => {
   // Gerador determinístico (LCG): os mesmos 500 casos a cada execução.
   function random(seed: number) {
@@ -257,5 +323,16 @@ describe("aportePriorities", () => {
     expect(priorities.get("DDDD11")).toEqual({ kind: "fora", reason: "PEDIDO_PEQUENO" });
     expect(priorities.get("EEEE11")).toEqual({ kind: "fora", reason: "ACIMA_DO_TETO" });
     expect(priorities.get("FFFF11")).toEqual({ kind: "fora", reason: "SEM_RANKING" });
+  });
+
+  it("o FII com Aguardar sai da fila com o motivo, e quem vem depois sobe", () => {
+    const priorities = aportePriorities([
+      fii("AAAA11", { rank: 1, weight: 0.25, quantity: 10, bias: "AGUARDAR" }),
+      fii("BBBB11", { rank: 2, weight: 0.25, quantity: 10 }),
+      fii("CCCC11", { rank: 3, weight: 0.5, quantity: 60 }),
+    ]);
+    expect(priorities.get("AAAA11")).toEqual({ kind: "fora", reason: "AGUARDAR" });
+    expect(priorities.get("BBBB11")).toEqual({ kind: "fila", position: 1 });
+    expect(priorities.get("CCCC11")).toEqual({ kind: "fora", reason: "NA_META" });
   });
 });

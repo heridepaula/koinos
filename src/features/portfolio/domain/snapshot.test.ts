@@ -276,7 +276,7 @@ describe("buildSnapshot: Carteira Alvo de ações", () => {
       ),
     });
     expect(stockBuyInput.map((asset) => asset.ticker)).toEqual(["PETR4", "VALE3"]);
-    expect(stockBuyInput.map((asset) => asset.targetPercent)).toEqual([70, 30]);
+    expect(stockBuyInput.map((asset) => asset.weight)).toEqual([0.7, 0.3]);
     expect(stockBuyInput.map((asset) => asset.bias)).toEqual([null, "AGUARDAR"]);
   });
 
@@ -291,7 +291,7 @@ describe("buildSnapshot: Carteira Alvo de ações", () => {
             : item,
       ),
     });
-    expect(stockBuyInput.map((asset) => asset.targetPercent)).toEqual([71.5, 10]);
+    expect(stockBuyInput.map((asset) => asset.weight)).toEqual([0.715, 0.1]);
   });
 
   it("classValues soma o patrimônio", () => {

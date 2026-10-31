@@ -1,5 +1,6 @@
 // API pública da feature smart-buy (regras puras; os componentes entram na tela de recomendações).
 export { splitAmount } from "./domain/aporte-split";
+export { mergeOrders, type MergedOrder } from "./domain/merge-orders";
 export {
   classifyRisk,
   RISK_CAPS,
@@ -18,9 +19,11 @@ export {
   type CascadeOrder,
   type CascadeResult,
   type ExclusionReason,
+  type PriorityReason,
   type Tensors,
 } from "./domain/suno-cascade";
 export {
+  stockPriorities,
   stockSmartBuy,
   type StockBias,
   type StockBuyAsset,

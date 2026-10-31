@@ -317,7 +317,7 @@ export function buildSnapshot({
       ceiling: row.ceilingPrice,
       price: row.price,
       quantity: row.quantity,
-      targetPercent: row.suggestedPercent,
+      weight: (row.suggestedPercent ?? 0) / 100,
       bias: row.bias,
     }),
   );

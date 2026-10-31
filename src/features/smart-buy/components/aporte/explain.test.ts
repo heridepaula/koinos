@@ -89,7 +89,7 @@ describe("ações", () => {
     marginOfSafety: 70 / 51 - 1,
     deficitBefore: 1_200,
     targetValue: 2_000,
-    targetPercent: 20,
+    targetWeight: 0.2,
     weightBefore: 0.1,
     weightAfter: 0.15,
   };

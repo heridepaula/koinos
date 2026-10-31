@@ -10,7 +10,7 @@ import { RISK_CAPS, type RiskMacro } from "./risk";
 
 // Motor de aporte Koinos 3.0 (documento do dono, 30/10/2026): cascata pelo ranking Suno, com
 // valuation contínuo e travas de risco. Nunca vende: o rebalanceamento é só com dinheiro novo.
-// 1. Elegível: na estratégia, com ranking, teto, cotação e preço abaixo do teto.
+// 1. Elegível: na estratégia, com ranking, teto, cotação, preço abaixo do teto e sem viés Aguardar.
 // 2. Meta = peso × (estratégia + aporte); gap = meta − valor. Com gap > 0, o FII pede o gap vezes os
 //    tensores de valuation, proventos, segurança e vacância (conviction.ts).
 // 3. Passo 1, do 1º ao último do ranking: cada FII gasta o menor entre o pedido e o espaço que sobra
@@ -39,6 +39,8 @@ export type CascadeAsset = {
   /** Baldes das travas de risco (risk.ts). Setor null: não divide o limite com outros FIIs. */
   macro: RiskMacro;
   sector: string | null;
+  /** Viés da casa de análise; Aguardar tira o FII deste aporte. Sem viés, nada muda. */
+  bias?: "COMPRAR" | "AGUARDAR" | null;
 };
 
 export type ExclusionReason =
@@ -46,6 +48,7 @@ export type ExclusionReason =
   | "SEM_RANKING"
   | "SEM_TETO"
   | "ACIMA_DO_TETO"
+  | "AGUARDAR"
   | "NA_META"
   | "PEDIDO_PEQUENO"
   | "LIMITE_ATIVO"
@@ -127,14 +130,18 @@ type Slot = {
   limitedBy: CascadeLimit | null;
 };
 
-type EligibilityReason = "SEM_COTACAO" | "SEM_RANKING" | "SEM_TETO" | "ACIMA_DO_TETO";
+type EligibilityReason = "SEM_COTACAO" | "SEM_RANKING" | "SEM_TETO" | "ACIMA_DO_TETO" | "AGUARDAR";
 
-/** A primeira regra de elegibilidade que falhar define o motivo de exclusão. */
+/**
+ * A primeira regra de elegibilidade que falhar define o motivo de exclusão. O FII de fora não entra
+ * em nenhum dos dois passos, mas o valor dele continua na base da estratégia.
+ */
 function eligibilityFailure(asset: CascadeAsset): EligibilityReason | null {
   if (asset.price === null || !(asset.price > 0)) return "SEM_COTACAO";
   if (asset.rank === null) return "SEM_RANKING";
   if (asset.ceiling === null) return "SEM_TETO";
   if (asset.price >= asset.ceiling) return "ACIMA_DO_TETO";
+  if (asset.bias === "AGUARDAR") return "AGUARDAR";
   return null;
 }
 
@@ -318,11 +325,11 @@ export function sunoCascade(amount: number, assets: readonly CascadeAsset[]): Ca
   };
 }
 
-/** Motivos que não dependem do aporte: valem para a coluna Prioridade. */
-type StaticReason = EligibilityReason | "NA_META" | "PEDIDO_PEQUENO";
+/** Motivos que não dependem do aporte: valem para a coluna Prioridade (FIIs e ações). */
+export type PriorityReason = EligibilityReason | "NA_META" | "PEDIDO_PEQUENO";
 
 export type AportePriority =
-  { kind: "fila"; position: number } | { kind: "fora"; reason: StaticReason };
+  { kind: "fila"; position: number } | { kind: "fora"; reason: PriorityReason };
 
 /**
  * "Prioridade de aporte" (a coluna que substitui o IPA), com aporte zero: os elegíveis que pedem ao
@@ -349,6 +356,7 @@ export const EXCLUSION_LABELS: Record<ExclusionReason, string> = {
   SEM_RANKING: "Sem ranking",
   SEM_TETO: "Sem preço teto",
   ACIMA_DO_TETO: "Acima do teto",
+  AGUARDAR: "Viés Aguardar",
   NA_META: "Já na meta",
   PEDIDO_PEQUENO: "Pede menos de 1 cota",
   LIMITE_ATIVO: "Cota acima do limite",

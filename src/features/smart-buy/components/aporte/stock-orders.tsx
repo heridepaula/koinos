@@ -56,7 +56,7 @@ export function StockOrdersTable({ orders, meta }: Props) {
                 {formatPercent(order.marginOfSafety, 0)}
               </TableCell>
               <TableCell className="text-right tabular-nums">
-                {formatPercent(order.targetPercent / 100, 1)}
+                {formatPercent(order.targetWeight, 1)}
               </TableCell>
               <TableCell
                 className="min-w-48 pr-(--card-spacing) text-caption whitespace-normal text-muted-foreground"
@@ -137,10 +137,7 @@ export function StockOrdersList({ orders, meta }: Props) {
                 <InsetGroup title="Peso na carteira de ações">
                   <InsetValueRow label="Antes" value={formatPercent(payload.weightBefore, 1)} />
                   <InsetValueRow label="Depois" value={formatPercent(payload.weightAfter, 1)} />
-                  <InsetValueRow
-                    label="Meta"
-                    value={formatPercent(payload.targetPercent / 100, 1)}
-                  />
+                  <InsetValueRow label="Meta" value={formatPercent(payload.targetWeight, 1)} />
                 </InsetGroup>
                 <InsetGroup title="Por quê">
                   <div className="flex min-h-11 items-center px-4 py-2 text-subheadline">

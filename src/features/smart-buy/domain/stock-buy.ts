@@ -1,6 +1,9 @@
+import type { AportePriority } from "./suno-cascade";
+
 // Smart Buy de ações (documento do dono "Smart Buy Ações (Dividendos)"; spec smart-buy-acoes, §3):
 // só compra abaixo do teto, abaixo da meta e sem viés Aguardar; a maior margem de segurança
-// (teto ÷ preço − 1) é atendida primeiro, cada ação até a sua meta.
+// (teto ÷ preço − 1) é atendida primeiro, cada ação até a sua meta. As mesmas regras dão a coluna
+// Prioridade das ações (stockPriorities; spec tabelas-unificadas, §3.2).
 
 export type StockBias = "COMPRAR" | "AGUARDAR";
 
@@ -10,8 +13,8 @@ export type StockBuyAsset = {
   ceiling: number | null;
   price: number | null;
   quantity: number;
-  /** % sugerida, usada como está (a carteira pode somar menos de 100%: o resto é caixa). */
-  targetPercent: number | null;
+  /** Peso-alvo na estratégia de ações, como fração: a meta é base × peso. */
+  weight: number;
   bias: StockBias | null;
 };
 
@@ -24,6 +27,9 @@ export type StockExclusionReason =
   | "PEDIDO_PEQUENO"
   | "SEM_SALDO";
 
+/** Os motivos que não dependem do saldo: valem também para a coluna Prioridade. */
+type StaticReason = Exclude<StockExclusionReason, "SEM_SALDO">;
+
 export type StockBuyOrder = {
   ticker: string;
   rank: number | null;
@@ -33,7 +39,8 @@ export type StockBuyOrder = {
   marginOfSafety: number;
   deficitBefore: number;
   targetValue: number;
-  targetPercent: number;
+  /** Peso-alvo (fração), como recebido. */
+  targetWeight: number;
   weightBefore: number;
   weightAfter: number;
 };
@@ -50,21 +57,27 @@ export type StockBuyResult = {
 const EPSILON = 1e-9;
 const round2 = (value: number) => Math.round(value * 100) / 100;
 
-export function stockSmartBuy(amount: number, assets: readonly StockBuyAsset[]): StockBuyResult {
+const valueOf = (asset: StockBuyAsset) => (asset.price !== null ? asset.quantity * asset.price : 0);
+
+type Candidate = {
+  asset: StockBuyAsset & { price: number; ceiling: number };
+  target: number;
+  deficit: number;
+  margin: number;
+};
+
+/**
+ * As regras de elegibilidade, numa função só: quem fica de fora e por quê, e a fila de quem pede ao
+ * menos uma ação, da maior para a menor margem de segurança (empate: rank, ticker).
+ */
+function classify(amount: number, assets: readonly StockBuyAsset[]) {
   const budget = Math.max(0, round2(amount));
-  const valueOf = (asset: StockBuyAsset) =>
-    asset.price !== null ? asset.quantity * asset.price : 0;
   const base = assets.reduce((sum, asset) => sum + valueOf(asset), 0) + budget;
-  const excluded: StockBuyResult["excluded"] = [];
-  const candidates: {
-    asset: StockBuyAsset & { price: number; ceiling: number };
-    target: number;
-    deficit: number;
-    margin: number;
-  }[] = [];
+  const excluded: { ticker: string; rank: number | null; reason: StaticReason }[] = [];
+  const candidates: Candidate[] = [];
 
   for (const asset of assets) {
-    const out = (reason: StockExclusionReason) =>
+    const out = (reason: StaticReason) =>
       excluded.push({ ticker: asset.ticker, rank: asset.rank, reason });
     if (asset.price === null || asset.price <= 0) {
       out("SEM_COTACAO");
@@ -82,7 +95,7 @@ export function stockSmartBuy(amount: number, assets: readonly StockBuyAsset[]):
       out("AGUARDAR");
       continue;
     }
-    const target = (base * (asset.targetPercent ?? 0)) / 100;
+    const target = base * asset.weight;
     const deficit = target - valueOf(asset);
     if (deficit <= EPSILON) {
       out("NA_META");
@@ -106,7 +119,12 @@ export function stockSmartBuy(amount: number, assets: readonly StockBuyAsset[]):
       (a.asset.rank ?? Infinity) - (b.asset.rank ?? Infinity) ||
       a.asset.ticker.localeCompare(b.asset.ticker),
   );
+  return { budget, base, excluded, candidates };
+}
 
+export function stockSmartBuy(amount: number, assets: readonly StockBuyAsset[]): StockBuyResult {
+  const { budget, base, excluded: ineligible, candidates } = classify(amount, assets);
+  const excluded: StockBuyResult["excluded"] = [...ineligible];
   let cash = budget;
   const orders: StockBuyOrder[] = [];
   const strategyBefore = base - budget;
@@ -128,7 +146,7 @@ export function stockSmartBuy(amount: number, assets: readonly StockBuyAsset[]):
       marginOfSafety: margin,
       deficitBefore: round2(deficit),
       targetValue: round2(target),
-      targetPercent: asset.targetPercent ?? 0,
+      targetWeight: asset.weight,
       weightBefore: strategyBefore > 0 ? before / strategyBefore : 0,
       // Base com o aporte inteiro: a fração da carteira de ações depois de investida a parte toda.
       weightAfter: base > 0 ? (before + total) / base : 0,
@@ -143,4 +161,18 @@ export function stockSmartBuy(amount: number, assets: readonly StockBuyAsset[]):
     orders,
     excluded,
   };
+}
+
+/**
+ * A coluna Prioridade das ações, com aporte zero (o mesmo tipo da cascata de FIIs): quem pede ao
+ * menos uma ação forma a fila, pela margem de segurança; os outros mostram o motivo.
+ */
+export function stockPriorities(assets: readonly StockBuyAsset[]): Map<string, AportePriority> {
+  const { excluded, candidates } = classify(0, assets);
+  const priorities = new Map<string, AportePriority>();
+  candidates.forEach((candidate, index) =>
+    priorities.set(candidate.asset.ticker, { kind: "fila", position: index + 1 }),
+  );
+  for (const item of excluded) priorities.set(item.ticker, { kind: "fora", reason: item.reason });
+  return priorities;
 }

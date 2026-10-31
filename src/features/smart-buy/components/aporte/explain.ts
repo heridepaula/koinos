@@ -5,6 +5,7 @@ import type { CascadeOrder, ExclusionReason } from "../../domain/suno-cascade";
 
 export const REASON_HELP: Record<ExclusionReason, string> = {
   ACIMA_DO_TETO: "Preço igual ou acima do teto: a regra é só comprar abaixo dele.",
+  AGUARDAR: "Marcado como Aguardar na Carteira Alvo: não recebe aporte.",
   NA_META: "Já está na % sugerida (ou passou dela).",
   PEDIDO_PEQUENO:
     "Falta pouco para a meta, ou os freios de provento e vacância cortaram o pedido: não chega a uma cota.",
@@ -24,6 +25,7 @@ export const REASON_ORDER: ExclusionReason[] = [
   "LIMITE_ATIVO",
   "PEDIDO_PEQUENO",
   "NA_META",
+  "AGUARDAR",
   "ACIMA_DO_TETO",
   "SEM_TETO",
   "SEM_RANKING",
@@ -150,7 +152,7 @@ export const STOCK_REASON_ORDER: StockExclusionReason[] = [
 /** O porquê completo de uma ordem de ação: a margem de segurança e o que faltava para a meta. */
 export function explainStock(order: StockBuyOrder): string {
   const ceiling = order.price * (1 + order.marginOfSafety);
-  return `Margem de segurança de ${formatPercent(order.marginOfSafety, 0)} (teto ${formatBRL(ceiling)}, preço ${formatBRL(order.price)}) · faltavam ${formatBRL(order.deficitBefore)} para a meta de ${formatPercent(order.targetPercent / 100, 1)}`;
+  return `Margem de segurança de ${formatPercent(order.marginOfSafety, 0)} (teto ${formatBRL(ceiling)}, preço ${formatBRL(order.price)}) · faltavam ${formatBRL(order.deficitBefore)} para a meta de ${formatPercent(order.targetWeight, 1)}`;
 }
 
 /** A linha curta de uma ordem de ação. */

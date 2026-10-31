@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { stockSmartBuy, type StockBuyAsset } from "./stock-buy";
+import { stockPriorities, stockSmartBuy, type StockBuyAsset } from "./stock-buy";
 
 const TABLE: StockBuyAsset[] = [
   {
@@ -7,7 +7,7 @@ const TABLE: StockBuyAsset[] = [
     rank: 1,
     price: 41.25,
     ceiling: 35.5,
-    targetPercent: 10,
+    weight: 0.1,
     bias: "AGUARDAR",
     quantity: 0,
   },
@@ -16,7 +16,7 @@ const TABLE: StockBuyAsset[] = [
     rank: 2,
     price: 16.48,
     ceiling: 25,
-    targetPercent: 10,
+    weight: 0.1,
     bias: "COMPRAR",
     quantity: 0,
   },
@@ -25,7 +25,7 @@ const TABLE: StockBuyAsset[] = [
     rank: 3,
     price: 51,
     ceiling: 70,
-    targetPercent: 10,
+    weight: 0.1,
     bias: "COMPRAR",
     quantity: 0,
   },
@@ -34,7 +34,7 @@ const TABLE: StockBuyAsset[] = [
     rank: 4,
     price: 10.71,
     ceiling: 14,
-    targetPercent: 7.5,
+    weight: 0.075,
     bias: "COMPRAR",
     quantity: 0,
   },
@@ -43,7 +43,7 @@ const TABLE: StockBuyAsset[] = [
     rank: 5,
     price: 62.01,
     ceiling: 78,
-    targetPercent: 10,
+    weight: 0.1,
     bias: "COMPRAR",
     quantity: 0,
   },
@@ -52,7 +52,7 @@ const TABLE: StockBuyAsset[] = [
     rank: 6,
     price: 16.94,
     ceiling: 20.4,
-    targetPercent: 7.5,
+    weight: 0.075,
     bias: "COMPRAR",
     quantity: 0,
   },
@@ -61,7 +61,7 @@ const TABLE: StockBuyAsset[] = [
     rank: 7,
     price: 52.93,
     ceiling: 38,
-    targetPercent: 7.5,
+    weight: 0.075,
     bias: "AGUARDAR",
     quantity: 0,
   },
@@ -70,7 +70,7 @@ const TABLE: StockBuyAsset[] = [
     rank: 8,
     price: 47.9,
     ceiling: 42.4,
-    targetPercent: 5,
+    weight: 0.05,
     bias: "AGUARDAR",
     quantity: 0,
   },
@@ -79,7 +79,7 @@ const TABLE: StockBuyAsset[] = [
     rank: 9,
     price: 14.5,
     ceiling: 21,
-    targetPercent: 4,
+    weight: 0.04,
     bias: "COMPRAR",
     quantity: 0,
   },
@@ -88,7 +88,7 @@ const TABLE: StockBuyAsset[] = [
     rank: 10,
     price: 17.31,
     ceiling: 27.5,
-    targetPercent: 2.5,
+    weight: 0.025,
     bias: "COMPRAR",
     quantity: 0,
   },
@@ -97,7 +97,7 @@ const TABLE: StockBuyAsset[] = [
     rank: 11,
     price: 26.26,
     ceiling: 28.6,
-    targetPercent: 2.5,
+    weight: 0.025,
     bias: "COMPRAR",
     quantity: 0,
   },
@@ -106,7 +106,7 @@ const TABLE: StockBuyAsset[] = [
     rank: 12,
     price: 12.46,
     ceiling: 11.5,
-    targetPercent: 5,
+    weight: 0.05,
     bias: "AGUARDAR",
     quantity: 0,
   },
@@ -119,7 +119,7 @@ function asset(patch: Partial<StockBuyAsset> = {}): StockBuyAsset {
     ceiling: 20,
     price: 10,
     quantity: 0,
-    targetPercent: 10,
+    weight: 0.1,
     bias: null,
     ...patch,
   };
@@ -190,21 +190,21 @@ describe("stockSmartBuy: regras", () => {
   });
 
   it("nenhuma ordem passa do déficit", () => {
-    const r = stockSmartBuy(1005, [asset({ targetPercent: 50 })]);
+    const r = stockSmartBuy(1005, [asset({ weight: 0.5 })]);
     const order = r.orders[0];
     expect(order.total).toBeLessThanOrEqual(order.deficitBefore);
     expect(order.quantity).toBe(50);
   });
 
   it("PEDIDO_PEQUENO quando o déficit não paga uma ação", () => {
-    const r = stockSmartBuy(100, [asset({ price: 15, targetPercent: 10 })]);
+    const r = stockSmartBuy(100, [asset({ price: 15, weight: 0.1 })]);
     expect(r.excluded).toEqual([{ ticker: "TEST3", rank: 1, reason: "PEDIDO_PEQUENO" }]);
   });
 
   it("SEM_SALDO quando o aporte já acabou para o próximo da fila", () => {
     const r = stockSmartBuy(100, [
-      asset({ ticker: "AAA3", rank: 1, price: 10, ceiling: 40, targetPercent: 100 }),
-      asset({ ticker: "BBB3", rank: 2, price: 10, ceiling: 20, targetPercent: 100 }),
+      asset({ ticker: "AAA3", rank: 1, price: 10, ceiling: 40, weight: 1 }),
+      asset({ ticker: "BBB3", rank: 2, price: 10, ceiling: 20, weight: 1 }),
     ]);
     expect(r.orders.map((o) => o.ticker)).toEqual(["AAA3"]);
     expect(r.excluded).toEqual([{ ticker: "BBB3", rank: 2, reason: "SEM_SALDO" }]);
@@ -219,6 +219,72 @@ describe("stockSmartBuy: regras", () => {
     ]);
     const reasons = Object.fromEntries(r.excluded.map((e) => [e.ticker, e.reason]));
     expect(reasons).toEqual({ A3: "NA_META", B3: "SEM_COTACAO", C3: "SEM_TETO" });
+  });
+
+  it("a meta é a base vezes o peso, e a ordem leva o peso recebido", () => {
+    // Base: R$ 100 na carteira + R$ 1.000 do aporte; meta de 25% = R$ 275.
+    const r = stockSmartBuy(1000, [asset({ quantity: 10, weight: 0.25 })]);
+    expect(r.orders[0]).toMatchObject({ targetValue: 275, targetWeight: 0.25, quantity: 17 });
+  });
+});
+
+describe("stockPriorities", () => {
+  // Com aporte zero, a meta vem só do que já está na carteira: aqui, as quatro que passaram do teto.
+  const ABOVE_CEILING = ["BBSE3", "PETR4", "AXIA7", "ITSA4"];
+  const held = TABLE.map((item) =>
+    ABOVE_CEILING.includes(item.ticker) ? { ...item, quantity: 100 } : item,
+  );
+
+  it("tabela do documento: a fila segue a margem de segurança, como as ordens", () => {
+    const priorities = stockPriorities(held);
+    const queue = ["AGRO3", "BBAS3", "TUPY3", "UNIP6", "SEER3", "VALE3", "SLCE3", "EGIE3"];
+    queue.forEach((ticker, index) =>
+      expect(priorities.get(ticker)).toEqual({ kind: "fila", position: index + 1 }),
+    );
+    expect(priorities.size).toBe(TABLE.length);
+  });
+
+  it("tabela do documento: as quatro acima do teto ficam de fora, mesmo com Aguardar", () => {
+    const priorities = stockPriorities(held);
+    for (const ticker of ABOVE_CEILING) {
+      expect(priorities.get(ticker)).toEqual({ kind: "fora", reason: "ACIMA_DO_TETO" });
+    }
+  });
+
+  it("viés Aguardar abaixo do teto fica de fora como AGUARDAR", () => {
+    // Pela margem (100%), seria a 1ª da fila.
+    const priorities = stockPriorities([...held, asset({ ticker: "WAIT3", bias: "AGUARDAR" })]);
+    expect(priorities.get("WAIT3")).toEqual({ kind: "fora", reason: "AGUARDAR" });
+    expect(priorities.get("AGRO3")).toEqual({ kind: "fila", position: 1 });
+  });
+
+  it("empate de margem: menor rank, depois o ticker", () => {
+    const priorities = stockPriorities([
+      // Acima do teto: só dá a base (R$ 3.000) para as metas das outras.
+      asset({ ticker: "ZZZ3", price: 30, ceiling: 20, quantity: 100 }),
+      asset({ ticker: "BBB3", rank: 2 }),
+      asset({ ticker: "AAA3", rank: 2 }),
+      asset({ ticker: "CCC3", rank: 1 }),
+    ]);
+    expect(priorities.get("CCC3")).toEqual({ kind: "fila", position: 1 });
+    expect(priorities.get("AAA3")).toEqual({ kind: "fila", position: 2 });
+    expect(priorities.get("BBB3")).toEqual({ kind: "fila", position: 3 });
+  });
+
+  it("NA_META, PEDIDO_PEQUENO, SEM_COTACAO e SEM_TETO", () => {
+    // Base: os R$ 10.000 do A3. A meta do P3 (0,1% = R$ 10) não paga uma ação de R$ 15.
+    const priorities = stockPriorities([
+      asset({ ticker: "A3", quantity: 1000 }),
+      asset({ ticker: "P3", price: 15, weight: 0.001 }),
+      asset({ ticker: "B3", price: null }),
+      asset({ ticker: "C3", ceiling: null }),
+    ]);
+    expect(Object.fromEntries(priorities)).toEqual({
+      A3: { kind: "fora", reason: "NA_META" },
+      P3: { kind: "fora", reason: "PEDIDO_PEQUENO" },
+      B3: { kind: "fora", reason: "SEM_COTACAO" },
+      C3: { kind: "fora", reason: "SEM_TETO" },
+    });
   });
 });
 
@@ -244,7 +310,7 @@ describe("stockSmartBuy: invariantes", () => {
           price: roll < 0.05 ? null : price,
           ceiling: roll > 0.95 ? null : price * (0.7 + next() * 0.8),
           quantity: Math.floor(next() * 100),
-          targetPercent: next() < 0.1 ? null : Math.round(next() * 20 * 10) / 10,
+          weight: next() < 0.1 ? 0 : Math.round(next() * 20 * 10) / 1000,
           bias: next() < 0.2 ? "AGUARDAR" : next() < 0.5 ? "COMPRAR" : null,
         };
       });
