@@ -15,8 +15,6 @@ import { Sensitive } from "@/shared/components/sensitive";
 const EXPLANATION =
   "Ranking, preço teto e % sugerida pela Suno. Os campos salvam ao sair. Sem teto, o ativo não recebe aporte.";
 
-const STOCK_NOTE = "As Recomendações ainda são só de FIIs.";
-
 /**
  * Carteira Alvo: a partir de 900 px de card, a tabela editável; abaixo disso, a lista do celular,
  * em que cada ativo abre uma folha de edição. O painel de ajuste aparece quando as % não fecham
@@ -50,7 +48,6 @@ export function StrategyTable({
         <div className="grid gap-1 max-md:hidden">
           <CardTitle>Carteira Alvo</CardTitle>
           <CardDescription>{EXPLANATION}</CardDescription>
-          {stock ? <CardDescription>{STOCK_NOTE}</CardDescription> : null}
         </div>
         <div className="flex w-full items-center justify-between gap-3 md:hidden">
           <CardDescription>{members.length} ativos na estratégia</CardDescription>
@@ -61,7 +58,6 @@ export function StrategyTable({
                 ? "Toque num ativo para editar o rank, o teto e a % sugerida."
                 : "Toque num ativo para editar o rank, o teto, a % sugerida e a categoria."}
             </p>
-            {stock ? <p>{STOCK_NOTE}</p> : null}
           </InfoSheet>
         </div>
         <AddAssetForm assetClass={assetClass} />

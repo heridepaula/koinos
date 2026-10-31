@@ -2,7 +2,8 @@ import type { Metadata } from "next";
 import { Suspense } from "react";
 import { getPortfolioSnapshot } from "@/features/portfolio/server";
 import { QuoteRefresher } from "@/features/portfolio/ui";
-import { StrategyTable } from "@/features/strategy/ui";
+import { getMyClassTarget } from "@/features/strategy/server";
+import { ClassTargetPanel, StrategyTable } from "@/features/strategy/ui";
 import { AssetClassControl } from "@/shared/components/asset-class-control";
 import { PageHeader } from "@/shared/components/page-header";
 import { TableSkeleton } from "@/shared/components/skeletons";
@@ -40,14 +41,21 @@ async function StrategyContent({
 }: Pick<PageProps<"/carteira-alvo">, "searchParams">) {
   // Cada classe tem os seus 100%: sem Geral, FIIs é o padrão.
   const assetClass = parseClassParam((await searchParams).classe) === "ACAO" ? "ACAO" : "FII";
-  const { strategy } = await getPortfolioSnapshot(assetClass);
+  const [{ strategy }, { classValues }, target] = await Promise.all([
+    getPortfolioSnapshot(assetClass),
+    getPortfolioSnapshot(),
+    getMyClassTarget(),
+  ]);
   return (
-    <StrategyTable
-      assetClass={assetClass}
-      rows={strategy.rows}
-      strategyValue={strategy.strategyValue}
-      sumOfSuggested={strategy.sumOfSuggested}
-      weightsWarning={strategy.weightsWarning}
-    />
+    <div className="grid gap-4 md:gap-6">
+      <ClassTargetPanel target={target} values={classValues} />
+      <StrategyTable
+        assetClass={assetClass}
+        rows={strategy.rows}
+        strategyValue={strategy.strategyValue}
+        sumOfSuggested={strategy.sumOfSuggested}
+        weightsWarning={strategy.weightsWarning}
+      />
+    </div>
   );
 }
