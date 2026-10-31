@@ -4,15 +4,17 @@ import Link from "next/link";
 import { Suspense } from "react";
 import { getClosedPositionsView } from "@/features/portfolio/server";
 import { ClosedTaxCards, ClosedTaxTable, EmptyClosedPositions } from "@/features/portfolio/ui";
+import { AssetClassControl } from "@/shared/components/asset-class-control";
 import { PageHeader } from "@/shared/components/page-header";
 import { CardSkeleton } from "@/shared/components/skeletons";
+import { parseClassParam } from "@/shared/lib/class-filter";
 import { Button } from "@/shared/ui/button";
 import { Skeleton } from "@/shared/ui/skeleton";
 
 export const metadata: Metadata = { title: "IR estimado" };
 
 // O cabeçalho vai no shell estático; tudo o que depende da sessão chega por streaming.
-export default function ClosedTaxPage() {
+export default function ClosedTaxPage({ searchParams }: PageProps<"/encerradas/ir">) {
   return (
     <>
       <PageHeader
@@ -26,15 +28,18 @@ export default function ClosedTaxPage() {
         }
         mobileActions={false}
       />
+      <AssetClassControl className="mb-6" />
       <Suspense fallback={<ClosedTaxSkeleton />}>
-        <ClosedTaxContent />
+        <ClosedTaxContent searchParams={searchParams} />
       </Suspense>
     </>
   );
 }
 
-async function ClosedTaxContent() {
-  const view = await getClosedPositionsView();
+async function ClosedTaxContent({
+  searchParams,
+}: Pick<PageProps<"/encerradas/ir">, "searchParams">) {
+  const view = await getClosedPositionsView(parseClassParam((await searchParams).classe));
   if (view.rows.length === 0) return <EmptyClosedPositions />;
   return (
     <div className="grid gap-6">

@@ -1,6 +1,7 @@
 import "server-only";
 import { getAssetClasses, getAssetSnapshots } from "@/features/market-data/server";
 import { getMyTransactions } from "@/features/transactions/server";
+import { byClass, type ClassFilter } from "@/shared/lib/class-filter";
 import { traced } from "@/shared/lib/tracing";
 import { closedPositions, summarizeClosedPositions } from "../domain/closed-positions";
 import type { ClosedPositionsView } from "../domain/types";
@@ -12,10 +13,12 @@ import type { ClosedPositionsView } from "../domain/types";
  */
 export const getClosedPositionsView = traced(
   "view.closed-positions",
-  async (): Promise<ClosedPositionsView> => {
+  async (filter: ClassFilter = "TODOS"): Promise<ClosedPositionsView> => {
     const transactions = await getMyTransactions();
     const classes = await getAssetClasses(transactions.map((entry) => entry.ticker));
-    const rows = closedPositions(transactions, classes);
+    // Na visão Ações, o razão ainda tem todas as vendas de ações: a isenção do mês não muda.
+    const scoped = byClass(transactions, (ticker) => classes.get(ticker) ?? null, filter);
+    const rows = closedPositions(scoped, classes);
     const assets = await getAssetSnapshots(rows.map((row) => row.ticker));
     return {
       rows: rows.map((row) => ({
@@ -26,5 +29,8 @@ export const getClosedPositionsView = traced(
       totals: summarizeClosedPositions(rows),
     };
   },
-  (view) => ({ "koinos.view.closed": view.rows.length }),
+  (view, filter = "TODOS") => ({
+    "koinos.view.closed": view.rows.length,
+    "koinos.view.class_filter": filter,
+  }),
 );

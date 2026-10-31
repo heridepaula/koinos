@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { AssetClass } from "@/features/market-data";
+import { byClass } from "@/shared/lib/class-filter";
 import { closedPositions, type ClosedLedgerEntry } from "./closed-positions";
 
 let seq = 0;
@@ -148,5 +149,31 @@ describe("closedPositions: IR das ações", () => {
       estimatedTax: 0,
       taxExempt: true,
     });
+  });
+});
+
+describe("closedPositions: visão Ações", () => {
+  const classOf = (ticker: string) => classes.get(ticker) ?? null;
+  const ledger = [
+    entry("AAAA11", "BUY", 100, 10, "2026-01-05"),
+    entry("AAAA11", "SELL", 100, 12, "2026-03-10"),
+    // Março: R$ 25.000 em vendas de ações, acima da isenção.
+    entry("PETR4", "BUY", 1000, 20, "2026-01-05"),
+    entry("PETR4", "SELL", 1000, 25, "2026-03-10"),
+    // Junho: R$ 5.000, isento.
+    entry("VALE3", "BUY", 100, 40, "2026-01-05"),
+    entry("VALE3", "SELL", 100, 50, "2026-06-10"),
+  ];
+
+  it("o IR de cada ação é o mesmo com o razão de ações e com o razão todo", () => {
+    const all = closedPositions(ledger, classes);
+    const stocks = closedPositions(byClass(ledger, classOf, "ACAO"), classes);
+    for (const ticker of ["PETR4", "VALE3"]) {
+      const a = all.find((row) => row.ticker === ticker)!;
+      const b = stocks.find((row) => row.ticker === ticker)!;
+      expect(b.estimatedTax).toBeCloseTo(a.estimatedTax, 6);
+      expect(b.taxExempt).toBe(a.taxExempt);
+    }
+    expect(stocks.map((row) => row.ticker).sort()).toEqual(["PETR4", "VALE3"]);
   });
 });

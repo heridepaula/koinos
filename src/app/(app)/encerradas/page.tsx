@@ -8,20 +8,22 @@ import {
   ClosedPositionsTable,
   EmptyClosedPositions,
 } from "@/features/portfolio/ui";
+import { AssetClassControl } from "@/shared/components/asset-class-control";
 import { PageHeader } from "@/shared/components/page-header";
 import { CardSkeleton } from "@/shared/components/skeletons";
+import { parseClassParam } from "@/shared/lib/class-filter";
 import { Button } from "@/shared/ui/button";
 import { Skeleton } from "@/shared/ui/skeleton";
 
 export const metadata: Metadata = { title: "Posições encerradas" };
 
 // O cabeçalho vai no shell estático; tudo o que depende da sessão chega por streaming.
-export default function ClosedPositionsPage() {
+export default function ClosedPositionsPage({ searchParams }: PageProps<"/encerradas">) {
   return (
     <>
       <PageHeader
         title="Posições encerradas"
-        description="Os FIIs com posição zerada: o custo, o vendido e o resultado das vendas."
+        description="Os ativos com posição zerada: o custo, o vendido e o resultado das vendas."
         actions={
           <Button variant="outline" nativeButton={false} render={<Link href="/encerradas/ir" />}>
             <ReceiptTextIcon />
@@ -30,15 +32,18 @@ export default function ClosedPositionsPage() {
         }
         mobileActions={false}
       />
+      <AssetClassControl className="mb-6" />
       <Suspense fallback={<ClosedPositionsSkeleton />}>
-        <ClosedPositionsContent />
+        <ClosedPositionsContent searchParams={searchParams} />
       </Suspense>
     </>
   );
 }
 
-async function ClosedPositionsContent() {
-  const view = await getClosedPositionsView();
+async function ClosedPositionsContent({
+  searchParams,
+}: Pick<PageProps<"/encerradas">, "searchParams">) {
+  const view = await getClosedPositionsView(parseClassParam((await searchParams).classe));
   if (view.rows.length === 0) return <EmptyClosedPositions />;
   return (
     <div className="grid gap-6">
