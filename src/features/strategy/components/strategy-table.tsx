@@ -15,6 +15,8 @@ import { Sensitive } from "@/shared/components/sensitive";
 const EXPLANATION =
   "Ranking, preço teto e % sugerida pela Suno. Os campos salvam ao sair. Sem teto, o ativo não recebe aporte.";
 
+const STOCK_NOTE = "As Recomendações ainda são só de FIIs.";
+
 /**
  * Carteira Alvo: a partir de 900 px de card, a tabela editável; abaixo disso, a lista do celular,
  * em que cada ativo abre uma folha de edição. O painel de ajuste aparece quando as % não fecham
@@ -23,16 +25,19 @@ const EXPLANATION =
  * "Adicionar" vai para o "+" ao lado da tab bar.
  */
 export function StrategyTable({
+  assetClass,
   rows,
   strategyValue,
   sumOfSuggested,
   weightsWarning,
 }: {
+  assetClass: "FII" | "ACAO";
   rows: StrategyRowData[];
   strategyValue: number;
   sumOfSuggested: number;
   weightsWarning: string | null;
 }) {
+  const stock = assetClass === "ACAO";
   const members = rows.filter((row) => row.inStrategy);
   const fixes = suggestPercentFix(
     members.map((row) => ({ ticker: row.ticker, suggestedPercent: row.suggestedPercent })),
@@ -45,26 +50,34 @@ export function StrategyTable({
         <div className="grid gap-1 max-md:hidden">
           <CardTitle>Carteira Alvo</CardTitle>
           <CardDescription>{EXPLANATION}</CardDescription>
+          {stock ? <CardDescription>{STOCK_NOTE}</CardDescription> : null}
         </div>
         <div className="flex w-full items-center justify-between gap-3 md:hidden">
           <CardDescription>{members.length} ativos na estratégia</CardDescription>
           <InfoSheet title="Carteira Alvo" label="Sobre a Carteira Alvo">
             <p>{EXPLANATION}</p>
-            <p>Toque num ativo para editar o rank, o teto, a % sugerida e a categoria.</p>
+            <p>
+              {stock
+                ? "Toque num ativo para editar o rank, o teto e a % sugerida."
+                : "Toque num ativo para editar o rank, o teto, a % sugerida e a categoria."}
+            </p>
+            {stock ? <p>{STOCK_NOTE}</p> : null}
           </InfoSheet>
         </div>
-        <AddAssetForm />
+        <AddAssetForm assetClass={assetClass} />
       </CardHeader>
       <CardContent className="px-0">
         {showFix ? <PercentFixPanel rows={rows} fixes={fixes} /> : null}
         {rows.length === 0 ? (
           <p className="px-(--card-spacing) py-10 text-center text-muted-foreground">
-            Adicione os ativos da carteira recomendada da Suno.
+            {stock
+              ? "Adicione as ações da sua carteira recomendada."
+              : "Adicione os ativos da carteira recomendada da Suno."}
           </p>
         ) : (
           <>
             <div className="@min-[900px]:hidden">
-              <StrategyList rows={rows} />
+              <StrategyList rows={rows} stock={stock} />
             </div>
             <Table className="hidden @min-[900px]:table">
               <TableHeader>
@@ -76,7 +89,7 @@ export function StrategyTable({
                   <TableHead>Rank</TableHead>
                   <TableHead>Teto (R$)</TableHead>
                   <TableHead>% sugerida</TableHead>
-                  <TableHead>Categoria</TableHead>
+                  {stock ? null : <TableHead>Categoria</TableHead>}
                   <TableHead className="text-right">Preço atual</TableHead>
                   <TableHead className="text-right" title="Margem até o preço teto">
                     Margem
@@ -84,13 +97,15 @@ export function StrategyTable({
                   <TableHead className="text-right" title="Peso atual na estratégia / peso-alvo">
                     Peso / meta
                   </TableHead>
-                  <TableHead title="Prioridade de aporte pelo método Suno">Prioridade</TableHead>
+                  {stock ? null : (
+                    <TableHead title="Prioridade de aporte pelo método Suno">Prioridade</TableHead>
+                  )}
                   <TableHead className="pr-(--card-spacing)" />
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {rows.map((row) => (
-                  <StrategyRow key={row.ticker} row={row} />
+                  <StrategyRow key={row.ticker} row={row} stock={stock} />
                 ))}
               </TableBody>
             </Table>

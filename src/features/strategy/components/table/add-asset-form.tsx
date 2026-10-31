@@ -20,10 +20,10 @@ import {
 import { addTargetAssetAction } from "../../actions";
 
 /**
- * Adiciona um FII à estratégia pelo ticker (com a busca do catálogo): no cabeçalho do card, na
+ * Adiciona um ativo à carteira da aba pelo ticker (com a busca do catálogo): no cabeçalho do card, na
  * mesa; no iPhone, pelo "+" ao lado da tab bar, numa folha com o campo e o botão largo embaixo.
  */
-export function AddAssetForm() {
+export function AddAssetForm({ assetClass }: { assetClass: "FII" | "ACAO" }) {
   const [ticker, setTicker] = useState("");
   const [sheetOpen, setSheetOpen] = useState(false);
   const add = useAction(addTargetAssetAction, {
@@ -36,7 +36,7 @@ export function AddAssetForm() {
   });
   const submit = (event: React.FormEvent) => {
     event.preventDefault();
-    if (ticker.trim()) add.execute({ ticker, assetClass: "FII" });
+    if (ticker.trim()) add.execute({ ticker, assetClass });
   };
 
   useTabBarAction({ label: "Adicionar ativo", icon: PlusIcon, onPress: () => setSheetOpen(true) });
@@ -45,7 +45,7 @@ export function AddAssetForm() {
     <>
       <form className="flex items-center gap-2 max-md:hidden" onSubmit={submit}>
         <div className="w-32">
-          <TickerInput value={ticker} onChange={setTicker} only="FII" />
+          <TickerInput value={ticker} onChange={setTicker} only={assetClass} />
         </div>
         <Button type="submit" disabled={add.isPending || !ticker.trim()}>
           <PlusIcon />
@@ -62,7 +62,7 @@ export function AddAssetForm() {
           </DrawerHeader>
           <DrawerBody className="pb-0">
             <form id="add-target-asset" onSubmit={submit}>
-              <TickerInput value={ticker} onChange={setTicker} only="FII" />
+              <TickerInput value={ticker} onChange={setTicker} only={assetClass} />
             </form>
           </DrawerBody>
           <DrawerFooter>

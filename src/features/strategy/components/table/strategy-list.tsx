@@ -33,32 +33,42 @@ type SheetHandle = ReturnType<typeof createDrawerHandle<string>>;
  * que estão fora. O toque abre a folha de edição. Uma folha só para a lista, com o ticker como
  * carga: ela lê a linha atual a cada salvamento, e não uma cópia do momento do toque.
  */
-export function StrategyList({ rows }: { rows: StrategyRow[] }) {
+export function StrategyList({ rows, stock = false }: { rows: StrategyRow[]; stock?: boolean }) {
   const [sheet] = useState(() => createDrawerHandle<string>());
   const members = rows.filter((row) => row.inStrategy);
   const others = rows.filter((row) => !row.inStrategy);
   return (
     <>
-      <RowList rows={members} sheet={sheet} />
+      <RowList rows={members} sheet={sheet} stock={stock} />
       {others.length > 0 ? (
         <>
           <h3 className="border-t px-(--card-spacing) pt-6 pb-2 text-footnote font-medium text-muted-foreground">
             Fora da estratégia
           </h3>
-          <RowList rows={others} sheet={sheet} />
+          <RowList rows={others} sheet={sheet} stock={stock} />
         </>
       ) : null}
       <Drawer handle={sheet}>
         {({ payload }) => {
           const row = rows.find((item) => item.ticker === payload);
-          return row ? <StrategySheet row={row} onRemoved={() => sheet.close()} /> : null;
+          return row ? (
+            <StrategySheet row={row} stock={stock} onRemoved={() => sheet.close()} />
+          ) : null;
         }}
       </Drawer>
     </>
   );
 }
 
-function RowList({ rows, sheet }: { rows: StrategyRow[]; sheet: SheetHandle }) {
+function RowList({
+  rows,
+  sheet,
+  stock,
+}: {
+  rows: StrategyRow[];
+  sheet: SheetHandle;
+  stock: boolean;
+}) {
   return (
     <ul className="divide-y divide-border">
       {rows.map((row) => (
@@ -79,7 +89,7 @@ function RowList({ rows, sheet }: { rows: StrategyRow[]; sheet: SheetHandle }) {
                 </span>
               ) : null}
             </div>
-            {row.inStrategy ? <PriorityBadge priority={row.priority} quiet /> : null}
+            {row.inStrategy && !stock ? <PriorityBadge priority={row.priority} quiet /> : null}
             <ChevronRightIcon
               className="size-4 shrink-0 text-muted-foreground"
               aria-hidden="true"
@@ -105,7 +115,15 @@ const summary = (row: StrategyRow) =>
  * direita), o que é calculado num grupo à parte e o Remover no fim, em vermelho. Os campos salvam
  * ao sair, como na tabela.
  */
-function StrategySheet({ row, onRemoved }: { row: StrategyRow; onRemoved: () => void }) {
+function StrategySheet({
+  row,
+  stock,
+  onRemoved,
+}: {
+  row: StrategyRow;
+  stock: boolean;
+  onRemoved: () => void;
+}) {
   const { save, remove, removing } = useTargetRow(row.ticker, { onRemoved });
   return (
     <DrawerContent>
@@ -150,14 +168,16 @@ function StrategySheet({ row, onRemoved }: { row: StrategyRow; onRemoved: () => 
               onCommit={(value) => save({ suggestedPercent: value })}
             />
           </SheetRow>
-          <SheetRow label="Categoria">
-            <CategorySelect
-              row={row}
-              quiet="sheet"
-              className="w-44"
-              onChange={(category) => save({ category })}
-            />
-          </SheetRow>
+          {stock ? null : (
+            <SheetRow label="Categoria">
+              <CategorySelect
+                row={row}
+                quiet="sheet"
+                className="w-44"
+                onChange={(category) => save({ category })}
+              />
+            </SheetRow>
+          )}
         </SheetGroup>
         <SheetGroup>
           <SheetRow label="Preço atual">{row.price === null ? "—" : formatBRL(row.price)}</SheetRow>
@@ -167,9 +187,11 @@ function StrategySheet({ row, onRemoved }: { row: StrategyRow; onRemoved: () => 
           <SheetRow label="Peso / meta">
             <WeightValue row={row} />
           </SheetRow>
-          <SheetRow label="Prioridade">
-            <PriorityBadge priority={row.priority} />
-          </SheetRow>
+          {stock ? null : (
+            <SheetRow label="Prioridade">
+              <PriorityBadge priority={row.priority} />
+            </SheetRow>
+          )}
         </SheetGroup>
         {row.configured ? (
           <Button variant="destructive" className="h-12" disabled={removing} onClick={remove}>

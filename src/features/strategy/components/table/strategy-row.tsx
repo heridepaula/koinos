@@ -15,7 +15,7 @@ import { MarginValue, WeightValue } from "./read-only-cells";
 import { useTargetRow } from "./use-target-row";
 
 /** Linha editável da tabela (a partir de 900 px de card). */
-export function StrategyRow({ row }: { row: StrategyRowData }) {
+export function StrategyRow({ row, stock = false }: { row: StrategyRowData; stock?: boolean }) {
   const { save, remove, removing } = useTargetRow(row.ticker);
   return (
     <TableRow className={row.inStrategy ? undefined : "text-muted-foreground"}>
@@ -55,14 +55,16 @@ export function StrategyRow({ row }: { row: StrategyRowData }) {
           onCommit={(value) => save({ suggestedPercent: value })}
         />
       </TableCell>
-      <TableCell>
-        <CategorySelect
-          row={row}
-          quiet="table"
-          className="w-36"
-          onChange={(category) => save({ category })}
-        />
-      </TableCell>
+      {stock ? null : (
+        <TableCell>
+          <CategorySelect
+            row={row}
+            quiet="table"
+            className="w-36"
+            onChange={(category) => save({ category })}
+          />
+        </TableCell>
+      )}
       <TableCell className="text-right tabular-nums">
         {row.price === null ? "—" : formatBRL(row.price)}
       </TableCell>
@@ -72,9 +74,11 @@ export function StrategyRow({ row }: { row: StrategyRowData }) {
       <TableCell className="text-right tabular-nums">
         <WeightValue row={row} />
       </TableCell>
-      <TableCell>
-        <PriorityBadge priority={row.priority} />
-      </TableCell>
+      {stock ? null : (
+        <TableCell>
+          <PriorityBadge priority={row.priority} />
+        </TableCell>
+      )}
       <TableCell className="pr-(--card-spacing) text-right">
         {row.configured ? (
           <Button

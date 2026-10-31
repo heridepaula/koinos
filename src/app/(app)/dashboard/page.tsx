@@ -75,7 +75,7 @@ async function DashboardContent({ searchParams }: { searchParams: SearchParams }
       <Suspense fallback={<CardSkeleton />}>
         <PeriodSection filter={filter} />
       </Suspense>
-      {filter === "ACAO" ? null : <AlertsPanel alerts={snapshot.alerts} />}
+      <AlertsPanel alerts={snapshot.alerts} />
       <div className="grid gap-4 md:gap-6 xl:grid-cols-2">
         <Suspense fallback={<CardSkeleton />}>
           <EvolutionSection filter={filter} />

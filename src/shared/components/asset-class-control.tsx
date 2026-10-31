@@ -15,6 +15,8 @@ const OPTIONS = [
 type Props = {
   /** true: só o cliente filtra (Transações). Por padrão o servidor relê a página. */
   shallow?: boolean;
+  /** false: só FIIs | Ações, com FIIs como padrão (a Carteira Alvo). */
+  includeAll?: boolean;
   className?: string;
 };
 
@@ -41,7 +43,7 @@ export function AssetClassControl(props: Props) {
   );
 }
 
-function Control({ shallow = false, className }: Props) {
+function Control({ shallow = false, includeAll = true, className }: Props) {
   const [{ classe }, setParams] = useQueryStates(
     { classe: parseAsStringLiteral(CLASS_PARAMS), pagina: parseAsInteger },
     { history: "replace", shallow },
@@ -49,9 +51,13 @@ function Control({ shallow = false, className }: Props) {
   return (
     <SegmentedControl
       label="Classe de ativo"
-      value={classe ?? "geral"}
-      options={OPTIONS}
-      onChange={(next) => void setParams({ classe: next === "geral" ? null : next, pagina: null })}
+      value={classe ?? (includeAll ? "geral" : "fiis")}
+      options={includeAll ? OPTIONS : OPTIONS.slice(1)}
+      onChange={(next) => {
+        // Sem Geral, FIIs é o padrão: não precisa ficar na URL.
+        const isDefault = next === "geral" || (!includeAll && next === "fiis");
+        void setParams({ classe: isDefault ? null : next, pagina: null });
+      }}
       className={cn("max-md:w-full md:min-w-64", className)}
     />
   );

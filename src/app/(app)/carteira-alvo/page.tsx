@@ -3,12 +3,14 @@ import { Suspense } from "react";
 import { getPortfolioSnapshot } from "@/features/portfolio/server";
 import { QuoteRefresher } from "@/features/portfolio/ui";
 import { StrategyTable } from "@/features/strategy/ui";
+import { AssetClassControl } from "@/shared/components/asset-class-control";
 import { PageHeader } from "@/shared/components/page-header";
 import { TableSkeleton } from "@/shared/components/skeletons";
+import { parseClassParam } from "@/shared/lib/class-filter";
 
 export const metadata: Metadata = { title: "Carteira Alvo" };
 
-export default function StrategyPage() {
+export default function StrategyPage({ searchParams }: PageProps<"/carteira-alvo">) {
   return (
     <>
       <PageHeader
@@ -20,8 +22,9 @@ export default function StrategyPage() {
           </Suspense>
         }
       />
+      <AssetClassControl includeAll={false} className="mb-6" />
       <Suspense fallback={<TableSkeleton />}>
-        <StrategyContent />
+        <StrategyContent searchParams={searchParams} />
       </Suspense>
     </>
   );
@@ -32,10 +35,15 @@ async function QuoteStatus() {
   return <QuoteRefresher staleCount={quotes.staleCount} lastFetchedAt={quotes.lastFetchedAt} />;
 }
 
-async function StrategyContent() {
-  const { strategy } = await getPortfolioSnapshot();
+async function StrategyContent({
+  searchParams,
+}: Pick<PageProps<"/carteira-alvo">, "searchParams">) {
+  // Cada classe tem os seus 100%: sem Geral, FIIs é o padrão.
+  const assetClass = parseClassParam((await searchParams).classe) === "ACAO" ? "ACAO" : "FII";
+  const { strategy } = await getPortfolioSnapshot(assetClass);
   return (
     <StrategyTable
+      assetClass={assetClass}
       rows={strategy.rows}
       strategyValue={strategy.strategyValue}
       sumOfSuggested={strategy.sumOfSuggested}
