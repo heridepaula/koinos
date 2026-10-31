@@ -4,13 +4,13 @@
     {
       "id": 0,
       "subject": "Task 1: Filtro de classe puro e `traced` com argumentos",
-      "status": "pending",
+      "status": "completed",
       "description": "**Goal:** o filtro de classe testado em `shared/lib` e `traced` capaz de pôr o filtro no span.\n\n**Files:**\n- Create: `src/shared/lib/class-filter.ts`\n- Create: `src/shared/lib/class-filter.test.ts`\n- Modify: `src/shared/lib/tracing.ts:71-82`\n\n**Acceptance Criteria:**\n- [ ] `parseClassParam(\"fiis\")` → `\"FII\"`, `(\"acoes\")` → `\"ACAO\"`, `undefined`/`\"\"`/`\"x\"`/`\"toString\"` → `\"TODOS\"`, `[\"acoes\",\"fiis\"]` → `\"ACAO\"`.\n- [ ] `byClass` com `\"FII\"` mantém tickers de classe `FII` e `null`; com `\"ACAO\"`, só `ACAO`; com `\"TODOS\"`, todos.\n- [ ] `traced` chama `describe(result, ...args)`; os usos atuais compilam sem mudança.\n\n**Verify:** `npx vitest run src/shared/lib/class-filter.test.ts` → todos passam; `npm run typecheck` → sem erros.\n\n```json:metadata\n{\"files\":[\"src/shared/lib/class-filter.ts\",\"src/shared/lib/class-filter.test.ts\",\"src/shared/lib/tracing.ts:71-82\"],\"verifyCommand\":\"`npx vitest run src/shared/lib/class-filter.test.ts` → todos passam; `npm run typecheck` → sem erros.\",\"acceptanceCriteria\":[\"`parseClassParam(\\\"fiis\\\")` → `\\\"FII\\\"`, `(\\\"acoes\\\")` → `\\\"ACAO\\\"`, `undefined`/`\\\"\\\"`/`\\\"x\\\"`/`\\\"toString\\\"` → `\\\"TODOS\\\"`, `[\\\"acoes\\\",\\\"fiis\\\"]` → `\\\"ACAO\\\"`.\",\"`byClass` com `\\\"FII\\\"` mantém tickers de classe `FII` e `null`; com `\\\"ACAO\\\"`, só `ACAO`; com `\\\"TODOS\\\"`, todos.\",\"`traced` chama `describe(result, ...args)`; os usos atuais compilam sem mudança.\"]}\n```"
     },
     {
       "id": 1,
       "subject": "Task 2: Seletor `AssetClassControl`",
-      "status": "pending",
+      "status": "completed",
       "blockedBy": [
         0
       ],
@@ -19,7 +19,7 @@
     {
       "id": 2,
       "subject": "Task 3: Dashboard por classe",
-      "status": "pending",
+      "status": "completed",
       "blockedBy": [
         1
       ],
@@ -28,7 +28,7 @@
     {
       "id": 3,
       "subject": "Task 4: Encerradas e IR por classe",
-      "status": "pending",
+      "status": "completed",
       "blockedBy": [
         0,
         1
@@ -38,7 +38,7 @@
     {
       "id": 4,
       "subject": "Task 5: Proventos por classe e por tipo",
-      "status": "pending",
+      "status": "completed",
       "blockedBy": [
         0,
         1
@@ -48,7 +48,7 @@
     {
       "id": 5,
       "subject": "Task 6: Reinvestimento por classe",
-      "status": "pending",
+      "status": "completed",
       "blockedBy": [
         0,
         1
@@ -58,7 +58,7 @@
     {
       "id": 6,
       "subject": "Task 7: Transações por classe",
-      "status": "pending",
+      "status": "completed",
       "blockedBy": [
         0,
         1
@@ -68,7 +68,7 @@
     {
       "id": 7,
       "subject": "Task 8: Docs, verificação completa e conferência com os dados reais",
-      "status": "pending",
+      "status": "completed",
       "blockedBy": [
         2,
         3,
@@ -79,5 +79,5 @@
       "description": "**Goal:** CLAUDE.md e spec da etapa 1 atualizados, todas as checagens verdes e o critério 1 do spec conferido com os dados de produção, só lendo.\n\n**Files:**\n- Modify: `CLAUDE.md`\n- Modify: `docs/superpowers/specs/2026-10-30-acoes-etapa-1-design.md` (§12)\n- Modify: `docs/superpowers/specs/2026-10-31-acoes-etapa-2-design.md` (status)\n- Create (fora do repositório, não commitar): `$SCRATCH/check-etapa-2.ts`\n\n**Acceptance Criteria:**\n- [ ] CLAUDE.md: em Rendering, `?classe=` e `?tipo=` na lista do `nuqs`; em Pages, o filtro de classe em Dashboard, Proventos, Encerradas/IR, Reinvestimento e Transações; em Domain flow, `scopeToClass`, o rateio do reinvestimento e a soma por tipo; na lista de testes, `shared/lib/class-filter.test.ts`, `portfolio/domain/dividends.test.ts` e `portfolio/domain/reinvestment.test.ts`; em Observabilidade, `koinos.view.class_filter` e `koinos.view.kind_filter`; em Product rules, \"Stage 2 … gets its own spec\" passa a apontar para `2026-10-31-acoes-etapa-2-design.md`.\n- [ ] Spec da etapa 1, §12: nota \"Feita no spec `2026-10-31-acoes-etapa-2-design.md`\".\n- [ ] `format:check`, `lint`, `typecheck`, `test` e `build` passam.\n- [ ] O script imprime, para encerradas (resultado e IR), proventos recebidos e investido das posições abertas: Geral, FIIs, Ações e a diferença `Geral − (FIIs + Ações)`, que deve ser 0,00 em todas.\n\n**Verify:** `npm run format:check && npm run lint && npm run typecheck && npm test && npm run build` → tudo passa; o script mostra diferença 0,00.\n\n```json:metadata\n{\"files\":[\"CLAUDE.md\",\"docs/superpowers/specs/2026-10-30-acoes-etapa-1-design.md\",\"docs/superpowers/specs/2026-10-31-acoes-etapa-2-design.md\"],\"verifyCommand\":\"`npm run format:check && npm run lint && npm run typecheck && npm test && npm run build` → tudo passa; o script mostra diferença 0,00.\",\"acceptanceCriteria\":[\"CLAUDE.md: em Rendering, `?classe=` e `?tipo=` na lista do `nuqs`; em Pages, o filtro de classe em Dashboard, Proventos, Encerradas/IR, Reinvestimento e Transações; em Domain flow, `scopeToClass`, o rateio do reinvestimento e a soma por tipo; na lista de testes, `shared/lib/class-filter.test.ts`, `portfolio/domain/dividends.test.ts` e `portfolio/domain/reinvestment.test.ts`; em Observabilidade, `koinos.view.class_filter` e `koinos.view.kind_filter`; em Product rules, \\\"Stage 2 … gets its own spec\\\" passa a apontar para `2026-10-31-acoes-etapa-2-design.md`.\",\"Spec da etapa 1, §12: nota \\\"Feita no spec `2026-10-31-acoes-etapa-2-design.md`\\\".\",\"`format:check`, `lint`, `typecheck`, `test` e `build` passam.\",\"O script imprime, para encerradas (resultado e IR), proventos recebidos e investido das posições abertas: Geral, FIIs, Ações e a diferença `Geral − (FIIs + Ações)`, que deve ser 0,00 em todas.\"]}\n```"
     }
   ],
-  "lastUpdated": "2026-10-31T10:00:47.373Z"
+  "lastUpdated": "2026-10-31T10:19:26.786Z"
 }
