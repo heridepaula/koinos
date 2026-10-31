@@ -111,33 +111,49 @@ export function buildSnapshot({
 
   // Entrada do motor 3.0: P/VP e perfil do FII (usebolsai, cron das 2h), proventos (Yahoo) e os
   // baldes de risco. Sem dado, cada tensor fica neutro.
-  const cascadeInput: CascadeAsset[] = strategies.FII.members.map((member) => {
+  const toCascadeAsset = (
+    member: (typeof strategies.FII.members)[number],
+    weights: Map<string, number>,
+    stock: boolean,
+  ): CascadeAsset => {
     const position = openByTicker.get(member.ticker);
     const info = prices.get(member.ticker);
     const fii = info?.fii ?? null;
-    const { macro, sector } = classifyRisk({
-      fundType: fii?.fundType ?? null,
-      segment: fii?.segment ?? null,
-      paperPct: fii?.paperPct ?? null,
-      realEstatePct: fii?.realEstatePct ?? null,
-      category: member.category,
-    });
+    const { macro, sector } = stock
+      ? { macro: "Outros" as const, sector: null }
+      : classifyRisk({
+          fundType: fii?.fundType ?? null,
+          segment: fii?.segment ?? null,
+          paperPct: fii?.paperPct ?? null,
+          realEstatePct: fii?.realEstatePct ?? null,
+          category: member.category,
+        });
     return {
       ticker: member.ticker,
       rank: member.sunoRank,
       ceiling: member.ceilingPrice,
-      weight: strategies.FII.weights.get(member.ticker) ?? 0,
+      weight: weights.get(member.ticker) ?? 0,
       price: priceOf(member.ticker),
       quantity: position?.quantity ?? 0,
       averagePrice: position?.averagePrice ?? null,
-      priceToBook: info?.priceToBook ?? null,
+      priceToBook: stock ? null : (info?.priceToBook ?? null),
       lastDividend: info?.lastDividend?.amount ?? null,
       dividends12m: info?.dividends12m ?? null,
-      vacancy: fii?.vacancyPct != null ? fii.vacancyPct / 100 : null,
+      vacancy: !stock && fii?.vacancyPct != null ? fii.vacancyPct / 100 : null,
       macro,
       sector,
     };
-  });
+  };
+  const cascadeInput = strategies.FII.members.map((member) =>
+    toCascadeAsset(member, strategies.FII.weights, false),
+  );
+  // Carteira de ações (spec aporte por classe, §4.5): só a margem até o teto e o freio de proventos agem.
+  const stockCascadeInput = strategies.ACAO.members.map((member) =>
+    toCascadeAsset(member, strategies.ACAO.weights, true),
+  );
+  // Patrimônio de cada classe, para repartir o aporte entre elas.
+  const classValues = { FII: 0, ACAO: 0 };
+  for (const position of open) classValues[classKey(position.ticker)] += valueOf(position.ticker);
   const priorities = aportePriorities(cascadeInput);
 
   // Resumo.
@@ -328,6 +344,8 @@ export function buildSnapshot({
       weightsWarning: strategies[viewClass].weightsWarning,
     },
     cascadeInput,
+    stockCascadeInput,
+    classValues,
     allocation: {
       byCategory: allocationByCategory(positionRows),
       byAsset: allocationByAsset(positionRows),

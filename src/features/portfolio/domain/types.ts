@@ -225,6 +225,10 @@ export type PortfolioSnapshot = {
     weightsWarning: string | null;
   };
   cascadeInput: CascadeAsset[];
+  /** Entrada da cascata das ações (sem P/VP, vacância nem setor). */
+  stockCascadeInput: CascadeAsset[];
+  /** Patrimônio de cada classe, na carteira inteira. */
+  classValues: { FII: number; ACAO: number };
   allocation: { byCategory: AllocationSlice[]; byAsset: AllocationSlice[] };
   contributions: MonthlyContribution[];
   alerts: PortfolioAlert[];

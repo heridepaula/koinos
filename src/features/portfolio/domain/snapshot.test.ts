@@ -267,6 +267,29 @@ describe("buildSnapshot: Carteira Alvo de ações", () => {
     targets: input.targets.filter((item) => !["PETR4", "VALE3"].includes(item.ticker)),
   };
 
+  it("stockCascadeInput traz só as ações da estratégia, sem P/VP, vacância nem setor", () => {
+    const { stockCascadeInput } = buildSnapshot(input);
+    expect(stockCascadeInput.map((asset) => asset.ticker)).toEqual(["PETR4", "VALE3"]);
+    expect(stockCascadeInput.map((asset) => asset.weight)).toEqual([0.7, 0.3]);
+    for (const asset of stockCascadeInput) {
+      expect(asset).toMatchObject({
+        priceToBook: null,
+        vacancy: null,
+        macro: "Outros",
+        sector: null,
+      });
+    }
+  });
+
+  it("classValues soma o patrimônio", () => {
+    const snapshot = buildSnapshot(input);
+    expect(snapshot.classValues.FII + snapshot.classValues.ACAO).toBeCloseTo(
+      snapshot.summary.patrimony,
+      6,
+    );
+    expect(snapshot.classValues.ACAO).toBeCloseTo(250, 6); // 20 PETR4 + 5 VALE3 a R$ 10
+  });
+
   it("cada carteira fecha 100% sozinha", () => {
     const { positions } = buildSnapshot(input);
     const sum = (tickers: string[]) =>
