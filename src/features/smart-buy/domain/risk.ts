@@ -6,6 +6,15 @@ import type { Category } from "@/features/strategy";
 /** Frações do aporte. */
 export const RISK_CAPS = { asset: 0.25, sector: 0.35, macro: 0.6 } as const;
 
+/** Travas como fração do aporte da carteira. Infinity: sem trava. */
+export type RiskCaps = { asset: number; sector: number; macro: number };
+
+/**
+ * Travas da carteira de ações (spec aporte por classe, §4.3): só 25% por ação. O app não tem setor
+ * de ações, e o macro (papel/tijolo) é de FII.
+ */
+export const STOCK_CAPS: RiskCaps = { asset: 0.25, sector: Infinity, macro: Infinity };
+
 /** Papel e tijolo são as duas macros; FoF e o que não dá para classificar ficam em "Outros". */
 export type RiskMacro = "Papel" | "Tijolo" | "Outros";
 

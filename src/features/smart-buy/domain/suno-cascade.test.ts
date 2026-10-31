@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { RISK_CAPS } from "./risk";
+import { RISK_CAPS, STOCK_CAPS } from "./risk";
 import { aportePriorities, sunoCascade, type CascadeAsset } from "./suno-cascade";
 
 /** FII de teste: R$ 100 a cota, teto R$ 110 (margem de 9,1%, tensor de segurança 1,0909), tijolo. */
@@ -237,6 +237,34 @@ describe("sunoCascade: invariantes", () => {
         expect(total).toBeLessThanOrEqual(RISK_CAPS.macro * result.amount + 1e-6);
       }
     }
+  });
+});
+
+describe("sunoCascade: travas da carteira de ações", () => {
+  it("sem setor nem macro, só 25% por ação", () => {
+    // 4 ações no mesmo macro "Outros", sem setor, todas muito abaixo da meta.
+    const assets = ["AAAA3", "BBBB3", "CCCC3", "DDDD3"].map((ticker, index) =>
+      fii(ticker, {
+        rank: index + 1,
+        weight: 0.25,
+        price: 10,
+        ceiling: 20,
+        macro: "Outros",
+        sector: null,
+      }),
+    );
+    const withStock = sunoCascade(1000, assets, STOCK_CAPS);
+    for (const item of withStock.orders) expect(item.total).toBeLessThanOrEqual(250 + 1e-6);
+    expect(withStock.spent).toBeCloseTo(1000, 2);
+    // Com as travas de FII, o macro "Outros" segura em 60%.
+    expect(sunoCascade(1000, assets).spent).toBeLessThanOrEqual(600 + 1e-6);
+  });
+
+  it("aporte zero com travas infinitas não vira NaN", () => {
+    const result = sunoCascade(0, [fii("AAAA3", { macro: "Outros" })], STOCK_CAPS);
+    expect(result.spent).toBe(0);
+    expect(result.orders).toEqual([]);
+    expect(result.caps.sector).toBe(Infinity);
   });
 });
 

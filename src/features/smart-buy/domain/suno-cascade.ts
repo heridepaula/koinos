@@ -6,7 +6,7 @@ import {
   vacancyTensor,
   valuationTensor,
 } from "./conviction";
-import { RISK_CAPS, type RiskMacro } from "./risk";
+import { RISK_CAPS, type RiskCaps, type RiskMacro } from "./risk";
 
 // Motor de aporte Koinos 3.0 (documento do dono, 30/10/2026): cascata pelo ranking Suno, com
 // valuation contínuo e travas de risco. Nunca vende: o rebalanceamento é só com dinheiro novo.
@@ -211,12 +211,18 @@ function exclusionReason(slot: Slot): ExclusionReason {
   }
 }
 
-export function sunoCascade(amount: number, assets: readonly CascadeAsset[]): CascadeResult {
+export function sunoCascade(
+  amount: number,
+  assets: readonly CascadeAsset[],
+  limits: RiskCaps = RISK_CAPS,
+): CascadeResult {
   const { budget, strategyValue, slots, excluded } = prepare(amount, assets);
+  // Infinity × 0 é NaN: sem trava continua sem trava, mesmo com aporte zero.
+  const scaled = (fraction: number) => (fraction === Infinity ? Infinity : fraction * budget);
   const caps = {
-    asset: RISK_CAPS.asset * budget,
-    sector: RISK_CAPS.sector * budget,
-    macro: RISK_CAPS.macro * budget,
+    asset: scaled(limits.asset),
+    sector: scaled(limits.sector),
+    macro: scaled(limits.macro),
   };
   const usedBySector = new Map<string, number>();
   const usedByMacro = new Map<RiskMacro, number>();
