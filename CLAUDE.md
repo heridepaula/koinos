@@ -26,12 +26,12 @@ Koinos is a single-owner dashboard for a Brazilian portfolio of FIIs (REITs) and
   - `smart-buy/domain`: the 3.0 cascade with the owner's scenarios A, B and C, the tensors, the risk caps and buckets, the leftover, and invariants over 500 seeded random portfolios;
   - the "Por quê" text (`smart-buy/components/aporte/explain.test.ts`);
   - `strategy/domain`: weights and the 0% quarantine rule;
-  - the snapshot keeping the quarantine and the stocks out of the cascade (`portfolio/domain/snapshot.test.ts`);
+  - the snapshot keeping the quarantine and the stocks out of the cascade, with one strategy per class that adds up to 100% on its own (`portfolio/domain/snapshot.test.ts`), and the strategy alerts by class (`portfolio/domain/alerts.test.ts`);
   - usebolsai's parsing (`market-data/domain/fundamentals.test.ts`);
   - the asset class (`market-data/domain/asset-class.test.ts`);
   - the B3 lending pairing and the shares that come back from lending (`transactions/import/b3/lending.test.ts`), and the dividend kinds and the check by dividends (`transactions/import/b3/dividends.test.ts`);
   - the estimated tax of closed positions: FIIs at 20%, stocks at 15% with the R$ 20,000 monthly exemption, and that FIIs plus Ações add up to Geral (`portfolio/domain/closed-positions.test.ts`);
-  - the Geral/FIIs/Ações filter (`shared/lib/class-filter.test.ts`) and `scopeToClass` with `withAlerts` (`portfolio/domain/snapshot.test.ts`);
+  - the Geral/FIIs/Ações filter (`shared/lib/class-filter.test.ts`) and `scopeToClass` (`portfolio/domain/snapshot.test.ts`);
   - the dividends by kind (`portfolio/domain/dividends.test.ts`) and the reinvestment split by class (`portfolio/domain/reinvestment.test.ts`).
 - Verify with `format:check`, `lint`, `typecheck`, `test` and `build`. CI runs the same checks on Node 24 and 26.
 - Check behavior with throwaway scripts kept outside the repo:
@@ -63,7 +63,7 @@ Koinos is a single-owner dashboard for a Brazilian portfolio of FIIs (REITs) and
 - `/encerradas`: `getClosedPositionsView` (item 6): cost, proceeds and result per closed FII. Its subpage `/encerradas/ir` shows the estimated tax from the same view, and the sidebar lists it as a sub-item. The Dashboard's closed card links here, and `/dashboard/encerradas` redirects here from `next.config.ts`.
 - `/proventos`: `getDividendsView` (item 4). Its subpage `/proventos/reinvestimento?mes=AAAA-MM` uses `getReinvestmentView` (item 5), and the sidebar lists it as a sub-item, like the IR under `/encerradas`.
 - `/atualizacao-b3`: the client `B3ImportWizard`, which calls the preview and confirm actions (see B3 update).
-- `/carteira-alvo`: the snapshot's strategy rows, edited in the table through `strategy/actions.ts`. When the suggested % don't add up to 100%, a panel shows what is missing or over and the fix from `suggestPercentFix` (split the rest among the FIIs without %, or scale the existing ones), saved in one click by `setSuggestedPercentsAction`.
+- `/carteira-alvo`: the snapshot's strategy rows, one tab per class in `?classe=` (`fiis` by default, `acoes`), with `AssetClassControl includeAll={false}`. The Ações tab has no category or priority column. Edited in the table through `strategy/actions.ts`. When the suggested % don't add up to 100%, a panel shows what is missing or over and the fix from `suggestPercentFix` (split the rest among the FIIs without %, or scale the existing ones), saved in one click by `setSuggestedPercentsAction`.
 - `/recomendacoes`: the snapshot's `cascadeInput`. The cascade runs in the browser (`AporteCalculator`), with the amount in the URL (`?valor=`). The risk caps are fixed, so an old link's `?limite=` is ignored.
 - **A new top-level page** also needs a `proxy.ts` matcher entry (see Tenancy) and an entry in `shared/components/nav-items.ts`, which feeds the sidebar, the iPhone tab bar (only items with a `tab` label) and its "Mais" sheet (the rest). Subpages need neither: the matcher's `:path*` covers them, and the menus highlight the parent by prefix. A subpage that should appear in the menu goes in the item's `children`, with its own icon; its page header keeps a button back to the parent on desktop, and on phones the nav bar shows a back button (`parentOf`).
 
@@ -121,7 +121,7 @@ Koinos is a single-owner dashboard for a Brazilian portfolio of FIIs (REITs) and
 **Asset class:** `assetClassOf` (`market-data/domain/asset-class.ts`, pure) says `FII` or `ACAO` from the brapi catalog: `stock` (stocks and units) is ACAO, and `fund` with `fii` or `fi-agro` is FII. Out of the catalog, `XXXX11` is a FII and 4 characters + 3 to 8 is a stock.
 
 - Views get the classes from `getAssetClasses` (`market-data/server`, over the cached catalog) and pass a map into the pure code.
-- Stocks never enter the strategy: the Carteira Alvo rows, the cascade input and the "fora da Carteira Alvo" alert skip them, and the target-asset actions refuse them (spec `2026-10-30-acoes-etapa-1-design.md`).
+- Stocks have their own Carteira Alvo, with the same fields (rank, ceiling, suggested %, quarantine) and the category always Ação. The strategy rows, the alerts and the target-asset actions take them by class. They stay out of the cascade input and the Recomendações (spec `2026-10-31-carteira-alvo-acoes-design.md`).
 
 **Domain flow:**
 
@@ -129,12 +129,13 @@ Koinos is a single-owner dashboard for a Brazilian portfolio of FIIs (REITs) and
    - The ledger only knows BUY and SELL. `kind` says where an entry came from: a subscrição is a buy, a desdobro is a buy at price 0, a bonificação is a buy at the cost the company assigns (answered in the preview, 0 allowed), a posição anterior is a buy for what was held before the first statement, a leilão de fração is a sale, and an incorporation is a sale of the origin plus a buy of the destination at the same cost (`relatedTicker` names the other side). An entry without `kind` counts as a negócio.
    - Each view picks its kinds: the Dashboard's monthly aportes skip the incorporation buy and the bonificação, reinvestment counts only negócios and subscrições, and closed positions skip the incorporation sale.
 2. `portfolio/domain/snapshot.ts` (`buildSnapshot`) builds positions, allocation, alerts and the cascade input. It also adds the dividends received per FII and the adjusted results: "com proventos" (quote result + dividends) and "total" (+ realized sales). The Dashboard's top cards (`summary-cards.tsx`) each carry four detail rows, so they line up with no empty space:
-   - `scopeToClass` (pure) narrows the input to one class before `buildSnapshot`. In the Ações view it empties the strategy targets and sets `withAlerts` to false, so there are no alerts there; FIIs and Geral keep them.
+   - `scopeToClass` (pure) narrows the input to one class and sets `view` before `buildSnapshot`. `strategyOf` builds one strategy per class, and `snapshot.strategy` is the view's class (in Geral, the FIIs').
+   - The alerts split into the portfolio's (concentration, no quote) and each class's strategy alerts (`buildAlerts({ positions, strategies })`). In Geral, the stocks' alerts get the id suffix `-acoes` and " (ações)" in the title. The FIIs view has none from stocks.
    - the patrimony card adds the composition by category, a bar in the donut's colors (`category-colors.ts`);
    - the L/P card holds the results: return %, sales, "com proventos" and "total", whose sum opens in a popover (`ResultBreakdown`);
    - the dividends card shows `dividendPace`: the last 12 closed months' total and average, this year and last year;
    - the DY card shows the estimated monthly income, its change against the 12-month average (`incomeVsAverage`), the annual estimate and the yield on cost (`yieldOnCost`, annual estimate ÷ invested).
-3. `smart-buy/domain/suno-cascade.ts` turns that into the buy recommendations, with the Koinos 3.0 engine (spec `2026-10-30-koinos-3-0-design.md`). The portfolio's dividends never reach the cascade input; only each FII's per-share history does, for the brake.
+3. `smart-buy/domain/suno-cascade.ts` turns that into the buy recommendations, with the Koinos 3.0 engine (spec `2026-10-30-koinos-3-0-design.md`). The portfolio's dividends never reach the cascade input; only each FII's per-share history does, for the brake. The cascade input holds only FIIs, whatever the stock strategy has.
    - Only the strategy's FIIs enter it: one outside the strategy never receives and its value stays out of the targets, whatever its %. 0% (allowed only outside the strategy) marks it as quarantine.
    - The target is weight × (strategy value + aporte). A FII below it asks for the gap times four tensors (`smart-buy/domain/conviction.ts`), each at 1 without its input:
      - valuation, 1 + (1 − P/VP), never below 0;
@@ -267,7 +268,7 @@ Koinos is a single-owner dashboard for a Brazilian portfolio of FIIs (REITs) and
   - The risk caps are fixed: 25% of the aporte per FII, 35% per sector and 60% per macro. On 2026-10-30 they replaced the "entrada gradual" cap (33% by default) and its "Máximo por FII" selector. The document says 20% per FII; the owner set 25% the same day.
   - The continuous tensors replaced the Índice de Convicção of 2026-10-24 (×1.2, ×1 and ×0.5 steps). Don't bring back the old spreadsheet's IPA formula either.
 - **No B3 calls:** don't call B3 systems or endpoints. B3 offers integrations only to companies, so B3 data enters only through statements the user uploads. A P/VP feature built on B3 lookups was dropped. Its spec and plan are marked discarded.
-- **Stocks (2026-10-30):** they enter positions, dividends, lending and the estimated tax, never the Carteira Alvo or the recommendations. Spec: `2026-10-30-acoes-etapa-1-design.md`. Stage 2 (the Geral/FIIs/Ações views): `2026-10-31-acoes-etapa-2-design.md`.
+- **Stocks (2026-10-30):** they enter positions, dividends, lending and the estimated tax. Since 2026-10-31 they also have their own Carteira Alvo (`/carteira-alvo?classe=acoes`, spec `2026-10-31-carteira-alvo-acoes-design.md`), never the recommendations (a multi-portfolio aporte is phase 3). Spec: `2026-10-30-acoes-etapa-1-design.md`. Stage 2 (the Geral/FIIs/Ações views): `2026-10-31-acoes-etapa-2-design.md`.
 - **Dividends start at the first B3 statement (Nov 2019).** The owner decided not to estimate older ones: before that, the app only knows the prior positions of 2019-11-07, without purchase dates.
 - **Read the spec first:** design specs and implementation plans per feature are in `docs/superpowers/specs` and `docs/superpowers/plans`. Read the relevant spec before changing behavior.
 

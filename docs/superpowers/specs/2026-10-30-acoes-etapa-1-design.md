@@ -245,6 +245,7 @@ Na etapa 1, a tela de Proventos mistura os tipos. A quebra por tipo é da etapa 
   - concentração e "sem cotação" valem para todos os ativos;
   - "Ativos fora da Carteira Alvo" fica só com FIIs, porque segue as linhas da Carteira Alvo.
 - **Carteira Alvo:**
+  - Nota de 2026-10-31: a regra abaixo foi trocada. A ação passa a ter a sua própria Carteira Alvo, fora das Recomendações (`2026-10-31-carteira-alvo-acoes-design.md`).
   - as linhas são só os FIIs em carteira ou configurados;
   - a busca para adicionar só oferece FIIs e Fiagros;
   - a action que grava um ativo-alvo recusa ação com `ActionError`.

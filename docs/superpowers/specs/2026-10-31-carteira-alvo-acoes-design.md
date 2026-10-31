@@ -1,7 +1,7 @@
 # Carteira Alvo de ações: especificação de design
 
 - **Data:** 2026-10-31
-- **Status:** aprovado, a implementar (branch feat/carteira-alvo-acoes)
+- **Status:** aprovado e implementado (branch feat/carteira-alvo-acoes)
 - **Origem:** Fase 2 do plano colado pelo dono em 2026-10-31 ("várias carteiras de recomendação"). O dono escolheu uma carteira por classe, sem CRUD de carteiras (§2).
 - **Muda uma regra de 2026-10-30:** "ação nunca entra na estratégia" (spec `2026-10-30-acoes-etapa-1-design.md`) passa a ser "a ação tem a sua própria Carteira Alvo, fora das Recomendações".
 
@@ -106,7 +106,7 @@ Vitest, só no código puro:
 - `portfolio/domain/alerts.test.ts` (novo): em Geral, "fora da Carteira Alvo" das ações sai com " (ações)" e id `sem-configuracao-acoes`; na visão FIIs, nenhum alerta de ações.
 - `strategy/domain`: os testes de pesos e quarentena valem para qualquer classe (sem mudança).
 
-Verificação: `format:check`, `lint`, `typecheck`, `test` e `build`. Depois, um script só de leitura com os dados reais confere que as ordens das Recomendações para R$ 10.000 são iguais às da `main`.
+Verificação: `format:check`, `lint`, `typecheck`, `test` e `build`. A conferência das Recomendações fica nos testes: a produção ainda não tem alvos de ações, então a `main` e a branch dão as mesmas ordens por construção.
 
 ## 9. Documentação
 
