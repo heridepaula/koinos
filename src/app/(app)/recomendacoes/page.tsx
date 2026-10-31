@@ -3,6 +3,7 @@ import { Suspense } from "react";
 import { getPortfolioSnapshot } from "@/features/portfolio/server";
 import { QuoteRefresher } from "@/features/portfolio/ui";
 import { AporteCalculator, PrinciplesBanner, type AssetMeta } from "@/features/smart-buy/ui";
+import { AssetClassControl } from "@/shared/components/asset-class-control";
 import { PageHeader } from "@/shared/components/page-header";
 import { CardSkeleton } from "@/shared/components/skeletons";
 
@@ -20,6 +21,8 @@ export default function RecommendationsPage() {
           </Suspense>
         }
       />
+      {/* Como nas outras telas; aqui FIIs é o padrão, e o Geral divide o aporte no controle. */}
+      <AssetClassControl shallow defaultClass="fiis" className="mb-4 md:mb-6" />
       <PrinciplesBanner />
       <Suspense fallback={<CardSkeleton height="h-40" />}>
         <RecommendationsContent />

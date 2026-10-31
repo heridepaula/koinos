@@ -8,8 +8,7 @@ import {
   ShoppingCartIcon,
   WalletIcon,
 } from "lucide-react";
-import { parseAsFloat, parseAsInteger, useQueryState } from "nuqs";
-import { useState } from "react";
+import { parseAsFloat, parseAsInteger, parseAsStringLiteral, useQueryState } from "nuqs";
 import { toast } from "sonner";
 import { InfoSheet } from "@/shared/components/info-sheet";
 import { MetricCard, StatList, StatRow } from "@/shared/components/metric";
@@ -26,8 +25,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/shared/ui/card";
-import { Input } from "@/shared/ui/input";
-import { Label } from "@/shared/ui/label";
+import { Slider } from "@/shared/ui/slider";
 import { splitAmount } from "../domain/aporte-split";
 import { RISK_CAPS } from "../domain/risk";
 import { stockSmartBuy, type StockBuyAsset, type StockBuyResult } from "../domain/stock-buy";
@@ -66,10 +64,15 @@ function groupStockExcluded(result: StockBuyResult) {
   return byReason;
 }
 
-const clampPercent = (value: number) => Math.min(100, Math.max(0, value));
+/** Visão da página: FIIs (o padrão, como antes), Ações ou Geral, que divide pelo controle. */
+const VIEWS = ["geral", "fiis", "acoes"] as const;
+/** No Geral, sem `?fiis=`, o controle começa no meio. */
+const DEFAULT_GERAL_FIIS = 50;
+const FIIS_STEP = 5;
 
-// Fora de 0 a 100 (ou sem valor), o link volta ao padrão: tudo para os FIIs.
-const fiisFromUrl = (value: number) => (value >= 0 && value <= 100 ? value : 100);
+// Fora de 0 a 100 (ou sem valor), o Geral volta ao meio.
+const fiisFromUrl = (value: number | null) =>
+  value !== null && value >= 0 && value <= 100 ? value : DEFAULT_GERAL_FIIS;
 
 const ORDERS_DESCRIPTION = (
   <>
@@ -170,7 +173,8 @@ function StockOrdersCard({
 /**
  * Calculadora de aporte. O valor é a ação principal da página: entra num campo grande, como o do
  * Apple Pay, e os motores rodam no navegador a cada tecla (o valor e a divisão ficam na URL).
- * "% para FIIs" divide o aporte: os FIIs vão pela cascata Suno e as ações pela margem de
+ * A visão (`?classe=`) escolhe a carteira: FIIs (o padrão), Ações ou Geral, em que um controle
+ * deslizante divide o aporte (`?fiis=`). Os FIIs vão pela cascata Suno e as ações pela margem de
  * segurança. Embaixo, o resumo em cards de número, as ordens de cada carteira e quem ficou fora.
  */
 export function AporteCalculator({
@@ -188,12 +192,13 @@ export function AporteCalculator({
     "valor",
     parseAsFloat.withDefault(0).withOptions({ history: "replace" }),
   );
+  // O seletor de classe (AssetClassControl, na página) escreve `?classe=`; aqui só se lê.
+  const [view] = useQueryState("classe", parseAsStringLiteral(VIEWS).withDefault("fiis"));
   const [rawFiis, setFiis] = useQueryState(
     "fiis",
-    parseAsInteger.withDefault(100).withOptions({ history: "replace" }),
+    parseAsInteger.withOptions({ history: "replace", throttleMs: 150 }),
   );
-  const [draft, setDraft] = useState<string | null>(null);
-  const fiis = fiisFromUrl(rawFiis);
+  const fiis = view === "fiis" ? 100 : view === "acoes" ? 0 : fiisFromUrl(rawFiis);
   const metaByTicker = new Map(meta.map((item) => [item.ticker, item]));
 
   // Em centavos para baixo; as ações levam o resto.
@@ -270,31 +275,6 @@ export function AporteCalculator({
               defaultValue={amount > 0 ? amount : null}
               onValueChange={(value) => void setAmount(value !== null && value > 0 ? value : null)}
             />
-            <div className="grid gap-1.5">
-              <Label htmlFor="fiis-percent">% para FIIs</Label>
-              <div className="flex items-center gap-3">
-                <Input
-                  id="fiis-percent"
-                  type="number"
-                  inputMode="numeric"
-                  min={0}
-                  max={100}
-                  step={1}
-                  className="w-24 text-base tabular-nums"
-                  value={draft ?? String(fiis)}
-                  onChange={(event) => {
-                    const text = event.target.value;
-                    setDraft(text);
-                    const parsed = Number.parseInt(text, 10);
-                    if (Number.isFinite(parsed)) void setFiis(clampPercent(parsed));
-                  }}
-                  onBlur={() => setDraft(null)}
-                />
-                <span className="text-sm whitespace-nowrap text-muted-foreground tabular-nums">
-                  Ações: {100 - fiis}%
-                </span>
-              </div>
-            </div>
             {hasOrders ? (
               <Button
                 type="button"
@@ -307,15 +287,41 @@ export function AporteCalculator({
               </Button>
             ) : null}
           </form>
-          <p className="flex items-center gap-2 text-sm text-muted-foreground">
-            <InfoIcon className="size-4 shrink-0 text-info" aria-hidden="true" />
-            Hoje: FIIs {formatPercent(todayFii, 0)} · Ações {formatPercent(todayStock, 0)}
-          </p>
-          {amount > 0 && fiis < 100 ? (
-            <p className="text-sm font-medium">
-              FIIs <Sensitive>{formatBRL(fiiPart)}</Sensitive> · Ações{" "}
-              <Sensitive>{formatBRL(stockPart)}</Sensitive>
-            </p>
+          {view === "geral" ? (
+            <div className="grid gap-3">
+              <div className="flex items-baseline justify-between gap-4 text-sm">
+                <span>
+                  <span className="font-medium">FIIs {fiis}%</span>
+                  {amount > 0 ? (
+                    <span className="text-muted-foreground tabular-nums">
+                      {" "}
+                      · <Sensitive>{formatBRL(fiiPart)}</Sensitive>
+                    </span>
+                  ) : null}
+                </span>
+                <span className="text-right">
+                  <span className="font-medium">Ações {100 - fiis}%</span>
+                  {amount > 0 ? (
+                    <span className="text-muted-foreground tabular-nums">
+                      {" "}
+                      · <Sensitive>{formatBRL(stockPart)}</Sensitive>
+                    </span>
+                  ) : null}
+                </span>
+              </div>
+              {/* O trecho à esquerda do polegar é a parte dos FIIs; o resto, a das ações. Passos de 5%. */}
+              <Slider
+                label="Parte do aporte para FIIs"
+                value={fiis}
+                step={FIIS_STEP}
+                onValueChange={(next) => void setFiis(next)}
+                valueText={(current) => `${current}% para FIIs, ${100 - current}% para ações`}
+              />
+              <p className="flex items-center gap-2 text-sm text-muted-foreground">
+                <InfoIcon className="size-4 shrink-0 text-info" aria-hidden="true" />
+                Hoje: FIIs {formatPercent(todayFii, 0)} · Ações {formatPercent(todayStock, 0)}
+              </p>
+            </div>
           ) : null}
         </CardContent>
       </Card>
@@ -361,7 +367,7 @@ export function AporteCalculator({
 
           {fiiResult ? (
             <FiiOrdersCard
-              title={showStock ? "FIIs" : "Ordens de compra"}
+              title={view === "geral" && showStock ? "FIIs" : "Ordens de compra"}
               result={fiiResult}
               metaByTicker={metaByTicker}
             />

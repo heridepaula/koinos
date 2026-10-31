@@ -17,6 +17,11 @@ type Props = {
   shallow?: boolean;
   /** false: só FIIs | Ações, com FIIs como padrão (a Carteira Alvo). */
   includeAll?: boolean;
+  /**
+   * A visão sem `?classe=`. Padrão: Geral (ou FIIs sem Geral). Com FIIs e Geral à vista (as
+   * Recomendações), Geral vai para a URL como `?classe=geral`.
+   */
+  defaultClass?: "geral" | "fiis";
   className?: string;
 };
 
@@ -43,20 +48,26 @@ export function AssetClassControl(props: Props) {
   );
 }
 
-function Control({ shallow = false, includeAll = true, className }: Props) {
+const URL_VALUES = ["geral", ...CLASS_PARAMS] as const;
+
+function Control({
+  shallow = false,
+  includeAll = true,
+  defaultClass = includeAll ? "geral" : "fiis",
+  className,
+}: Props) {
   const [{ classe }, setParams] = useQueryStates(
-    { classe: parseAsStringLiteral(CLASS_PARAMS), pagina: parseAsInteger },
+    { classe: parseAsStringLiteral(URL_VALUES), pagina: parseAsInteger },
     { history: "replace", shallow },
   );
   return (
     <SegmentedControl
       label="Classe de ativo"
-      value={classe ?? (includeAll ? "geral" : "fiis")}
+      value={classe ?? defaultClass}
       options={includeAll ? OPTIONS : OPTIONS.slice(1)}
       onChange={(next) => {
-        // Sem Geral, FIIs é o padrão: não precisa ficar na URL.
-        const isDefault = next === "geral" || (!includeAll && next === "fiis");
-        void setParams({ classe: isDefault ? null : next, pagina: null });
+        // A visão padrão não precisa ficar na URL.
+        void setParams({ classe: next === defaultClass ? null : next, pagina: null });
       }}
       className={cn("max-md:w-full md:min-w-64", className)}
     />
