@@ -1,7 +1,7 @@
 # Ações na carteira, etapa 1 (dados e contas): especificação de design
 
 - **Data:** 2026-10-30
-- **Status:** design aprovado na conversa; este documento aguarda revisão
+- **Status:** aprovado e implementado (branch feat/acoes-etapa-1); conferido com os extratos de 30/10/2026 antes do merge
 - **Origem:** pedido do usuário com o texto "Especificação Técnica: Suporte a Ações no Koinos", escrito a partir dos extratos da B3 de 30/10/2026. O texto foi conferido contra o código e os extratos, e as diferenças estão no §2.
 - **Ciclo:** etapa 1 de 2. Esta etapa traz as ações para os dados e as contas. A etapa 2, com spec própria, faz as telas por classe:
   - Geral, FIIs e Ações no Dashboard e em Proventos;

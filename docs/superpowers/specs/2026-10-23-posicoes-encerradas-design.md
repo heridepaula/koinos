@@ -6,6 +6,7 @@
   - não existe `/carteira`: a página fica em `/dashboard/encerradas`, como `/proventos/reinvestimento`, e o `proxy.ts` já cobre a rota por `/dashboard/:path*`;
   - o `replayLedger` passou a devolver cada venda, para o custo das encerradas sair do mesmo cálculo do preço médio.
 - **Atualização (2026-10-23):** a pedido do usuário, a tela saiu do Dashboard e ganhou menu próprio. `/encerradas` mostra custo, vendido e resultado; o IR estimado foi para o subitem `/encerradas/ir` (cards de IR, lucro tributável e prejuízo, e a tabela FII | data | resultado | IR). `/dashboard/encerradas` redireciona para `/encerradas`. As seções abaixo descrevem a primeira versão, com o IR na mesma página.
+- **Ações (2026-10-30):** as ações entraram nas encerradas, com IR de 15% e a isenção de R$ 20 mil vendidos por mês: ver `2026-10-30-acoes-etapa-1-design.md` (§8).
 
 ## 1. Objetivo
 

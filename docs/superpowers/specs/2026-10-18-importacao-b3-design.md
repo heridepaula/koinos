@@ -3,6 +3,7 @@
 - **Data:** 2026-10-18
 - **Status:** design aprovado na conversa; este documento aguarda revisão
 - **Substituído em parte:** a tela (§8 a §11) deu lugar à página `/atualizacao-b3`, com os três extratos (`2026-10-23-atualizacao-b3-design.md`). As regras do plano (§4 a §7) continuam valendo.
+- **Ações (2026-10-30):** ações e units passaram a entrar (§4), com os proventos, o aluguel e regras próprias: ver `2026-10-30-acoes-etapa-1-design.md`.
 - **Ciclo:** importação pela interface, que o spec do MVP (`2026-10-17-koinos-design.md`) deixava fora do escopo
 
 ## 1. Objetivo

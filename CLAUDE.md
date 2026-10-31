@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 @AGENTS.md
 
-Koinos is a single-owner FII (Brazilian REIT) portfolio dashboard that replaced the owner's spreadsheet. UI copy, code comments and docs are Brazilian Portuguese. Commit messages are English Conventional Commits (`feat(scope): …`).
+Koinos is a single-owner dashboard for a Brazilian portfolio of FIIs (REITs) and stocks that replaced the owner's spreadsheet. The Carteira Alvo and the aporte recommendations cover FIIs only. UI copy, code comments and docs are Brazilian Portuguese. Commit messages are English Conventional Commits (`feat(scope): …`).
 
 ## Commands
 
@@ -19,15 +19,18 @@ Koinos is a single-owner FII (Brazilian REIT) portfolio dashboard that replaced 
   - `import:b3` also writes the dividends. Run it with `--dry-run` first.
   - `--alvo` overwrites the Carteira Alvo with the spreadsheet's rank and ceiling. Only pass it when the owner asks.
 
-**Tests:** unit tests cover only pure code around the aportes: the rules that pick them, their inputs and their explanation (the owner asked for them on 2026-10-24; before that there was no suite, by their decision).
+**Tests:** unit tests cover only pure code: the aportes (the rules that pick them, their inputs and their explanation; the owner asked for them on 2026-10-24, and before that there was no suite, by their decision) and, since 2026-10-30, the stock rules (asset class, lending, dividend kinds and the stock tax).
 
 - They sit next to the code (`*.test.ts`, mostly in `domain/`), import from `vitest` explicitly and need no database. `vitest.config.mts` maps the `@/` alias.
 - Covered:
   - `smart-buy/domain`: the 3.0 cascade with the owner's scenarios A, B and C, the tensors, the risk caps and buckets, the leftover, and invariants over 500 seeded random portfolios;
   - the "Por quê" text (`smart-buy/components/aporte/explain.test.ts`);
   - `strategy/domain`: weights and the 0% quarantine rule;
-  - the snapshot keeping the quarantine out of the cascade (`portfolio/domain/snapshot.test.ts`);
-  - usebolsai's parsing (`market-data/domain/fundamentals.test.ts`).
+  - the snapshot keeping the quarantine and the stocks out of the cascade (`portfolio/domain/snapshot.test.ts`);
+  - usebolsai's parsing (`market-data/domain/fundamentals.test.ts`);
+  - the asset class (`market-data/domain/asset-class.test.ts`);
+  - the B3 lending pairing and the shares that come back from lending (`transactions/import/b3/lending.test.ts`), and the dividend kinds and the check by dividends (`transactions/import/b3/dividends.test.ts`);
+  - the estimated tax of closed positions: FIIs at 20%, stocks at 15% with the R$ 20,000 monthly exemption (`portfolio/domain/closed-positions.test.ts`).
 - Verify with `format:check`, `lint`, `typecheck`, `test` and `build`. CI runs the same checks on Node 24 and 26.
 - Check behavior with throwaway scripts kept outside the repo:
 
@@ -112,11 +115,16 @@ Koinos is a single-owner FII (Brazilian REIT) portfolio dashboard that replaced 
   - Locally it restricts who can sign in.
   - In production it stays empty: access is controlled by the Google OAuth app's test users, and Google must report the e-mail as verified.
 
+**Asset class:** `assetClassOf` (`market-data/domain/asset-class.ts`, pure) says `FII` or `ACAO` from the brapi catalog: `stock` (stocks and units) is ACAO, and `fund` with `fii` or `fi-agro` is FII. Out of the catalog, `XXXX11` is a FII and 4 characters + 3 to 8 is a stock.
+
+- Views get the classes from `getAssetClasses` (`market-data/server`, over the cached catalog) and pass a map into the pure code.
+- Stocks never enter the strategy: the Carteira Alvo rows, the cascade input and the "fora da Carteira Alvo" alert skip them, and the target-asset actions refuse them (spec `2026-10-30-acoes-etapa-1-design.md`).
+
 **Domain flow:**
 
 1. The transaction ledger feeds `transactions/domain`: `replayLedger` computes positions and lists each sale with its cost at the average price (`sales`), and `findOversells` makes the app reject any write that would let a sale exceed the position.
-   - The ledger only knows BUY and SELL. `kind` says where an entry came from: a subscrição is a buy, a desdobro is a buy at price 0, a posição anterior is a buy for what was held before the first statement, a leilão de fração is a sale, and an incorporation is a sale of the origin plus a buy of the destination at the same cost (`relatedTicker` names the other side). An entry without `kind` counts as a negócio.
-   - Each view picks its kinds: the Dashboard's monthly aportes skip the incorporation buy, reinvestment counts only negócios and subscrições, and closed positions skip the incorporation sale.
+   - The ledger only knows BUY and SELL. `kind` says where an entry came from: a subscrição is a buy, a desdobro is a buy at price 0, a bonificação is a buy at the cost the company assigns (answered in the preview, 0 allowed), a posição anterior is a buy for what was held before the first statement, a leilão de fração is a sale, and an incorporation is a sale of the origin plus a buy of the destination at the same cost (`relatedTicker` names the other side). An entry without `kind` counts as a negócio.
+   - Each view picks its kinds: the Dashboard's monthly aportes skip the incorporation buy and the bonificação, reinvestment counts only negócios and subscrições, and closed positions skip the incorporation sale.
 2. `portfolio/domain/snapshot.ts` (`buildSnapshot`) builds positions, allocation, alerts and the cascade input. It also adds the dividends received per FII and the adjusted results: "com proventos" (quote result + dividends) and "total" (+ realized sales). The Dashboard's top cards (`summary-cards.tsx`) each carry four detail rows, so they line up with no empty space:
    - the patrimony card adds the composition by category, a bar in the donut's colors (`category-colors.ts`);
    - the L/P card holds the results: return %, sales, "com proventos" and "total", whose sum opens in a popover (`ResultBreakdown`);
@@ -143,6 +151,7 @@ Koinos is a single-owner FII (Brazilian REIT) portfolio dashboard that replaced 
    - the month totals: B3 items count only when they pay in the current month;
    - "não divulgado" (`undisclosedDividends`): a held FII that was paid in each of the two previous months but has nothing this month (no receipt, no "a receber" item, no Yahoo ex-date in the month) is listed with last month's amount as a reference. It never enters the totals;
    - the groupings by month (a year × month matrix: clicking a month lists its FIIs), year or FII.
+   - stocks: their "a receber" comes only from the B3 snapshot. The Yahoo estimate and "não divulgado" are FII-only (`dividends-view.ts` filters their inputs).
 5. `portfolio/domain/reinvestment.ts` is pure and feeds `/proventos/reinvestimento?mes=AAAA-MM` (`portfolio/server/reinvestment-view.ts`):
    - each month's cash purchases (negócios and subscrições, with fees) are split into money from dividends and money from the pocket;
    - the % reinvested is saved per month in `reinvestments` (`setReinvestmentPercentAction`), and a month without one uses 100%;
@@ -151,7 +160,7 @@ Koinos is a single-owner FII (Brazilian REIT) portfolio dashboard that replaced 
    - a closed position is a FII with zero quantity today. It sums the real sales of every cycle (negócios and leilões de fração), each at its day's average price;
    - an incorporation's exit leg is not a sale: its cost moves to the destination, with no result;
    - the closing date is the day the position reached zero: the last sale or, when it zeroed the position, the incorporation;
-   - the estimated tax is 20% of each position's profit (FII sales have no exemption) and zero on a loss. It's a per-position estimate, not the monthly apuração: it doesn't offset losses across positions or months and ignores the 0.005% IRRF;
+   - the estimated tax is 20% of each FII position's profit (FII sales have no exemption) and zero on a loss. A stock pays 15% of its profit in each month whose stock sales (quantity × price of every stock sale, open positions included) exceed R$ 20,000; up to that, the month is exempt (`taxExempt` marks a profit made only in exempt months). It's a per-position estimate, not the monthly apuração: it doesn't offset losses across positions or months and ignores the 0.005% IRRF and day trade;
    - a FII with an `ESTIMADO` buy price, directly or through an incorporation, is flagged, because its result is an estimate too. So the input entries carry `priceSource` and `relatedTicker` (`ClosedLedgerEntry`);
    - the Dashboard's card also lists the FIIs that only appear through dividends (no entries, `closedAt` null), so its dividends plus the positions table's add up to the summary's total.
 7. `portfolio/domain/evolution.ts` (`computeEvolution`) feeds the Dashboard's evolution chart through `getEvolution`:
@@ -205,6 +214,10 @@ Koinos is a single-owner FII (Brazilian REIT) portfolio dashboard that replaced 
 **B3 update (`/atualizacao-b3`):**
 
 - The parsing and the plan are pure: `transactions/import/b3`, with `detectB3File`, the three readers (Negociação, Movimentação, Eventos) and `planB3Import`.
+  - `codes.ts` holds the B3 code patterns.
+  - `classify.ts` holds the classification: FIIs, Fiagros, stocks and units enter.
+  - `lending.ts` holds the lending pairing.
+  - `dividends.ts` holds the dividends, the "a receber" and the check by dividends.
 - The diff is pure too: `import/b3/changes.ts` (`diffLedger`, `diffDividends`, `sameForecast`).
   - A stored B3 entry equal to a planned one stays, with the same `_id`. Repeats count, as a multiset.
   - The rest of what the plan replaces is deleted by id, and the rest of the plan is inserted.
@@ -214,15 +227,29 @@ Koinos is a single-owner FII (Brazilian REIT) portfolio dashboard that replaced 
   - It validates the upload in memory, takes a per-portfolio lock and writes only the difference in one Mongo transaction (`applyB3Update` in `transaction-repo.ts`).
   - Re-uploading the same files writes nothing, and the preview says "Nada novo".
 - `scripts/import-b3.ts` shares the plan but still takes Negociação and Movimentação (plus the optional spreadsheet). It writes through `applyTransactionChanges`, which swaps the whole period.
-- "A B3 manda": inside the statements' period, FII entries are replaced by B3's, and B3-sourced entries are locked in the Transações UI.
-- **A receber:** the Eventos statement's FII "Rendimento" and "Reembolso - Rendimento" rows become the snapshot in `dividend_forecasts` (one document per portfolio, `asOf` = upload day).
+- "A B3 manda": inside the statements' period, the entries of FIIs and stocks are replaced by B3's, and B3-sourced entries are locked in the Transações UI.
+- **A receber:** the Eventos statement's dividend rows (FII "Rendimento" and "Reembolso - Rendimento"; stock "DIVIDENDO", "JUROS SOBRE CAPITAL PRÓPRIO" and their "Reembolso - …" rows) become the snapshot in `dividend_forecasts` (one document per portfolio, `asOf` = upload day).
   - Every write replaces the whole snapshot.
   - Only a change in the items counts as new, not a later `asOf`.
   - An item whose quantity differs from the position is only a warning.
 - **Dividends:**
-  - The plan also extracts the Rendimento and Reembolso credits of FIIs from the Movimentação statement into the `dividends` collection (`transactions/server/dividend.model.ts`). Stocks' dividends, JCP and lending fees stay out.
-  - Inside the Movimentação period they are replaced FII by FII. The scope is the FIIs with status OK plus the FIIs that only appear through dividend rows; FORA, PENDENTE and excluded FIIs keep what they have.
+  - The plan also extracts the dividend credits from the Movimentação statement into the `dividends` collection (`transactions/server/dividend.model.ts`):
+    - Rendimento and Reembolso, of FIIs and stocks;
+    - Dividendo;
+    - Juros Sobre Capital Próprio (`JCP`, already net of the 15%);
+    - the lending fee, from an "Empréstimo" row with a value (`ALUGUEL`), of FIIs and stocks.
+  - Inside the Movimentação period they are replaced asset by asset. The scope is the assets with status OK plus the assets that only appear through dividend rows; FORA, PENDENTE and excluded assets keep what they have.
   - The write happens in the same transaction as the ledger, and only the difference is written.
+- **Stocks:**
+  - **Entries:** a stock uses its own code, with no family.
+    - Negócios, desdobro and leilão de fração work as for FIIs.
+    - A "Bonificação em Ativos" is a `BONIFICACAO` buy at the cost the company assigns. It is asked once per event (`bon:TICKER:date`, 0 allowed). The answer stays on the stored entry, so a re-upload is already answered.
+    - Grupamento, an "Atualização" that differs from the position and a stock subscription receipt (…9, …10) leave the stock out (FORA).
+  - **Lending:**
+    - A "Transferência - Liquidação" that doesn't settle the day's trades (summed, 0 to 7 days later) is a lending out (debit) or back (credit).
+    - A back closes the oldest open out of the same quantity, or else the largest smaller one.
+    - Shares that come back above what went out enter as the bonificação or desdobro of the loan period. Without one, there is only a warning. Example: EGIE3, Nov 2025, 32 out and 44 back.
+  - **Check by dividends:** it looks for the position up to 365 days before a stock payment (45 for FIIs). A stock month matches when any row, or the sum of the rows of the same payment, matches.
 - **Subscription prices:** a stored subscription with `priceSource` PLANILHA counts as a previous answer, like USUARIO and ESTIMADO. So uploading the full history without the spreadsheet opens no pendências.
 
 ## Product rules
@@ -233,6 +260,7 @@ Koinos is a single-owner FII (Brazilian REIT) portfolio dashboard that replaced 
   - The risk caps are fixed: 25% of the aporte per FII, 35% per sector and 60% per macro. On 2026-10-30 they replaced the "entrada gradual" cap (33% by default) and its "Máximo por FII" selector. The document says 20% per FII; the owner set 25% the same day.
   - The continuous tensors replaced the Índice de Convicção of 2026-10-24 (×1.2, ×1 and ×0.5 steps). Don't bring back the old spreadsheet's IPA formula either.
 - **No B3 calls:** don't call B3 systems or endpoints. B3 offers integrations only to companies, so B3 data enters only through statements the user uploads. A P/VP feature built on B3 lookups was dropped. Its spec and plan are marked discarded.
+- **Stocks (2026-10-30):** they enter positions, dividends, lending and the estimated tax, never the Carteira Alvo or the recommendations. Spec: `2026-10-30-acoes-etapa-1-design.md`. Stage 2 (the Geral/FIIs/Ações views) gets its own spec.
 - **Dividends start at the first B3 statement (Nov 2019).** The owner decided not to estimate older ones: before that, the app only knows the prior positions of 2019-11-07, without purchase dates.
 - **Read the spec first:** design specs and implementation plans per feature are in `docs/superpowers/specs` and `docs/superpowers/plans`. Read the relevant spec before changing behavior.
 
