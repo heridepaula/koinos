@@ -1,4 +1,5 @@
 // API pública da feature smart-buy (regras puras; os componentes entram na tela de recomendações).
+export { splitAmount } from "./domain/aporte-split";
 export {
   classifyRisk,
   RISK_CAPS,

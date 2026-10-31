@@ -28,6 +28,7 @@ import {
 } from "@/shared/ui/card";
 import { Input } from "@/shared/ui/input";
 import { Label } from "@/shared/ui/label";
+import { splitAmount } from "../domain/aporte-split";
 import { RISK_CAPS } from "../domain/risk";
 import { stockSmartBuy, type StockBuyAsset, type StockBuyResult } from "../domain/stock-buy";
 import {
@@ -66,6 +67,9 @@ function groupStockExcluded(result: StockBuyResult) {
 }
 
 const clampPercent = (value: number) => Math.min(100, Math.max(0, value));
+
+// Fora de 0 a 100 (ou sem valor), o link volta ao padrão: tudo para os FIIs.
+const fiisFromUrl = (value: number) => (value >= 0 && value <= 100 ? value : 100);
 
 const ORDERS_DESCRIPTION = (
   <>
@@ -189,12 +193,11 @@ export function AporteCalculator({
     parseAsInteger.withDefault(100).withOptions({ history: "replace" }),
   );
   const [draft, setDraft] = useState<string | null>(null);
-  const fiis = clampPercent(rawFiis);
+  const fiis = fiisFromUrl(rawFiis);
   const metaByTicker = new Map(meta.map((item) => [item.ticker, item]));
 
   // Em centavos para baixo; as ações levam o resto.
-  const fiiPart = Math.floor(amount * fiis) / 100;
-  const stockPart = Math.round((amount - fiiPart) * 100) / 100;
+  const { fii: fiiPart, stock: stockPart } = splitAmount(amount, fiis);
   const showFii = amount > 0 && fiiPart > 0;
   const showStock = amount > 0 && stockPart > 0;
   const fiiResult = showFii ? sunoCascade(fiiPart, fiiAssets) : null;

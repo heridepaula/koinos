@@ -96,12 +96,19 @@ export function buildSnapshot({
     const members = targets.filter(
       (target) => target.inStrategy && classKey(target.ticker) === cls,
     );
-    const { weights, sumOfSuggested, warning } = effectiveWeights(
+    const scaled = effectiveWeights(
       members.map((member) => ({
         ticker: member.ticker,
         suggestedPercent: member.suggestedPercent,
       })),
     );
+    // Ações: a % vale como gravada (o resto fica em caixa), sem reescalar nem aviso de soma.
+    const weights =
+      cls === "ACAO"
+        ? new Map(members.map((member) => [member.ticker, (member.suggestedPercent ?? 0) / 100]))
+        : scaled.weights;
+    const { sumOfSuggested } = scaled;
+    const warning = cls === "ACAO" ? null : scaled.warning;
     const value = members.reduce((sum, member) => sum + valueOf(member.ticker), 0);
     return {
       members,

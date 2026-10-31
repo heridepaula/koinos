@@ -27,7 +27,7 @@ Koinos is a single-owner dashboard for a Brazilian portfolio of FIIs (REITs) and
   - `smart-buy/domain/stock-buy.test.ts`: the stock smart buy (the owner's table: UNIP6 before VALE3, nothing above the ceiling or with Aguardar, no stock past its target, spent + leftover equal to the amount, the % used as stored);
   - the "Por quê" text, FIIs and stocks (`smart-buy/components/aporte/explain.test.ts`);
   - `strategy/domain`: weights and the 0% quarantine rule;
-  - the snapshot keeping the quarantine and the stocks out of the FII cascade, with one strategy per class that adds up to 100% on its own, and `stockBuyInput`/`stockMeta` (`portfolio/domain/snapshot.test.ts`), and the strategy alerts by class (`portfolio/domain/alerts.test.ts`);
+  - the snapshot keeping the quarantine and the stocks out of the FII cascade, with the FII strategy adding up to 100% on its own and the stock strategy showing its % as stored (no rescale), and `stockBuyInput`/`stockMeta` (`portfolio/domain/snapshot.test.ts`), and the strategy alerts by class (`portfolio/domain/alerts.test.ts`);
   - usebolsai's parsing (`market-data/domain/fundamentals.test.ts`);
   - the asset class (`market-data/domain/asset-class.test.ts`);
   - the B3 lending pairing and the shares that come back from lending (`transactions/import/b3/lending.test.ts`), and the dividend kinds and the check by dividends (`transactions/import/b3/dividends.test.ts`);

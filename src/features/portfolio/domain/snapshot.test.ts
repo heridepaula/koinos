@@ -303,14 +303,37 @@ describe("buildSnapshot: Carteira Alvo de ações", () => {
     expect(snapshot.classValues.ACAO).toBeCloseTo(250, 6); // 20 PETR4 + 5 VALE3 a R$ 10
   });
 
-  it("cada carteira fecha 100% sozinha", () => {
-    const { positions } = buildSnapshot(input);
-    const sum = (tickers: string[]) =>
-      positions
+  it("a carteira de FIIs fecha 100% e a de ações mostra a % gravada, sem reescalar", () => {
+    const sum = (rows: { ticker: string; targetWeight: number | null }[], tickers: string[]) =>
+      rows
         .filter((row) => tickers.includes(row.ticker))
         .reduce((total, row) => total + (row.targetWeight ?? 0), 0);
-    expect(sum(["AAAA11", "BBBB11"])).toBeCloseTo(1, 6);
-    expect(sum(["PETR4", "VALE3"])).toBeCloseTo(1, 6);
+    const { positions } = buildSnapshot(input);
+    expect(sum(positions, ["AAAA11", "BBBB11"])).toBeCloseTo(1, 6);
+    // Ações a 70 + 30 = 100: sem reescala, igual ao gravado.
+    expect(sum(positions, ["PETR4", "VALE3"])).toBeCloseTo(1, 6);
+  });
+
+  it("ações somando 81,5: targetWeight é 0,10 para 10 gravado e não há aviso de % sugeridas", () => {
+    const partial: SnapshotInput = {
+      ...input,
+      targets: input.targets.map((item) =>
+        item.ticker === "PETR4"
+          ? { ...item, suggestedPercent: 71.5 }
+          : item.ticker === "VALE3"
+            ? { ...item, suggestedPercent: 10 }
+            : item,
+      ),
+    };
+    const stocks = buildSnapshot(scopeToClass(partial, "ACAO"));
+    const row = (ticker: string) => stocks.positions.find((item) => item.ticker === ticker)!;
+    expect(row("VALE3").targetWeight).toBeCloseTo(0.1, 6);
+    expect(row("PETR4").targetWeight).toBeCloseTo(0.715, 6);
+    expect(stocks.strategy.weightsWarning).toBeNull();
+    expect(stocks.alerts.some((alert) => alert.id.startsWith("pesos"))).toBe(false);
+    // FIIs inalterados: ainda fecham 100%.
+    const all = buildSnapshot(partial);
+    expect(all.strategy.rows.map((r) => r.targetWeight)).toEqual([0.6, 0.4]);
   });
 
   it("a cascata só tem FIIs e as ordens não mudam com as ações configuradas", () => {
