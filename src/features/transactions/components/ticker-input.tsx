@@ -18,14 +18,14 @@ export function TickerInput({
   onChange,
   id,
   invalid,
-  fiiOnly = false,
+  only,
 }: {
   value: string;
   onChange: (value: string) => void;
   id?: string;
   invalid?: boolean;
-  /** Só sugere FIIs e Fiagros: a Carteira Alvo não aceita ações. */
-  fiiOnly?: boolean;
+  /** Só sugere a classe pedida: FII (FIIs e Fiagros) ou ACAO (o resto). Sem ela, tudo. */
+  only?: "FII" | "ACAO";
 }) {
   const listId = useId();
   const query = useDeferredValue(value.trim().toUpperCase());
@@ -35,9 +35,14 @@ export function TickerInput({
     enabled: query.length >= 2,
     staleTime: 5 * 60_000,
   });
-  const suggestions = fiiOnly
-    ? data.filter((item) => item.subType === "fii" || item.subType === "fi-agro")
-    : data;
+  const isFiiLike = (item: TickerSuggestion) =>
+    item.subType === "fii" || item.subType === "fi-agro";
+  const suggestions =
+    only === "FII"
+      ? data.filter(isFiiLike)
+      : only === "ACAO"
+        ? data.filter((item) => !isFiiLike(item))
+        : data;
 
   return (
     <>

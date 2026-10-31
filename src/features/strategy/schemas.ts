@@ -26,6 +26,12 @@ export type TargetPatchInput = z.infer<typeof targetPatchSchema>;
 
 export const targetTickerSchema = z.object({ ticker: tickerSchema });
 
+/** Adicionar pela aba da Carteira Alvo: a classe da aba tem de bater com a do ticker. */
+export const addTargetSchema = z.object({
+  ticker: tickerSchema,
+  assetClass: z.enum(["FII", "ACAO"]),
+});
+
 /** Várias % sugeridas de uma vez (o ajuste para somar 100%). */
 export const suggestedPercentsSchema = z.object({
   items: z

@@ -5,32 +5,35 @@ import { ActionError, authActionClient } from "@/features/auth/server";
 import { getAssetClasses, getCatalogSubType } from "@/features/market-data/server";
 import { suggestCategory } from "./domain/categories";
 import { suggestedPercentProblem } from "./domain/quarantine";
-import { suggestedPercentsSchema, targetPatchSchema, targetTickerSchema } from "./schemas";
+import {
+  addTargetSchema,
+  suggestedPercentsSchema,
+  targetPatchSchema,
+  targetTickerSchema,
+} from "./schemas";
 import { deleteTargetAsset, findTargetAsset, upsertTargetAsset } from "./server/target-asset-repo";
 
-/** A Carteira Alvo é só de FIIs: ação fica fora da estratégia e das recomendações. */
-async function refuseStock(ticker: string) {
-  if ((await getAssetClasses([ticker])).get(ticker) === "ACAO") {
-    throw new ActionError("A Carteira Alvo é só de FIIs: ações ficam fora da estratégia.");
-  }
+/** A classe pelo catálogo: ACAO, ou FII para todo o resto (como o snapshot). */
+async function classOf(ticker: string): Promise<"FII" | "ACAO"> {
+  return (await getAssetClasses([ticker])).get(ticker) === "ACAO" ? "ACAO" : "FII";
 }
 
-/** Adiciona um ativo à Carteira Alvo, já na estratégia, com categoria sugerida pelo subtipo. */
+/** Adiciona um ativo à Carteira Alvo da aba, já na estratégia. A ação nasce com a categoria Ação. */
 export const addTargetAssetAction = authActionClient
   .metadata({ actionName: "addTargetAsset", traceInput: ["ticker"] })
-  .inputSchema(targetTickerSchema)
+  .inputSchema(addTargetSchema)
   .action(async ({ parsedInput, ctx }) => {
-    await refuseStock(parsedInput.ticker);
-    const category = suggestCategory(await getCatalogSubType(parsedInput.ticker));
-    await upsertTargetAsset(
-      ctx.tenant.portfolioId,
-      parsedInput.ticker,
-      {},
-      {
-        inStrategy: true,
-        category,
-      },
-    );
+    const { ticker, assetClass } = parsedInput;
+    const actual = await classOf(ticker);
+    if (actual !== assetClass) {
+      throw new ActionError(
+        actual === "ACAO"
+          ? `${ticker} é ação: adicione na aba Ações.`
+          : `${ticker} não é ação: adicione na aba FIIs.`,
+      );
+    }
+    const category = actual === "ACAO" ? "ACAO" : suggestCategory(await getCatalogSubType(ticker));
+    await upsertTargetAsset(ctx.tenant.portfolioId, ticker, {}, { inStrategy: true, category });
     refresh();
     return { ok: true as const };
   });
@@ -45,7 +48,9 @@ export const updateTargetAssetAction = authActionClient
   .inputSchema(targetPatchSchema)
   .action(async ({ parsedInput, ctx }) => {
     const { ticker, ...patch } = parsedInput;
-    await refuseStock(ticker);
+    if (patch.category != null && patch.category !== "ACAO" && (await classOf(ticker)) === "ACAO") {
+      throw new ActionError("A categoria de uma ação é sempre Ação.");
+    }
     const stored = await findTargetAsset(ctx.tenant.portfolioId, ticker);
     const inStrategy = patch.inStrategy ?? stored?.inStrategy ?? false;
     const problem = suggestedPercentProblem(patch.suggestedPercent ?? null, inStrategy);
@@ -69,6 +74,13 @@ export const setSuggestedPercentsAction = authActionClient
   .metadata({ actionName: "setSuggestedPercents" })
   .inputSchema(suggestedPercentsSchema)
   .action(async ({ parsedInput, ctx }) => {
+    const classes = await getAssetClasses(parsedInput.items.map((item) => item.ticker));
+    const kinds = new Set(
+      parsedInput.items.map((item) => (classes.get(item.ticker) === "ACAO" ? "ACAO" : "FII")),
+    );
+    if (kinds.size > 1) {
+      throw new ActionError("As % de FIIs e de ações ficam em carteiras separadas.");
+    }
     for (const item of parsedInput.items) {
       await upsertTargetAsset(
         ctx.tenant.portfolioId,
