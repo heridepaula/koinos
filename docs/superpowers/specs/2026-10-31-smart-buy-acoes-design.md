@@ -1,7 +1,7 @@
 # Smart Buy de ações e divisão escolhida no aporte: especificação de design
 
 - **Data:** 2026-10-31
-- **Status:** aprovado, a implementar (branch feat/smart-buy-acoes)
+- **Status:** aprovado e implementado (branch feat/smart-buy-acoes)
 - **Origem:** documento do dono `algoritmo_smart_buy_a_es_reuni_o_e_especifica_o.md` ("Smart Buy Ações (Dividendos)") e o pedido: "na tela de recomendações o usuário seleciona a % de quanto aplicar do montante em cada carteira. Remova as % da carteira recomendada, ficará centralizado nas recomendações."
 - **Substitui** parte de `2026-10-31-aporte-por-classe-design.md`: a meta por classe (`class_targets`), `splitByClassTarget`, `classAporte`, o troco cruzado e o `STOCK_CAPS` saem.
 
