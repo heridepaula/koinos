@@ -1,6 +1,8 @@
 import {
+  DIVIDEND_KINDS,
   sortLedger,
   type DividendEntry,
+  type DividendKind,
   type LedgerEntry,
   type PlannedUpcoming,
 } from "@/features/transactions";
@@ -13,6 +15,7 @@ import {
 } from "@/shared/lib/time";
 import type {
   AdjustedResult,
+  KindAmount,
   DividendMonthGroup,
   DividendPace,
   DividendMonthSummary,
@@ -29,6 +32,24 @@ const DAY = 86_400_000;
 const EPSILON = 1e-9;
 /** FIIs costumam pagar de 5 a 15 dias depois da data com. */
 const PAY_WINDOW_DAYS = 15;
+
+/** `?tipo=` da URL (rendimento, jcp…). Ausente ou desconhecido: todos os tipos. */
+export function parseKindParam(
+  value: string | readonly string[] | null | undefined,
+): DividendKind | null {
+  const raw = (typeof value === "string" ? value : value?.[0])?.toUpperCase();
+  return DIVIDEND_KINDS.find((kind) => kind === raw) ?? null;
+}
+
+/** Soma por tipo, na ordem de DIVIDEND_KINDS, só os tipos com valor. */
+export function sumByKind(items: readonly { kind: DividendKind; amount: number }[]): KindAmount[] {
+  const sums = new Map<DividendKind, number>();
+  for (const item of items) sums.set(item.kind, (sums.get(item.kind) ?? 0) + item.amount);
+  return DIVIDEND_KINDS.filter((kind) => Math.abs(sums.get(kind) ?? 0) >= 0.005).map((kind) => ({
+    kind,
+    amount: sums.get(kind)!,
+  }));
+}
 
 /** Cotas de `ticker` no fim do dia anterior a `exDate`. */
 export function quantityBefore(
@@ -68,6 +89,7 @@ export function upcomingDividends(input: {
   const { forecast } = input;
   const result: UpcomingDividend[] = (forecast?.items ?? []).map((item) => ({
     ticker: item.ticker,
+    kind: item.kind,
     exDate: null,
     quantity: item.quantity,
     perShare: item.perShare,
@@ -92,6 +114,7 @@ export function upcomingDividends(input: {
       if (quantity <= 0) continue;
       result.push({
         ticker,
+        kind: "RENDIMENTO",
         exDate: announcement.exDate,
         quantity,
         perShare: announcement.perShare,
@@ -183,22 +206,20 @@ export function monthSummary(
   upcoming: readonly UpcomingDividend[],
 ): DividendMonthSummary {
   const month = currentMonthKey(now);
-  const receivedTotal = received
-    .filter((item) => monthKeyOfTradeDate(item.paidAt) === month)
-    .reduce((sum, item) => sum + item.amount, 0);
+  const monthReceived = received.filter((item) => monthKeyOfTradeDate(item.paidAt) === month);
+  const receivedTotal = monthReceived.reduce((sum, item) => sum + item.amount, 0);
   // Da B3, só o que tem pagamento previsto neste mês; os estimados seguem a regra da lista.
-  const upcomingTotal = upcoming
-    .filter(
-      (item) =>
-        item.source === "YAHOO" ||
-        (item.payBy !== null && monthKeyOfTradeDate(item.payBy) === month),
-    )
-    .reduce((sum, item) => sum + item.amount, 0);
+  const monthUpcoming = upcoming.filter(
+    (item) =>
+      item.source === "YAHOO" || (item.payBy !== null && monthKeyOfTradeDate(item.payBy) === month),
+  );
+  const upcomingTotal = monthUpcoming.reduce((sum, item) => sum + item.amount, 0);
   return {
     month,
     received: receivedTotal,
     upcoming: upcomingTotal,
     total: receivedTotal + upcomingTotal,
+    byKind: sumByKind([...monthReceived, ...monthUpcoming]),
   };
 }
 
@@ -224,12 +245,13 @@ export function groupByMonth(received: readonly DividendEntry[]): DividendMonthG
 
 /** Por ano: total e média mensal sobre os meses com algum provento. */
 export function groupByYear(received: readonly DividendEntry[]): DividendYearGroup[] {
-  const years = new Map<string, { total: number; months: Set<string> }>();
+  const years = new Map<string, { total: number; months: Set<string>; items: DividendEntry[] }>();
   for (const item of received) {
     const month = monthKeyOfTradeDate(item.paidAt);
     const year = month.slice(0, 4);
-    const group = years.get(year) ?? { total: 0, months: new Set<string>() };
+    const group = years.get(year) ?? { total: 0, months: new Set<string>(), items: [] };
     group.total += item.amount;
+    group.items.push(item);
     group.months.add(month);
     years.set(year, group);
   }
@@ -239,6 +261,7 @@ export function groupByYear(received: readonly DividendEntry[]): DividendYearGro
       total: group.total,
       months: group.months.size,
       monthlyAverage: group.total / group.months.size,
+      byKind: sumByKind(group.items),
     }))
     .sort((a, b) => b.year.localeCompare(a.year));
 }

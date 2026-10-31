@@ -1,7 +1,7 @@
 import type { AssetClass } from "@/features/market-data";
 import type { AportePriority, CascadeAsset } from "@/features/smart-buy";
 import type { Category } from "@/features/strategy";
-import type { MonthlyContribution } from "@/features/transactions";
+import type { DividendKind, MonthlyContribution } from "@/features/transactions";
 
 // DTOs entregues às telas. Nenhum carrega userId, portfolioId ou documento cru do banco.
 
@@ -241,8 +241,13 @@ export type EvolutionPoint = {
 
 export type AdjustedResult = { withDividends: number; total: number };
 
+/** Soma de um tipo de provento. */
+export type KindAmount = { kind: DividendKind; amount: number };
+
 export type UpcomingDividend = {
   ticker: string;
+  /** Tipo do provento: o do extrato da B3; no anúncio do Yahoo, sempre Rendimento. */
+  kind: DividendKind;
   /** Data ex do anúncio do Yahoo; null nos itens da B3, que não trazem essa data. */
   exDate: Date | null;
   quantity: number | null;
@@ -269,6 +274,8 @@ export type DividendMonthSummary = {
   received: number;
   upcoming: number;
   total: number;
+  /** Soma por tipo, só os tipos com valor, na ordem de DIVIDEND_KINDS. */
+  byKind: KindAmount[];
 };
 
 export type DividendMonthGroup = {
@@ -282,6 +289,8 @@ export type DividendYearGroup = {
   total: number;
   months: number;
   monthlyAverage: number;
+  /** Soma por tipo, só os tipos com valor, na ordem de DIVIDEND_KINDS. */
+  byKind: KindAmount[];
 };
 
 export type DividendTickerGroup = {

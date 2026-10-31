@@ -3,7 +3,7 @@ import { formatBRL, formatQuantity, formatTradeDate } from "@/shared/lib/format"
 import { Badge } from "@/shared/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/shared/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/shared/ui/table";
-import type { DividendKind, TransactionKind } from "../../domain/types";
+import { DIVIDEND_KIND_LABELS, type TransactionKind } from "../../domain/types";
 import type {
   B3ImportPreview,
   PlannedDividend,
@@ -26,13 +26,6 @@ const KIND_LABELS: Record<Exclude<TransactionKind, "NEGOCIO">, string> = {
   INCORPORACAO: "Incorporação",
   FRACAO: "Leilão de fração",
   POSICAO_ANTERIOR: "Posição anterior",
-};
-const DIVIDEND_LABELS: Record<DividendKind, string> = {
-  RENDIMENTO: "Rendimento",
-  REEMBOLSO: "Reembolso",
-  DIVIDENDO: "Dividendo",
-  JCP: "JCP",
-  ALUGUEL: "Aluguel",
 };
 const SOURCE_LABELS: Record<StoredLedgerRow["source"], string> = {
   MANUAL: "manual",
@@ -249,7 +242,9 @@ function DividendCells({ item }: { item: PlannedDividend }) {
     <>
       <TableCell className="tabular-nums">{formatTradeDate(item.paidAt)}</TableCell>
       <TableCell className="font-medium">{item.ticker}</TableCell>
-      <TableCell className="hidden @min-[480px]:table-cell">{DIVIDEND_LABELS[item.kind]}</TableCell>
+      <TableCell className="hidden @min-[480px]:table-cell">
+        {DIVIDEND_KIND_LABELS[item.kind]}
+      </TableCell>
       <TableCell className="hidden text-right tabular-nums @min-[600px]:table-cell">
         {item.quantity !== null ? formatQuantity(item.quantity) : "—"}
       </TableCell>
@@ -423,7 +418,7 @@ export function UpcomingPreview({ preview }: { preview: B3ImportPreview }) {
                 <TableRow key={`${item.ticker}-${index}`} className={ROW_EDGES}>
                   <TableCell className="font-medium">{item.ticker}</TableCell>
                   <TableCell className="hidden @min-[480px]:table-cell">
-                    {DIVIDEND_LABELS[item.kind]}
+                    {DIVIDEND_KIND_LABELS[item.kind]}
                   </TableCell>
                   <TableCell className="hidden text-right tabular-nums @min-[600px]:table-cell">
                     {item.quantity !== null ? formatQuantity(item.quantity) : "—"}

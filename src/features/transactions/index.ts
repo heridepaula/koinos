@@ -52,6 +52,7 @@ export type {
   TickerPlan,
 } from "./import/b3/types";
 export {
+  DIVIDEND_KIND_LABELS,
   DIVIDEND_KINDS,
   PRICE_SOURCES,
   TRANSACTION_KINDS,

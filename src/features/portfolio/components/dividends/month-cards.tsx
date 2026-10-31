@@ -1,4 +1,5 @@
 import { CircleCheckIcon, ClockIcon, HandCoinsIcon } from "lucide-react";
+import { DIVIDEND_KIND_LABELS } from "@/features/transactions";
 import { MetricCard, StatList, StatRow } from "@/shared/components/metric";
 import { formatBRL, formatMonth, formatPercent } from "@/shared/lib/format";
 import type { DividendMonthSummary } from "../../domain/types";
@@ -70,6 +71,17 @@ export function DividendMonthCards({
                 value={<Sensitive>{formatBRL(month.upcoming)}</Sensitive>}
               />
             </StatList>
+            {month.byKind.length > 1 ? (
+              <StatList>
+                {month.byKind.map((item) => (
+                  <StatRow
+                    key={item.kind}
+                    label={DIVIDEND_KIND_LABELS[item.kind]}
+                    value={<Sensitive>{formatBRL(item.amount)}</Sensitive>}
+                  />
+                ))}
+              </StatList>
+            ) : null}
           </div>
         </MetricCard>
       </div>

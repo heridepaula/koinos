@@ -1,4 +1,5 @@
 // Componentes da feature portfolio.
+export { DividendKindSelect } from "./components/dividends/kind-select";
 export { AlertsPanel } from "./components/alerts-panel";
 export { AllocationCharts } from "./components/allocation-charts";
 export { ClosedPositions } from "./components/closed-positions";

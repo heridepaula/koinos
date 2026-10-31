@@ -79,6 +79,15 @@ export type RealizedSale = {
 export const DIVIDEND_KINDS = ["RENDIMENTO", "REEMBOLSO", "DIVIDENDO", "JCP", "ALUGUEL"] as const;
 export type DividendKind = (typeof DIVIDEND_KINDS)[number];
 
+/** Nome de cada tipo de provento na tela. */
+export const DIVIDEND_KIND_LABELS: Record<DividendKind, string> = {
+  RENDIMENTO: "Rendimento",
+  REEMBOLSO: "Reembolso",
+  DIVIDENDO: "Dividendo",
+  JCP: "JCP",
+  ALUGUEL: "Aluguel",
+};
+
 export type DividendEntry = {
   ticker: string;
   /** Data do pagamento (meia-noite UTC, como as datas de negócio). */

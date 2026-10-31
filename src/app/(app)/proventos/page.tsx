@@ -2,23 +2,27 @@ import { ChevronRightIcon, RepeatIcon } from "lucide-react";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { Suspense } from "react";
+import { parseKindParam } from "@/features/portfolio";
 import { getDividendsView } from "@/features/portfolio/server";
 import {
+  DividendKindSelect,
   DividendMonthCards,
   DividendsHistory,
   EmptyDividends,
   UpcomingDividends,
 } from "@/features/portfolio/ui";
+import { AssetClassControl } from "@/shared/components/asset-class-control";
 import { InsetGroup, insetRowClass } from "@/shared/components/inset-list";
 import { PageHeader } from "@/shared/components/page-header";
 import { CardSkeleton } from "@/shared/components/skeletons";
+import { parseClassParam } from "@/shared/lib/class-filter";
 import { Button } from "@/shared/ui/button";
 import { Skeleton } from "@/shared/ui/skeleton";
 
 export const metadata: Metadata = { title: "Proventos" };
 
 // O cabeçalho vai no shell estático; tudo o que depende da sessão chega por streaming.
-export default function DividendsPage() {
+export default function DividendsPage({ searchParams }: PageProps<"/proventos">) {
   return (
     <>
       <PageHeader
@@ -36,15 +40,20 @@ export default function DividendsPage() {
         }
         mobileActions={false}
       />
+      <div className="mb-6 flex flex-wrap items-center gap-3">
+        <AssetClassControl />
+        <DividendKindSelect />
+      </div>
       <Suspense fallback={<DividendsSkeleton />}>
-        <DividendsContent />
+        <DividendsContent searchParams={searchParams} />
       </Suspense>
     </>
   );
 }
 
-async function DividendsContent() {
-  const view = await getDividendsView();
+async function DividendsContent({ searchParams }: Pick<PageProps<"/proventos">, "searchParams">) {
+  const params = await searchParams;
+  const view = await getDividendsView(parseClassParam(params.classe), parseKindParam(params.tipo));
   if (!view.imported) return <EmptyDividends />;
   return (
     <div className="grid gap-6">

@@ -15,7 +15,9 @@ export {
   groupByTicker,
   groupByYear,
   monthSummary,
+  parseKindParam,
   quantityBefore,
+  sumByKind,
   upcomingDividends,
 } from "./domain/dividends";
 export {

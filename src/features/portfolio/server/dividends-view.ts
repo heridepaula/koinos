@@ -1,11 +1,13 @@
 import "server-only";
 import { connection } from "next/server";
 import { getAssetClasses, getAssetSnapshots } from "@/features/market-data/server";
+import type { DividendKind } from "@/features/transactions";
 import {
   getMyDividendForecast,
   getMyDividends,
   getMyTransactions,
 } from "@/features/transactions/server";
+import { inClass, type ClassFilter } from "@/shared/lib/class-filter";
 import {
   addMonths,
   currentMonthKey,
@@ -33,10 +35,13 @@ const CHART_MONTHS = 24;
  */
 export const getDividendsView = traced(
   "view.dividends",
-  async (): Promise<DividendsView> => {
+  async (
+    filter: ClassFilter = "TODOS",
+    kind: DividendKind | null = null,
+  ): Promise<DividendsView> => {
     await connection(); // usa a hora atual: só em tempo de requisição
     const now = new Date();
-    const [transactions, received, forecast] = await Promise.all([
+    const [transactions, allReceived, allForecast] = await Promise.all([
       getMyTransactions(),
       getMyDividends(),
       getMyDividendForecast(),
@@ -44,7 +49,8 @@ export const getDividendsView = traced(
     const tickers = [
       ...new Set([
         ...transactions.map((entry) => entry.ticker),
-        ...received.map((item) => item.ticker),
+        ...allReceived.map((item) => item.ticker),
+        ...(allForecast?.items ?? []).map((item) => item.ticker),
       ]),
     ];
     const [assets, classes] = await Promise.all([
@@ -54,6 +60,18 @@ export const getDividendsView = traced(
     // A estimativa do Yahoo e o "não divulgado" são só de FIIs: na ação, o pagamento vem meses
     // depois da data ex e o JCP do Yahoo é bruto (spec ações, §6.4).
     const isFiiLike = (ticker: string) => classes.get(ticker) !== "ACAO";
+    const ofClass = (ticker: string) => inClass(filter, classes.get(ticker) ?? null);
+    const ofKind = (itemKind: DividendKind) => kind === null || itemKind === kind;
+    // A conferência de "já pago" do Yahoo e o "não divulgado" olham todos os tipos da classe:
+    // um FII alugado recebe Reembolso no lugar do Rendimento.
+    const classReceived = allReceived.filter((item) => ofClass(item.ticker));
+    const received = classReceived.filter((item) => ofKind(item.kind));
+    const forecast = allForecast && {
+      ...allForecast,
+      items: allForecast.items.filter((item) => ofClass(item.ticker) && ofKind(item.kind)),
+    };
+    // O Yahoo só estima Rendimento de FII (spec etapa 2, §6.2).
+    const withYahoo = kind === null || kind === "RENDIMENTO";
     const meta = (ticker: string) => ({
       name: assets.get(ticker)?.name ?? null,
       logoUrl: assets.get(ticker)?.logoUrl ?? null,
@@ -61,17 +79,25 @@ export const getDividendsView = traced(
 
     const announcements = new Map(
       [...assets]
-        .filter(([ticker]) => isFiiLike(ticker))
+        .filter(([ticker]) => withYahoo && isFiiLike(ticker) && ofClass(ticker))
         .map(([ticker, asset]) => [ticker, asset.dividendAnnouncements]),
     );
-    const upcoming = upcomingDividends({ now, transactions, received, announcements, forecast });
-    const undisclosed = undisclosedDividends({
+    const upcoming = upcomingDividends({
       now,
       transactions,
-      received: received.filter((item) => isFiiLike(item.ticker)),
+      received: classReceived,
       announcements,
-      upcoming,
+      forecast,
     });
+    const undisclosed = withYahoo
+      ? undisclosedDividends({
+          now,
+          transactions,
+          received: classReceived.filter((item) => isFiiLike(item.ticker)),
+          announcements,
+          upcoming,
+        })
+      : [];
     const today = todayTradeDate(now);
 
     const byMonth = groupByMonth(received);
@@ -100,14 +126,16 @@ export const getDividendsView = traced(
       since: first ? monthKeyOfTradeDate(first) : null,
       // Sem nenhum provento importado não dá para saber o que já foi pago: todo anúncio pareceria
       // "a receber". A tela mostra só o convite para importar os extratos.
-      imported: received.length > 0,
+      imported: allReceived.length > 0,
       forecastAsOf: forecast?.asOf ?? null,
     };
   },
-  (view) => ({
+  (view, filter = "TODOS", kind = null) => ({
     "koinos.view.upcoming": view.upcoming.length,
     "koinos.view.undisclosed": view.undisclosed.length,
     "koinos.view.months": view.byMonth.length,
     "koinos.view.fiis": view.byTicker.length,
+    "koinos.view.class_filter": filter,
+    "koinos.view.kind_filter": kind ?? "TODOS",
   }),
 );

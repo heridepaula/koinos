@@ -14,6 +14,7 @@ import { Button } from "@/shared/ui/button";
 import { Drawer, DrawerBody, DrawerContent, DrawerHeader, DrawerTitle } from "@/shared/ui/drawer";
 import { SegmentedControl } from "@/shared/ui/segmented-control";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/shared/ui/table";
+import { DIVIDEND_KIND_LABELS } from "@/features/transactions";
 import type { DividendsView } from "../../domain/types";
 import { QUANTITY_MASK, Sensitive } from "@/shared/components/sensitive";
 
@@ -364,6 +365,20 @@ function PhoneRow({
   );
 }
 
+/** Quebra do total por tipo, numa linha de rodapé; só aparece com mais de um tipo. */
+function KindBreakdown({ byKind }: { byKind: DividendsView["byYear"][number]["byKind"] }) {
+  if (byKind.length < 2) return null;
+  return (
+    <span className="block text-footnote font-normal whitespace-normal text-muted-foreground">
+      <Sensitive>
+        {byKind
+          .map((item) => `${DIVIDEND_KIND_LABELS[item.kind]} ${formatBRL(item.amount)}`)
+          .join(" · ")}
+      </Sensitive>
+    </span>
+  );
+}
+
 function ByYear({ rows }: { rows: DividendsView["byYear"] }) {
   return (
     <>
@@ -377,6 +392,7 @@ function ByYear({ rows }: { rows: DividendsView["byYear"] }) {
               <>
                 {row.months} {row.months === 1 ? "mês" : "meses"} · média{" "}
                 <Sensitive>{formatBRL(row.monthlyAverage)}</Sensitive>
+                <KindBreakdown byKind={row.byKind} />
               </>
             }
           />
@@ -397,6 +413,7 @@ function ByYear({ rows }: { rows: DividendsView["byYear"] }) {
               <TableCell className="pl-(--card-spacing) font-medium">{row.year}</TableCell>
               <TableCell className="text-right tabular-nums">
                 <Sensitive>{formatBRL(row.total)}</Sensitive>
+                <KindBreakdown byKind={row.byKind} />
               </TableCell>
               <TableCell className="text-right tabular-nums">{row.months}</TableCell>
               <TableCell className="pr-(--card-spacing) text-right tabular-nums">
