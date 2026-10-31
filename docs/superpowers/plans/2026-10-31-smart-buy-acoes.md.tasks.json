@@ -4,13 +4,13 @@
     {
       "id": 0,
       "subject": "Task 1: Motor de ações `stockSmartBuy` (código puro)",
-      "status": "pending",
+      "status": "completed",
       "description": "**Goal:** o algoritmo do documento, testado.\n\n**Files:**\n- Create: `src/features/smart-buy/domain/stock-buy.ts`\n- Create: `src/features/smart-buy/domain/stock-buy.test.ts`\n- Modify: `src/features/smart-buy/index.ts`\n\n**Acceptance Criteria:**\n- [ ] Tabela do documento (preços da tabela, carteira vazia, R$ 5.000): UNIP6 vem antes de VALE3; BBSE3 `ACIMA_DO_TETO`; PETR4, AXIA7 e ITSA4 `ACIMA_DO_TETO` (preço > teto) — e, com viés Aguardar e preço abaixo do teto, `AGUARDAR`.\n- [ ] Nenhuma ordem passa do déficit; `spent + leftover = amount`.\n- [ ] Viés null não bloqueia; `AGUARDAR` bloqueia.\n- [ ] Empate de margem: menor rank primeiro.\n- [ ] `PEDIDO_PEQUENO` e `SEM_SALDO` nos casos certos.\n- [ ] Invariantes em 300 carteiras aleatórias com semente.\n\n**Verify:** `npx vitest run src/features/smart-buy/domain/stock-buy.test.ts` → passa.\n\n```json:metadata\n{\"files\":[\"src/features/smart-buy/domain/stock-buy.ts\",\"src/features/smart-buy/domain/stock-buy.test.ts\",\"src/features/smart-buy/index.ts\"],\"verifyCommand\":\"`npx vitest run src/features/smart-buy/domain/stock-buy.test.ts` → passa.\",\"acceptanceCriteria\":[\"Tabela do documento (preços da tabela, carteira vazia, R$ 5.000): UNIP6 vem antes de VALE3; BBSE3 `ACIMA_DO_TETO`; PETR4, AXIA7 e ITSA4 `ACIMA_DO_TETO` (preço > teto) — e, com viés Aguardar e preço abaixo do teto, `AGUARDAR`.\",\"Nenhuma ordem passa do déficit; `spent + leftover = amount`.\",\"Viés null não bloqueia; `AGUARDAR` bloqueia.\",\"Empate de margem: menor rank primeiro.\",\"`PEDIDO_PEQUENO` e `SEM_SALDO` nos casos certos.\",\"Invariantes em 300 carteiras aleatórias com semente.\"]}\n```"
     },
     {
       "id": 1,
       "subject": "Task 2: Viés nos alvos e `stockBuyInput` no snapshot",
-      "status": "pending",
+      "status": "completed",
       "blockedBy": [
         0
       ],
@@ -19,7 +19,7 @@
     {
       "id": 2,
       "subject": "Task 3: Recomendações com a divisão escolhida e remoção da meta por classe",
-      "status": "pending",
+      "status": "completed",
       "blockedBy": [
         0,
         1
@@ -29,7 +29,7 @@
     {
       "id": 3,
       "subject": "Task 4: Carteira Alvo, aba Ações: viés e sem ajuste para 100%",
-      "status": "pending",
+      "status": "completed",
       "blockedBy": [
         1
       ],
@@ -38,7 +38,7 @@
     {
       "id": 4,
       "subject": "Task 5: Docs, verificação e conferência com os dados reais",
-      "status": "pending",
+      "status": "completed",
       "blockedBy": [
         2,
         3
@@ -46,5 +46,5 @@
       "description": "**Goal:** CLAUDE.md e specs atualizados, checagens verdes, ordens de ações conferidas só lendo.\n\n**Files:** `CLAUDE.md`, `docs/superpowers/specs/2026-10-31-aporte-por-classe-design.md`, `2026-10-31-smart-buy-acoes-design.md`, script fora do repositório.\n\n**Acceptance Criteria:**\n- [ ] CLAUDE.md: Domain flow item 3 (dois motores; divisão na tela; `stockSmartBuy`), Pages (`/recomendacoes?valor=&fiis=`, `/carteira-alvo` sem a meta e com Viés), Product rules (aporte e Stocks), Data layer/Asset class (sai `class_targets`; `bias`), Tests. Sem menções a `class_targets`, `classAporte`, `STOCK_CAPS` como código atual.\n- [ ] Spec do aporte por classe: nota de substituição. Spec do smart buy: status \"aprovado e implementado (branch feat/smart-buy-acoes)\".\n- [ ] `format:check`, `lint`, `typecheck`, `test` e `build` passam.\n- [ ] Script só de leitura: monta o snapshot com os repositórios e `getAssetSnapshots` (só leitura), imprime `stockSmartBuy(5000, stockBuyInput)` (ordens e exclusões) e confere `spent + leftover = 5000`.\n\n**Verify:** a verificação completa e a saída do script.\n\n```bash\ngit commit -m \"docs: describe the stock smart buy and the split chosen at the aporte\"\n```\n\n```json:metadata\n{\"files\":[\"CLAUDE.md\",\"docs/superpowers/specs/2026-10-31-aporte-por-classe-design.md\"],\"verifyCommand\":\"a verificação completa e a saída do script.\",\"acceptanceCriteria\":[\"CLAUDE.md: Domain flow item 3 (dois motores; divisão na tela; `stockSmartBuy`), Pages (`/recomendacoes?valor=&fiis=`, `/carteira-alvo` sem a meta e com Viés), Product rules (aporte e Stocks), Data layer/Asset class (sai `class_targets`; `bias`), Tests. Sem menções a `class_targets`, `classAporte`, `STOCK_CAPS` como código atual.\",\"Spec do aporte por classe: nota de substituição. Spec do smart buy: status \\\"aprovado e implementado (branch feat/smart-buy-acoes)\\\".\",\"`format:check`, `lint`, `typecheck`, `test` e `build` passam.\",\"Script só de leitura: monta o snapshot com os repositórios e `getAssetSnapshots` (só leitura), imprime `stockSmartBuy(5000, stockBuyInput)` (ordens e exclusões) e confere `spent + leftover = 5000`.\"]}\n```"
     }
   ],
-  "lastUpdated": "2026-10-31T12:36:16.900Z"
+  "lastUpdated": "2026-10-31T15:00:46.092Z"
 }
