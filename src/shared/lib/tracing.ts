@@ -65,18 +65,18 @@ export function recordSpan(name: string, attributes: Attributes): void {
 }
 
 /**
- * `fn` com um span `name` em volta. `describe` tira do resultado os atributos do span: só
- * contagens, nunca valores da carteira.
+ * `fn` com um span `name` em volta. `describe` tira do resultado (e dos argumentos) os atributos
+ * do span: só contagens e escolhas da tela, nunca valores da carteira.
  */
 export function traced<A extends unknown[], R>(
   name: string,
   fn: (...args: A) => Promise<R>,
-  describe: (result: R) => Attributes,
+  describe: (result: R, ...args: A) => Attributes,
 ): (...args: A) => Promise<R> {
   return (...args) =>
     withSpan(name, {}, async (span) => {
       const result = await fn(...args);
-      span.setAttributes(describe(result));
+      span.setAttributes(describe(result, ...args));
       return result;
     });
 }
