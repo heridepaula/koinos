@@ -29,4 +29,12 @@ export {
   type ClassSplit,
   type ClassTarget,
 } from "./domain/class-split";
+export {
+  stockSmartBuy,
+  type StockBias,
+  type StockBuyAsset,
+  type StockBuyOrder,
+  type StockBuyResult,
+  type StockExclusionReason,
+} from "./domain/stock-buy";
 export { classAporte, type ClassAporteResult } from "./domain/class-aporte";
