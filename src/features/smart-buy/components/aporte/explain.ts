@@ -207,10 +207,15 @@ export function shortReason(order: CascadeOrder): string {
   return parts.join(" · ");
 }
 
+/** Os lotes que vieram do passo de sobra (a 3.1); vazio quando a ordem não teve sobra. */
+function leftoverText(order: StockBuyOrder): string {
+  return order.fromLeftover > 0 ? ` · ${order.fromLeftover / order.lot} lote(s) pela sobra` : "";
+}
+
 /** O porquê completo de uma ordem de ação: a margem de segurança e o que faltava para a meta. */
 export function explainStock(order: StockBuyOrder): string {
   const ceiling = order.price * (1 + order.marginOfSafety);
-  return `Margem de segurança de ${formatPercent(order.marginOfSafety, 0)} (teto ${formatBRL(ceiling)}, preço ${formatBRL(order.price)}) · faltavam ${formatBRL(order.deficitBefore)} para a meta de ${formatPercent(order.targetWeight, 1)}`;
+  return `Margem de segurança de ${formatPercent(order.marginOfSafety, 0)} (teto ${formatBRL(ceiling)}, preço ${formatBRL(order.price)}) · faltavam ${formatBRL(order.deficitBefore)} para a meta de ${formatPercent(order.targetWeight, 1)}${leftoverText(order)}`;
 }
 
 /**
@@ -218,5 +223,5 @@ export function explainStock(order: StockBuyOrder): string {
  * preço está abaixo do teto, a conta dos FIIs: por isso vai com o nome.
  */
 export function shortStockReason(order: StockBuyOrder): string {
-  return `margem de segurança de ${formatPercent(order.marginOfSafety, 0)} · faltavam ${formatBRL(order.deficitBefore)}`;
+  return `margem de segurança de ${formatPercent(order.marginOfSafety, 0)} · faltavam ${formatBRL(order.deficitBefore)}${leftoverText(order)}`;
 }

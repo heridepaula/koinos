@@ -119,6 +119,18 @@ describe("ações", () => {
       "margem de segurança de 37% · faltavam R$ 1.200,00",
     );
   });
+
+  it("com sobra, diz quantos lotes vieram dela; sem sobra, o texto é o de antes", () => {
+    const leftover = { ...stock, quantity: 300, fromLeftover: 200, lot: 100 };
+    expect(shortStockReason(leftover)).toContain("2 lote(s) pela sobra");
+    expect(plain(shortStockReason(leftover))).toBe(
+      "margem de segurança de 37% · faltavam R$ 1.200,00 · 2 lote(s) pela sobra",
+    );
+    expect(explainStock(leftover)).toContain(" · 2 lote(s) pela sobra");
+    expect(explainStock(leftover).startsWith(explainStock(stock))).toBe(true);
+    expect(shortStockReason(stock)).not.toContain("sobra");
+    expect(explainStock(stock)).not.toContain("sobra");
+  });
 });
 
 describe("unitOf", () => {
@@ -169,6 +181,19 @@ describe("fora deste aporte", () => {
       "Com viés Aguardar na Carteira Alvo: não recebe aporte.",
     );
     expect(reasonHelp("PEDIDO_PEQUENO", [fii, stock])).toContain("não chega a uma cota ou ação");
+  });
+
+  it("os motivos novos da 3.1: dois só de FIIs e um só de ações", () => {
+    for (const reason of ["ABAIXO_DO_MINIMO", "PROVENTO_SUSPENSO"] as const) {
+      expect(reasonHelp(reason, [fii])).toBe(REASON_HELP[reason]);
+      expect(reasonHelp(reason, [fii, fii])).toBe(REASON_HELP[reason]);
+    }
+    expect(reasonHelp("ABAIXO_DO_MINIMO", [fii])).toContain("mínimo por ordem");
+    expect(reasonHelp("PROVENTO_SUSPENSO", [fii])).toContain("sem data ex");
+
+    expect(reasonHelp("MENOS_DE_UM_LOTE", [stock])).toBe(STOCK_REASON_HELP.MENOS_DE_UM_LOTE);
+    expect(reasonHelp("MENOS_DE_UM_LOTE", [fii, stock])).toBe(NEUTRAL_REASON_HELP.MENOS_DE_UM_LOTE);
+    expect(reasonHelp("MENOS_DE_UM_LOTE", [stock])).toContain("lote de 100 ações");
   });
 
   it("junta as duas carteiras por motivo, os FIIs antes das ações", () => {

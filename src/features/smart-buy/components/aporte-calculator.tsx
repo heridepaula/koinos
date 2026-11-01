@@ -27,6 +27,7 @@ import {
 } from "@/shared/ui/card";
 import { Slider } from "@/shared/ui/slider";
 import { splitAmount } from "../domain/aporte-split";
+import { CURRENT_ENGINE, ENGINE_VERSIONS } from "../domain/engine-options";
 import { mergeOrders, type MergedOrder } from "../domain/merge-orders";
 import { RISK_CAPS } from "../domain/risk";
 import { stockSmartBuy, type StockBuyAsset, type StockBuyOrder } from "../domain/stock-buy";
@@ -39,7 +40,7 @@ import { PRINCIPLES } from "./principles-banner";
 export type { AssetMeta };
 
 const CALCULATION_NOTE =
-  "O cálculo usa as cotações atuais, a Carteira Alvo e os dados de cada ativo. Você escolhe quanto do aporte vai para FIIs e quanto vai para ações. FII ou ação com viés Aguardar na Carteira Alvo fica fora do aporte, e as % sugeridas das ações são reescaladas para somar 100%, como as dos FIIs. Entre os FIIs, cada um pede o que falta para a meta, mais quando está descontado (P/VP e margem até o teto) e menos quando o provento caiu ou o imóvel está vago; a cascata segue o ranking, e o que sobra vai para o mais abaixo da meta. Nas ações, só entram as abaixo do teto e da meta, e a maior margem de segurança é atendida primeiro.";
+  "O cálculo usa as cotações atuais, a Carteira Alvo e os dados de cada ativo. Você escolhe quanto do aporte vai para FIIs e quanto vai para ações. FII ou ação com viés Aguardar na Carteira Alvo fica fora do aporte, e as % sugeridas das ações são reescaladas para somar 100%, como as dos FIIs. Entre os FIIs, cada um pede o que falta para a meta, mais quando está descontado (P/VP e margem até o teto) e menos quando o provento caiu ou o imóvel está vago; a cascata segue o ranking, e o que sobra vai para o mais abaixo da meta. Nas ações, só entram as abaixo do teto e da meta, e a maior margem de segurança é atendida primeiro. Nenhuma ordem de FII sai abaixo da fatia justa (aporte ÷ nº de FIIs da estratégia), e o FII que parou de pagar proventos fica fora. As ações saem em lotes de 100, e o que sobra vai, um lote por vez, para a ação mais abaixo da meta.";
 
 const RISK_NOTE = `Travas de risco: nenhum FII leva mais de ${formatPercent(RISK_CAPS.asset, 0)} do aporte, nenhum setor mais de ${formatPercent(RISK_CAPS.sector, 0)}, e nem papel nem tijolo mais de ${formatPercent(RISK_CAPS.macro, 0)}.`;
 
@@ -88,23 +89,42 @@ function OrdersCard({
   rows,
   riskLimited,
   metaByTicker,
+  fiiMinimum,
+  fiiCount,
+  stockLot,
 }: {
   view: View;
   rows: readonly MergedOrder[];
   /** Alguma trava de risco cortou o pedido de um FII. */
   riskLimited: boolean;
   metaByTicker: ReadonlyMap<string, AssetMeta>;
+  /** O mínimo por ordem de FII, em R$ (0 sem parte de FIIs ou na 3.0). */
+  fiiMinimum: number;
+  /** Quantos FIIs a estratégia tem: o divisor do mínimo. */
+  fiiCount: number;
+  /** O lote das ações, quando há parte de ações (null sem ela). */
+  stockLot: number | null;
 }) {
   // O selo da classe só ajuda quando a tabela mistura FIIs e ações.
   const showClass =
     rows.some((row) => row.kind === "FII") && rows.some((row) => row.kind === "ACAO");
+  // As regras da 3.1 que mudam o tamanho das ordens, ditas junto com a ordem das linhas.
+  const orderText = [
+    ORDER_TEXT[view],
+    fiiMinimum > 0
+      ? `Nenhuma ordem de FII abaixo de ${formatBRL(fiiMinimum)} (aporte ÷ ${fiiCount} FIIs).`
+      : null,
+    stockLot !== null && stockLot > 1 ? `Ações em lotes de ${stockLot}.` : null,
+  ]
+    .filter(Boolean)
+    .join(" ");
   return (
     <Card className="@container">
       <CardHeader>
         <CardTitle>Ordens de compra</CardTitle>
         <CardDescription>
-          <span className="max-md:hidden">{ORDER_TEXT[view]} </span>Os preços são de referência:
-          confira na corretora.
+          <span className="max-md:hidden">{orderText} </span>Os preços são de referência: confira na
+          corretora.
         </CardDescription>
         {riskLimited ? (
           <p className="mt-2 flex items-start gap-3 text-sm">
@@ -169,8 +189,9 @@ export function AporteCalculator({
   const { fii: fiiPart, stock: stockPart } = splitAmount(amount, fiis);
   const showFii = amount > 0 && fiiPart > 0;
   const showStock = amount > 0 && stockPart > 0;
-  const fiiResult = showFii ? sunoCascade(fiiPart, fiiAssets) : null;
-  const stockResult = showStock ? stockSmartBuy(stockPart, stockAssets) : null;
+  const engine = ENGINE_VERSIONS[CURRENT_ENGINE];
+  const fiiResult = showFii ? sunoCascade(fiiPart, fiiAssets, engine) : null;
+  const stockResult = showStock ? stockSmartBuy(stockPart, stockAssets, engine) : null;
 
   const spent = (fiiResult?.spent ?? 0) + (stockResult?.spent ?? 0);
   const leftover = (fiiResult?.leftover ?? 0) + (stockResult?.leftover ?? 0);
@@ -331,6 +352,9 @@ export function AporteCalculator({
             rows={rows}
             riskLimited={riskLimited}
             metaByTicker={metaByTicker}
+            fiiMinimum={fiiResult?.minimum ?? 0}
+            fiiCount={fiiAssets.length}
+            stockLot={showStock ? engine.stockLot : null}
           />
           <ExcludedCard
             byReason={groupExcluded(fiiResult?.excluded ?? [], stockResult?.excluded ?? [])}
