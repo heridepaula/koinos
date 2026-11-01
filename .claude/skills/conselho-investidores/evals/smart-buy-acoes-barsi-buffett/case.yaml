@@ -1,0 +1,4 @@
+schema_version: "1.1"
+name: smart-buy-acoes-barsi-buffett
+expected_outcome: |
+  Um relatório em pt-BR que avalia stock-buy.ts e a lista real de ações da Carteira Alvo (lida só com leitura): aponta que o motor não usa nenhum critério de dividendos, que a ordem é pela margem de segurança com o rank só no desempate (crítica de qualidade × preço na lente de Buffett), classifica as ações da lista nos setores BEST de Barsi dizendo que a classificação é manual, nota que o Koinos não tem série do IPCA para um filtro de DY contra a inflação, e não inventa falas de Barsi ou Buffett.

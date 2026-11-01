@@ -1,0 +1,4 @@
+schema_version: "1.1"
+name: proposta-tensor-dy
+expected_outcome: |
+  Um relatório em pt-BR que trata a proposta como fórmula (entradas, saída, comportamento sem dado), aponta problemas técnicos concretos (multiplicador sem limite, sobreposição com o tensor de valuation e o freio de proventos, falta de tratamento para FII sem DY), mostra na lente de Baroni que o DY do papel embute inflação e que o tensor empurraria o aporte para o papel, quantifica o efeito com a carteira real ou com uma conta à mão declarada, e recomenda o que fazer sem implementar nada.

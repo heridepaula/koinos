@@ -46,6 +46,7 @@ Koinos is a single-owner dashboard for a Brazilian portfolio of FIIs (REITs) and
 
   - **`@/` aliases:** a script outside the repo can't resolve them. Import the repo's `src` through absolute `file://` URLs, or copy the script into the repo root just to run it and delete it afterwards. Never commit it.
   - **Session DAL:** modules that reach it (the `server.ts` entry points, through `next/navigation`) don't run under tsx. Import the repository modules instead (`repo.ts`, `server/*-repo.ts`).
+  - **The engines on the real portfolio:** `.claude/skills/conselho-investidores/scripts/lab.mts` rebuilds the snapshot read-only and runs both engines (`snapshot`, `recomendar`, `projetar`, `choque`, `mes`). Prefer it to a new throwaway script. `tsconfig.json` includes `.claude/skills/**/*.mts`, because the default globs skip dot folders, so `typecheck` covers it.
 
 **Database warning:** `MONGODB_URI` in `.env.local` points at the production database (`koinos`). Local dev and every script read and write real data, so use a separate database name for experiments.
 
@@ -289,6 +290,9 @@ Koinos is a single-owner dashboard for a Brazilian portfolio of FIIs (REITs) and
 - **Stocks (2026-10-30):** they enter positions, dividends, lending and the estimated tax. Since 2026-10-31 they also have their own Carteira Alvo (`/carteira-alvo?classe=acoes`, spec `2026-10-31-carteira-alvo-acoes-design.md`) with a bias, and the recommendations through the stock smart buy, with the split chosen at the screen. The unified tables (spec `2026-10-31-tabelas-unificadas-design.md`) gave the two Carteira Alvo tabs the same columns and the % panel, and put FIIs and stocks in one orders table. Spec: `2026-10-30-acoes-etapa-1-design.md`. Stage 2 (the Geral/FIIs/Ações views): `2026-10-31-acoes-etapa-2-design.md`.
 - **Dividends start at the first B3 statement (Nov 2019).** The owner decided not to estimate older ones: before that, the app only knows the prior positions of 2019-11-07, without purchase dates.
 - **Read the spec first:** design specs and implementation plans per feature are in `docs/superpowers/specs` and `docs/superpowers/plans`. Read the relevant spec before changing behavior.
+- **Formula reviews:** before changing an aporte formula (the cascade, the stock smart buy, the split, the weights or the reinvestment), and whenever the owner asks to evaluate one, use the `conselho-investidores` skill (`.claude/skills/`).
+  - It checks the math, the edge cases and the invariants, runs the engines on the real portfolio (read-only) and reviews the formula through the lenses of Tiago Reis, Professor Baroni, Warren Buffett and Luiz Barsi.
+  - It reports and doesn't change code.
 
 ## Gotchas
 

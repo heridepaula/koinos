@@ -1,0 +1,4 @@
+schema_version: "1.1"
+name: cascata-fiis
+expected_outcome: |
+  Um relatório em pt-BR com veredito, verificação técnica (testes da cascata rodados, achados classificados com status Confirmado ou Provável), números da carteira real obtidos só com leitura (recomendação e projeção com tickers e valores), as quatro lentes ancoradas em mecanismos da cascata (ordem do ranking, tensores, travas por aporte, sobra), o efeito de o ranking mandar no passo 1 sobre FIIs pior ranqueados e abaixo da meta, e recomendações priorizadas que marcam conflitos com decisões do dono. Nenhum arquivo do repositório é alterado.
