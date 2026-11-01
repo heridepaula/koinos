@@ -120,6 +120,14 @@ describe("ações", () => {
     );
   });
 
+  it("sem déficit (compra da sobra), diz que já estava na meta, sem valor negativo", () => {
+    const onTarget = { ...stock, deficitBefore: -300, fromLeftover: 10 };
+    expect(plain(explainStock(onTarget))).toContain("já estava na meta");
+    expect(plain(shortStockReason(onTarget))).toContain("já estava na meta");
+    expect(explainStock(onTarget)).not.toContain("faltavam");
+    expect(shortStockReason(onTarget)).not.toContain("-");
+  });
+
   it("com sobra, diz quantos lotes vieram dela; sem sobra, o texto é o de antes", () => {
     const leftover = { ...stock, quantity: 300, fromLeftover: 200, lot: 100 };
     expect(shortStockReason(leftover)).toContain("2 lote(s) pela sobra");

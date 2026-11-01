@@ -28,7 +28,7 @@ export const REASON_HELP: Record<ExclusionReason, string> = {
     "Falta pouco para a meta, ou os freios de provento e vacância cortaram o pedido: não chega a uma cota.",
   MENOS_DE_UM_LOTE: LESS_THAN_A_LOT_HELP,
   ABAIXO_DO_MINIMO:
-    "O pedido não chegava ao mínimo por ordem (aporte ÷ nº de FIIs da estratégia). O dinheiro foi para os próximos da fila; no próximo aporte o pedido cresce.",
+    "O pedido não chegava ao mínimo por ordem (aporte ÷ nº de FIIs da estratégia, até 12,5% do aporte). O dinheiro foi para os próximos da fila; no próximo aporte o pedido cresce.",
   LIMITE_ATIVO: `Uma cota custa mais que o limite de ${formatPercent(RISK_CAPS.asset, 0)} do aporte por FII.`,
   LIMITE_SETOR: `O setor já levou ${formatPercent(RISK_CAPS.sector, 0)} do aporte.`,
   LIMITE_MACRO: `Papel ou tijolo já levou ${formatPercent(RISK_CAPS.macro, 0)} do aporte.`,
@@ -212,10 +212,16 @@ function leftoverText(order: StockBuyOrder): string {
   return order.fromLeftover > 0 ? ` · ${order.fromLeftover / order.lot} lote(s) pela sobra` : "";
 }
 
+/** "faltavam R$ X", ou "já estava na meta" quando a compra veio da sobra (déficit zero). */
+function missingText(order: StockBuyOrder): string {
+  if (order.deficitBefore <= 0) return "já estava na meta";
+  return `faltavam ${formatBRL(order.deficitBefore)}`;
+}
+
 /** O porquê completo de uma ordem de ação: a margem de segurança e o que faltava para a meta. */
 export function explainStock(order: StockBuyOrder): string {
   const ceiling = order.price * (1 + order.marginOfSafety);
-  return `Margem de segurança de ${formatPercent(order.marginOfSafety, 0)} (teto ${formatBRL(ceiling)}, preço ${formatBRL(order.price)}) · faltavam ${formatBRL(order.deficitBefore)} para a meta de ${formatPercent(order.targetWeight, 1)}${leftoverText(order)}`;
+  return `Margem de segurança de ${formatPercent(order.marginOfSafety, 0)} (teto ${formatBRL(ceiling)}, preço ${formatBRL(order.price)}) · ${missingText(order)} para a meta de ${formatPercent(order.targetWeight, 1)}${leftoverText(order)}`;
 }
 
 /**
@@ -223,5 +229,5 @@ export function explainStock(order: StockBuyOrder): string {
  * preço está abaixo do teto, a conta dos FIIs: por isso vai com o nome.
  */
 export function shortStockReason(order: StockBuyOrder): string {
-  return `margem de segurança de ${formatPercent(order.marginOfSafety, 0)} · faltavam ${formatBRL(order.deficitBefore)}${leftoverText(order)}`;
+  return `margem de segurança de ${formatPercent(order.marginOfSafety, 0)} · ${missingText(order)}${leftoverText(order)}`;
 }

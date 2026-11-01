@@ -397,13 +397,60 @@ function portfolios() {
 }
 
 describe("sunoCascade: invariantes", () => {
-  it("com as opções da 3.0, o resultado é o mesmo que sem opções", () => {
-    for (const { amount, assets } of portfolios()) {
-      expect(sunoCascade(amount, assets, ENGINE_VERSIONS["3.0"])).toEqual(
+  it("a 3.0 (com ou sem opções) dá as ordens de referência de 4 carteiras, fixas no código", () => {
+    // Valores gravados do código de antes da 3.1 (commit 1867eed): [ticker, cotas, da sobra, total].
+    const reference = [
+      {
+        leftover: 13_629.31,
+        orders: [
+          ["FAXX11", 286, 0, 5_210.92],
+          ["FCXX11", 16, 0, 2_051.68],
+        ],
+      },
+      {
+        leftover: 1_277.75,
+        orders: [
+          ["FHXX11", 21, 21, 1_881.81],
+          ["FEXX11", 12, 12, 1_821.72],
+          ["FFXX11", 278, 0, 1_907.08],
+          ["FCXX11", 6, 0, 755.16],
+        ],
+      },
+      {
+        leftover: 1_098.39,
+        orders: [
+          ["FHXX11", 13, 13, 1_768.65],
+          ["FCXX11", 68, 0, 1_773.44],
+          ["FFXX11", 24, 0, 702.96],
+          ["FDXX11", 17, 0, 1_756.1],
+          ["FGXX11", 2, 0, 45.6],
+        ],
+      },
+      {
+        leftover: 0.57,
+        orders: [
+          ["FBXX11", 29, 0, 2_032.61],
+          ["FAXX11", 21, 0, 1_981.14],
+          ["FDXX11", 108, 0, 2_021.76],
+          ["FCXX11", 10, 10, 1_344.5],
+          ["FEXX11", 5, 5, 761.2],
+        ],
+      },
+    ];
+    const all = portfolios();
+    reference.forEach((expected, index) => {
+      const { amount, assets } = all[index];
+      for (const result of [
         sunoCascade(amount, assets),
-      );
+        sunoCascade(amount, assets, ENGINE_VERSIONS["3.0"]),
+      ]) {
+        expect(result.leftover).toBe(expected.leftover);
+        expect(result.orders.map((o) => [o.ticker, o.quantity, o.fromLeftover, o.total])).toEqual(
+          expected.orders,
+        );
+      }
       expect(aportePriorities(assets, ENGINE_VERSIONS["3.0"])).toEqual(aportePriorities(assets));
-    }
+    });
   });
 
   it("nunca passa das travas nem do aporte, e só compra elegíveis", () => {
@@ -439,9 +486,22 @@ describe("sunoCascade: mínimo por ordem", () => {
   const cents = (value: number) => Math.round(value * 100);
 
   it("nas 500 carteiras: nenhuma ordem abaixo do mínimo, o aporte fecha e só elegíveis compram", () => {
-    for (const { amount, assets } of portfolios()) {
+    const draw = random(99);
+    for (const { amount, assets: base } of portfolios()) {
+      // Uns FIIs com histórico de proventos, para o freio de suspensão.
+      const assets = base.map((asset) =>
+        draw() < 0.4
+          ? {
+              ...asset,
+              daysSinceLastDividend: Math.floor(draw() * 500),
+              dividendPayments12m: Math.floor(draw() * 13),
+            }
+          : asset,
+      );
       const result = sunoCascade(amount, assets, v31);
       const byTicker = new Map(assets.map((asset) => [asset.ticker, asset]));
+      const bySector = new Map<string, number>();
+      const byMacro = new Map<string, number>();
       const fairShare = Math.min(
         result.amount / assets.length,
         (RISK_CAPS.asset * result.amount) / 2,
@@ -457,6 +517,16 @@ describe("sunoCascade: mínimo por ordem", () => {
         expect(asset.price!).toBeLessThan(asset.ceiling!);
         expect(asset.bias).not.toBe("AGUARDAR");
         expect(item.total).toBeLessThanOrEqual(RISK_CAPS.asset * result.amount + 1e-6);
+        expect(isDividendSuspended(asset, v31)).toBe(false);
+        if (asset.sector)
+          bySector.set(asset.sector, (bySector.get(asset.sector) ?? 0) + item.total);
+        byMacro.set(asset.macro, (byMacro.get(asset.macro) ?? 0) + item.total);
+      }
+      for (const total of bySector.values()) {
+        expect(total).toBeLessThanOrEqual(RISK_CAPS.sector * result.amount + 1e-6);
+      }
+      for (const total of byMacro.values()) {
+        expect(total).toBeLessThanOrEqual(RISK_CAPS.macro * result.amount + 1e-6);
       }
     }
   });

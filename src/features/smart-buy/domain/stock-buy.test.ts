@@ -321,13 +321,34 @@ function portfolios() {
 }
 
 describe("stockSmartBuy: invariantes", () => {
-  it("com as opções da 3.0, o resultado é o mesmo que sem opções", () => {
-    for (const { amount, assets } of portfolios()) {
-      expect(stockSmartBuy(amount, assets, ENGINE_VERSIONS["3.0"])).toEqual(
+  it("a 3.0 (com ou sem opções) dá as ordens de referência de 4 carteiras, fixas no código", () => {
+    // Valores gravados do código de antes da 3.1 (commit 1867eed): [ticker, ações, total].
+    const reference = [
+      { leftover: 19_635.27, orders: [] },
+      { leftover: 7_586.28, orders: [] },
+      {
+        leftover: 43.57,
+        orders: [
+          ["T11", 13, 988.16],
+          ["T4", 150, 6_696.99],
+          ["T1", 700, 3_635.97],
+          ["T5", 26, 1_423.97],
+        ],
+      },
+      { leftover: 2.2, orders: [["T2", 70, 3_191.48]] },
+    ];
+    const all = portfolios();
+    reference.forEach((expected, index) => {
+      const { amount, assets } = all[index];
+      for (const result of [
         stockSmartBuy(amount, assets),
-      );
+        stockSmartBuy(amount, assets, ENGINE_VERSIONS["3.0"]),
+      ]) {
+        expect(result.leftover).toBe(expected.leftover);
+        expect(result.orders.map((o) => [o.ticker, o.quantity, o.total])).toEqual(expected.orders);
+      }
       expect(stockPriorities(assets, ENGINE_VERSIONS["3.0"])).toEqual(stockPriorities(assets));
-    }
+    });
   });
 
   it("300 carteiras aleatórias", () => {

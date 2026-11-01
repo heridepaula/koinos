@@ -1,9 +1,15 @@
+import { todayTradeDate } from "@/shared/lib/time";
+
 /** Um provento por cota: data ex (data de negócio, meia-noite UTC) e valor. */
 export type DividendEntry = { exDate: Date; amount: number };
 
 export type DividendWindow = {
   /** Soma por cota dos proventos com data ex na janela. Zero se o último está velho. */
   total: number;
+  /**
+   * Soma só dos proventos da janela que também caem nos 365 dias até `now`: serve ao DY de 12 meses de um FII que parou de pagar.
+   */
+  trailingTotal: number;
   /** Quantos proventos caíram na janela. Zero se o último está velho. */
   payments: number;
   /** O provento de maior data ex, ou null sem proventos. Vem mesmo com o total zerado. */
@@ -30,17 +36,21 @@ export function dividendWindow(dividends: readonly DividendEntry[], now: Date): 
     (best, dividend) => (!best || dividend.exDate > best.exDate ? dividend : best),
     null,
   );
-  if (!last) return { total: 0, payments: 0, last: null };
+  if (!last) return { total: 0, trailingTotal: 0, payments: 0, last: null };
   if (now.getTime() - last.exDate.getTime() > STALE_LAST_MS) {
-    return { total: 0, payments: 0, last };
+    return { total: 0, trailingTotal: 0, payments: 0, last };
   }
   const end = monthIndex(last.exDate);
   const inWindow = dividends.filter((dividend) => {
     const month = monthIndex(dividend.exDate);
     return month > end - 12 && month <= end;
   });
+  const trailing = inWindow.filter(
+    (dividend) => now.getTime() - dividend.exDate.getTime() < STALE_LAST_MS,
+  );
   return {
     total: inWindow.reduce((sum, dividend) => sum + dividend.amount, 0),
+    trailingTotal: trailing.reduce((sum, dividend) => sum + dividend.amount, 0),
     payments: inWindow.length,
     last,
   };
@@ -52,4 +62,14 @@ export function dividendWindow(dividends: readonly DividendEntry[], now: Date): 
  */
 export function nextLastDividend<T>(fetched: T | null, stored: T | null): T | null {
   return fetched ?? stored;
+}
+
+/**
+ * Os eventos do Yahoo viram proventos com data de negócio. O Yahoo manda a data ex às 13:00Z
+ * (10:00 em São Paulo): guarda só o dia, como meia-noite UTC, o formato que as regras esperam.
+ */
+export function toDividendEntries(
+  events: readonly { exDate: Date; amount: number }[],
+): DividendEntry[] {
+  return events.map((event) => ({ exDate: todayTradeDate(event.exDate), amount: event.amount }));
 }

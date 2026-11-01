@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { dividendWindow, nextLastDividend } from "./dividend-window";
+import { dividendWindow, nextLastDividend, toDividendEntries } from "./dividend-window";
 
 const DAY_MS = 86_400_000;
 const utc = (year: number, month: number, day: number) => new Date(Date.UTC(year, month - 1, day));
@@ -81,7 +81,12 @@ describe("dividendWindow", () => {
   });
 
   it("sem proventos: último nulo e somas zero", () => {
-    expect(dividendWindow([], utc(2026, 11, 1))).toEqual({ total: 0, payments: 0, last: null });
+    expect(dividendWindow([], utc(2026, 11, 1))).toEqual({
+      total: 0,
+      trailingTotal: 0,
+      payments: 0,
+      last: null,
+    });
   });
 
   it("a janela termina no mês do último, não em hoje", () => {
@@ -107,5 +112,33 @@ describe("nextLastDividend", () => {
 
   it("sem nada guardado nem buscado, fica nulo", () => {
     expect(nextLastDividend(null, null)).toBeNull();
+  });
+});
+
+describe("trailingTotal e toDividendEntries", () => {
+  it("FII que parou: a janela soma 12, o DY dos últimos 12 meses só 7", () => {
+    const result = dividendWindow(monthly([2025, 6], [2026, 5], 15), utc(2026, 11, 1));
+    expect(result.total).toBe(12);
+    expect(result.trailingTotal).toBe(7);
+  });
+
+  it("FII em dia: os dois totais coincidem", () => {
+    const result = dividendWindow(monthly([2025, 11], [2026, 10], 15), utc(2026, 11, 1));
+    expect(result.trailingTotal).toBe(result.total);
+  });
+
+  it("último provento velho: zero nos dois", () => {
+    const result = dividendWindow(monthly([2024, 1], [2024, 12], 15), utc(2026, 11, 1));
+    expect(result.trailingTotal).toBe(0);
+  });
+
+  it("a data ex do Yahoo vira data de negócio: 13:00Z e perto da meia-noite UTC", () => {
+    const [noon, late] = toDividendEntries([
+      { exDate: new Date("2026-05-15T13:00:00Z"), amount: 1 },
+      { exDate: new Date("2026-05-16T02:30:00Z"), amount: 2 },
+    ]);
+    expect(noon.exDate.toISOString()).toBe("2026-05-15T00:00:00.000Z");
+    // 02:30Z ainda é o dia 15 em São Paulo (23:30).
+    expect(late.exDate.toISOString()).toBe("2026-05-15T00:00:00.000Z");
   });
 });

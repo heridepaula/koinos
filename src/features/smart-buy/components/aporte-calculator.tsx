@@ -40,7 +40,7 @@ import { PRINCIPLES } from "./principles-banner";
 export type { AssetMeta };
 
 const CALCULATION_NOTE =
-  "O cálculo usa as cotações atuais, a Carteira Alvo e os dados de cada ativo. Você escolhe quanto do aporte vai para FIIs e quanto vai para ações. FII ou ação com viés Aguardar na Carteira Alvo fica fora do aporte, e as % sugeridas das ações são reescaladas para somar 100%, como as dos FIIs. Entre os FIIs, cada um pede o que falta para a meta, mais quando está descontado (P/VP e margem até o teto) e menos quando o provento caiu ou o imóvel está vago; a cascata segue o ranking, e o que sobra vai para o mais abaixo da meta. Nas ações, só entram as abaixo do teto e da meta, e a maior margem de segurança é atendida primeiro. Nenhuma ordem de FII sai abaixo da fatia justa (aporte ÷ nº de FIIs da estratégia), e o FII que parou de pagar proventos fica fora. As ações saem em lotes de 100, e o que sobra vai, um lote por vez, para a ação mais abaixo da meta.";
+  "O cálculo usa as cotações atuais, a Carteira Alvo e os dados de cada ativo. Você escolhe quanto do aporte vai para FIIs e quanto vai para ações. FII ou ação com viés Aguardar na Carteira Alvo fica fora do aporte, e as % sugeridas das ações são reescaladas para somar 100%, como as dos FIIs. Entre os FIIs, cada um pede o que falta para a meta, mais quando está descontado (P/VP e margem até o teto) e menos quando o provento caiu ou o imóvel está vago; a cascata segue o ranking, e o que sobra vai para o mais abaixo da meta. Nas ações, o primeiro passo compra as abaixo do teto e da meta, com a maior margem de segurança primeiro; a sobra, em lotes, pode levar uma ação além da meta. Nenhuma ordem de FII sai abaixo da fatia justa (aporte ÷ nº de FIIs da estratégia), e o FII que parou de pagar proventos fica fora. As ações saem em lotes de 100, e o que sobra vai, um lote por vez, para a ação mais abaixo da meta.";
 
 const RISK_NOTE = `Travas de risco: nenhum FII leva mais de ${formatPercent(RISK_CAPS.asset, 0)} do aporte, nenhum setor mais de ${formatPercent(RISK_CAPS.sector, 0)}, e nem papel nem tijolo mais de ${formatPercent(RISK_CAPS.macro, 0)}.`;
 
@@ -91,6 +91,7 @@ function OrdersCard({
   metaByTicker,
   fiiMinimum,
   fiiCount,
+  fiiAmount,
   stockLot,
 }: {
   view: View;
@@ -102,6 +103,8 @@ function OrdersCard({
   fiiMinimum: number;
   /** Quantos FIIs a estratégia tem: o divisor do mínimo. */
   fiiCount: number;
+  /** A parte do aporte que vai para os FIIs. */
+  fiiAmount: number;
   /** O lote das ações, quando há parte de ações (null sem ela). */
   stockLot: number | null;
 }) {
@@ -109,10 +112,14 @@ function OrdersCard({
   const showClass =
     rows.some((row) => row.kind === "FII") && rows.some((row) => row.kind === "ACAO");
   // As regras da 3.1 que mudam o tamanho das ordens, ditas junto com a ordem das linhas.
+  // Com poucos FIIs, a fatia justa passa de 12,5% do aporte e o teto da regra é que vale.
+  const capBinds = fiiCount > 0 && fiiMinimum > 0 && fiiMinimum * fiiCount < fiiAmount - 0.005;
   const orderText = [
     ORDER_TEXT[view],
     fiiMinimum > 0
-      ? `Nenhuma ordem de FII abaixo de ${formatBRL(fiiMinimum)} (aporte ÷ ${fiiCount} FIIs).`
+      ? `Nenhuma ordem de FII abaixo de ${formatBRL(fiiMinimum)} (${
+          capBinds ? "12,5% do aporte" : `aporte ÷ ${fiiCount} FIIs`
+        }).`
       : null,
     stockLot !== null && stockLot > 1 ? `Ações em lotes de ${stockLot}.` : null,
   ]
@@ -354,6 +361,7 @@ export function AporteCalculator({
             metaByTicker={metaByTicker}
             fiiMinimum={fiiResult?.minimum ?? 0}
             fiiCount={fiiAssets.length}
+            fiiAmount={fiiPart}
             stockLot={showStock ? engine.stockLot : null}
           />
           <ExcludedCard

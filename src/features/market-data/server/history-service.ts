@@ -4,7 +4,7 @@ import { connectMongo } from "@/shared/db/mongo";
 import { ioConcurrency, mapWithConcurrency } from "@/shared/lib/concurrency";
 import { addMonths, currentMonthKey, monthRange, todayTradeDate } from "@/shared/lib/time";
 import { yahooProvider } from "../adapters/yahoo";
-import { dividendWindow, nextLastDividend } from "../domain/dividend-window";
+import { dividendWindow, nextLastDividend, toDividendEntries } from "../domain/dividend-window";
 import { AssetModel, PriceHistoryModel } from "./models";
 
 const HISTORY_RECHECK_MS = 12 * 60 * 60 * 1000;
@@ -194,13 +194,8 @@ export async function refreshDividends(
     ioConcurrency(YAHOO_CONCURRENCY_CAP),
     async (ticker): Promise<number> => {
       try {
-        // O Yahoo manda a data ex às 13:00Z (10:00 em São Paulo): guarda só o dia, como
-        // data de negócio (meia-noite UTC), o formato que as regras de proventos esperam.
-        const dividends = (await yahooProvider.getDividends(ticker, from)).map((dividend) => ({
-          exDate: todayTradeDate(dividend.exDate),
-          amount: dividend.amount,
-        }));
-        const { total, payments, last } = dividendWindow(dividends, now);
+        const dividends = toDividendEntries(await yahooProvider.getDividends(ticker, from));
+        const { total, trailingTotal, payments, last } = dividendWindow(dividends, now);
         const stored = byTicker.get(ticker);
         const price = stored?.price ?? null;
         const storedLast = stored?.lastDividend
@@ -210,7 +205,7 @@ export async function refreshDividends(
           { _id: ticker },
           {
             $set: {
-              dy12m: price && price > 0 ? total / price : null,
+              dy12m: price && price > 0 ? trailingTotal / price : null,
               dividends12m: total,
               dividendPayments12m: payments,
               lastDividend: nextLastDividend(last, storedLast),
