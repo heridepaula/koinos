@@ -14,6 +14,15 @@ export {
   type RiskInput,
   type RiskMacro,
 } from "./domain/risk";
+export { scorecard, type Scorecard } from "./domain/scorecard";
+export {
+  randomPricePaths,
+  simulateAportes,
+  type PricePath,
+  type SimulationInput,
+  type SimulationParams,
+  type SimulationPeriod,
+} from "./domain/simulation";
 export {
   aportePriorities,
   EXCLUSION_LABELS,
