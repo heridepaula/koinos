@@ -98,7 +98,8 @@ Resumo para orientar a avaliação, conferido no código em 2026-11-01 (Koinos 3
   6. Déficit menor que um lote: `MENOS_DE_UM_LOTE` na 3.1 (lote de 100); com lote 1, é `PEDIDO_PEQUENO` (menor que uma ação).
 - **Ordem:** pela margem de segurança MS = teto ÷ preço − 1, a maior primeiro. Empate: rank, depois ticker.
 - **Compra (passo 1):** cada ação compra lotes inteiros até o menor entre o déficit e o saldo. O lote é de 100 ações na 3.1 e de 1 na 3.0. Quem não coube fica `SEM_SALDO`.
-- **Sobra (3.1, `stockLeftover`):** um lote por vez para a ação com a menor razão (valor + comprado) ÷ meta, entre as que podem receber: com cotação, com teto, preço ≤ teto, sem Aguardar e com peso. Para quando nenhum lote cabe no caixa.
+- **Sobra (3.1, `stockLeftover`):** um lote por vez para a ação com a menor razão (valor + comprado) ÷ meta, entre as que podem receber: com cotação, com teto, preço ≤ teto, sem Aguardar e com peso. Para quando nenhum lote cabe no caixa ou nos 25% (`STOCK_LEFTOVER_CAP`, decisão do dono em 2026-11-01).
+  - Nenhuma ação passa de 25% da parte das ações do aporte pela sobra; só a sobra é limitada, e o que não cabe fica em caixa.
   - A ação pode passar da meta, como na sobra dos FIIs.
   - Uma ação que ficou em `MENOS_DE_UM_LOTE` pode receber pela sobra, se for a mais abaixo da meta.
   - `StockBuyOrder.fromLeftover` diz quantas ações vieram da sobra, e `lot` o tamanho do lote.

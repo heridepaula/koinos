@@ -1,6 +1,11 @@
 import { describe, expect, it } from "vitest";
 import { ENGINE_VERSIONS } from "./engine-options";
-import { stockPriorities, stockSmartBuy, type StockBuyAsset } from "./stock-buy";
+import {
+  STOCK_LEFTOVER_CAP,
+  stockPriorities,
+  stockSmartBuy,
+  type StockBuyAsset,
+} from "./stock-buy";
 
 const TABLE: StockBuyAsset[] = [
   {
@@ -411,16 +416,16 @@ describe("stockSmartBuy: lote e sobra", () => {
 
   it("déficit de meio lote: MENOS_DE_UM_LOTE", () => {
     // Base R$ 10.000: a meta do B3 (20% = R$ 2.000) é meio lote de R$ 4.000, que também não cabe na
-    // sobra de R$ 3.000; com lote 1, entraria na fila.
+    // sobra de R$ 3.000; com lote 1, entraria na fila. O A3 já tem R$ 7.000 (acima dos 25% do
+    // aporte), então não recebe da sobra.
     const assets = [
       asset({ ticker: "A3", price: 10, ceiling: 20, weight: 0.75 }),
       asset({ ticker: "B3", price: 40, ceiling: 60, weight: 0.2 }),
     ];
     const r = stockSmartBuy(10_000, assets, V31);
     expect(r.excluded).toEqual([{ ticker: "B3", rank: 1, reason: "MENOS_DE_UM_LOTE" }]);
-    expect(r.orders.map((o) => [o.ticker, o.quantity, o.fromLeftover])).toEqual([
-      ["A3", 1000, 300],
-    ]);
+    expect(r.orders.map((o) => [o.ticker, o.quantity, o.fromLeftover])).toEqual([["A3", 700, 0]]);
+    expect(r.leftover).toBe(3_000);
     expect(stockSmartBuy(10_000, assets).orders.map((o) => o.ticker)).toEqual(["A3", "B3"]);
   });
 
@@ -439,34 +444,67 @@ describe("stockSmartBuy: lote e sobra", () => {
   });
 
   it("a sobra vai para a menor razão valor ÷ meta e pode passar da meta", () => {
-    // Passo 1: A3 (margem 100%) compra 5 lotes (R$ 5.000 de R$ 5.500, 91%) e B3 (margem 50%), 4
-    // lotes (R$ 4.000 de R$ 4.500, 89%). O lote da sobra vai para B3, que passa da meta.
+    // Passo 1: A3 (meta R$ 1.000) compra 1 lote; B3 (meta R$ 800) fica com menos de um lote. Na
+    // sobra, B3 tem razão 0 e recebe um lote (R$ 1.000, passa da meta de R$ 800); depois A3 e B3
+    // sobem um lote por vez até R$ 2.000 cada, e o terceiro lote passaria dos 25% do aporte.
     const r = stockSmartBuy(
       10_000,
       [
-        asset({ ticker: "A3", price: 10, ceiling: 20, weight: 0.55 }),
-        asset({ ticker: "B3", price: 10, ceiling: 15, weight: 0.45 }),
+        asset({ ticker: "A3", price: 10, ceiling: 20, weight: 0.1 }),
+        asset({ ticker: "B3", price: 10, ceiling: 15, weight: 0.08 }),
       ],
       V31,
     );
     expect(r.orders.map((o) => [o.ticker, o.quantity, o.fromLeftover])).toEqual([
-      ["A3", 500, 0],
-      ["B3", 500, 100],
+      ["A3", 200, 100],
+      ["B3", 200, 200],
     ]);
     const b3 = r.orders[1];
-    expect(b3.targetValue).toBe(4500);
-    expect(b3.total).toBe(5000);
+    expect(b3.targetValue).toBe(800);
     expect(b3.total).toBeGreaterThan(b3.targetValue);
-    expect(r.leftover).toBe(0);
+    expect(r.leftover).toBe(6_000);
+  });
+
+  it("a sobra para quando a ação chega a 25% da parte das ações do aporte", () => {
+    // Quatro ações com meta de 1 lote cada: o passo 1 compra 4 lotes e a sobra leva cada uma até
+    // 2 lotes (R$ 2.000 ≤ R$ 2.500); o 3º lote (R$ 3.000) passaria do limite e fica no caixa.
+    const assets = ["A3", "B3", "C3", "D3"].map((ticker, i) =>
+      asset({ ticker, rank: i + 1, price: 10, ceiling: 15, weight: 0.1 }),
+    );
+    const r = stockSmartBuy(10_000, assets, V31);
+    expect(r.orders.map((o) => [o.ticker, o.quantity, o.fromLeftover])).toEqual(
+      assets.map((a) => [a.ticker, 200, 100]),
+    );
+    expect(r.leftover).toBe(2_000);
+    for (const order of r.orders)
+      expect(order.total).toBeLessThanOrEqual(STOCK_LEFTOVER_CAP * 10_000);
+  });
+
+  it("o passo 1 dentro da meta não é cortado pelo limite: só a sobra não acrescenta", () => {
+    // Base R$ 30.000 (R$ 20.000 numa ação acima do teto): a meta de 10% é R$ 3.000, acima dos
+    // R$ 2.500 do limite. O passo 1 compra as 300 ações; a sobra não compra nenhum lote a mais.
+    const r = stockSmartBuy(
+      10_000,
+      [
+        asset({ ticker: "A3", rank: 1, price: 10, ceiling: 12, weight: 0.1 }),
+        asset({ ticker: "Z3", rank: 2, price: 20, ceiling: 10, quantity: 1_000, weight: 0.5 }),
+      ],
+      V31,
+    );
+    expect(r.orders.map((o) => [o.ticker, o.quantity, o.fromLeftover, o.total])).toEqual([
+      ["A3", 300, 0, 3_000],
+    ]);
+    expect(r.leftover).toBe(7_000);
   });
 
   it("a ação que estava NA_META recebe na sobra se for a única que cabe", () => {
-    // Base R$ 2.000: A3 já vale R$ 1.000 para uma meta de R$ 200; o lote do B3 (R$ 3.000) não cabe.
+    // Base R$ 5.000: A3 já vale R$ 1.000 para uma meta de R$ 500; o lote do B3 (R$ 6.000) não cabe.
+    // O lote do A3 (R$ 1.000) está dentro dos 25% do aporte de R$ 4.000.
     const r = stockSmartBuy(
-      1000,
+      4000,
       [
         asset({ ticker: "A3", quantity: 100, price: 10, ceiling: 20, weight: 0.1 }),
-        asset({ ticker: "B3", price: 30, ceiling: 40, weight: 0.9 }),
+        asset({ ticker: "B3", price: 60, ceiling: 80, weight: 0.9 }),
       ],
       V31,
     );
@@ -476,30 +514,28 @@ describe("stockSmartBuy: lote e sobra", () => {
       quantity: 100,
       fromLeftover: 100,
       total: 1000,
-      deficitBefore: -800,
-      targetValue: 200,
-      weightAfter: 1,
+      deficitBefore: -500,
+      targetValue: 500,
+      weightAfter: 0.4,
     });
     expect(r.excluded).toEqual([{ ticker: "B3", rank: 1, reason: "MENOS_DE_UM_LOTE" }]);
   });
 
-  it("o caixa final é menor que o lote mais barato entre as elegíveis", () => {
-    // Tabela do documento: o lote mais barato entre as elegíveis é o do SEER3 (R$ 1.071).
-    const table = stockSmartBuy(50_000, TABLE, V31);
-    expect(table.leftover).toBeGreaterThanOrEqual(0);
-    expect(table.leftover).toBeLessThan(1071);
-
-    for (const { amount, assets } of portfolios()) {
+  it("o caixa final não cobre o lote de nenhuma elegível que ainda caiba nos 25%", () => {
+    const check = (amount: number, assets: readonly StockBuyAsset[]) => {
       const r = stockSmartBuy(amount, assets, V31);
-      const pool = leftoverPool(assets);
-      if (pool.length === 0) {
-        expect(r.leftover).toBe(amount);
-        continue;
+      expect(r.leftover).toBeGreaterThanOrEqual(0);
+      const totals = new Map(r.orders.map((o) => [o.ticker, o.total]));
+      for (const a of leftoverPool(assets)) {
+        const lotCost = 100 * a.price!;
+        // Um centavo de folga: o caixa perde o custo do lote já arredondado.
+        const cashFits = r.leftover >= lotCost - 0.01;
+        const capFits = (totals.get(a.ticker) ?? 0) + lotCost <= STOCK_LEFTOVER_CAP * amount + 0.01;
+        expect(cashFits && capFits).toBe(false);
       }
-      const cheapest = Math.min(...pool.map((a) => 100 * a.price!));
-      // Um centavo de folga: o caixa perde o custo do lote já arredondado.
-      expect(r.leftover).toBeLessThan(cheapest + 0.01);
-    }
+    };
+    check(50_000, TABLE);
+    for (const { amount, assets } of portfolios()) check(amount, assets);
   });
 
   it("nada é comprado acima do teto nem com Aguardar", () => {
@@ -531,25 +567,25 @@ describe("stockSmartBuy: lote e sobra", () => {
   });
 
   it("fromLeftover conta as ações da sobra, e quem só recebeu nela vem no fim e sai de excluded", () => {
-    // Passo 1: A3 e C3 compram 4 lotes; B3 (meta R$ 800) fica com menos de um lote. Sobra de
-    // R$ 2.000: um lote para B3 (razão 0) e um para C3 (85%, abaixo dos 89% do A3).
+    // Passo 1: A3 e C3 compram 1 lote; B3 (meta R$ 800) fica com menos de um lote. Na sobra, B3
+    // recebe 2 lotes (razão 0 e depois 1,25) e A3 e C3 mais um, até o limite de R$ 2.500 cada.
     const r = stockSmartBuy(
       10_000,
       [
-        asset({ ticker: "A3", price: 10, ceiling: 20, weight: 0.45 }),
+        asset({ ticker: "A3", price: 10, ceiling: 20, weight: 0.1 }),
         asset({ ticker: "B3", price: 10, ceiling: 12, weight: 0.08 }),
-        asset({ ticker: "C3", price: 10, ceiling: 15, weight: 0.47 }),
+        asset({ ticker: "C3", price: 10, ceiling: 15, weight: 0.1 }),
       ],
       V31,
     );
     expect(r.orders.map((o) => [o.ticker, o.quantity, o.fromLeftover])).toEqual([
-      ["A3", 400, 0],
-      ["C3", 500, 100],
-      ["B3", 100, 100],
+      ["A3", 200, 100],
+      ["C3", 200, 100],
+      ["B3", 200, 200],
     ]);
     expect(r.excluded).toEqual([]);
-    expect(r.spent).toBe(10_000);
-    expect(r.leftover).toBe(0);
+    expect(r.spent).toBe(6_000);
+    expect(r.leftover).toBe(4_000);
   });
 
   it("stockPriorities com lote: na fila só quem pede ao menos um lote", () => {
