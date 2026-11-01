@@ -96,12 +96,12 @@
     {
       "id": 10,
       "subject": "Task 11: Comparação 3.0 × 3.1 na carteira real e ok do dono (coordenador)",
-      "status": "pending",
+      "status": "completed",
       "description": "**Goal:** mostrar ao dono, no chat, a comparação 3.0 × 3.1 na carteira real antes do merge, e só fazer o merge com o ok dele (§10 da spec).\n\n> **USER-ORDERED GATE — NON-SKIPPABLE.** This task was requested by the user in the current conversation. It MUST NOT be closed by walking around it, by declaring it \"verified inline\", or by substituting a cheaper check. Close only after every item in `acceptanceCriteria` has been re-validated independently, with output captured.\n\n**Files:** nenhum (só leitura do banco pelo laboratório).\n\n**Acceptance Criteria:**\n\n- [ ] **FIIs:** `lab.mts comparar --a 3.0 --b 3.1 --valor 10000 --periodos 12 --cenarios 300`, rodado na carteira real, só leitura, com a saída capturada.\n- [ ] **Ações:** `lab.mts comparar --a 3.0 --b 3.1 --valor 10000 --fiis 70 --periodos 12 --cenarios 300`, rodado para medir a parte das ações, com a saída capturada.\n- [ ] **O que mostrar ao dono, no chat:**\n  - o primeiro aporte das duas versões;\n  - a tabela de notas;\n  - a checagem do §1, item 3, da spec, item a item:\n    - menos ordens de FIIs;\n    - nenhuma ordem de FII abaixo do mínimo;\n    - sobra dos FIIs pequena;\n    - desvio da meta dos FIIs no máximo 0,2 p.p. pior;\n    - 90% ou mais da parte das ações investida;\n    - nenhuma compra fora do método.\n- [ ] **Merge:** só com ok explícito do dono, o fast-forward da `main` até `feat/koinos-3-1` e o push.\n\n**Verify:** a saída dos dois comandos `comparar` capturada na conversa, e o ok do dono registrado antes de `git push origin main`.\n\n```json:metadata\n{\"files\":[],\"verifyCommand\":\"a saída dos dois comandos `comparar` capturada na conversa, e o ok do dono registrado antes de `git push origin main`.\",\"acceptanceCriteria\":[\"**FIIs:** `lab.mts comparar --a 3.0 --b 3.1 --valor 10000 --periodos 12 --cenarios 300`, rodado na carteira real, só leitura, com a saída capturada.\",\"**Ações:** `lab.mts comparar --a 3.0 --b 3.1 --valor 10000 --fiis 70 --periodos 12 --cenarios 300`, rodado para medir a parte das ações, com a saída capturada.\",\"**O que mostrar ao dono, no chat:**\",\"**Merge:** só com ok explícito do dono, o fast-forward da `main` até `feat/koinos-3-1` e o push.\"],\"userGate\":true,\"tags\":[\"user-gate\"]}\n```",
       "blockedBy": [
         9
       ]
     }
   ],
-  "lastUpdated": "2026-11-01T11:33:24Z"
+  "lastUpdated": "2026-11-01T14:41:49Z"
 }
