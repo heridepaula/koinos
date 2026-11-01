@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { ENGINE_VERSIONS } from "./engine-options";
 import { stockPriorities, stockSmartBuy, type StockBuyAsset } from "./stock-buy";
 
 const TABLE: StockBuyAsset[] = [
@@ -297,9 +298,10 @@ describe("stockSmartBuy: invariantes", () => {
     };
   }
 
-  it("300 carteiras aleatórias", () => {
+  // As 300 carteiras da semente 7, as mesmas para os testes deste bloco.
+  function portfolios() {
     const next = random(7);
-    for (let run = 0; run < 300; run++) {
+    return Array.from({ length: 300 }, () => {
       const count = 1 + Math.floor(next() * 12);
       const assets: StockBuyAsset[] = Array.from({ length: count }, (_, i) => {
         const price = 5 + next() * 95;
@@ -315,6 +317,22 @@ describe("stockSmartBuy: invariantes", () => {
         };
       });
       const amount = Math.round(next() * 20_000 * 100) / 100;
+      return { amount, assets };
+    });
+  }
+
+  it("com as opções da 3.0, o resultado é o mesmo que sem opções", () => {
+    for (const { amount, assets } of portfolios()) {
+      expect(stockSmartBuy(amount, assets, ENGINE_VERSIONS["3.0"])).toEqual(
+        stockSmartBuy(amount, assets),
+      );
+      expect(stockPriorities(assets, ENGINE_VERSIONS["3.0"])).toEqual(stockPriorities(assets));
+    }
+  });
+
+  it("300 carteiras aleatórias", () => {
+    for (const { amount, assets } of portfolios()) {
+      const count = assets.length;
       const r = stockSmartBuy(amount, assets);
 
       expect(r.spent + r.leftover).toBeCloseTo(amount, 2);

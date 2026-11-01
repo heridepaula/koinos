@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { ENGINE_VERSIONS } from "./engine-options";
 import { RISK_CAPS } from "./risk";
 import { aportePriorities, sunoCascade, type CascadeAsset } from "./suno-cascade";
 
@@ -259,9 +260,10 @@ describe("sunoCascade: invariantes", () => {
   const macros = ["Papel", "Tijolo", "Outros"] as const;
   const sectors = [null, null, "Shoppings", "Logística"];
 
-  it("nunca passa das travas nem do aporte, e só compra elegíveis", () => {
+  // As 500 carteiras da semente 42, as mesmas para os testes deste bloco.
+  function portfolios() {
     const next = random(42);
-    for (let run = 0; run < 500; run++) {
+    return Array.from({ length: 500 }, () => {
       const count = 1 + Math.floor(next() * 10);
       const assets = Array.from({ length: count }, (_, index) => {
         const price = Math.round((5 + next() * 150) * 100) / 100;
@@ -280,6 +282,21 @@ describe("sunoCascade: invariantes", () => {
         });
       });
       const amount = Math.round(next() * 30_000 * 100) / 100;
+      return { amount, assets };
+    });
+  }
+
+  it("com as opções da 3.0, o resultado é o mesmo que sem opções", () => {
+    for (const { amount, assets } of portfolios()) {
+      expect(sunoCascade(amount, assets, ENGINE_VERSIONS["3.0"])).toEqual(
+        sunoCascade(amount, assets),
+      );
+      expect(aportePriorities(assets, ENGINE_VERSIONS["3.0"])).toEqual(aportePriorities(assets));
+    }
+  });
+
+  it("nunca passa das travas nem do aporte, e só compra elegíveis", () => {
+    for (const { amount, assets } of portfolios()) {
       const result = sunoCascade(amount, assets);
       const byTicker = new Map(assets.map((asset) => [asset.ticker, asset]));
 

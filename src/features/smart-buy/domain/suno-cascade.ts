@@ -6,6 +6,7 @@ import {
   vacancyTensor,
   valuationTensor,
 } from "./conviction";
+import { ENGINE_VERSIONS, type EngineOptions } from "./engine-options";
 import { RISK_CAPS, type RiskMacro } from "./risk";
 
 // Motor de aporte Koinos 3.0 (documento do dono, 30/10/2026): cascata pelo ranking Suno, com
@@ -155,7 +156,7 @@ const byRankThenTicker = (
 ) => (a.rank ?? Infinity) - (b.rank ?? Infinity) || a.ticker.localeCompare(b.ticker);
 
 /** A meta, o gap, os tensores e o pedido de cada elegível; os outros saem com o motivo. */
-function prepare(amount: number, assets: readonly CascadeAsset[]) {
+function prepare(amount: number, assets: readonly CascadeAsset[], options: EngineOptions) {
   const budget = Math.max(0, round2(amount));
   const strategyValue = assets.reduce((sum, asset) => sum + positionValue(asset), 0);
   const total = strategyValue + budget;
@@ -218,8 +219,12 @@ function exclusionReason(slot: Slot): ExclusionReason {
   }
 }
 
-export function sunoCascade(amount: number, assets: readonly CascadeAsset[]): CascadeResult {
-  const { budget, strategyValue, slots, excluded } = prepare(amount, assets);
+export function sunoCascade(
+  amount: number,
+  assets: readonly CascadeAsset[],
+  options: EngineOptions = ENGINE_VERSIONS["3.0"],
+): CascadeResult {
+  const { budget, strategyValue, slots, excluded } = prepare(amount, assets, options);
   const caps = {
     asset: RISK_CAPS.asset * budget,
     sector: RISK_CAPS.sector * budget,
@@ -335,8 +340,11 @@ export type AportePriority =
  * "Prioridade de aporte" (a coluna que substitui o IPA), com aporte zero: os elegíveis que pedem ao
  * menos uma cota formam a fila, na ordem do ranking; os outros mostram o motivo.
  */
-export function aportePriorities(assets: readonly CascadeAsset[]): Map<string, AportePriority> {
-  const { slots, excluded } = prepare(0, assets);
+export function aportePriorities(
+  assets: readonly CascadeAsset[],
+  options: EngineOptions = ENGINE_VERSIONS["3.0"],
+): Map<string, AportePriority> {
+  const { slots, excluded } = prepare(0, assets, options);
   const priorities = new Map<string, AportePriority>();
   let position = 0;
   for (const slot of slots) {

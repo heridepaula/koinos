@@ -1,3 +1,4 @@
+import { ENGINE_VERSIONS, type EngineOptions } from "./engine-options";
 import type { AportePriority } from "./suno-cascade";
 
 // Smart Buy de ações (documento do dono "Smart Buy Ações (Dividendos)"; spec smart-buy-acoes, §3):
@@ -70,7 +71,7 @@ type Candidate = {
  * As regras de elegibilidade, numa função só: quem fica de fora e por quê, e a fila de quem pede ao
  * menos uma ação, da maior para a menor margem de segurança (empate: rank, ticker).
  */
-function classify(amount: number, assets: readonly StockBuyAsset[]) {
+function classify(amount: number, assets: readonly StockBuyAsset[], options: EngineOptions) {
   const budget = Math.max(0, round2(amount));
   const base = assets.reduce((sum, asset) => sum + valueOf(asset), 0) + budget;
   const excluded: { ticker: string; rank: number | null; reason: StaticReason }[] = [];
@@ -122,8 +123,12 @@ function classify(amount: number, assets: readonly StockBuyAsset[]) {
   return { budget, base, excluded, candidates };
 }
 
-export function stockSmartBuy(amount: number, assets: readonly StockBuyAsset[]): StockBuyResult {
-  const { budget, base, excluded: ineligible, candidates } = classify(amount, assets);
+export function stockSmartBuy(
+  amount: number,
+  assets: readonly StockBuyAsset[],
+  options: EngineOptions = ENGINE_VERSIONS["3.0"],
+): StockBuyResult {
+  const { budget, base, excluded: ineligible, candidates } = classify(amount, assets, options);
   const excluded: StockBuyResult["excluded"] = [...ineligible];
   let cash = budget;
   const orders: StockBuyOrder[] = [];
@@ -167,8 +172,11 @@ export function stockSmartBuy(amount: number, assets: readonly StockBuyAsset[]):
  * A coluna Prioridade das ações, com aporte zero (o mesmo tipo da cascata de FIIs): quem pede ao
  * menos uma ação forma a fila, pela margem de segurança; os outros mostram o motivo.
  */
-export function stockPriorities(assets: readonly StockBuyAsset[]): Map<string, AportePriority> {
-  const { excluded, candidates } = classify(0, assets);
+export function stockPriorities(
+  assets: readonly StockBuyAsset[],
+  options: EngineOptions = ENGINE_VERSIONS["3.0"],
+): Map<string, AportePriority> {
+  const { excluded, candidates } = classify(0, assets, options);
   const priorities = new Map<string, AportePriority>();
   candidates.forEach((candidate, index) =>
     priorities.set(candidate.asset.ticker, { kind: "fila", position: index + 1 }),
