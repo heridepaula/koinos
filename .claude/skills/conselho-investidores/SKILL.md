@@ -1,6 +1,6 @@
 ---
 name: conselho-investidores
-description: Avalia fórmulas e estratégias de investimento do Koinos (a cascata de FIIs Koinos 3.0, o smart buy de ações, a divisão FIIs/ações, os pesos da Carteira Alvo, o reinvestimento) ou uma proposta nova. Primeiro faz uma verificação técnica (contas, unidades, bordas, invariantes, spec × código e simulações com os motores reais sobre a carteira de produção, só leitura); depois passa a fórmula pelas lentes de Tiago Reis, Professor Baroni, Warren Buffett e Luiz Barsi. Aponta erros com evidência e entrega recomendações priorizadas. Use sempre que o dono pedir para avaliar, revisar, criticar, validar ou comparar uma fórmula, um algoritmo, uma regra de aporte, um motor de recomendação, uma estratégia de carteira ou um documento de estratégia; quando perguntar o que Barsi, Buffett, Baroni ou Tiago Reis achariam; e antes de mudar o código de smart-buy, strategy ou portfolio/domain que decide o aporte, mesmo que ele não fale em "conselho".
+description: Avalia fórmulas e estratégias de investimento do Koinos (a cascata de FIIs Koinos 3.0 e 3.1, o smart buy de ações, a divisão FIIs/ações, os pesos da Carteira Alvo, o reinvestimento) ou uma proposta nova. Primeiro faz uma verificação técnica (contas, unidades, bordas, invariantes, spec × código e simulações com os motores reais sobre a carteira de produção, só leitura); depois passa a fórmula pelas lentes de Tiago Reis, Professor Baroni, Warren Buffett e Luiz Barsi. Aponta erros com evidência e entrega recomendações priorizadas. Use sempre que o dono pedir para avaliar, revisar, criticar, validar ou comparar uma fórmula, um algoritmo, uma regra de aporte, um motor de recomendação, uma estratégia de carteira ou um documento de estratégia; quando perguntar o que Barsi, Buffett, Baroni ou Tiago Reis achariam; e antes de mudar o código de smart-buy, strategy ou portfolio/domain que decide o aporte, mesmo que ele não fale em "conselho".
 ---
 
 # Conselho de investidores
@@ -54,7 +54,7 @@ Classifique cada achado:
 
 Responda com a carteira real sempre que a pergunta permitir. O laboratório (abaixo) reconstrói a carteira como a tela de Recomendações e roda os motores. Diga as premissas de cada número (preços parados, Carteira Alvo de hoje). Numa projeção, relate a trajetória mês a mês, não só o fim: o ponto final esconde o caminho.
 
-Para uma proposta que ainda não existe no código, simule-a: copie o trecho necessário do laboratório para um arquivo descartável na raiz do repositório (ex.: `_conselho-tensor-dy.mts`), mude só o que a proposta muda (ex.: o `need` de cada FII), rode e apague o arquivo. Nunca edite `src/` para testar. Sem tempo para isso, faça a conta à mão com os números reais do `snapshot` e diga que foi à mão.
+Para julgar uma proposta, simule-a como uma opção ou uma versão do motor e compare com `comparar` (abaixo): o laboratório roda as versões de `ENGINE_VERSIONS` e mostra o primeiro aporte e as notas das lentes lado a lado. Veja em `references/formulas.md` ("Versões do motor") o que já é opção. Só o que ainda não é opção pede um script descartável: copie o trecho necessário do laboratório para um arquivo na raiz do repositório (ex.: `_conselho-tensor-dy.mts`), mude só o que a proposta muda (ex.: o `need` de cada FII), rode e apague o arquivo. Nunca edite `src/` para testar. Sem tempo para isso, faça a conta à mão com os números reais do `snapshot` e diga que foi à mão.
 
 ### 4. O conselho
 
@@ -127,22 +127,25 @@ As personas são lentes inspiradas no que cada investidor defende publicamente. 
 
 ## Laboratório
 
-`scripts/lab.mts` reconstrói o snapshot como `getPortfolioSnapshot` (visão Geral), sem a sessão, e roda `sunoCascade` e `stockSmartBuy`. Só lê o banco e não chama nenhuma API. Rode da raiz do repositório:
+`scripts/lab.mts` reconstrói o snapshot como `getPortfolioSnapshot` (visão Geral), sem a sessão, e roda `sunoCascade` e `stockSmartBuy` com as opções de uma versão do motor (`--versao`, padrão a da tela). Só lê o banco e não chama nenhuma API. Rode da raiz do repositório:
 
 ```bash
 npx tsx --conditions=react-server --env-file=.env.local \
   .claude/skills/conselho-investidores/scripts/lab.mts <comando> [opções]
 ```
 
-| Comando                                                                   | Para quê                                                                                                                                                                                                                                    |
-| ------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `snapshot`                                                                | as duas estratégias hoje (rank, teto, preço, margem, meta × atual, P/VP, freio de proventos, vacância, macro, setor, viés, número mágico; nas ações, MS e DY), a composição por macro e setor, o frescor das cotações e o último lançamento |
-| `recomendar --valor 10000 [--fiis 100]`                                   | o que a tela recomenda agora, com tensores, pedido, trava e quem ficou de fora (e por quê)                                                                                                                                                  |
-| `projetar --valor 10000 --periodos 8 [--fiis 100]`                        | executa cada recomendação e repete; mostra cada período e, no fim, o peso inicial → final × meta de cada ativo                                                                                                                              |
-| `choque --valor 10000 [--cenarios 5000] [--comum 0.025] [--proprio 0.03]` | sorteia preços (fator comum + próprio) e mede quanto a recomendação muda: frequência de cada ativo, mesmo conjunto, mesmas quantidades                                                                                                      |
-| `mes --mes 2026-10`                                                       | as compras do mês × o que o motor faria com a carteira do fim do mês anterior (preços e Carteira Alvo de hoje)                                                                                                                              |
+| Comando                                                                     | Para quê                                                                                                                                                                                                                                    |
+| --------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `snapshot`                                                                  | as duas estratégias hoje (rank, teto, preço, margem, meta × atual, P/VP, freio de proventos, vacância, macro, setor, viés, número mágico; nas ações, MS e DY), a composição por macro e setor, o frescor das cotações e o último lançamento |
+| `recomendar --valor 10000 [--fiis 100]`                                     | o que a tela recomenda agora, com tensores, pedido, trava e quem ficou de fora (e por quê)                                                                                                                                                  |
+| `projetar --valor 10000 --periodos 8 [--fiis 100]`                          | executa cada recomendação e repete; mostra cada período e, no fim, o peso inicial → final × meta de cada ativo                                                                                                                              |
+| `choque --valor 10000 [--cenarios 5000] [--comum 0.025] [--proprio 0.03]`   | sorteia preços (fator comum + próprio) e mede quanto a recomendação muda: frequência de cada ativo, mesmo conjunto, mesmas quantidades                                                                                                      |
+| `mes --mes 2026-10`                                                         | as compras do mês × o que o motor faria com a carteira do fim do mês anterior (preços e Carteira Alvo de hoje)                                                                                                                              |
+| `comparar --a 3.0 --b 3.1 [--valor 10000] [--periodos 12] [--cenarios 300]` | o primeiro aporte das duas versões lado a lado (ordens `TICKER×qtd(R$)` e quem ficou de fora, por motivo) e a tabela de notas das lentes A × B, com preços parados e com preços sorteados (`--cenarios`, `--semente`)                       |
 
-- **`--fiis`:** é a % do aporte nos FIIs, como o slider da tela. 100 manda tudo para os FIIs; 0 manda tudo para as ações.
+- **`--versao`:** `recomendar`, `projetar`, `choque` e `mes` aceitam `--versao 3.0|3.1`; sem ela, vale `CURRENT_ENGINE`, a versão da tela. Uma versão desconhecida dá erro com a lista das válidas.
+- **`comparar`:** só roda versões nomeadas (`ENGINE_VERSIONS`). As notas e o que cada lente lê estão em `references/formulas.md` ("Versões do motor"); em preços sorteados, cada nota é a média dos cenários, com os mesmos caminhos de preço nas duas versões. "Compras fora do método" precisa dar 0.
+- **`--fiis`:** é a % do aporte nos FIIs, como o slider da tela. 100 manda tudo para os FIIs; 0 manda tudo para as ações. Com 100, as notas das ações ficam em "-" ou em zero.
 - **`--email`:** escolhe o dono; sem ele, vale o primeiro e-mail de `ALLOWED_EMAILS` no `.env.local`.
 - **Aporte semanal × mensal:** compare `projetar --valor 2500 --periodos 32` com `projetar --valor 10000 --periodos 8`.
 - **Preços parados:** o `projetar` não move preços, proventos, P/VP nem a Carteira Alvo; serve para ver a mecânica, não para prever o mercado.
