@@ -1,7 +1,12 @@
 import { describe, expect, it } from "vitest";
 import { ENGINE_VERSIONS } from "./engine-options";
 import { RISK_CAPS } from "./risk";
-import { aportePriorities, sunoCascade, type CascadeAsset } from "./suno-cascade";
+import {
+  aportePriorities,
+  isDividendSuspended,
+  sunoCascade,
+  type CascadeAsset,
+} from "./suno-cascade";
 
 /** FII de teste: R$ 100 a cota, teto R$ 110 (margem de 9,1%, tensor de segurança 1,0909), tijolo. */
 function fii(ticker: string, overrides: Partial<CascadeAsset> = {}): CascadeAsset {
@@ -245,6 +250,112 @@ describe("sunoCascade: viés Aguardar", () => {
         ),
       ).toEqual(plain);
     }
+  });
+});
+
+describe("sunoCascade: freio de suspensão", () => {
+  const v31 = ENGINE_VERSIONS["3.1"];
+  /** O AAAA11 (1º do ranking, R$ 1.000 na carteira) com os dados de provento; o BBBB11 é o controle. */
+  const pair = (days: number | null | undefined, payments: number | null, overrides = {}) => [
+    fii("AAAA11", {
+      rank: 1,
+      quantity: 10,
+      daysSinceLastDividend: days,
+      dividendPayments12m: payments,
+      ...overrides,
+    }),
+    fii("BBBB11", { rank: 2, quantity: 30 }),
+  ];
+  /** O mesmo par, sem os dados de provento. */
+  const plain = pair(undefined, null);
+
+  it("46 dias sem data ex e 12 pagamentos: sai, nem pela sobra, e o valor fica na base", () => {
+    const result = sunoCascade(4_000, pair(46, 12), v31);
+    expect(reasonOf(result, "AAAA11")).toBe("PROVENTO_SUSPENSO");
+    expect(order(result, "AAAA11")).toBeUndefined();
+    expect(result.orders.map((item) => item.ticker)).toEqual(["BBBB11"]);
+    expect(result.strategyValue).toBe(4_000);
+    // Meta do BBBB11: 0,5 × (4.000 + 4.000) = 4.000, com 3.000 na carteira.
+    expect(order(result, "BBBB11")?.gapBefore).toBe(1_000);
+    // O BBBB11 só leva a trava de 25% do aporte, e a sobra não vai para o suspenso.
+    expect(result.leftover).toBe(3_000);
+  });
+
+  it("44 dias e 12 pagamentos: recebe como hoje", () => {
+    const result = sunoCascade(4_000, pair(44, 12), v31);
+    expect(order(result, "AAAA11")).toBeDefined();
+    expect(result).toEqual(sunoCascade(4_000, plain, v31));
+  });
+
+  it("60 dias e 5 pagamentos: não é pagador regular, então não é suspenso", () => {
+    const result = sunoCascade(4_000, pair(60, 5), v31);
+    expect(order(result, "AAAA11")).toBeDefined();
+    expect(result).toEqual(sunoCascade(4_000, plain, v31));
+  });
+
+  it("366 dias e 1 pagamento: suspenso mesmo sem ser regular", () => {
+    const result = sunoCascade(4_000, pair(366, 1), v31);
+    expect(reasonOf(result, "AAAA11")).toBe("PROVENTO_SUSPENSO");
+    expect(order(result, "AAAA11")).toBeUndefined();
+  });
+
+  it("as bordas: 45 dias e 365 dias ainda não suspendem; 6 pagamentos já contam como regular", () => {
+    const suspended = (days: number, payments: number | null) =>
+      isDividendSuspended(pair(days, payments)[0]!, v31);
+    expect(suspended(45, 12)).toBe(false);
+    expect(suspended(46, 6)).toBe(true);
+    expect(suspended(46, 5)).toBe(false);
+    expect(suspended(46, null)).toBe(false);
+    expect(suspended(365, 1)).toBe(false);
+    expect(suspended(366, null)).toBe(true);
+  });
+
+  it("sem a data do último provento (null ou ausente): neutro", () => {
+    for (const days of [null, undefined]) {
+      const result = sunoCascade(4_000, pair(days, 12), v31);
+      expect(order(result, "AAAA11")).toBeDefined();
+      expect(result).toEqual(sunoCascade(4_000, plain, v31));
+    }
+  });
+
+  it("as regras de antes vêm primeiro: acima do teto e 100 dias mostra ACIMA_DO_TETO", () => {
+    const result = sunoCascade(4_000, pair(100, 12, { ceiling: 90 }), v31);
+    expect(reasonOf(result, "AAAA11")).toBe("ACIMA_DO_TETO");
+  });
+
+  it("o viés Aguardar também vem antes do provento suspenso", () => {
+    const result = sunoCascade(4_000, pair(100, 12, { bias: "AGUARDAR" }), v31);
+    expect(reasonOf(result, "AAAA11")).toBe("AGUARDAR");
+  });
+
+  it("na 3.0 (opção desligada) o mesmo FII de 100 dias recebe", () => {
+    const v30 = ENGINE_VERSIONS["3.0"];
+    const result = sunoCascade(4_000, pair(100, 12), v30);
+    expect(order(result, "AAAA11")).toBeDefined();
+    expect(result).toEqual(sunoCascade(4_000, plain, v30));
+    // Sem opções, o motor também roda a 3.0.
+    expect(sunoCascade(4_000, pair(100, 12))).toEqual(sunoCascade(4_000, plain));
+  });
+
+  it("aportePriorities marca PROVENTO_SUSPENSO, e quem vem depois sobe na fila", () => {
+    const assets = (days: number) => [
+      fii("AAAA11", {
+        rank: 1,
+        weight: 0.25,
+        quantity: 10,
+        daysSinceLastDividend: days,
+        dividendPayments12m: 12,
+      }),
+      fii("BBBB11", { rank: 2, weight: 0.25, quantity: 10 }),
+      fii("CCCC11", { rank: 3, weight: 0.5, quantity: 60 }),
+    ];
+    const priorities = aportePriorities(assets(46), v31);
+    expect(priorities.get("AAAA11")).toEqual({ kind: "fora", reason: "PROVENTO_SUSPENSO" });
+    expect(priorities.get("BBBB11")).toEqual({ kind: "fila", position: 1 });
+    // Na 3.0 o mesmo FII segue na fila, na frente do BBBB11.
+    const v30 = aportePriorities(assets(46));
+    expect(v30.get("AAAA11")).toEqual({ kind: "fila", position: 1 });
+    expect(v30.get("BBBB11")).toEqual({ kind: "fila", position: 2 });
   });
 });
 

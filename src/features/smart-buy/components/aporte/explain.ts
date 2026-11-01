@@ -17,6 +17,8 @@ export function unitOf(kind: OrderKind, quantity: number): string {
 export const REASON_HELP: Record<ExclusionReason, string> = {
   ACIMA_DO_TETO: "Preço igual ou acima do teto: a regra é só comprar abaixo dele.",
   AGUARDAR: "Marcado como Aguardar na Carteira Alvo: não recebe aporte.",
+  PROVENTO_SUSPENSO:
+    "Pagava com regularidade e está há mais de 45 dias sem data ex, ou há mais de um ano sem pagar. Fica fora do aporte até voltar a pagar.",
   NA_META: "Já está na % sugerida (ou passou dela).",
   PEDIDO_PEQUENO:
     "Falta pouco para a meta, ou os freios de provento e vacância cortaram o pedido: não chega a uma cota.",
@@ -39,6 +41,7 @@ export const REASON_ORDER: ExclusionReason[] = [
   "ABAIXO_DO_MINIMO",
   "PEDIDO_PEQUENO",
   "NA_META",
+  "PROVENTO_SUSPENSO",
   "AGUARDAR",
   "ACIMA_DO_TETO",
   "SEM_TETO",

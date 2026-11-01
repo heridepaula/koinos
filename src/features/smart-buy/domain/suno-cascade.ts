@@ -12,6 +12,7 @@ import { RISK_CAPS, type RiskMacro } from "./risk";
 // Motor de aporte Koinos 3.0 (documento do dono, 30/10/2026): cascata pelo ranking Suno, com
 // valuation contínuo e travas de risco. Nunca vende: o rebalanceamento é só com dinheiro novo.
 // 1. Elegível: na estratégia, com ranking, teto, cotação, preço abaixo do teto e sem viés Aguardar.
+//    Koinos 3.1, freio de suspensão (suspensionBrake): o FII que parou de pagar também sai.
 // 2. Meta = peso × (estratégia + aporte); gap = meta − valor. Com gap > 0, o FII pede o gap vezes os
 //    tensores de valuation, proventos, segurança e vacância (conviction.ts).
 // 3. Passo 1, do 1º ao último do ranking: cada FII gasta o menor entre o pedido e o espaço que sobra
@@ -45,6 +46,16 @@ export type CascadeAsset = {
   sector: string | null;
   /** Viés da casa de análise; Aguardar tira o FII deste aporte. Sem viés, nada muda. */
   bias?: "COMPRAR" | "AGUARDAR" | null;
+  /**
+   * Dias desde a data ex do último provento conhecido. Null ou ausente: não se sabe, e o freio de
+   * suspensão (3.1) não age.
+   */
+  daysSinceLastDividend?: number | null;
+  /**
+   * Pagamentos nos 12 meses corridos que terminam no mês do último provento: mede se o FII pagava
+   * com regularidade. Null ou ausente conta como zero.
+   */
+  dividendPayments12m?: number | null;
 };
 
 export type ExclusionReason =
@@ -53,6 +64,7 @@ export type ExclusionReason =
   | "SEM_TETO"
   | "ACIMA_DO_TETO"
   | "AGUARDAR"
+  | "PROVENTO_SUSPENSO"
   | "NA_META"
   | "PEDIDO_PEQUENO"
   | "ABAIXO_DO_MINIMO"
@@ -137,18 +149,38 @@ type Slot = {
   limitedBy: CascadeLimit | null;
 };
 
-type EligibilityReason = "SEM_COTACAO" | "SEM_RANKING" | "SEM_TETO" | "ACIMA_DO_TETO" | "AGUARDAR";
+type EligibilityReason =
+  "SEM_COTACAO" | "SEM_RANKING" | "SEM_TETO" | "ACIMA_DO_TETO" | "AGUARDAR" | "PROVENTO_SUSPENSO";
+
+/** Dias sem data ex a partir dos quais um pagador regular conta como suspenso. */
+const SUSPENSION_DAYS = 45;
+/** Pagamentos nos 12 meses que fazem um FII "pagador regular". */
+const SUSPENSION_MIN_PAYMENTS = 6;
+/** Dias sem data ex a partir dos quais o FII está suspenso, mesmo sem ter sido regular. */
+const SUSPENSION_MAX_DAYS = 365;
+
+/**
+ * Provento suspenso (spec koinos-3-1, §4.2): pagador regular há mais de 45 dias sem data ex, ou um
+ * ano sem pagar. Só vale com `suspensionBrake` e com a data do último provento conhecida.
+ */
+export function isDividendSuspended(asset: CascadeAsset, options: EngineOptions): boolean {
+  const days = asset.daysSinceLastDividend;
+  if (!options.suspensionBrake || typeof days !== "number") return false;
+  const regular = (asset.dividendPayments12m ?? 0) >= SUSPENSION_MIN_PAYMENTS;
+  return (days > SUSPENSION_DAYS && regular) || days > SUSPENSION_MAX_DAYS;
+}
 
 /**
  * A primeira regra de elegibilidade que falhar define o motivo de exclusão. O FII de fora não entra
  * em nenhum dos dois passos, mas o valor dele continua na base da estratégia.
  */
-function eligibilityFailure(asset: CascadeAsset): EligibilityReason | null {
+function eligibilityFailure(asset: CascadeAsset, options: EngineOptions): EligibilityReason | null {
   if (asset.price === null || !(asset.price > 0)) return "SEM_COTACAO";
   if (asset.rank === null) return "SEM_RANKING";
   if (asset.ceiling === null) return "SEM_TETO";
   if (asset.price >= asset.ceiling) return "ACIMA_DO_TETO";
   if (asset.bias === "AGUARDAR") return "AGUARDAR";
+  if (isDividendSuspended(asset, options)) return "PROVENTO_SUSPENSO";
   return null;
 }
 
@@ -174,7 +206,7 @@ function prepare(amount: number, assets: readonly CascadeAsset[], options: Engin
   const excluded: { ticker: string; rank: number | null; reason: EligibilityReason }[] = [];
   const slots: Slot[] = [];
   for (const asset of [...assets].sort(byRankThenTicker)) {
-    const reason = eligibilityFailure(asset);
+    const reason = eligibilityFailure(asset, options);
     if (reason) {
       excluded.push({ ticker: asset.ticker, rank: asset.rank, reason });
       continue;
@@ -387,6 +419,7 @@ export const EXCLUSION_LABELS: Record<ExclusionReason, string> = {
   SEM_TETO: "Sem preço teto",
   ACIMA_DO_TETO: "Acima do teto",
   AGUARDAR: "Viés Aguardar",
+  PROVENTO_SUSPENSO: "Provento suspenso",
   NA_META: "Já na meta",
   PEDIDO_PEQUENO: "Pede menos de 1 papel",
   ABAIXO_DO_MINIMO: "Abaixo do mínimo",
