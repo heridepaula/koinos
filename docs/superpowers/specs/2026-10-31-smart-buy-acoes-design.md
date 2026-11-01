@@ -1,6 +1,8 @@
 # Smart Buy de ações e divisão escolhida no aporte: especificação de design
 
 > Mudado por `2026-10-31-tabelas-unificadas-design.md`: viés também nos FIIs e % das ações reescaladas para 100%.
+>
+> Mudado por `2026-11-01-koinos-3-1-design.md`: o lote de 100 e o passo de sobra por lote substituem o "sem passo de sobra" (na versão 3.1; a 3.0 mantém lote 1 e sem sobra).
 
 - **Data:** 2026-10-31
 - **Status:** aprovado e implementado (branch feat/smart-buy-acoes)

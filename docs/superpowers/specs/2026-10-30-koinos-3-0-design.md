@@ -1,5 +1,7 @@
 # Motor de aporte Koinos 3.0: especificação de design
 
+> Mudado por `2026-11-01-koinos-3-1-design.md`: mínimo por ordem nos FIIs (fatia justa), freio de suspensão de proventos (`PROVENTO_SUSPENSO`) e janela de 12 meses de calendário nos proventos. A 3.0 continua sendo o padrão do motor sem opções.
+
 - **Data:** 2026-10-30
 - **Status:** aplicado a pedido do usuário ("reestruture o algoritmo de recomendações, conforme md"), a partir do documento dele "Especificação Técnica: Algoritmo de Aporte Inteligente Koinos 3.0". Substitui o Índice de Convicção de 2026-10-24 e o limite por FII da entrada gradual.
 - **Pedido junto:** um comentário curto e discreto do porquê de cada recomendação.

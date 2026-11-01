@@ -1,5 +1,7 @@
 # Carteira Alvo e Recomendações com tabelas iguais para FIIs e ações: especificação de design
 
+> Mudado por `2026-11-01-koinos-3-1-design.md`: três motivos novos em "Fora deste aporte" e na coluna Prioridade (`ABAIXO_DO_MINIMO` e `PROVENTO_SUSPENSO` nos FIIs, `MENOS_DE_UM_LOTE` nas ações).
+
 - **Data:** 2026-10-31
 - **Status:** aprovado e implementado (branch feat/tabelas-unificadas)
 - **Origem:** pedido do dono: "a tabela de carteira alvo de ações está divergente da de FIIs, ela deve seguir os padrões da de FIIs, com os mesmos campos, colunas. Nas recomendações no modo geral, os papéis devem vir juntos, FIIs e ações, não em tabelas separadas."

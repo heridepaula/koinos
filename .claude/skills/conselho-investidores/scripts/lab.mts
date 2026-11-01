@@ -726,7 +726,11 @@ function scoreGroups(a: Scorecard, b: Scorecard): { lens: string; rows: ScoreRow
         pair("caixa parado nas ações por período (R$)", (s) => s.stockIdle.perPeriod, "brl"),
         pair("caixa parado nas ações (% da parte das ações)", (s) => s.stockIdle.pct, "pct"),
         pair("ordens de ação por período", (s) => s.stockOrders.perPeriod, "num"),
-        pair("lotes de ação por período", (s) => s.stockOrders.lotsPerPeriod, "num"),
+        pair(
+          "lotes de ação por período (lote 1 na 3.0 = ações)",
+          (s) => s.stockOrders.lotsPerPeriod,
+          "num",
+        ),
       ],
     },
   ];

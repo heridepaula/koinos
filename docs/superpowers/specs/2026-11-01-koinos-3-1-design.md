@@ -1,7 +1,7 @@
 # Koinos 3.1: motor com opções, notas das lentes e as regras sem conflito: especificação de design
 
 - **Data:** 2026-11-01
-- **Status:** aprovado no brainstorming; aguarda a revisão do dono
+- **Status:** aprovado e implementado (branch feat/koinos-3-1)
 - **Origem:** os relatórios da skill `conselho-investidores` (cascata de FIIs, smart buy de ações, tensor de DY) e a análise do mínimo de compra de 2026-10-31. O dono pediu: "Como transformar esses outputs em algoritmo de recomendação?", e acrescentou: "evite compras pequenas, encontre um número mágico para definir o mínimo" e "o lote mínimo para ações é 100".
 - **Muda regras de:**
   - `2026-10-30-koinos-3-0-design.md`: mínimo por ordem, freio de suspensão e janela de 12 meses dos proventos;
