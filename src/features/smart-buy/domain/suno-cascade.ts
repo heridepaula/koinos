@@ -20,6 +20,9 @@ import { RISK_CAPS, type RiskMacro } from "./risk";
 // 4. Passo 2, a sobra: uma cota por vez para o FII mais abaixo da meta, dentro das mesmas travas, até
 //    nenhuma cota caber. Nesta conta a meta vem descontada pelos freios de proventos e de vacância:
 //    senão o FII freado, que costuma ser o mais abaixo da meta, voltaria a receber pela sobra.
+// 5. Koinos 3.1, mínimo por ordem (minOrder "fairShare"): nenhuma ordem abaixo da fatia justa,
+//    aporte ÷ nº de FIIs da estratégia, no máximo metade da trava por FII. No passo 1 a ordem menor
+//    não sai e o dinheiro segue na fila; no passo 2 um FII sem ordem só entra já no mínimo.
 
 export type CascadeAsset = {
   ticker: string;
@@ -52,6 +55,7 @@ export type ExclusionReason =
   | "AGUARDAR"
   | "NA_META"
   | "PEDIDO_PEQUENO"
+  | "ABAIXO_DO_MINIMO"
   | "LIMITE_ATIVO"
   | "LIMITE_SETOR"
   | "LIMITE_MACRO"
@@ -105,6 +109,8 @@ export type CascadeResult = {
   strategyValue: number;
   /** As travas deste aporte, em R$. */
   caps: { asset: number; sector: number; macro: number };
+  /** O mínimo por ordem, em R$ (zero na 3.0, sem FIIs ou com aporte zero). */
+  minimum: number;
   /** Na ordem do ranking. */
   orders: CascadeOrder[];
   excluded: CascadeExclusion[];
@@ -160,6 +166,11 @@ function prepare(amount: number, assets: readonly CascadeAsset[], options: Engin
   const budget = Math.max(0, round2(amount));
   const strategyValue = assets.reduce((sum, asset) => sum + positionValue(asset), 0);
   const total = strategyValue + budget;
+  // Fatia justa: o nº de FIIs é a entrada inteira da cascata, contando os que estão fora do aporte.
+  const minimum =
+    options.minOrder === "fairShare" && assets.length > 0
+      ? round2(Math.min(budget / assets.length, (RISK_CAPS.asset * budget) / 2))
+      : 0;
   const excluded: { ticker: string; rank: number | null; reason: EligibilityReason }[] = [];
   const slots: Slot[] = [];
   for (const asset of [...assets].sort(byRankThenTicker)) {
@@ -198,15 +209,20 @@ function prepare(amount: number, assets: readonly CascadeAsset[], options: Engin
       limitedBy: null,
     });
   }
-  return { budget, strategyValue, slots, excluded };
+  return { budget, strategyValue, minimum, slots, excluded };
 }
 
 /** Pediu ao menos uma cota inteira. */
 const asksForAShare = (slot: Slot) => slot.gap > 0 && slot.need >= slot.price - EPSILON;
 
-function exclusionReason(slot: Slot): ExclusionReason {
+function exclusionReason(slot: Slot, minimum: number): ExclusionReason {
   if (slot.gap <= 0) return "NA_META";
   if (!asksForAShare(slot)) return "PEDIDO_PEQUENO";
+  // O próprio pedido, em cotas inteiras, não chega ao mínimo. Se foi a trava ou o saldo que cortou
+  // abaixo dele, vale o motivo da trava.
+  if (Math.floor(slot.need / slot.price + EPSILON) * slot.price < minimum - EPSILON) {
+    return "ABAIXO_DO_MINIMO";
+  }
   switch (slot.limitedBy) {
     case "ativo":
       return "LIMITE_ATIVO";
@@ -224,7 +240,7 @@ export function sunoCascade(
   assets: readonly CascadeAsset[],
   options: EngineOptions = ENGINE_VERSIONS["3.0"],
 ): CascadeResult {
-  const { budget, strategyValue, slots, excluded } = prepare(amount, assets, options);
+  const { budget, strategyValue, minimum, slots, excluded } = prepare(amount, assets, options);
   const caps = {
     asset: RISK_CAPS.asset * budget,
     sector: RISK_CAPS.sector * budget,
@@ -260,24 +276,29 @@ export function sunoCascade(
     cash = round2(cash - cost);
   };
 
-  // Passo 1: a cascata pelo ranking, com as travas.
+  // Passo 1: a cascata pelo ranking, com as travas. A ordem abaixo do mínimo não sai, e o dinheiro
+  // segue para o próximo da fila.
   for (const slot of slots) {
     if (slot.need <= 0) continue;
     const [binding, allowed] = tightest(slot);
     const shares = Math.floor(Math.min(slot.need, allowed) / slot.price + EPSILON);
-    if (shares > 0) buy(slot, shares, false);
+    if (shares > 0 && shares * slot.price >= minimum - EPSILON) buy(slot, shares, false);
     if (allowed < slot.need) slot.limitedBy = binding;
   }
 
-  // Passo 2: a sobra, uma cota por vez para o mais abaixo da meta (no empate, o melhor ranking).
+  // Passo 2: a sobra, uma unidade por vez para o mais abaixo da meta (no empate, o melhor ranking).
+  // A unidade é uma cota para quem já tem ordem; quem não tem só entra com o mínimo de uma vez.
   const leftoverFill = (slot: Slot) => (slot.value + spentOn(slot)) / slot.leftoverTarget;
+  const unit = (slot: Slot) =>
+    slot.bought > 0 ? 1 : Math.max(1, Math.ceil((minimum - EPSILON) / slot.price));
   for (let step = 0; step < MAX_LEFTOVER_STEPS; step++) {
     const pick = slots.reduce<Slot | null>((best, slot) => {
-      if (!(slot.leftoverTarget > 0) || slot.price > tightest(slot)[1] + EPSILON) return best;
+      if (!(slot.leftoverTarget > 0)) return best;
+      if (unit(slot) * slot.price > tightest(slot)[1] + EPSILON) return best;
       return best === null || leftoverFill(slot) < leftoverFill(best) ? slot : best;
     }, null);
     if (pick === null) break;
-    buy(pick, 1, true);
+    buy(pick, unit(pick), true);
   }
 
   const spent = round2(budget - cash);
@@ -316,7 +337,7 @@ export function sunoCascade(
     .map((slot): CascadeExclusion => ({
       ticker: slot.ticker,
       rank: slot.rank,
-      reason: exclusionReason(slot),
+      reason: exclusionReason(slot, minimum),
     }));
 
   return {
@@ -325,6 +346,7 @@ export function sunoCascade(
     leftover: round2(budget - spent),
     strategyValue,
     caps,
+    minimum,
     orders,
     excluded: [...excluded, ...unbought].sort(byRankThenTicker),
   };
@@ -367,6 +389,7 @@ export const EXCLUSION_LABELS: Record<ExclusionReason, string> = {
   AGUARDAR: "Viés Aguardar",
   NA_META: "Já na meta",
   PEDIDO_PEQUENO: "Pede menos de 1 papel",
+  ABAIXO_DO_MINIMO: "Abaixo do mínimo",
   LIMITE_ATIVO: "Cota acima do limite",
   LIMITE_SETOR: "Limite do setor",
   LIMITE_MACRO: "Limite de papel ou tijolo",

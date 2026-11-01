@@ -20,6 +20,8 @@ export const REASON_HELP: Record<ExclusionReason, string> = {
   NA_META: "Já está na % sugerida (ou passou dela).",
   PEDIDO_PEQUENO:
     "Falta pouco para a meta, ou os freios de provento e vacância cortaram o pedido: não chega a uma cota.",
+  ABAIXO_DO_MINIMO:
+    "O pedido não chegava ao mínimo por ordem (aporte ÷ nº de FIIs da estratégia). O dinheiro foi para os próximos da fila; no próximo aporte o pedido cresce.",
   LIMITE_ATIVO: `Uma cota custa mais que o limite de ${formatPercent(RISK_CAPS.asset, 0)} do aporte por FII.`,
   LIMITE_SETOR: `O setor já levou ${formatPercent(RISK_CAPS.sector, 0)} do aporte.`,
   LIMITE_MACRO: `Papel ou tijolo já levou ${formatPercent(RISK_CAPS.macro, 0)} do aporte.`,
@@ -34,6 +36,7 @@ export const REASON_ORDER: ExclusionReason[] = [
   "LIMITE_SETOR",
   "LIMITE_MACRO",
   "LIMITE_ATIVO",
+  "ABAIXO_DO_MINIMO",
   "PEDIDO_PEQUENO",
   "NA_META",
   "AGUARDAR",

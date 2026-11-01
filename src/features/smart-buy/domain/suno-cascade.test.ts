@@ -248,44 +248,44 @@ describe("sunoCascade: viés Aguardar", () => {
   });
 });
 
-describe("sunoCascade: invariantes", () => {
-  // Gerador determinístico (LCG): os mesmos 500 casos a cada execução.
-  function random(seed: number) {
-    let state = seed;
-    return () => {
-      state = (state * 1_664_525 + 1_013_904_223) % 4_294_967_296;
-      return state / 4_294_967_296;
-    };
-  }
-  const macros = ["Papel", "Tijolo", "Outros"] as const;
-  const sectors = [null, null, "Shoppings", "Logística"];
+// Gerador determinístico (LCG): os mesmos 500 casos a cada execução.
+function random(seed: number) {
+  let state = seed;
+  return () => {
+    state = (state * 1_664_525 + 1_013_904_223) % 4_294_967_296;
+    return state / 4_294_967_296;
+  };
+}
+const macros = ["Papel", "Tijolo", "Outros"] as const;
+const sectors = [null, null, "Shoppings", "Logística"];
 
-  // As 500 carteiras da semente 42, as mesmas para os testes deste bloco.
-  function portfolios() {
-    const next = random(42);
-    return Array.from({ length: 500 }, () => {
-      const count = 1 + Math.floor(next() * 10);
-      const assets = Array.from({ length: count }, (_, index) => {
-        const price = Math.round((5 + next() * 150) * 100) / 100;
-        return fii(`F${String.fromCharCode(65 + index)}XX11`, {
-          rank: next() < 0.1 ? null : 1 + Math.floor(next() * 20),
-          price,
-          ceiling: price * (0.9 + next() * 0.4),
-          weight: 1 / count,
-          quantity: Math.floor(next() * 400),
-          priceToBook: next() < 0.7 ? 0.6 + next() * 0.6 : null,
-          lastDividend: next() < 0.7 ? next() : null,
-          dividends12m: next() < 0.7 ? next() * 12 : null,
-          vacancy: next() < 0.5 ? next() * 0.3 : null,
-          macro: macros[Math.floor(next() * 3)],
-          sector: sectors[Math.floor(next() * 4)],
-        });
+// As 500 carteiras da semente 42, as mesmas para os testes de invariantes e do mínimo por ordem.
+function portfolios() {
+  const next = random(42);
+  return Array.from({ length: 500 }, () => {
+    const count = 1 + Math.floor(next() * 10);
+    const assets = Array.from({ length: count }, (_, index) => {
+      const price = Math.round((5 + next() * 150) * 100) / 100;
+      return fii(`F${String.fromCharCode(65 + index)}XX11`, {
+        rank: next() < 0.1 ? null : 1 + Math.floor(next() * 20),
+        price,
+        ceiling: price * (0.9 + next() * 0.4),
+        weight: 1 / count,
+        quantity: Math.floor(next() * 400),
+        priceToBook: next() < 0.7 ? 0.6 + next() * 0.6 : null,
+        lastDividend: next() < 0.7 ? next() : null,
+        dividends12m: next() < 0.7 ? next() * 12 : null,
+        vacancy: next() < 0.5 ? next() * 0.3 : null,
+        macro: macros[Math.floor(next() * 3)],
+        sector: sectors[Math.floor(next() * 4)],
       });
-      const amount = Math.round(next() * 30_000 * 100) / 100;
-      return { amount, assets };
     });
-  }
+    const amount = Math.round(next() * 30_000 * 100) / 100;
+    return { amount, assets };
+  });
+}
 
+describe("sunoCascade: invariantes", () => {
   it("com as opções da 3.0, o resultado é o mesmo que sem opções", () => {
     for (const { amount, assets } of portfolios()) {
       expect(sunoCascade(amount, assets, ENGINE_VERSIONS["3.0"])).toEqual(
@@ -320,6 +320,131 @@ describe("sunoCascade: invariantes", () => {
         expect(total).toBeLessThanOrEqual(RISK_CAPS.macro * result.amount + 1e-6);
       }
     }
+  });
+});
+
+describe("sunoCascade: mínimo por ordem", () => {
+  const v31 = ENGINE_VERSIONS["3.1"];
+  const cents = (value: number) => Math.round(value * 100);
+
+  it("nas 500 carteiras: nenhuma ordem abaixo do mínimo, o aporte fecha e só elegíveis compram", () => {
+    for (const { amount, assets } of portfolios()) {
+      const result = sunoCascade(amount, assets, v31);
+      const byTicker = new Map(assets.map((asset) => [asset.ticker, asset]));
+      const fairShare = Math.min(
+        result.amount / assets.length,
+        (RISK_CAPS.asset * result.amount) / 2,
+      );
+
+      expect(result.minimum).toBe(Math.round(fairShare * 100) / 100);
+      expect(result.leftover).toBeGreaterThanOrEqual(0);
+      expect(cents(result.spent) + cents(result.leftover)).toBe(cents(result.amount));
+      for (const item of result.orders) {
+        const asset = byTicker.get(item.ticker)!;
+        expect(item.total).toBeGreaterThanOrEqual(result.minimum - 0.005);
+        expect(asset.rank).not.toBeNull();
+        expect(asset.price!).toBeLessThan(asset.ceiling!);
+        expect(asset.bias).not.toBe("AGUARDAR");
+        expect(item.total).toBeLessThanOrEqual(RISK_CAPS.asset * result.amount + 1e-6);
+      }
+    }
+  });
+
+  it("o dinheiro desce na fila: o 1º pede menos que o mínimo e o 2º recebe mais que na 3.0", () => {
+    // Aporte de 10.000 com 3 FIIs: mínimo de 1.250 (12,5% do aporte, menor que 10.000 ÷ 3).
+    const assets = [
+      // Meta de 4.000 com 2.900 na carteira: pede 1.100 × 1,1667 = 1.283, ou 12 cotas (1.200).
+      fii("AAAA11", { rank: 1, weight: 0.2, quantity: 29, ceiling: 120, sector: "Shoppings" }),
+      fii("BBBB11", { rank: 2, weight: 0.4, sector: "Shoppings" }),
+      fii("CCCC11", { rank: 3, weight: 0.4, quantity: 71, macro: "Papel" }),
+    ];
+    const before = sunoCascade(10_000, assets);
+    const after = sunoCascade(10_000, assets, v31);
+    expect(after.minimum).toBe(1_250);
+
+    // Na 3.0 o AAAA11 leva 1.200, e o setor (35%) deixa só 2.300 para o BBBB11.
+    expect(order(before, "AAAA11")?.total).toBe(1_200);
+    expect(order(before, "BBBB11")).toMatchObject({ total: 2_300, limitedBy: "setor" });
+    // Na 3.1 o AAAA11 fica sem ordem, e o BBBB11 vai até a trava de 25%. Na sobra, o AAAA11 só
+    // entraria com 13 cotas (1.300), mais que os 1.000 que o setor ainda tem.
+    expect(order(after, "AAAA11")).toBeUndefined();
+    expect(reasonOf(after, "AAAA11")).toBe("ABAIXO_DO_MINIMO");
+    expect(order(after, "BBBB11")).toMatchObject({ total: 2_500, limitedBy: "ativo" });
+  });
+
+  it("a sobra abre ordem nova só no mínimo, de uma vez; quem já tem ordem recebe de 1 em 1", () => {
+    // Aporte de 10.000 com 4 FIIs na entrada: mínimo de 1.250, ou 13 cotas de R$ 100.
+    const assets = [
+      // Meta de 4.000 com 2.300: pede 1.700 × 1,0909 = 1.854, ou 18 cotas.
+      fii("YYYY11", { rank: 1, weight: 0.2, quantity: 23, macro: "Papel" }),
+      // Sem cotas: vai até a trava de 25% (2.500).
+      fii("WWWW11", { rank: 2, weight: 0.25, macro: "Papel" }),
+      // Meta de 1.500 com 1.000: pede 545, ou 5 cotas (500), abaixo do mínimo.
+      fii("XXXX11", { rank: 3, weight: 0.075, quantity: 10, macro: "Papel" }),
+      anchor(6_700, 0.475),
+    ];
+    const result = sunoCascade(10_000, assets, v31);
+    expect(result.minimum).toBe(1_250);
+    // Depois do passo 1, papel tem 1.700 de espaço (60% − 1.800 − 2.500). O XXXX11 é o mais abaixo
+    // da meta (1.000 ÷ 1.500) e entra com as 13 cotas de uma vez; passa para 2.300 ÷ 1.500, e o
+    // YYYY11 (4.100 ÷ 4.000) leva o resto, uma cota por vez, até papel encher.
+    expect(order(result, "XXXX11")).toMatchObject({ quantity: 13, fromLeftover: 13, total: 1_300 });
+    expect(order(result, "YYYY11")).toMatchObject({ quantity: 22, fromLeftover: 4 });
+    expect(order(result, "WWWW11")).toMatchObject({ quantity: 25, fromLeftover: 0 });
+    expect(result.leftover).toBe(4_000);
+  });
+
+  it("sem espaço para o mínimo, o FII sem ordem não entra pela sobra", () => {
+    // O mesmo cenário com o VVVV11, que vem depois na fila e ocupa 1.500 do papel: sobram 200, e
+    // só o YYYY11, que já tem ordem, recebe (2 cotas). O XXXX11 precisaria de 1.300.
+    const assets = [
+      fii("YYYY11", { rank: 1, weight: 0.2, quantity: 23, macro: "Papel" }),
+      fii("WWWW11", { rank: 2, weight: 0.25, macro: "Papel" }),
+      fii("XXXX11", { rank: 3, weight: 0.075, quantity: 10, macro: "Papel" }),
+      // Meta de 1.400 sem cotas: pede 1.527, ou 15 cotas.
+      fii("VVVV11", { rank: 4, weight: 0.07, macro: "Papel" }),
+      anchor(6_700, 0.405),
+    ];
+    const result = sunoCascade(10_000, assets, v31);
+    expect(result.minimum).toBe(1_250);
+    expect(order(result, "XXXX11")).toBeUndefined();
+    expect(reasonOf(result, "XXXX11")).toBe("ABAIXO_DO_MINIMO");
+    expect(order(result, "YYYY11")).toMatchObject({ quantity: 20, fromLeftover: 2 });
+    expect(order(result, "VVVV11")).toMatchObject({ quantity: 15, fromLeftover: 0 });
+  });
+
+  it("o motivo da trava vence: um pedido acima do mínimo cortado pelo saldo sai como SEM_SALDO", () => {
+    // Base de 100.000 (90.000 na âncora): os três primeiros vão até a trava de 25%, o DDDD11 leva
+    // 1.600 e sobram 900 de saldo para o EEEE11, que pedia 1.636 (16 cotas, acima do mínimo).
+    const assets = [
+      fii("AAAA11", { rank: 1, weight: 0.03, macro: "Papel" }),
+      fii("BBBB11", { rank: 2, weight: 0.03, macro: "Tijolo" }),
+      fii("CCCC11", { rank: 3, weight: 0.03, macro: "Outros" }),
+      fii("DDDD11", { rank: 4, weight: 0.015, macro: "Papel" }),
+      fii("EEEE11", { rank: 5, weight: 0.015, macro: "Tijolo" }),
+      anchor(90_000, 0.88),
+    ];
+    const result = sunoCascade(10_000, assets, v31);
+    expect(result.minimum).toBe(1_250);
+    expect(order(result, "DDDD11")).toMatchObject({ quantity: 25, fromLeftover: 9 });
+    expect(order(result, "EEEE11")).toBeUndefined();
+    expect(reasonOf(result, "EEEE11")).toBe("SEM_SALDO");
+  });
+
+  it("o mínimo é no máximo 12,5% do aporte, metade da trava por FII", () => {
+    const assets = ["AAAA11", "BBBB11", "CCCC11", "DDDD11"].map((ticker, index) =>
+      fii(ticker, { rank: index + 1, weight: 0.25 }),
+    );
+    // 10.000 ÷ 4 = 2.500, mas o limite é 12,5% de 10.000.
+    expect(sunoCascade(10_000, assets, v31).minimum).toBe(1_250);
+  });
+
+  it("aporte zero, nenhum FII ou a 3.0: mínimo zero", () => {
+    const assets = [fii("AAAA11", { weight: 1 })];
+    expect(sunoCascade(0, assets, v31).minimum).toBe(0);
+    expect(sunoCascade(10_000, [], v31).minimum).toBe(0);
+    expect(sunoCascade(10_000, assets, ENGINE_VERSIONS["3.0"]).minimum).toBe(0);
+    expect(sunoCascade(10_000, assets).minimum).toBe(0);
   });
 });
 
