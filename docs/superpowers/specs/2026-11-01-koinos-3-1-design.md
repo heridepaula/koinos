@@ -141,13 +141,13 @@ export const CURRENT_ENGINE: EngineVersion = "3.1";
   - Elegível: com cotação, com teto, preço ≤ teto, sem Aguardar e peso > 0.
   - Empate: o melhor rank, depois o ticker.
   - O ciclo para quando nenhum lote cabe.
-  - Nenhuma ação passa de 25% da parte das ações do aporte pela sobra (decisão do dono, 2026-11-01).
+  - Nenhuma ação passa, pela sobra, de no máximo o maior entre 25% da parte das ações do aporte e um lote (decisão do dono, 2026-11-01).
 - **Meta:** pode passar da meta, como na sobra dos FIIs. A ação que estava `NA_META` ou `MENOS_DE_UM_LOTE` no passo 1 também pode receber, se for a mais abaixo.
 - **Resultado:**
   - `StockBuyOrder` ganha `fromLeftover: number`, as ações vindas da sobra;
   - a ação que só recebeu na sobra vira ordem;
   - as que ficaram sem nada mantêm o motivo do passo 1;
-  - o `leftover` é o caixa final, menor que o lote mais barato entre as elegíveis que ainda cabem nos 25%.
+  - o `leftover` é o caixa final, menor que o lote mais barato entre as elegíveis que ainda cabem no limite.
 - **Por que agora:** a parte das ações já ficava parada sem o lote (55% investido com R$ 3 mil por mês, por causa das ações em Aguardar e das que passaram da meta). Com o lote e sem sobra, iria a 11% a 32%.
 
 ## 5. Dados: 12 meses de calendário

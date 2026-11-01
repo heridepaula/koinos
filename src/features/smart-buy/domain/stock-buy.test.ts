@@ -480,9 +480,22 @@ describe("stockSmartBuy: lote e sobra", () => {
       expect(order.total).toBeLessThanOrEqual(STOCK_LEFTOVER_CAP * 10_000);
   });
 
+  it("o piso de um lote: com R$ 3.000, um lote de R$ 1.071 passa dos 25% e ainda assim entra", () => {
+    // 25% de R$ 3.000 são R$ 750, menos que um lote; o piso deixa entrar um lote, e só um.
+    const r = stockSmartBuy(
+      3_000,
+      [asset({ ticker: "A3", price: 10.71, ceiling: 14, weight: 0.1 })],
+      V31,
+    );
+    expect(r.orders.map((o) => [o.ticker, o.quantity, o.fromLeftover, o.total])).toEqual([
+      ["A3", 100, 100, 1_071],
+    ]);
+    expect(r.leftover).toBe(1_929);
+  });
+
   it("o passo 1 dentro da meta não é cortado pelo limite: só a sobra não acrescenta", () => {
     // Base R$ 30.000 (R$ 20.000 numa ação acima do teto): a meta de 10% é R$ 3.000, acima dos
-    // R$ 2.500 do limite. O passo 1 compra as 300 ações; a sobra não compra nenhum lote a mais.
+    // R$ 2.500 do limite. O passo 1 compra as 300 ações; a sobra não compra nenhum lote a mais (o limite é o maior entre R$ 2.500 e um lote de R$ 1.000).
     const r = stockSmartBuy(
       10_000,
       [
@@ -530,7 +543,8 @@ describe("stockSmartBuy: lote e sobra", () => {
         const lotCost = 100 * a.price!;
         // Um centavo de folga: o caixa perde o custo do lote já arredondado.
         const cashFits = r.leftover >= lotCost - 0.01;
-        const capFits = (totals.get(a.ticker) ?? 0) + lotCost <= STOCK_LEFTOVER_CAP * amount + 0.01;
+        const limit = Math.max(STOCK_LEFTOVER_CAP * amount, lotCost);
+        const capFits = (totals.get(a.ticker) ?? 0) + lotCost <= limit + 0.01;
         expect(cashFits && capFits).toBe(false);
       }
     };

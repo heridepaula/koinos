@@ -7,7 +7,8 @@ import type { AportePriority } from "./suno-cascade";
 // Prioridade das ações (stockPriorities; spec tabelas-unificadas, §3.2).
 // Na 3.1 (spec koinos-3-1, §4.3 e §4.4), as ordens saem em lotes (`stockLot`) e, com `stockLeftover`,
 // a sobra vai um lote por vez para a ação mais abaixo da meta, entre as que cabem no caixa e não
-// passam de 25% da parte das ações do aporte (STOCK_LEFTOVER_CAP; só a sobra é limitada).
+// passam do maior entre 25% da parte das ações do aporte (STOCK_LEFTOVER_CAP) e um lote da própria
+// ação; só a sobra é limitada.
 
 export type StockBias = "COMPRAR" | "AGUARDAR";
 
@@ -64,7 +65,7 @@ export type StockBuyResult = {
 };
 
 const EPSILON = 1e-9;
-/** Teto de cada ação na sobra da 3.1: no máximo 25% da parte das ações do aporte (decisão do dono, 2026-11-01). */
+/** Teto de cada ação na sobra da 3.1: no máximo o maior entre 25% da parte das ações do aporte e um lote (decisão do dono, 2026-11-01). */
 export const STOCK_LEFTOVER_CAP = 0.25;
 const MAX_LEFTOVER_ROUNDS = 100_000;
 const round2 = (value: number) => Math.round(value * 100) / 100;
@@ -179,12 +180,15 @@ export function stockSmartBuy(
   // como na sobra dos FIIs; o que não cabe fica no caixa.
   if (options.stockLeftover) {
     const pool = assets.filter(receivesLeftover);
+    // No máximo o maior entre 25% da parte das ações do aporte e um lote da própria ação.
+    const leftoverLimit = (asset: PricedAsset) =>
+      Math.max(STOCK_LEFTOVER_CAP * budget, lot * asset.price);
     const fill = (asset: PricedAsset) =>
       (valueOf(asset) + held(asset) * asset.price) / (base * asset.weight);
     for (let round = 0; round < MAX_LEFTOVER_ROUNDS; round++) {
       const pick = pool.reduce<PricedAsset | null>((best, asset) => {
         if (costOf(asset, lot) > cash + EPSILON) return best;
-        if ((held(asset) + lot) * asset.price > STOCK_LEFTOVER_CAP * budget + EPSILON) return best;
+        if ((held(asset) + lot) * asset.price > leftoverLimit(asset) + EPSILON) return best;
         return best === null || (fill(asset) - fill(best) || byRank(asset, best)) < 0
           ? asset
           : best;
