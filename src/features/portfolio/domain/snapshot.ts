@@ -2,6 +2,8 @@ import { assetClassOf, isQuoteStale, type AssetClass } from "@/features/market-d
 import {
   aportePriorities,
   classifyRisk,
+  CURRENT_ENGINE,
+  ENGINE_VERSIONS,
   stockPriorities,
   type CascadeAsset,
   type StockBuyAsset,
@@ -29,7 +31,10 @@ import type {
   TargetConfig,
 } from "./types";
 
-const DIVIDEND_RECENCY_MS = 62 * 86_400_000;
+const DAY_MS = 86_400_000;
+const DIVIDEND_RECENCY_MS = 62 * DAY_MS;
+/** Proventos buscados há mais que isso não valem para o freio: uma queda do Yahoo não suspende FII. */
+const DIVIDENDS_FRESH_DAYS = 10;
 const CONTRIBUTION_MONTHS = 24;
 
 export type SnapshotInput = {
@@ -133,6 +138,14 @@ export function buildSnapshot({
       realEstatePct: fii?.realEstatePct ?? null,
       category: member.category,
     });
+    // Dias desde o último provento, só com a busca de proventos recente (spec koinos-3-1, §4.2).
+    const dividendsFresh =
+      info?.dividendsFetchedAt != null &&
+      now.getTime() - info.dividendsFetchedAt.getTime() <= DIVIDENDS_FRESH_DAYS * DAY_MS;
+    const daysSinceLastDividend =
+      info?.lastDividend && dividendsFresh
+        ? Math.floor((now.getTime() - info.lastDividend.exDate.getTime()) / DAY_MS)
+        : null;
     return {
       ticker: member.ticker,
       rank: member.sunoRank,
@@ -144,6 +157,8 @@ export function buildSnapshot({
       priceToBook: info?.priceToBook ?? null,
       lastDividend: info?.lastDividend?.amount ?? null,
       dividends12m: info?.dividends12m ?? null,
+      dividendPayments12m: info?.dividendPayments12m ?? null,
+      daysSinceLastDividend,
       vacancy: fii?.vacancyPct != null ? fii.vacancyPct / 100 : null,
       macro,
       sector,
@@ -173,10 +188,12 @@ export function buildSnapshot({
   // Patrimônio de cada classe, para repartir o aporte entre elas.
   const classValues = { FII: 0, ACAO: 0 };
   for (const position of open) classValues[classKey(position.ticker)] += valueOf(position.ticker);
-  // A coluna Prioridade: a fila da cascata nos FIIs e a do motor de ações nas ações.
+  // A coluna Prioridade: a fila da cascata nos FIIs e a do motor de ações nas ações, pela versão
+  // atual do motor (spec koinos-3-1, §3).
+  const engine = ENGINE_VERSIONS[CURRENT_ENGINE];
   const priorities = new Map([
-    ...aportePriorities(cascadeInput),
-    ...stockPriorities(stockBuyInput),
+    ...aportePriorities(cascadeInput, engine),
+    ...stockPriorities(stockBuyInput, engine),
   ]);
 
   // Resumo.

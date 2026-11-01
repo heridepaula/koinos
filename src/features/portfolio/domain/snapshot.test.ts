@@ -154,6 +154,73 @@ describe("buildSnapshot: entrada do motor 3.0", () => {
   });
 });
 
+describe("buildSnapshot: entrada do motor 3.1 (suspensão de proventos)", () => {
+  const now = new Date(Date.UTC(2026, 9, 24));
+  const daysAgo = (days: number) => new Date(now.getTime() - days * 86_400_000);
+  const withAaaa = (info: Partial<PriceInfo>) => {
+    const input = portfolio(500, 0);
+    const prices = new Map(input.prices);
+    prices.set("AAAA11", { ...quote, ...info });
+    return buildSnapshot({ ...input, prices });
+  };
+  const aaaaOf = (snapshot: ReturnType<typeof buildSnapshot>) =>
+    snapshot.cascadeInput.find((asset) => asset.ticker === "AAAA11")!;
+
+  it("leva os dias desde o último provento e a contagem de pagamentos", () => {
+    const snapshot = withAaaa({
+      lastDividend: { amount: 0.8, exDate: daysAgo(50) },
+      dividendPayments12m: 12,
+      dividendsFetchedAt: daysAgo(2),
+    });
+    expect(aaaaOf(snapshot)).toMatchObject({ daysSinceLastDividend: 50, dividendPayments12m: 12 });
+    // Sem dado, os dois ficam nulos e o outro FII não é afetado.
+    const [, second] = snapshot.cascadeInput;
+    expect(second).toMatchObject({ daysSinceLastDividend: null, dividendPayments12m: null });
+  });
+
+  it("com a busca de proventos de 10 dias ou menos ainda vale; com mais, os dias ficam nulos", () => {
+    const base = { lastDividend: { amount: 0.8, exDate: daysAgo(50) }, dividendPayments12m: 12 };
+    expect(aaaaOf(withAaaa({ ...base, dividendsFetchedAt: daysAgo(10) }))).toMatchObject({
+      daysSinceLastDividend: 50,
+    });
+    expect(aaaaOf(withAaaa({ ...base, dividendsFetchedAt: daysAgo(11) }))).toMatchObject({
+      daysSinceLastDividend: null,
+      dividendPayments12m: 12,
+    });
+    // Nunca buscado: também não vale.
+    expect(
+      aaaaOf(withAaaa({ ...base, dividendsFetchedAt: null })).daysSinceLastDividend,
+    ).toBeNull();
+  });
+
+  it("sem último provento, os dias ficam nulos", () => {
+    const snapshot = withAaaa({
+      lastDividend: null,
+      dividendPayments12m: 12,
+      dividendsFetchedAt: daysAgo(2),
+    });
+    expect(aaaaOf(snapshot).daysSinceLastDividend).toBeNull();
+  });
+
+  it("o FII com 12 pagamentos e 50 dias sem pagar mostra PROVENTO_SUSPENSO na Carteira Alvo", () => {
+    const snapshot = withAaaa({
+      lastDividend: { amount: 0.8, exDate: daysAgo(50) },
+      dividendPayments12m: 12,
+      dividendsFetchedAt: daysAgo(2),
+    });
+    const suspended = { kind: "fora", reason: "PROVENTO_SUSPENSO" };
+    expect(snapshot.strategy.rows.find((row) => row.ticker === "AAAA11")?.priority).toEqual(
+      suspended,
+    );
+    expect(snapshot.positions.find((row) => row.ticker === "AAAA11")?.priority).toEqual(suspended);
+    // O outro FII, sem dado de proventos, não é suspenso (aqui já está na meta).
+    expect(snapshot.strategy.rows.find((row) => row.ticker === "BBBB11")?.priority).toEqual({
+      kind: "fora",
+      reason: "NA_META",
+    });
+  });
+});
+
 describe("buildSnapshot: viés nos FIIs (spec tabelas-unificadas, §3.3)", () => {
   const withBias = (bias: "COMPRAR" | "AGUARDAR", tickers: string[]): SnapshotInput => {
     const input = portfolio(500, 0);
@@ -414,11 +481,22 @@ describe("buildSnapshot: Carteira Alvo de ações", () => {
     );
   });
 
-  // Regra nova: antes a ação não tinha prioridade; agora vem do motor de ações (stockPriorities).
-  // Base de R$ 250 com aporte zero: PETR4 vale 200 e a meta é 175 (já na meta); VALE3 vale 50 e a
-  // meta é 75, então pede 2 ações e é a 1ª da fila.
+  // Na 3.1 as ações compram em lotes de 100: a fila precisa de um déficit de pelo menos um lote
+  // (R$ 1.000 a R$ 10). Aqui a base é de R$ 25.000 com aporte zero: PETR4 vale 20.000 e a meta é
+  // 17.500 (já na meta); VALE3 vale 5.000 e a meta é 7.500, então pede 250 ações e é a 1ª da fila.
+  const bigStocks: SnapshotInput = {
+    ...input,
+    transactions: input.transactions.map((entry) =>
+      entry.ticker === "PETR4"
+        ? { ...entry, quantity: 2000 }
+        : entry.ticker === "VALE3"
+          ? { ...entry, quantity: 500 }
+          : entry,
+    ),
+  };
+
   it("em Geral, a posição da ação configurada tem a Prioridade do motor de ações", () => {
-    const { positions } = buildSnapshot(input);
+    const { positions } = buildSnapshot(bigStocks);
     const petr = positions.find((row) => row.ticker === "PETR4")!;
     expect(petr.inStrategy).toBe(true);
     expect(petr.targetWeight).toBeCloseTo(0.7, 6);
@@ -432,14 +510,14 @@ describe("buildSnapshot: Carteira Alvo de ações", () => {
   it("as linhas da Carteira Alvo de ações têm a Prioridade: a fila ou o motivo", () => {
     const priorityOf = (snapshot: ReturnType<typeof buildSnapshot>, ticker: string) =>
       snapshot.strategy.rows.find((row) => row.ticker === ticker)?.priority;
-    const stocks = buildSnapshot(scopeToClass(input, "ACAO"));
+    const stocks = buildSnapshot(scopeToClass(bigStocks, "ACAO"));
     expect(priorityOf(stocks, "VALE3")).toEqual({ kind: "fila", position: 1 });
     expect(priorityOf(stocks, "PETR4")).toEqual({ kind: "fora", reason: "NA_META" });
     const waiting = buildSnapshot(
       scopeToClass(
         {
-          ...input,
-          targets: input.targets.map((item) =>
+          ...bigStocks,
+          targets: bigStocks.targets.map((item) =>
             item.ticker === "VALE3" ? { ...item, bias: "AGUARDAR" as const } : item,
           ),
         },
@@ -448,6 +526,15 @@ describe("buildSnapshot: Carteira Alvo de ações", () => {
     );
     expect(waiting.strategy.rows.find((row) => row.ticker === "VALE3")?.bias).toBe("AGUARDAR");
     expect(priorityOf(waiting, "VALE3")).toEqual({ kind: "fora", reason: "AGUARDAR" });
+  });
+
+  // Motor 3.1: o déficit de VALE3 (R$ 25) não chega a um lote de 100 ações (R$ 1.000).
+  it("a ação com déficit menor que um lote mostra MENOS_DE_UM_LOTE na linha da Carteira Alvo", () => {
+    const stocks = buildSnapshot(scopeToClass(input, "ACAO"));
+    expect(stocks.strategy.rows.find((row) => row.ticker === "VALE3")?.priority).toEqual({
+      kind: "fora",
+      reason: "MENOS_DE_UM_LOTE",
+    });
   });
 
   it("Geral e FIIs: snapshot.strategy é a de FIIs", () => {
