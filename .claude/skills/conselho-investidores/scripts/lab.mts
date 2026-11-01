@@ -18,8 +18,10 @@
 //   comparar     --a 3.0 --b 3.1 [--valor 10000] [--periodos 12] [--fiis 100] [--cenarios 300]
 //                [--semente 20261031]: o primeiro aporte das duas versões lado a lado e a tabela de
 //                notas das lentes (preços parados e preços sorteados)
+//   fruicao      [--periodos 24] [--retencao 25] [--fiis 100] [--ipca 4.5]: vive dos proventos, sem
+//                aporte; a retenção volta pelos motores e o resto é o gasto (spec fruicao)
 // Opções comuns: --email (padrão: o primeiro e-mail de ALLOWED_EMAILS no .env.local) e, em
-// recomendar, projetar, choque e mes, --versao 3.0|3.1 (padrão: CURRENT_ENGINE, a da tela).
+// recomendar, projetar, choque, mes e fruicao, --versao 3.0|3.1 (padrão: CURRENT_ENGINE, a da tela).
 import { parseArgs } from "node:util";
 import { findDefaultPortfolioId, findUserIdByEmail } from "@/features/auth/repo";
 import { assetClassOf, type AssetClass } from "@/features/market-data";
@@ -28,8 +30,11 @@ import { buildSnapshot } from "@/features/portfolio";
 import {
   CURRENT_ENGINE,
   ENGINE_VERSIONS,
+  fruition,
+  MIN_RETENTION,
   randomPricePaths,
   scorecard,
+  simulateAportes,
   splitAmount,
   stockSmartBuy,
   sunoCascade,
@@ -452,6 +457,112 @@ function projectCommand(
   if (stock > 0) report("Ações", data.snapshot.stockBuyInput, stocks, stockValue);
 }
 
+// Fruição (spec fruicao): sem aporte externo, a carteira vive dos proventos. A cada período (um
+// mês), a retenção volta para a carteira pelos motores e o resto é o que o dono gastaria. A renda
+// dos ativos fora das estratégias (o legado) entra na renda e na retenção, mas fica constante.
+function fruitionCommand(
+  data: Data,
+  params: {
+    periods: number;
+    retention: number;
+    fiisPercent: number;
+    ipca: number | null;
+    engine: Engine;
+  },
+) {
+  const { periods, fiisPercent, ipca, engine } = params;
+  const phase = fruition(params.retention);
+  const input: SimulationInput = {
+    fiis: data.snapshot.cascadeInput,
+    stocks: data.snapshot.stockBuyInput,
+  };
+  const monthlyOf = (ticker: string) => {
+    const asset = data.assets.get(ticker);
+    if (!asset) return 0;
+    return data.classes.get(ticker) === "ACAO"
+      ? (asset.dividends12m ?? 0) / 12
+      : (asset.lastDividend?.amount ?? 0);
+  };
+  const stockDividends = new Map(input.stocks.map((s) => [s.ticker, monthlyOf(s.ticker)]));
+  const outside = data.snapshot.positions.filter((position) => !position.inStrategy);
+  const otherIncome = round2(sum(outside, (p) => p.quantity * monthlyOf(p.ticker)));
+  const runs = simulateAportes(input, {
+    amount: 0,
+    fiisPercent,
+    periods,
+    options: engine.options,
+    phase,
+    stockDividends,
+    otherIncome,
+  });
+  const strategyValue = (fiis: readonly CascadeAsset[], stocks: readonly StockBuyAsset[]) =>
+    sum(fiis, fiiValue) + sum(stocks, stockValue);
+  const firstIncome = runs[0]?.income?.gross ?? 0;
+  const needed = (period: number) =>
+    ipca === null ? null : firstIncome * Math.pow(1 + ipca, period / 12);
+  console.log(
+    `motor ${engine.version} | fruição com retenção de ${pct(phase.retention)} | FIIs ${fiisPercent}% da retenção | ${periods} meses, com preços, proventos por cota, P/VP e Carteira Alvo parados`,
+  );
+  console.log(
+    `renda fora das estratégias (constante): ${brl(otherIncome)} por mês, de ${outside.length} ativo(s)`,
+  );
+  console.log(
+    row(
+      ["mês", 5],
+      ["renda", 12],
+      ["retida", 11],
+      ["gasta", 12],
+      ["investido", 11],
+      ["sobra", 9],
+      ["ordens", 8],
+      [ipca === null ? "" : "renda com IPCA", 0],
+    ),
+  );
+  let consumed = 0;
+  let idle = 0;
+  for (const [index, period] of runs.entries()) {
+    const income = period.income!;
+    consumed += income.consume;
+    const spent = (period.fii?.spent ?? 0) + (period.stock?.spent ?? 0);
+    const leftover = (period.fii?.leftover ?? 0) + (period.stock?.leftover ?? 0);
+    idle += leftover;
+    const orders = (period.fii?.orders.length ?? 0) + (period.stock?.orders.length ?? 0);
+    const target = needed(index);
+    console.log(
+      row(
+        [`#${index + 1}`, 5],
+        [brl(income.gross), 12],
+        [brl(income.reinvest), 11],
+        [brl(income.consume), 12],
+        [brl(spent), 11],
+        [brl(leftover), 9],
+        [orders, 8],
+        [target === null ? "" : brl(target), 0],
+      ),
+    );
+  }
+  const last = runs.at(-1);
+  if (!last) return;
+  const before = strategyValue(input.fiis, input.stocks);
+  const after = strategyValue(last.fiis, last.stocks);
+  const lastIncome = last.income!.gross;
+  console.log(
+    `\nrenda: ${brl(firstIncome)} → ${brl(lastIncome)} (${pct(firstIncome > 0 ? lastIncome / firstIncome - 1 : null)}) | gasto no período ${brl(consumed)} | sobras somadas ${brl(idle)} (não reinvestidas, ficam em caixa)`,
+  );
+  console.log(
+    `estratégias (a preços de hoje): ${brl(before)} → ${brl(after)} (${pct(before > 0 ? after / before - 1 : null)})`,
+  );
+  console.log(
+    `gastando tudo (sem retenção, que a regra barra): a renda ficaria em ${brl(firstIncome)} e o gasto somaria ${brl(firstIncome * periods)}`,
+  );
+  const finalNeeded = needed(periods - 1);
+  if (finalNeeded !== null) {
+    console.log(
+      `com IPCA de ${pct(ipca)} ao ano, a renda precisaria chegar a ${brl(finalNeeded)} no mês ${periods}: ${lastIncome >= finalNeeded ? "a retenção acompanhou" : `faltaram ${brl(finalNeeded - lastIncome)} por mês`} (o provento por cota parado não repõe a inflação que o papel repassa; é a mecânica da retenção, não uma previsão)`,
+    );
+  }
+}
+
 function shockCommand(
   data: Data,
   amount: number,
@@ -818,7 +929,7 @@ function compareCommand(
 }
 
 const USAGE =
-  "uso: lab.mts <snapshot|recomendar|projetar|choque|mes|comparar> [--valor 10000] [--fiis 100] [--periodos 8] [--cenarios 5000] [--comum 0.025] [--proprio 0.03] [--semente 20261031] [--mes AAAA-MM] [--versao 3.0|3.1] [--a 3.0 --b 3.1] [--email voce@exemplo.com]";
+  "uso: lab.mts <snapshot|recomendar|projetar|choque|mes|comparar|fruicao> [--valor 10000] [--fiis 100] [--periodos 8] [--cenarios 5000] [--comum 0.025] [--proprio 0.03] [--semente 20261031] [--mes AAAA-MM] [--versao 3.0|3.1] [--a 3.0 --b 3.1] [--retencao 25] [--ipca 4.5] [--email voce@exemplo.com]";
 
 // A versão do motor pedida: desconhecida dá erro com as válidas; sem opção, a da tela.
 function engineOf(raw: string | undefined, name: string, fallback = CURRENT_ENGINE): Engine {
@@ -861,11 +972,15 @@ async function main(): Promise<number> {
       a: { type: "string" },
       b: { type: "string" },
       email: { type: "string" },
+      retencao: { type: "string" },
+      ipca: { type: "string" },
     },
   });
   const command = positionals[0];
   if (
-    !["snapshot", "recomendar", "projetar", "choque", "mes", "comparar"].includes(command ?? "")
+    !["snapshot", "recomendar", "projetar", "choque", "mes", "comparar", "fruicao"].includes(
+      command ?? "",
+    )
   ) {
     console.log(USAGE);
     return 1;
@@ -876,6 +991,9 @@ async function main(): Promise<number> {
   const fiisPercent = toNumber(values.fiis, 100, "fiis", 0, 100);
   // As versões são validadas antes de abrir o banco.
   const engine = engineOf(values.versao, "versao");
+  // A retenção é validada antes de abrir o banco: abaixo do piso, a regra barra.
+  const retention = toNumber(values.retencao, 25, "retencao", MIN_RETENTION * 100, 100) / 100;
+  const ipca = values.ipca === undefined ? null : toNumber(values.ipca, 0, "ipca", -50, 100) / 100;
   const compared = [engineOf(values.a, "a", "3.0"), engineOf(values.b, "b")] as const;
   const data = await load(email);
   switch (command) {
@@ -916,6 +1034,15 @@ async function main(): Promise<number> {
         periods: Math.round(toNumber(values.periodos, 12, "periodos", 1, 240)),
         scenarios: Math.round(toNumber(values.cenarios, 300, "cenarios", 1, 5_000)),
         seed: toNumber(values.semente, 20_261_031, "semente", 1, 2_147_483_646),
+      });
+      break;
+    case "fruicao":
+      fruitionCommand(data, {
+        periods: Math.round(toNumber(values.periodos, 24, "periodos", 1, 600)),
+        retention,
+        fiisPercent,
+        ipca,
+        engine,
       });
       break;
   }

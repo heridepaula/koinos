@@ -1,6 +1,7 @@
 import { round2 } from "@/shared/lib/money";
 import { splitAmount } from "./aporte-split";
 import type { EngineOptions } from "./engine-options";
+import { splitIncome, type IncomePhase, type IncomeSplit } from "./income-phase";
 import { stockSmartBuy, type StockBuyAsset, type StockBuyResult } from "./stock-buy";
 import { sunoCascade, type CascadeAsset, type CascadeResult } from "./suno-cascade";
 
@@ -9,6 +10,11 @@ import { sunoCascade, type CascadeAsset, type CascadeResult } from "./suno-casca
 // quantidades compradas à carteira. Os preços ficam parados ou andam por um caminho sorteado
 // (randomPricePaths), com o P/VP dos FIIs andando junto. É o que o laboratório usa para comparar
 // versões (scorecard.ts).
+//
+// Com uma fase (income-phase.ts, spec fruicao), cada período também recebe os proventos da carteira
+// do começo do período (cotas × provento mensal por cota, que não anda com o preço): na acumulação
+// todos voltam ao aporte; na fruição, só a retenção volta e o resto é o que o dono gastaria. Sem
+// fase, os proventos ficam fora, como antes.
 
 /** A entrada da cascata (a estratégia de FIIs) e a das ações. */
 export type SimulationInput = { fiis: readonly CascadeAsset[]; stocks: readonly StockBuyAsset[] };
@@ -25,7 +31,22 @@ export type SimulationParams = {
   options: EngineOptions;
   /** Sem caminho, os preços ficam parados. */
   prices?: PricePath;
+  /** Sem fase, os proventos não entram na simulação (o comportamento de antes). */
+  phase?: IncomePhase;
+  /**
+   * Provento por ação em cada período, por ticker (os FIIs usam o `lastDividend` da entrada). Ação
+   * fora do mapa não paga.
+   */
+  stockDividends?: ReadonlyMap<string, number>;
+  /**
+   * Proventos de cada período dos ativos que estão fora das estratégias (o legado), em R$. Entram na
+   * renda e na retenção, mas o que é reinvestido vai para a estratégia.
+   */
+  otherIncome?: number;
 };
+
+/** Os proventos de um período e o destino deles. */
+export type PeriodIncome = IncomeSplit & { gross: number };
 
 /** Um período: os resultados dos motores e os ativos com o preço do período e as quantidades depois das ordens. */
 export type SimulationPeriod = {
@@ -33,7 +54,21 @@ export type SimulationPeriod = {
   stock: StockBuyResult | null;
   fiis: CascadeAsset[];
   stocks: StockBuyAsset[];
+  /** Nulo sem fase. */
+  income: PeriodIncome | null;
 };
+
+/** Os proventos da carteira num período: cotas × provento por cota, em centavos. */
+export function periodIncome(
+  fiis: readonly CascadeAsset[],
+  stocks: readonly StockBuyAsset[],
+  stockDividends: ReadonlyMap<string, number> = new Map(),
+): number {
+  let total = 0;
+  for (const asset of fiis) total += asset.quantity * (asset.lastDividend ?? 0);
+  for (const asset of stocks) total += asset.quantity * (stockDividends.get(asset.ticker) ?? 0);
+  return Number.isFinite(total) ? round2(total) : 0;
+}
 
 /** O preço do período: o inicial vezes o fator, em centavos. Fator 1 deixa o preço como veio. */
 const scaled = (price: number | null, factor: number) =>
@@ -60,8 +95,7 @@ export function simulateAportes(
   input: SimulationInput,
   params: SimulationParams,
 ): SimulationPeriod[] {
-  const { options, prices } = params;
-  const part = splitAmount(params.amount, params.fiisPercent);
+  const { options, prices, phase } = params;
   // As quantidades andam de um período para o outro; os preços saem sempre do inicial × o fator.
   let fiiHoldings: readonly CascadeAsset[] = input.fiis;
   let stockHoldings: readonly StockBuyAsset[] = input.stocks;
@@ -84,11 +118,20 @@ export function simulateAportes(
       quantity: stockHoldings[index].quantity,
     }));
 
+    // Os proventos vêm das cotas do começo do período, antes das ordens dele.
+    let income: PeriodIncome | null = null;
+    if (phase) {
+      const gross = round2(
+        periodIncome(fiiHoldings, stockHoldings, params.stockDividends) + (params.otherIncome ?? 0),
+      );
+      income = { gross, ...splitIncome(gross, phase) };
+    }
+    const part = splitAmount(round2(params.amount + (income?.reinvest ?? 0)), params.fiisPercent);
     const fii = part.fii > 0 ? sunoCascade(part.fii, fiis, options) : null;
     const stock = part.stock > 0 ? stockSmartBuy(part.stock, stocks, options) : null;
     fiiHoldings = withOrders(fiis, fii?.orders ?? []);
     stockHoldings = withOrders(stocks, stock?.orders ?? []);
-    periods.push({ fii, stock, fiis: [...fiiHoldings], stocks: [...stockHoldings] });
+    periods.push({ fii, stock, fiis: [...fiiHoldings], stocks: [...stockHoldings], income });
   }
   return periods;
 }

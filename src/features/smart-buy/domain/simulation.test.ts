@@ -1,6 +1,12 @@
 import { describe, expect, it } from "vitest";
 import { ENGINE_VERSIONS } from "./engine-options";
-import { randomPricePaths, simulateAportes, type SimulationInput } from "./simulation";
+import { ACCUMULATION, fruition } from "./income-phase";
+import {
+  periodIncome,
+  randomPricePaths,
+  simulateAportes,
+  type SimulationInput,
+} from "./simulation";
 import type { StockBuyAsset } from "./stock-buy";
 import type { CascadeAsset } from "./suno-cascade";
 
@@ -105,6 +111,106 @@ describe("simulateAportes", () => {
     expect(periods[1].stocks[0].price).toBe(20.67);
     // O teto não anda com o preço.
     expect(periods[1].fiis[0].ceiling).toBe(110);
+  });
+});
+
+describe("simulateAportes com fase (fruição)", () => {
+  /** Dois FIIs de 50% e R$ 100, com 100 cotas cada e provento de R$ 1 por cota: renda de R$ 200. */
+  const owned: SimulationInput = {
+    fiis: [
+      fii("AAAA11", { weight: 0.5, quantity: 100, lastDividend: 1 }),
+      fii("BBBB11", { weight: 0.5, quantity: 100, lastDividend: 1, macro: "Papel", rank: 2 }),
+    ],
+    stocks: [stock("BBAS3", { quantity: 10 })],
+  };
+  const base = { fiisPercent: 100, options: ENGINE_VERSIONS["3.0"] };
+
+  it("sem fase, os proventos ficam fora e o período não traz renda", () => {
+    const [period] = simulateAportes(owned, { ...base, amount: 0, periods: 1 });
+    expect(period.income).toBeNull();
+    expect(period.fii).toBeNull();
+  });
+
+  it("na fruição sem aporte, só a retenção é investida, pelos mesmos motores", () => {
+    const periods = simulateAportes(owned, {
+      ...base,
+      amount: 0,
+      periods: 2,
+      phase: fruition(0.5),
+    });
+    expect(periods[0].income).toEqual({ gross: 200, reinvest: 100, consume: 100 });
+    expect(periods[0].fii!.amount).toBe(100);
+    // A cota de R$ 100 passa da trava de 25% por FII de um aporte de R$ 100: nada é comprado.
+    expect(periods[0].fii!.spent).toBe(0);
+    expect(periods[0].fii!.leftover).toBe(100);
+  });
+
+  it("as cotas compradas com a retenção pagam no período seguinte", () => {
+    // Cotas de R$ 10 com provento de R$ 0,10: renda de R$ 200 e retenção de R$ 100.
+    const cheap: SimulationInput = {
+      fiis: owned.fiis.map((asset) => ({
+        ...asset,
+        price: 10,
+        quantity: 1_000,
+        lastDividend: 0.1,
+      })),
+      stocks: [],
+    };
+    const periods = simulateAportes(cheap, {
+      ...base,
+      amount: 0,
+      periods: 2,
+      phase: fruition(0.5),
+    });
+    const first = periods[0];
+    expect(first.fii!.spent + first.fii!.leftover).toBeCloseTo(100, 10);
+    expect(first.fii!.spent).toBeGreaterThan(0);
+    const bought = quantities(first.fiis).reduce((a, b) => a + b, 0) - 2_000;
+    expect(periods[1].income!.gross).toBeCloseTo(200 + bought * 0.1, 10);
+  });
+
+  it("na acumulação, aporte e provento inteiro somam o valor do período", () => {
+    const [period] = simulateAportes(owned, {
+      ...base,
+      amount: 1_000,
+      periods: 1,
+      phase: ACCUMULATION,
+    });
+    expect(period.income).toEqual({ gross: 200, reinvest: 200, consume: 0 });
+    expect(period.fii!.amount).toBe(1_200);
+  });
+
+  it("acima do teto, a retenção não compra e fica em sobra", () => {
+    const expensive: SimulationInput = {
+      fiis: owned.fiis.map((asset) => ({ ...asset, ceiling: 90 })),
+      stocks: [],
+    };
+    const [period] = simulateAportes(expensive, {
+      ...base,
+      amount: 0,
+      periods: 1,
+      phase: fruition(),
+    });
+    expect(period.income!.reinvest).toBe(50);
+    expect(period.fii!.spent).toBe(0);
+    expect(period.fii!.leftover).toBe(50);
+  });
+
+  it("a renda dos ativos fora da estratégia entra na renda e na retenção", () => {
+    const [period] = simulateAportes(owned, {
+      ...base,
+      amount: 0,
+      periods: 1,
+      phase: fruition(),
+      otherIncome: 100,
+    });
+    expect(period.income).toEqual({ gross: 300, reinvest: 75, consume: 225 });
+    expect(period.fii!.amount).toBe(75);
+  });
+
+  it("as ações pagam pelo mapa de proventos; fora dele, nada", () => {
+    expect(periodIncome(owned.fiis, owned.stocks)).toBe(200);
+    expect(periodIncome(owned.fiis, owned.stocks, new Map([["BBAS3", 0.35]]))).toBe(203.5);
   });
 });
 

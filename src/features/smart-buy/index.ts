@@ -6,6 +6,16 @@ export {
   type EngineOptions,
   type EngineVersion,
 } from "./domain/engine-options";
+export {
+  ACCUMULATION,
+  DEFAULT_RETENTION,
+  fruition,
+  MIN_RETENTION,
+  splitIncome,
+  type FruitionPhase,
+  type IncomePhase,
+  type IncomeSplit,
+} from "./domain/income-phase";
 export { mergeOrders, type MergedOrder } from "./domain/merge-orders";
 export {
   classifyRisk,
@@ -16,8 +26,10 @@ export {
 } from "./domain/risk";
 export { scorecard, type Scorecard } from "./domain/scorecard";
 export {
+  periodIncome,
   randomPricePaths,
   simulateAportes,
+  type PeriodIncome,
   type PricePath,
   type SimulationInput,
   type SimulationParams,

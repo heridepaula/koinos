@@ -132,6 +132,8 @@ Resumo para orientar a avaliação, conferido no código em 2026-11-01 (Koinos 3
 - **% do mês:** fica salva por mês; sem % salva, vale 100% (no método Suno, todo provento volta para a carteira).
 - **Por classe:** a conta continua sobre a carteira inteira, e a parte "de proventos" de uma classe é rateada pelo aporte dela (`shareReinvestment`).
 
+- **Fruição** (`smart-buy/domain/income-phase.ts`, spec `2026-11-01-fruicao-design.md`): `IncomePhase` é acumulação (todo provento volta) ou fruição com `retention` (padrão 25%, de 20% a 100%; abaixo, `fruition()` lança erro). `splitIncome` divide em centavos, com a retenção para cima. A fase não entra nos motores: só decide o valor do aporte. `simulateAportes` aceita `phase`, `stockDividends` e `otherIncome`; o laboratório tem `fruicao`. Não há tela nem configuração ainda.
+
 ## 7. Renda e resultado
 
 São as fórmulas que as lentes de renda costumam olhar:
@@ -177,6 +179,7 @@ As lentes podem discordar destas decisões; a síntese marca o conflito, mas nã
   - Os proventos vêm do Yahoo, que bateu melhor com os extratos.
 - **Histórico:** os proventos começam no primeiro extrato (nov/2019).
 - **Smart buy de ações:** sem trava por ação e sem tensores, como no documento do dono.
+- **Proposta de 4 regras (2026-11-01):** teto e Aguardar já existiam; VENDER foi recusado ("nunca vender"; o equivalente é a quarentena); o desempate por DY nominal foi recusado (puxa para papel e para quem cortou provento); a fruição foi implementada com retenção padrão de 25% e piso de 20%.
 - **Koinos 3.1 (spec de 2026-11-01), as decisões novas:**
   - **Lote e sobra das ações:** o lote de 100 e a sobra por lote substituem o "sem passo de sobra" do documento do dono. A ação pode passar da meta.
   - **Mínimo por ordem nos FIIs:** nenhuma ordem abaixo da fatia justa (aporte ÷ nº de FIIs), com a guarda de 12,5% do aporte.
