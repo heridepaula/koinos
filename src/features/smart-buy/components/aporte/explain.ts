@@ -13,6 +13,10 @@ export function unitOf(kind: OrderKind, quantity: number): string {
   return quantity === 1 ? "ação" : "ações";
 }
 
+/** O motivo só existe nas ações: o mesmo texto nas três tabelas de ajuda. */
+const LESS_THAN_A_LOT_HELP =
+  "O que faltava para a meta não chegava a um lote de 100 ações. Pode receber pela sobra, se for a mais abaixo da meta.";
+
 /** O texto de ajuda de cada motivo quando só há FIIs nele. */
 export const REASON_HELP: Record<ExclusionReason, string> = {
   ACIMA_DO_TETO: "Preço igual ou acima do teto: a regra é só comprar abaixo dele.",
@@ -22,6 +26,7 @@ export const REASON_HELP: Record<ExclusionReason, string> = {
   NA_META: "Já está na % sugerida (ou passou dela).",
   PEDIDO_PEQUENO:
     "Falta pouco para a meta, ou os freios de provento e vacância cortaram o pedido: não chega a uma cota.",
+  MENOS_DE_UM_LOTE: LESS_THAN_A_LOT_HELP,
   ABAIXO_DO_MINIMO:
     "O pedido não chegava ao mínimo por ordem (aporte ÷ nº de FIIs da estratégia). O dinheiro foi para os próximos da fila; no próximo aporte o pedido cresce.",
   LIMITE_ATIVO: `Uma cota custa mais que o limite de ${formatPercent(RISK_CAPS.asset, 0)} do aporte por FII.`,
@@ -40,6 +45,7 @@ export const REASON_ORDER: ExclusionReason[] = [
   "LIMITE_ATIVO",
   "ABAIXO_DO_MINIMO",
   "PEDIDO_PEQUENO",
+  "MENOS_DE_UM_LOTE",
   "NA_META",
   "PROVENTO_SUSPENSO",
   "AGUARDAR",
@@ -57,6 +63,7 @@ export const STOCK_REASON_HELP: Record<StockExclusionReason, string> = {
   AGUARDAR: "Marcada como Aguardar na Carteira Alvo: não recebe aporte.",
   NA_META: "Já está na % sugerida (ou passou dela).",
   PEDIDO_PEQUENO: "Falta pouco para a meta: não chega a uma ação.",
+  MENOS_DE_UM_LOTE: LESS_THAN_A_LOT_HELP,
   SEM_SALDO: "Está abaixo da meta, mas o valor não alcançou: fica para o próximo aporte.",
 };
 
@@ -70,6 +77,7 @@ export const NEUTRAL_REASON_HELP: Record<StockExclusionReason, string> = {
   NA_META: "Já está na % sugerida (ou passou dela).",
   PEDIDO_PEQUENO:
     "Falta pouco para a meta, ou os freios de provento e vacância dos FIIs cortaram o pedido: não chega a uma cota ou ação.",
+  MENOS_DE_UM_LOTE: LESS_THAN_A_LOT_HELP,
   SEM_SALDO: "Está abaixo da meta, mas o valor não alcançou: fica para o próximo aporte.",
 };
 

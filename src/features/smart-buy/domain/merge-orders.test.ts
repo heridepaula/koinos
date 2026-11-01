@@ -34,6 +34,8 @@ function stockOrder(ticker: string, total: number): StockBuyOrder {
     ticker,
     rank: 1,
     quantity: 1,
+    fromLeftover: 0,
+    lot: 1,
     price: total,
     total,
     marginOfSafety: 0,

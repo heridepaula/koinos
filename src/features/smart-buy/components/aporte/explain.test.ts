@@ -95,6 +95,8 @@ describe("ações", () => {
     ticker: "WEGE3",
     rank: 1,
     quantity: 10,
+    fromLeftover: 0,
+    lot: 1,
     price: 51,
     total: 510,
     marginOfSafety: 70 / 51 - 1,

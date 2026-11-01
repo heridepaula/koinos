@@ -67,6 +67,7 @@ export type ExclusionReason =
   | "PROVENTO_SUSPENSO"
   | "NA_META"
   | "PEDIDO_PEQUENO"
+  | "MENOS_DE_UM_LOTE"
   | "ABAIXO_DO_MINIMO"
   | "LIMITE_ATIVO"
   | "LIMITE_SETOR"
@@ -385,7 +386,7 @@ export function sunoCascade(
 }
 
 /** Motivos que não dependem do aporte: valem para a coluna Prioridade (FIIs e ações). */
-export type PriorityReason = EligibilityReason | "NA_META" | "PEDIDO_PEQUENO";
+export type PriorityReason = EligibilityReason | "NA_META" | "PEDIDO_PEQUENO" | "MENOS_DE_UM_LOTE";
 
 export type AportePriority =
   { kind: "fila"; position: number } | { kind: "fora"; reason: PriorityReason };
@@ -422,6 +423,7 @@ export const EXCLUSION_LABELS: Record<ExclusionReason, string> = {
   PROVENTO_SUSPENSO: "Provento suspenso",
   NA_META: "Já na meta",
   PEDIDO_PEQUENO: "Pede menos de 1 papel",
+  MENOS_DE_UM_LOTE: "Menos de 1 lote",
   ABAIXO_DO_MINIMO: "Abaixo do mínimo",
   LIMITE_ATIVO: "Cota acima do limite",
   LIMITE_SETOR: "Limite do setor",
