@@ -22,8 +22,12 @@ export type AssetSnapshot = {
   recentCloses: { date: Date; close: number }[];
   /** P/VP do cron das 2h (fechamento ÷ VP). Null sem dado ou com dado de mais de 60 dias. */
   priceToBook: number | null;
-  /** Soma dos proventos por cota dos últimos 12 meses (Yahoo). */
+  /** Soma dos proventos por cota dos 12 meses de calendário que terminam no mês do último (Yahoo). */
   dividends12m: number | null;
+  /** Quantos proventos entraram em `dividends12m`. Null antes da primeira busca com a janela nova. */
+  dividendPayments12m: number | null;
+  /** Quando os proventos foram buscados no Yahoo. Null se nunca. */
+  dividendsFetchedAt: Date | null;
   /** Perfil do FII na usebolsai (vacância só com dado de até 60 dias). Null sem dado. */
   fii: FiiProfile | null;
 };
@@ -74,6 +78,8 @@ export async function getAssetSnapshots(
         })),
         priceToBook: fresh(doc.fundamentalsFetchedAt) ? (doc.priceToBook ?? null) : null,
         dividends12m: doc.dividends12m ?? null,
+        dividendPayments12m: doc.dividendPayments12m ?? null,
+        dividendsFetchedAt: doc.dividendsFetchedAt ?? null,
         fii: doc.fundamentalsFetchedAt
           ? {
               vacancyPct: fresh(doc.fundamentalsFetchedAt) ? (doc.vacancyPct ?? null) : null,

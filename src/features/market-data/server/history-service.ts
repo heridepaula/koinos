@@ -4,6 +4,7 @@ import { connectMongo } from "@/shared/db/mongo";
 import { ioConcurrency, mapWithConcurrency } from "@/shared/lib/concurrency";
 import { addMonths, currentMonthKey, monthRange, todayTradeDate } from "@/shared/lib/time";
 import { yahooProvider } from "../adapters/yahoo";
+import { dividendWindow, nextLastDividend } from "../domain/dividend-window";
 import { AssetModel, PriceHistoryModel } from "./models";
 
 const HISTORY_RECHECK_MS = 12 * 60 * 60 * 1000;
@@ -12,6 +13,11 @@ const RECENT_CLOSES_DAYS = 21;
 const DIVIDENDS_RECHECK_MS = 20 * 60 * 60 * 1000;
 /** Janela dos anúncios de proventos guardados no ativo. */
 const ANNOUNCEMENT_WINDOW_MS = 90 * 86_400_000;
+/**
+ * Histórico de proventos buscado no Yahoo: 760 dias cabem na janela de 12 meses de calendário
+ * de um FII parado há até 12 meses (o último provento fica a até 365 dias de hoje).
+ */
+const DIVIDENDS_LOOKBACK_DAYS = 760;
 const YAHOO_CONCURRENCY_CAP = 6;
 
 const errorMessage = (error: unknown) => (error instanceof Error ? error.message : String(error));
@@ -155,8 +161,9 @@ export async function ensureRecentCloses(
 }
 
 /**
- * Atualiza o DY dos últimos 12 meses, o último rendimento e os anúncios dos últimos 90 dias
- * de cada ativo (Yahoo), em paralelo com limite pelos núcleos disponíveis.
+ * Atualiza o DY e a soma dos últimos 12 meses de calendário (com o número de pagamentos), o
+ * último rendimento e os anúncios dos últimos 90 dias de cada ativo (Yahoo), em paralelo com
+ * limite pelos núcleos disponíveis. Uma busca sem proventos não apaga o último rendimento guardado.
  * Pula o ativo buscado nas últimas 20 h; `force` ignora essa checagem (conferência manual).
  */
 export async function refreshDividends(
@@ -169,7 +176,7 @@ export async function refreshDividends(
   await connectMongo();
   const assets = await AssetModel.find(
     { _id: mongoose.trusted({ $in: unique }) },
-    { price: 1, dividendsFetchedAt: 1 },
+    { price: 1, lastDividend: 1, dividendsFetchedAt: 1 },
   ).lean();
   const byTicker = new Map(assets.map((asset) => [asset._id, asset]));
   const due = unique.filter(
@@ -179,38 +186,37 @@ export async function refreshDividends(
         now.getTime() - DIVIDENDS_RECHECK_MS,
   );
 
-  const yearAgo = new Date(now.getTime() - 365 * 86_400_000);
-  const from = new Date(now.getTime() - 400 * 86_400_000);
+  const from = new Date(now.getTime() - DIVIDENDS_LOOKBACK_DAYS * 86_400_000);
+  // As datas ex guardadas são datas de negócio: o corte dos 90 dias também.
+  const announcementsFrom = todayTradeDate(new Date(now.getTime() - ANNOUNCEMENT_WINDOW_MS));
   const results = await mapWithConcurrency(
     due,
     ioConcurrency(YAHOO_CONCURRENCY_CAP),
     async (ticker): Promise<number> => {
       try {
-        const dividends = await yahooProvider.getDividends(ticker, from);
-        const last12m = dividends.filter((dividend) => dividend.exDate >= yearAgo);
-        const total = last12m.reduce((sum, dividend) => sum + dividend.amount, 0);
-        const price = byTicker.get(ticker)?.price ?? null;
-        const latest = dividends.reduce<(typeof dividends)[number] | null>(
-          (best, dividend) => (!best || dividend.exDate > best.exDate ? dividend : best),
-          null,
-        );
+        // O Yahoo manda a data ex às 13:00Z (10:00 em São Paulo): guarda só o dia, como
+        // data de negócio (meia-noite UTC), o formato que as regras de proventos esperam.
+        const dividends = (await yahooProvider.getDividends(ticker, from)).map((dividend) => ({
+          exDate: todayTradeDate(dividend.exDate),
+          amount: dividend.amount,
+        }));
+        const { total, payments, last } = dividendWindow(dividends, now);
+        const stored = byTicker.get(ticker);
+        const price = stored?.price ?? null;
+        const storedLast = stored?.lastDividend
+          ? { amount: stored.lastDividend.amount, exDate: stored.lastDividend.exDate }
+          : null;
         await AssetModel.updateOne(
           { _id: ticker },
           {
             $set: {
               dy12m: price && price > 0 ? total / price : null,
               dividends12m: total,
-              lastDividend: latest ? { amount: latest.amount, exDate: latest.exDate } : null,
-              // O Yahoo manda a data ex às 13:00Z (10:00 em São Paulo): guarda só o dia, como
-              // data de negócio (meia-noite UTC), o formato que as regras de proventos esperam.
+              dividendPayments12m: payments,
+              lastDividend: nextLastDividend(last, storedLast),
               dividendAnnouncements: dividends
-                .filter(
-                  (dividend) => dividend.exDate.getTime() >= now.getTime() - ANNOUNCEMENT_WINDOW_MS,
-                )
-                .map((dividend) => ({
-                  exDate: todayTradeDate(dividend.exDate),
-                  perShare: dividend.amount,
-                })),
+                .filter((dividend) => dividend.exDate >= announcementsFrom)
+                .map((dividend) => ({ exDate: dividend.exDate, perShare: dividend.amount })),
               dividendsFetchedAt: now,
             },
           },

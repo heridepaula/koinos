@@ -42,8 +42,10 @@ export interface AssetDoc {
   fundType?: string | null;
   paperPct?: number | null;
   realEstatePct?: number | null;
-  /** Soma dos proventos por cota com data ex nos últimos 12 meses (Yahoo). */
+  /** Soma dos proventos por cota dos 12 meses de calendário que terminam no mês do último (Yahoo). */
   dividends12m?: number | null;
+  /** Quantos proventos entraram nessa soma. Mede a regularidade: um FII mensal tem 12. */
+  dividendPayments12m?: number | null;
 }
 
 const assetSchema = new Schema<AssetDoc>(
@@ -85,6 +87,7 @@ const assetSchema = new Schema<AssetDoc>(
     paperPct: { type: Number, default: null },
     realEstatePct: { type: Number, default: null },
     dividends12m: { type: Number, default: null },
+    dividendPayments12m: { type: Number, default: null },
   },
   { timestamps: true, versionKey: false },
 );

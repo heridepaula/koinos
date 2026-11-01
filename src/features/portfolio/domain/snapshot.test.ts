@@ -46,6 +46,8 @@ const quote: PriceInfo = {
   lastDividend: null,
   priceToBook: null,
   dividends12m: null,
+  dividendPayments12m: null,
+  dividendsFetchedAt: null,
   fii: null,
 };
 

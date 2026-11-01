@@ -16,8 +16,12 @@ export type PriceInfo = {
   lastDividend: { amount: number; exDate: Date } | null;
   /** P/VP do fechamento (usebolsai, às 2h). Null sem dado. */
   priceToBook: number | null;
-  /** Soma dos proventos por cota dos últimos 12 meses (Yahoo). */
+  /** Soma dos proventos por cota dos 12 meses de calendário que terminam no mês do último (Yahoo). */
   dividends12m: number | null;
+  /** Quantos proventos entraram em `dividends12m`. Null sem dado. */
+  dividendPayments12m: number | null;
+  /** Quando os proventos foram buscados no Yahoo. Null se nunca. */
+  dividendsFetchedAt: Date | null;
   /** Perfil do FII na usebolsai, para as travas de risco. Null sem dado. */
   fii: {
     /** Vacância física em % (5,2 = 5,2%). */

@@ -52,7 +52,7 @@ export type CascadeAsset = {
    */
   daysSinceLastDividend?: number | null;
   /**
-   * Pagamentos nos 12 meses corridos que terminam no mês do último provento: mede se o FII pagava
+   * Pagamentos nos 12 meses de calendário que terminam no mês do último provento: mede se o FII pagava
    * com regularidade. Null ou ausente conta como zero.
    */
   dividendPayments12m?: number | null;
