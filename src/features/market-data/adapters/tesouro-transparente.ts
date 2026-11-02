@@ -24,6 +24,8 @@ export async function fetchTreasuryCatalog(): Promise<{ url: string; lastModifie
       headers: { Accept: "application/json" },
       signal: AbortSignal.timeout(CATALOG_TIMEOUT_MS),
       cache: "no-store",
+      // Hoje não há redirecionamento; se aparecer um, a coleta falha em vez de seguir para outro host.
+      redirect: "error",
     });
     if (response.ok) payload = await response.json();
   } catch (error) {
@@ -45,6 +47,7 @@ export async function fetchTreasuryCsv(url: string, etag: string | null): Promis
       headers: etag ? { "If-None-Match": etag } : {},
       signal: AbortSignal.timeout(CSV_TIMEOUT_MS),
       cache: "no-store",
+      redirect: "error",
     });
     if (response.status === 304) return { status: "not-modified" };
     if (response.ok) text = await response.text();

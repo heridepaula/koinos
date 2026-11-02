@@ -56,7 +56,7 @@ O arquivo é rejeitado inteiro, sem escrever nada, quando:
 - a primeira linha não tem exatamente as oito colunas acima, pelo nome ASCII;
 - alguma linha tem largura diferente de 8;
 - mais de 1% das linhas dos títulos acompanhados tem número ou data que não converte;
-- a maior `baseDate` do arquivo é anterior à `lastBaseDate` gravada (arquivo mais velho que o dado que já temos).
+- a maior `baseDate` das linhas dos títulos acompanhados é anterior à `lastBaseDate` gravada (arquivo mais velho que o dado que já temos). A comparação usa só os títulos acompanhados, e não o arquivo todo, porque são eles que se gravam.
 
 Linhas isoladas inválidas dos títulos acompanhados são ignoradas e contadas. Taxa fora de −10% a 30% é rejeitada como inválida (não como outlier).
 
