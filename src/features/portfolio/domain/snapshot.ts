@@ -150,7 +150,7 @@ export function buildSnapshot({
       realEstatePct: fii?.realEstatePct ?? null,
       category: member.category,
     });
-    // Dias desde o último provento, só com a busca de proventos recente (spec koinos-3-1, §4.2).
+    // Dias desde o último provento (só conta com proventos recentes, ver isDividendsFresh).
     const dividendsFresh = isDividendsFresh(info);
     const daysSinceLastDividend =
       info?.lastDividend && dividendsFresh

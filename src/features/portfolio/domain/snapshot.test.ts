@@ -679,4 +679,29 @@ describe("buildSnapshot: aviso de divergência do teto (spec divergencia-teto)",
       sunoCascade(1_000, without.cascadeInput).orders,
     );
   });
+
+  it.each<ClassFilter>(["FII", "TODOS"])("a taxa sobrevive ao scopeToClass (%s)", (filter) => {
+    const snapshot = buildSnapshot(scopeToClass(withCeilings(0.07), filter));
+    expect(checkOf(snapshot, "AAAA11")).not.toBeNull();
+    expect(checkOf(snapshot, "PPPP11")).not.toBeNull();
+  });
+
+  it("na visão Ações nenhuma linha recebe o aviso, e não lança erro", () => {
+    const snapshot = buildSnapshot(scopeToClass(withCeilings(0.07), "ACAO"));
+    expect(snapshot.strategy.rows.every((row) => row.ceilingCheck === null)).toBe(true);
+  });
+
+  it("uma ação na estratégia nunca recebe o aviso", () => {
+    const base = withCeilings(0.07);
+    const input: SnapshotInput = {
+      ...base,
+      transactions: [...base.transactions, buy("ABCD3", 10)],
+      targets: [...base.targets, { ...target("ABCD3", true, 25, 1), ceilingPrice: 200 }],
+      prices: new Map([...base.prices, ["ABCD3", priced()]]),
+    };
+    const rows = buildSnapshot(scopeToClass(input, "ACAO")).strategy.rows;
+    const stock = rows.find((row) => row.ticker === "ABCD3");
+    expect(stock).toBeDefined();
+    expect(stock?.ceilingCheck).toBeNull();
+  });
 });
