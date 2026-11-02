@@ -30,7 +30,7 @@ Dataset "Taxas dos Títulos Ofertados pelo Tesouro Direto", do Tesouro Transpare
 
 - **Dado global, não por carteira.** Como `assets`, as taxas valem para todos; não levam `portfolioId` nem passam pela `Tenant`.
 - **Título acompanhado:** configuração fixa `TRACKED_TITLES` (tipo + vencimento). Começa com a NTN-B 2035. Guarda só essas linhas, não os 178 mil registros.
-- **O que se guarda por título e dia:** `baseDate` (data-base, UTC meia-noite), `buyRate`, `sellRate`, `buyPrice`, `sellPrice`; a data da coleta é o `updatedAt` do documento. Índice único em (tipo, vencimento, `baseDate`); a escrita é um upsert, então repetir a coleta não duplica nada.
+- **O que se guarda por título e dia:** `baseDate` (data-base, UTC meia-noite), `buyRate`, `sellRate`, `buyPrice`, `sellPrice`; a data da coleta é o `updatedAt` do documento. O `_id` composto (`tipo|vencimento|data-base`) garante a unicidade, e há um índice (tipo, vencimento, data-base decrescente) para a consulta; a escrita é um upsert, então repetir a coleta não duplica nada.
 - **Taxa de referência:** a média de compra e venda (`midRate`), calculada na leitura. As duas taxas ficam guardadas. A diferença entre elas é a ponta do Tesouro (cerca de 0,12 p.p.).
 - **Não se filtra outlier e não se corrige dado.** O que está no arquivo é gravado como veio. Só se rejeita o que é inválido (§5).
 - **Mediana (60 pregões) e valor atual juntos.** A resposta da DAL traz o último ponto, a mediana dos últimos N pregões e a diferença entre os dois. Escolher só a mediana esconderia a quebra de regime: em 01/11 a mediana dos últimos 20 pregões é 6,90% e a média 7,17%, contra 7,92% do último dia, porque cinco pregões pós-choque pesam pouco contra quinze anteriores. O valor de N é 60 (§7).
@@ -43,6 +43,8 @@ Dataset "Taxas dos Títulos Ofertados pelo Tesouro Direto", do Tesouro Transpare
   - Uma falha **não** pode quebrar os outros passos do job: o erro é registrado (`recordError`) e a coleta de cotações, proventos e catálogo segue.
 - **Detecção de mudança:** o passo chama `package_show`, lê `last_modified` e a URL do recurso, e compara com o que está gravado em `treasury_sync` (um documento com `lastModified`, `etag`, `lastBaseDate` e `checkedAt`). Sem mudança, termina sem baixar. Com mudança, faz um GET condicional pelo ETag e, em caso de 200, processa o arquivo.
   - Usar a URL devolvida pelo catálogo, e não a fixa, protege contra a troca do identificador do recurso. O catálogo é a única URL fixa.
+- **Trava:** a coleta roda dentro de `withLock("treasury", 120_000)`; com a trava ocupada o status é `busy` (não é erro) e o job segue.
+- **Mudança da lista:** `titlesKey` identifica `TRACKED_TITLES`. Se mudou (título novo), a coleta ignora o atalho do `last_modified`, o ETag e o filtro por data, e regrava o histórico completo dos títulos acompanhados.
 - **Primeira execução (backfill):** processa o arquivo inteiro e grava todo o histórico dos títulos acompanhados (cerca de 5 mil linhas para a NTN-B 2035).
 - **Execuções seguintes:** o passo grava as linhas com `baseDate` maior ou igual à `lastBaseDate` gravada (o dia repetido é um upsert inofensivo, que ainda corrige uma republicação). Na primeira entrega o passo lê o arquivo todo e filtra pelas datas novas (9 s, dentro do `maxDuration`); o streaming com parada antecipada fica como otimização futura, se o arquivo crescer.
 - **Atribuição (ODbL):** onde a taxa aparecer em tela, a fonte é citada ("Fonte: Tesouro Transparente"). A licença permite uso interno; o dono confirma o texto antes de qualquer redistribuição.
@@ -60,7 +62,7 @@ Linhas isoladas inválidas dos títulos acompanhados são ignoradas e contadas. 
 
 ## 6. Telemetria, camadas e testes
 
-- **Spans:** `cron.treasury` com `koinos.treasury.status` (`not-modified`, `updated`, `error`), `koinos.treasury.rows_upserted` e `koinos.treasury.base_date_age_days`. Só contagens, nenhum valor de taxa.
+- **Spans:** `cron.treasury` com `koinos.treasury.status` (`not-modified`, `updated`, `busy` ou `error`), `koinos.treasury.rows_upserted` e `koinos.treasury.base_date_age_days`. Só contagens, nenhum valor de taxa.
 - **Domínio puro** (`market-data/domain/treasury-rates.ts`): `parseTreasuryCsv`, `selectTracked`, `midRate`, `medianRate(rates, n)` e `summarizeRate(rows, now)`. Nada de Next, banco ou I/O.
 - **Servidor:** adaptador `adapters/tesouro-transparente.ts` (catálogo e download, com timeout), modelo e serviço em `market-data/server/`, e `getRealRate()` em `market-data/server.ts`, que devolve `{ last, median, divergence, baseDate, stale }`.
 - **Laboratório:** comando `taxa-real` na skill `conselho-investidores`, só leitura, com a série e o resumo.

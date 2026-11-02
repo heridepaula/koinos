@@ -211,6 +211,7 @@ As lentes podem discordar destas decisões; a síntese marca o conflito, mas nã
   - os proventos recebidos por ativo;
   - a % reinvestida por mês;
   - as encerradas e a evolução mensal.
+- **Taxa real da NTN-B 2035** (Tesouro Transparente, `treasury_rates`, `getRealRate`): média de compra e venda por pregão desde 2006, a mediana dos últimos 60 pregões e a diferença para o último. Nenhum motor, teto ou tela usa; é só dado. A fonte é aberta (ODbL) e foi liberada pelo dono. Um teto calculado com ela precisa casar yield **real** com taxa real (ou os dois nominais).
 
 **Faltam:**
 
