@@ -79,7 +79,7 @@ describe("parseTreasuryCsv", () => {
   });
 
   it("aceita BOM e quebras de linha CRLF", () => {
-    const text = "﻿" + [HEADER, ntnb("30/10/2026", "7,86", "7,98")].join("\r\n") + "\r\n";
+    const text = "\uFEFF" + [HEADER, ntnb("30/10/2026", "7,86", "7,98")].join("\r\n") + "\r\n";
     const result = parseTreasuryCsv(text);
     expect(result.ok).toBe(true);
   });

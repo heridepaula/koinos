@@ -84,7 +84,7 @@ export function parseTreasuryCsv(
   text: string,
   tracked: readonly TrackedTitle[] = TRACKED_TITLES,
 ): ParsedTreasury {
-  const lines = text.replace(/^﻿/, "").split("\n");
+  const lines = text.replace(/^\uFEFF/, "").split("\n");
   const header = (lines[0] ?? "").replace(/\r$/, "").split(";");
   if (
     header.length !== TREASURY_COLUMNS.length ||
