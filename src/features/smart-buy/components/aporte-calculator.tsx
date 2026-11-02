@@ -10,7 +10,6 @@ import {
 } from "lucide-react";
 import { parseAsFloat, parseAsInteger, parseAsStringLiteral, useQueryState } from "nuqs";
 import { toast } from "sonner";
-import { InfoSheet } from "@/shared/components/info-sheet";
 import { MetricCard, StatList, StatRow } from "@/shared/components/metric";
 import { MoneyInput } from "@/shared/components/money-input";
 import { Sensitive } from "@/shared/components/sensitive";
@@ -35,7 +34,6 @@ import { fiiCascade, type CascadeAsset, type CascadeOrder } from "../domain/fii-
 import { ExcludedCard } from "./aporte/excluded-card";
 import { groupExcluded, unitOf } from "./aporte/explain";
 import { OrdersList, OrdersTable, type AssetMeta } from "./aporte/orders";
-import { PRINCIPLES } from "./principles-banner";
 
 export type { AssetMeta };
 
@@ -85,6 +83,7 @@ function OrdersCard({
   view,
   rows,
   riskLimited,
+  onCopy,
   metaByTicker,
   fiiMinimum,
   fiiCount,
@@ -95,6 +94,8 @@ function OrdersCard({
   rows: readonly MergedOrder[];
   /** Alguma trava de risco cortou o pedido de um FII. */
   riskLimited: boolean;
+  /** Copia as ordens (só na mesa; no celular o botão fica ao lado da tab bar). */
+  onCopy: () => void;
   metaByTicker: ReadonlyMap<string, AssetMeta>;
   /** O mínimo por ordem de FII, em R$ (0 sem parte de FIIs ou na 3.0). */
   fiiMinimum: number;
@@ -126,6 +127,14 @@ function OrdersCard({
     <Card className="@container">
       <CardHeader>
         <CardTitle>Ordens de compra</CardTitle>
+        {rows.length > 0 ? (
+          <CardAction className="max-md:hidden">
+            <Button type="button" variant="outline" onClick={onCopy}>
+              <CopyIcon />
+              Copiar ordens
+            </Button>
+          </CardAction>
+        ) : null}
         <CardDescription>
           <span className="max-md:hidden">{orderText} </span>Os preços são de referência: confira na
           corretora.
@@ -228,131 +237,112 @@ export function AporteCalculator({
     hasOrders ? { label: "Copiar ordens", icon: CopyIcon, onPress: () => void copyOrders() } : null,
   );
 
+  // O campo do aporte mora no card "Aporte"; no Geral, o controle da divisão fica logo abaixo.
+  const amountField = (
+    <div className="grid gap-3">
+      <MoneyInput
+        aria-label="Valor do aporte em reais"
+        size="lg"
+        className="w-full"
+        defaultValue={amount > 0 ? amount : null}
+        onValueChange={(value) => void setAmount(value !== null && value > 0 ? value : null)}
+      />
+      {view === "geral" ? (
+        <div className="grid gap-3">
+          <div className="flex items-baseline justify-between gap-4 text-sm">
+            <span>
+              <span className="font-medium">FIIs {fiis}%</span>
+              {amount > 0 ? (
+                <span className="text-muted-foreground tabular-nums">
+                  {" "}
+                  · <Sensitive>{formatBRL(fiiPart)}</Sensitive>
+                </span>
+              ) : null}
+            </span>
+            <span className="text-right">
+              <span className="font-medium">Ações {100 - fiis}%</span>
+              {amount > 0 ? (
+                <span className="text-muted-foreground tabular-nums">
+                  {" "}
+                  · <Sensitive>{formatBRL(stockPart)}</Sensitive>
+                </span>
+              ) : null}
+            </span>
+          </div>
+          {/* O trecho à esquerda do polegar é a parte dos FIIs; o resto, a das ações. Passos de 5%. */}
+          <Slider
+            label="Parte do aporte para FIIs"
+            value={fiis}
+            step={FIIS_STEP}
+            onValueChange={(next) => void setFiis(next)}
+            valueText={(current) => `${current}% para FIIs, ${100 - current}% para ações`}
+          />
+          <p className="flex items-center gap-2 text-sm text-muted-foreground">
+            <InfoIcon className="size-4 shrink-0 text-info" aria-hidden="true" />
+            Hoje: FIIs {formatPercent(todayFii, 0)} · Ações {formatPercent(todayStock, 0)}
+          </p>
+        </div>
+      ) : null}
+    </div>
+  );
+
   return (
     <div className="grid gap-4 md:gap-6">
-      <Card>
-        <CardHeader>
-          <CardTitle>Quanto vou aportar hoje?</CardTitle>
-          {/* No iPhone, a explicação e os princípios ficam na folha ⓘ: o valor é o que importa. */}
-          <CardAction className="md:hidden">
-            <InfoSheet title="Como o aporte é calculado" label="Como o aporte é calculado">
-              <ul className="grid gap-3 text-foreground">
-                {PRINCIPLES.map(({ icon: Icon, text }) => (
-                  <li key={text} className="flex items-center gap-3">
-                    <Icon className="size-5 text-info" aria-hidden="true" />
-                    {text}
-                  </li>
-                ))}
-              </ul>
-            </InfoSheet>
-          </CardAction>
-        </CardHeader>
-        <CardContent className="grid gap-4">
-          <form
-            className="flex flex-wrap items-end gap-x-4 gap-y-3"
-            onSubmit={(event) => event.preventDefault()}
-          >
-            <MoneyInput
-              aria-label="Valor do aporte em reais"
-              size="lg"
-              className="w-full sm:w-72"
-              defaultValue={amount > 0 ? amount : null}
-              onValueChange={(value) => void setAmount(value !== null && value > 0 ? value : null)}
-            />
-            {hasOrders ? (
-              <Button
-                type="button"
-                variant="outline"
-                onClick={copyOrders}
-                className="max-md:hidden"
-              >
-                <CopyIcon />
-                Copiar ordens
-              </Button>
-            ) : null}
-          </form>
-          {view === "geral" ? (
-            <div className="grid gap-3">
-              <div className="flex items-baseline justify-between gap-4 text-sm">
-                <span>
-                  <span className="font-medium">FIIs {fiis}%</span>
-                  {amount > 0 ? (
-                    <span className="text-muted-foreground tabular-nums">
-                      {" "}
-                      · <Sensitive>{formatBRL(fiiPart)}</Sensitive>
-                    </span>
-                  ) : null}
-                </span>
-                <span className="text-right">
-                  <span className="font-medium">Ações {100 - fiis}%</span>
-                  {amount > 0 ? (
-                    <span className="text-muted-foreground tabular-nums">
-                      {" "}
-                      · <Sensitive>{formatBRL(stockPart)}</Sensitive>
-                    </span>
-                  ) : null}
-                </span>
-              </div>
-              {/* O trecho à esquerda do polegar é a parte dos FIIs; o resto, a das ações. Passos de 5%. */}
-              <Slider
-                label="Parte do aporte para FIIs"
-                value={fiis}
-                step={FIIS_STEP}
-                onValueChange={(next) => void setFiis(next)}
-                valueText={(current) => `${current}% para FIIs, ${100 - current}% para ações`}
-              />
-              <p className="flex items-center gap-2 text-sm text-muted-foreground">
-                <InfoIcon className="size-4 shrink-0 text-info" aria-hidden="true" />
-                Hoje: FIIs {formatPercent(todayFii, 0)} · Ações {formatPercent(todayStock, 0)}
-              </p>
+      {/* Os três números do aporte. O primeiro é o campo onde se digita o valor. No celular são um
+          card só, para as ordens, que são o que importa, não descerem da dobra. */}
+      <div className="@container">
+        <Card size="sm" className="@min-[720px]:hidden">
+          <CardContent className="grid gap-3">
+            <div className="flex items-center gap-2 text-subheadline text-muted-foreground">
+              <span className="tile size-6 rounded-sm [--tile:var(--tile-blue)]">
+                <WalletIcon className="size-3.5" aria-hidden="true" />
+              </span>
+              Aporte
             </div>
-          ) : null}
-        </CardContent>
-      </Card>
-
-      {hasResult ? (
-        <>
-          {/* No celular, o resumo é um card só, com três linhas: os três cards de número
-              empurravam as ordens, que são o que importa, para baixo da dobra. */}
-          <div className="@container">
-            <Card size="sm" className="@min-[720px]:hidden">
-              <CardContent>
-                <StatList className="border-t-0 pt-0">
-                  <StatRow label="Aporte" value={<Sensitive>{formatBRL(amount)}</Sensitive>} />
-                  <StatRow label="Ordens" value={<Sensitive>{formatBRL(spent)}</Sensitive>} />
-                  <StatRow
-                    label="Sobra para o próximo aporte"
-                    value={<Sensitive>{formatBRL(leftover)}</Sensitive>}
-                  />
-                </StatList>
-              </CardContent>
-            </Card>
-            <div className="hidden gap-4 md:gap-6 @min-[720px]:grid @min-[720px]:grid-cols-3">
-              <MetricCard
-                icon={WalletIcon}
-                tile="[--tile:var(--tile-blue)]"
-                label="Aporte"
-                value={<Sensitive>{formatBRL(amount)}</Sensitive>}
-              />
-              <MetricCard
-                icon={ShoppingCartIcon}
-                tile="[--tile:var(--tile-green)]"
-                label="Ordens"
-                value={<Sensitive>{formatBRL(spent)}</Sensitive>}
-              />
-              <MetricCard
-                icon={PiggyBankIcon}
-                tile="[--tile:var(--tile-orange)]"
+            {amountField}
+            <StatList>
+              <StatRow label="Ordens" value={<Sensitive>{formatBRL(spent)}</Sensitive>} />
+              <StatRow
                 label="Sobra para o próximo aporte"
                 value={<Sensitive>{formatBRL(leftover)}</Sensitive>}
               />
-            </div>
-          </div>
+            </StatList>
+          </CardContent>
+        </Card>
+        <div className="hidden gap-4 md:gap-6 @min-[720px]:grid @min-[720px]:grid-cols-3">
+          <Card className="card-lift">
+            <CardHeader className="gap-3">
+              <div className="flex items-center gap-2 text-subheadline text-muted-foreground">
+                <span className="tile size-6 rounded-sm [--tile:var(--tile-blue)]">
+                  <WalletIcon className="size-3.5" aria-hidden="true" />
+                </span>
+                Aporte
+              </div>
+              {amountField}
+            </CardHeader>
+          </Card>
+          <MetricCard
+            icon={ShoppingCartIcon}
+            tile="[--tile:var(--tile-green)]"
+            label="Ordens"
+            value={<Sensitive>{formatBRL(spent)}</Sensitive>}
+          />
+          <MetricCard
+            icon={PiggyBankIcon}
+            tile="[--tile:var(--tile-orange)]"
+            label="Sobra para o próximo aporte"
+            value={<Sensitive>{formatBRL(leftover)}</Sensitive>}
+          />
+        </div>
+      </div>
 
+      {hasResult ? (
+        <>
           <OrdersCard
             view={view}
             rows={rows}
             riskLimited={riskLimited}
+            onCopy={copyOrders}
             metaByTicker={metaByTicker}
             fiiMinimum={fiiResult?.minimum ?? 0}
             fiiCount={fiiAssets.length}
