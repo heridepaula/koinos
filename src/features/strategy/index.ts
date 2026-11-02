@@ -8,5 +8,13 @@ export {
   type PercentFix,
   type WeightInput,
 } from "./domain/weights";
-export { isSuspiciousCeiling, marginToCeiling } from "./domain/ceiling";
+export {
+  CEILING_CHECK,
+  ceilingCheck,
+  ceilingCheckMessage,
+  isSuspiciousCeiling,
+  marginToCeiling,
+  type CeilingCheck,
+  type CeilingCheckInput,
+} from "./domain/ceiling";
 export { targetPatchSchema, type TargetPatchInput } from "./schemas";
