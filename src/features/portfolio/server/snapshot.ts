@@ -7,6 +7,7 @@ import {
   getAssetClasses,
   getAssetSnapshots,
   getMonthlyCloses,
+  getRealRate,
   type AssetSnapshot,
 } from "@/features/market-data/server";
 import { getMyTargetAssets } from "@/features/strategy/server";
@@ -43,6 +44,21 @@ function toPriceInfo(assets: ReadonlyMap<string, AssetSnapshot>): Map<string, Pr
   );
 }
 
+/**
+ * A NTN-B real em fração (a mediana de 60 pregões), para o aviso de divergência do teto. Dado
+ * velho ou ausente vira null, e uma falha na leitura também: o aviso é só informativo e não pode
+ * derrubar a página.
+ */
+async function readNtnbRealRate(now: Date): Promise<number | null> {
+  try {
+    const summary = await getRealRate(now);
+    return summary && !summary.stale ? summary.median / 100 : null;
+  } catch (error) {
+    console.warn("[taxa NTN-B]", error instanceof Error ? error.message : String(error));
+    return null;
+  }
+}
+
 const snapshotFor = cache(
   traced(
     "view.portfolio-snapshot",
@@ -60,15 +76,17 @@ const snapshotFor = cache(
         getAssetSnapshots(tickers),
         getAssetClasses(tickers),
       ]);
+      const now = new Date();
       return buildSnapshot(
         scopeToClass(
           {
-            now: new Date(),
+            now,
             transactions,
             targets,
             dividends,
             prices: toPriceInfo(assets),
             classes,
+            ntnbRealRate: await readNtnbRealRate(now),
           },
           filter,
         ),
