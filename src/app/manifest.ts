@@ -8,7 +8,7 @@ export default function manifest(): MetadataRoute.Manifest {
   return {
     name: "Koinos",
     short_name: "Koinos",
-    description: "Carteira de FIIs com aportes pelo método Suno.",
+    description: "Carteira de FIIs com aportes pelo método Koinos.",
     lang: "pt-BR",
     start_url: "/dashboard",
     scope: "/",

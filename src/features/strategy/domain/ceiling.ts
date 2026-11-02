@@ -41,15 +41,15 @@ export const CEILING_CHECK = {
   /** Papel: NTN-B real + IPCA assumido + este spread. O DY do papel já traz a inflação. */
   paperSpread: 0.01,
   assumedInflation: 0.04,
-  /** Há aviso quando |teto calculado ÷ teto da Suno − 1| passa disto. */
+  /** Há aviso quando |teto calculado ÷ teto do ranking − 1| passa disto. */
   limit: 0.1,
 } as const;
 
-/** O teto calculado de um FII cujo teto da Suno está fora do limite. Frações, exceto os preços. */
+/** O teto calculado de um FII cujo teto do ranking está fora do limite. Frações, exceto os preços. */
 export type CeilingCheck = {
   /** Teto calculado, em R$ por cota. */
   calculated: number;
-  /** calculado ÷ teto da Suno − 1, com 6 casas. Positivo: o teto da Suno está abaixo do calculado. */
+  /** calculado ÷ teto do ranking − 1, com 6 casas. Positivo: o teto do ranking está abaixo do calculado. */
   divergence: number;
   /** Proventos por cota dos 12 meses que entraram na conta. */
   income12m: number;
@@ -62,7 +62,7 @@ export type CeilingCheck = {
 };
 
 export type CeilingCheckInput = {
-  /** Teto da Suno. */
+  /** Teto do ranking. */
   ceiling: number | null;
   /** Proventos por cota dos 12 meses; null quando não há ou estão velhos. */
   income12m: number | null;
@@ -72,7 +72,7 @@ export type CeilingCheckInput = {
 };
 
 /**
- * Compara o teto da Suno com o teto calculado: proventos de 12 meses ÷ rendimento exigido. Devolve
+ * Compara o teto do ranking com o teto calculado: proventos de 12 meses ÷ rendimento exigido. Devolve
  * o cálculo só quando a divergência passa do limite, nos dois lados; sem dado, null (sem aviso).
  */
 export function ceilingCheck({
@@ -102,7 +102,7 @@ export type CeilingCheckRow = { label: string; value: string; note?: string; ton
 
 /**
  * O aviso pronto para desenhar (tooltip e folha do celular). Positivo: o teto calculado está ACIMA
- * do da Suno (o da Suno é o mais conservador). Negativo: está ABAIXO (o da Suno pode estar alto
+ * do ranking (o do ranking é o mais conservador). Negativo: está ABAIXO (o do ranking pode estar alto
  * para a renda atual).
  */
 export type CeilingCheckDetails = {
@@ -122,7 +122,7 @@ export type CeilingCheckDetails = {
 const pointsOf = (fraction: number) => `${(fraction * 100).toFixed(1).replace(".", ",")} p.p.`;
 
 /**
- * Monta o texto do aviso. `ceiling` é o teto da Suno; `price` (opcional) é o preço atual, que
+ * Monta o texto do aviso. `ceiling` é o teto do ranking; `price` (opcional) é o preço atual, que
  * ganha uma linha dizendo se já passou do teto calculado.
  */
 export function ceilingCheckDetails(
@@ -132,7 +132,7 @@ export function ceilingCheckDetails(
 ): CeilingCheckDetails {
   const positive = check.divergence > 0;
   const rows: CeilingCheckRow[] = [
-    { label: "Teto da Suno", value: formatBRL(ceiling) },
+    { label: "Teto do ranking", value: formatBRL(ceiling) },
     { label: "Teto calculado", value: formatBRL(check.calculated) },
   ];
   if (price !== null && Number.isFinite(price) && price > 0) {
@@ -154,12 +154,12 @@ export function ceilingCheckDetails(
     badge: positive ? "Positivo" : "Negativo",
     change: formatSignedPercent(check.divergence, 1),
     headline: positive
-      ? "Teto calculado acima do teto da Suno"
-      : "Teto calculado abaixo do teto da Suno",
+      ? "Teto calculado acima do teto do ranking"
+      : "Teto calculado abaixo do teto do ranking",
     rows,
     formula: `Proventos de 12 meses ${formatBRL(check.income12m)} ÷ ${formatPercent(check.requiredYield, 2)} (${premium})`,
     meaning: positive
-      ? "A renda atual sustenta um teto maior que o da Suno: o teto da Suno é o mais conservador dos dois. Ele pode estar desatualizado, ou os proventos de 12 meses incluem algum pagamento extraordinário."
-      : "A renda atual sustenta um teto menor que o da Suno: comprar perto do teto da Suno pode sair caro. Confira se os proventos caíram ou se o teto da Suno está desatualizado.",
+      ? "A renda atual sustenta um teto maior que o do ranking: o teto do ranking é o mais conservador dos dois. Ele pode estar desatualizado, ou os proventos de 12 meses incluem algum pagamento extraordinário."
+      : "A renda atual sustenta um teto menor que o do ranking: comprar perto do teto do ranking pode sair caro. Confira se os proventos caíram ou se o teto do ranking está desatualizado.",
   };
 }

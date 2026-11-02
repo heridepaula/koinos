@@ -14,7 +14,7 @@ const geistMono = Geist_Mono({ variable: "--font-geist-mono", subsets: ["latin"]
 
 export const metadata: Metadata = {
   title: { default: "Koinos", template: "%s · Koinos" },
-  description: "Carteira de FIIs com aportes pelo método Suno.",
+  description: "Carteira de FIIs com aportes pelo método Koinos.",
   // App pessoal: nada de indexação por buscadores.
   robots: { index: false, follow: false },
   // Na tela de início do iPhone abre como app, em tela cheia: a barra de status fica sobre o

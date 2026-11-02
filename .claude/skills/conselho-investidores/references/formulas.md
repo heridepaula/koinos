@@ -19,7 +19,7 @@ Resumo para orientar a avaliação, conferido no código em 2026-11-01 (Koinos 3
 ## 1. Versões do motor
 
 - **Onde:** `src/features/smart-buy/domain/engine-options.ts`. Spec: `2026-11-01-koinos-3-1-design.md`.
-- **Opções (`EngineOptions`):** cada regra do conselho é uma chave. `sunoCascade` e `stockSmartBuy` recebem as opções no último argumento, e sem elas rodam a 3.0.
+- **Opções (`EngineOptions`):** cada regra do conselho é uma chave. `fiiCascade` e `stockSmartBuy` recebem as opções no último argumento, e sem elas rodam a 3.0.
 
 | Opção             | Valores               | O que faz                                                                |
 | ----------------- | --------------------- | ------------------------------------------------------------------------ |
@@ -43,7 +43,7 @@ Resumo para orientar a avaliação, conferido no código em 2026-11-01 (Koinos 3
 ## 2. Cascata de FIIs (Koinos 3.0 e 3.1)
 
 - **Onde:**
-  - `src/features/smart-buy/domain/suno-cascade.ts`: `sunoCascade` e `aportePriorities`.
+  - `src/features/smart-buy/domain/fii-cascade.ts`: `fiiCascade` e `aportePriorities`.
   - Tensores em `conviction.ts` e travas em `risk.ts`.
   - A entrada (`cascadeInput`) é montada em `src/features/portfolio/domain/snapshot.ts`.
 - **Specs:** `2026-10-30-koinos-3-0-design.md`; o viés vem de `2026-10-31-tabelas-unificadas-design.md`; o mínimo por ordem e a suspensão, de `2026-11-01-koinos-3-1-design.md`.
@@ -124,13 +124,13 @@ Resumo para orientar a avaliação, conferido no código em 2026-11-01 (Koinos 3
 - **Teto** (`ceiling.ts`):
   - `marginToCeiling` = (teto − preço) ÷ teto;
   - `isSuspiciousCeiling` marca o teto abaixo de 50% ou acima de 200% do preço.
-  - `ceilingCheck` (`CEILING_CHECK`): teto calculado = proventos de 12 meses ÷ (NTN-B real + spread); tijolo e demais classes + 1,0 p.p., papel + 4,0% de IPCA assumido + 1,0 p.p. Avisa (só informativo) quando difere do teto da Suno em mais de 10%, nos dois lados, e só para FIIs da estratégia com proventos de até 10 dias e taxa em dia.
+  - `ceilingCheck` (`CEILING_CHECK`): teto calculado = proventos de 12 meses ÷ (NTN-B real + spread); tijolo e demais classes + 1,0 p.p., papel + 4,0% de IPCA assumido + 1,0 p.p. Avisa (só informativo) quando difere do teto do ranking em mais de 10%, nos dois lados, e só para FIIs da estratégia com proventos de até 10 dias e taxa em dia.
 
 ## 6. Reinvestimento
 
 - **Onde:** `src/features/portfolio/domain/reinvestment.ts`. Spec `2026-10-23-reinvestimento-design.md`.
 - **Regra:** as compras em dinheiro do mês (negócios e subscrições, com taxas) são divididas entre dinheiro de proventos e dinheiro do bolso. O reinvestido pretendido é proventos × % do mês, limitado ao que foi comprado.
-- **% do mês:** fica salva por mês; sem % salva, vale 100% (no método Suno, todo provento volta para a carteira).
+- **% do mês:** fica salva por mês; sem % salva, vale 100% (no método Koinos, todo provento volta para a carteira).
 - **Por classe:** a conta continua sobre a carteira inteira, e a parte "de proventos" de uma classe é rateada pelo aporte dela (`shareReinvestment`).
 
 - **Fruição** (`smart-buy/domain/income-phase.ts`, spec `2026-11-01-fruicao-design.md`): `IncomePhase` é acumulação (todo provento volta) ou fruição com `retention` (padrão 25%, de 20% a 100%; abaixo, `fruition()` lança erro). `splitIncome` divide em centavos, com a retenção para cima. A fase não entra nos motores: só decide o valor do aporte. `simulateAportes` aceita `phase`, `stockDividends` e `otherIncome`; o laboratório tem `fruicao`. Não há tela nem configuração ainda.
@@ -150,7 +150,7 @@ São as fórmulas que as lentes de renda costumam olhar:
 
 Ver a seção Tests do CLAUDE.md. Em resumo:
 
-- **`suno-cascade.test.ts`:** os cenários A, B e C do dono, os casos de Aguardar, o mínimo por ordem e a suspensão da 3.1, e invariantes em 500 carteiras aleatórias com semente. A 3.0 (sem opções) dá o mesmo resultado de antes.
+- **`fii-cascade.test.ts`:** os cenários A, B e C do dono, os casos de Aguardar, o mínimo por ordem e a suspensão da 3.1, e invariantes em 500 carteiras aleatórias com semente. A 3.0 (sem opções) dá o mesmo resultado de antes.
 - **Outros de `smart-buy/domain`:**
   - os tensores (`conviction.test.ts`) e as travas e baldes (`risk.test.ts`);
   - o smart buy de ações (lote e sobra incluídos) e `stockPriorities` (`stock-buy.test.ts`);
@@ -174,7 +174,7 @@ As lentes podem discordar destas decisões; a síntese marca o conflito, mas nã
   - Os contínuos substituíram o Índice de Convicção (degraus ×1,2, ×1 e ×0,5).
   - O IPA da planilha antiga não volta.
 - **Fontes:**
-  - Ranking, teto, % e viés vêm da Suno, digitados pelo dono.
+  - Ranking, teto, % e viés vêm do ranking, digitados pelo dono.
   - O P/VP vem da usebolsai. A StatusInvest foi recusada pelos termos de uso.
   - Nada de B3: os dados dela só entram pelos extratos que o dono envia.
   - Os proventos vêm do Yahoo, que bateu melhor com os extratos.
@@ -231,8 +231,8 @@ Uma fonte nova é decisão de produto. A B3 está fora, e a StatusInvest foi rec
 
 Confira esta lista antes de apontar um erro.
 
-- **Teto calculado × teto da Suno:** o triângulo de divergência não muda ordem, Prioridade nem alerta, e o teto que decide a compra continua o da Suno. O teto calculado reproduz o da Suno na mediana (97%), mas varia com a taxa: o IPCA do papel é um número fixo (4,0%) e o tijolo compara provento nominal com taxa real de propósito (o aluguel acompanha a inflação).
-- **Travas por aporte:** valem sobre cada aporte, não sobre a composição da carteira. Quem segura a composição são as % da Suno.
+- **Teto calculado × teto do ranking:** o triângulo de divergência não muda ordem, Prioridade nem alerta, e o teto que decide a compra continua o do ranking. O teto calculado reproduz o do ranking na mediana (97%), mas varia com a taxa: o IPCA do papel é um número fixo (4,0%) e o tijolo compara provento nominal com taxa real de propósito (o aluguel acompanha a inflação).
+- **Travas por aporte:** valem sobre cada aporte, não sobre a composição da carteira. Quem segura a composição são as % do ranking.
 - **Meta com aporte:** o alvo já inclui o aporte (peso × (estratégia + aporte)).
 - **Tensores passam da meta:** como multiplicam o gap, o FII pode terminar acima da meta. É de propósito.
 - **Preço igual ao teto:** o FII com preço igual ao teto fica fora; a ação com preço igual ao teto entra. Está documentado assim nas specs e no CLAUDE.md.
@@ -245,7 +245,7 @@ Confira esta lista antes de apontar um erro.
 - **Dado velho:** P/VP e vacância com mais de 60 dias deixam o tensor neutro.
 - **Sobra:** cada classe guarda a sua.
 - **FIIs fora da estratégia:** só os FIIs da estratégia formam a base. Os de fora (legado) não entram na meta e podem concentrar o patrimônio sem a cascata ver.
-- **Ranking no passo 1:** um FII mais abaixo da meta, mas pior ranqueado, só recebe o que sobra dos que estão à frente. É o método Suno; avalie a consequência, sem chamar de bug.
+- **Ranking no passo 1:** um FII mais abaixo da meta, mas pior ranqueado, só recebe o que sobra dos que estão à frente. É o método Koinos; avalie a consequência, sem chamar de bug.
 - **Mínimo por ordem (3.1):** com o mínimo, um FII abaixo da meta pode ficar sem ordem (`ABAIXO_DO_MINIMO`): o pedido dele não chegava à fatia justa. O dinheiro vai para os próximos da fila, e no próximo aporte o pedido cresce. É a regra funcionando.
 - **Lote de 100 (3.1):** com o lote, uma ação comprada pode passar da meta, porque a compra é em lote inteiro e a sobra vai um lote por vez para a mais abaixo da meta. Há ações com um lote maior que a meta (a spec do 3.1 cita TUPY3, UNIP6 e VALE3). Uma ação com `MENOS_DE_UM_LOTE` pode receber pela sobra.
 - **Suspensão sem dado (3.1):** o FII com provento atrasado só sai do aporte quando a busca de proventos tem até 10 dias. Sem ela, a regra fica neutra; não é falha da regra.

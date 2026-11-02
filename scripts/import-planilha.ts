@@ -106,7 +106,7 @@ async function main() {
     const inStrategy = target.rank !== null && target.rank !== OUT_OF_STRATEGY_RANK;
     await upsertTargetAsset(portfolioId, item.ticker, {
       inStrategy,
-      sunoRank: inStrategy ? target.rank : null,
+      rank: inStrategy ? target.rank : null,
       ceilingPrice: target.ceiling,
     });
     configured++;

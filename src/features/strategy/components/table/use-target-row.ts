@@ -9,7 +9,7 @@ import type { Category } from "../../domain/categories";
 
 export type TargetPatch = {
   inStrategy?: boolean;
-  sunoRank?: number | null;
+  rank?: number | null;
   ceilingPrice?: number | null;
   suggestedPercent?: number | null;
   category?: Category | null;

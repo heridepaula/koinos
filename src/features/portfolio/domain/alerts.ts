@@ -77,7 +77,7 @@ function strategyAlerts({
     });
   }
 
-  const incomplete = members.filter((row) => row.sunoRank === null || row.ceilingPrice === null);
+  const incomplete = members.filter((row) => row.rank === null || row.ceilingPrice === null);
   if (incomplete.length > 0) {
     const list = incomplete.map((row) => row.ticker).join(", ");
     alerts.push({
@@ -92,8 +92,8 @@ function strategyAlerts({
 
   const ranks = new Map<number, string[]>();
   for (const row of members) {
-    if (row.sunoRank === null) continue;
-    ranks.set(row.sunoRank, [...(ranks.get(row.sunoRank) ?? []), row.ticker]);
+    if (row.rank === null) continue;
+    ranks.set(row.rank, [...(ranks.get(row.rank) ?? []), row.ticker]);
   }
   const duplicated = [...ranks].filter(([, tickers]) => tickers.length > 1);
   if (duplicated.length > 0) {

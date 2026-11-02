@@ -38,7 +38,7 @@ export {
 export {
   aportePriorities,
   EXCLUSION_LABELS,
-  sunoCascade,
+  fiiCascade,
   type AportePriority,
   type CascadeAsset,
   type CascadeExclusion,
@@ -48,7 +48,7 @@ export {
   type ExclusionReason,
   type PriorityReason,
   type Tensors,
-} from "./domain/suno-cascade";
+} from "./domain/fii-cascade";
 export {
   stockPriorities,
   stockSmartBuy,

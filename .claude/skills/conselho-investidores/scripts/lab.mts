@@ -50,7 +50,7 @@ import {
   simulateAportes,
   splitAmount,
   stockSmartBuy,
-  sunoCascade,
+  fiiCascade,
   type CascadeAsset,
   type CascadeResult,
   type EngineOptions,
@@ -403,7 +403,7 @@ function recommendCommand(data: Data, amount: number, fiisPercent: number, engin
   const { fii, stock } = splitAmount(amount, fiisPercent);
   console.log(`motor ${engine.version}`);
   console.log(`aporte ${brl(amount)}: FIIs ${brl(fii)} (${fiisPercent}%) | ações ${brl(stock)}`);
-  if (fii > 0) printFii(sunoCascade(fii, data.snapshot.cascadeInput, engine.options));
+  if (fii > 0) printFii(fiiCascade(fii, data.snapshot.cascadeInput, engine.options));
   if (stock > 0) printStock(stockSmartBuy(stock, data.snapshot.stockBuyInput, engine.options));
 }
 
@@ -424,7 +424,7 @@ function projectCommand(
     `motor ${engine.version} | por período: FIIs ${brl(fii)} | ações ${brl(stock)} | ${periods} períodos, com preços, proventos, P/VP e Carteira Alvo parados`,
   );
   for (let period = 1; period <= periods; period++) {
-    const fiiResult = fii > 0 ? sunoCascade(fii, fiis, engine.options) : null;
+    const fiiResult = fii > 0 ? fiiCascade(fii, fiis, engine.options) : null;
     const stockResult = stock > 0 ? stockSmartBuy(stock, stocks, engine.options) : null;
     const orders: OrderLike[] = [...(fiiResult?.orders ?? []), ...(stockResult?.orders ?? [])];
     console.log(
@@ -625,7 +625,7 @@ function shockCommand(
   const uniform = () => (state = (state * 16807) % 2147483647) / 2147483647;
   const normal = () => Math.sqrt(-2 * Math.log(uniform())) * Math.cos(2 * Math.PI * uniform());
   const run = (fiis: readonly CascadeAsset[], stocks: readonly StockBuyAsset[]): OrderLike[] => [
-    ...(fii > 0 ? sunoCascade(fii, fiis, engine.options).orders : []),
+    ...(fii > 0 ? fiiCascade(fii, fiis, engine.options).orders : []),
     ...(stock > 0 ? stockSmartBuy(stock, stocks, engine.options).orders : []),
   ];
   const setKey = (orders: readonly OrderLike[]) =>
@@ -732,7 +732,7 @@ function monthCommand(data: Data, month: string, engine: Engine) {
   );
   const before = data.snapshotOf(data.transactions.filter((entry) => entry.date < start));
   const fiiResult =
-    fiiSpent > 0 ? sunoCascade(round2(fiiSpent), before.cascadeInput, engine.options) : null;
+    fiiSpent > 0 ? fiiCascade(round2(fiiSpent), before.cascadeInput, engine.options) : null;
   const stockResult =
     stockSpent > 0 ? stockSmartBuy(round2(stockSpent), before.stockBuyInput, engine.options) : null;
   const byEngine = new Map<string, OrderLike>(
@@ -766,7 +766,7 @@ const COMPARE_SIGMA = { common: 0.025, own: 0.03 };
 function firstAporte(input: SimulationInput, amount: number, fiisPercent: number, engine: Engine) {
   const { fii, stock } = splitAmount(amount, fiisPercent);
   return {
-    fii: fii > 0 ? sunoCascade(fii, input.fiis, engine.options) : null,
+    fii: fii > 0 ? fiiCascade(fii, input.fiis, engine.options) : null,
     stock: stock > 0 ? stockSmartBuy(stock, input.stocks, engine.options) : null,
   };
 }

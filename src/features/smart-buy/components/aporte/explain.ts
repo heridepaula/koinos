@@ -2,7 +2,7 @@ import { formatBRL, formatPercent, formatQuantity } from "@/shared/lib/format";
 import type { MergedOrder } from "../../domain/merge-orders";
 import { RISK_CAPS } from "../../domain/risk";
 import type { StockBuyOrder, StockExclusionReason } from "../../domain/stock-buy";
-import type { CascadeOrder, ExclusionReason } from "../../domain/suno-cascade";
+import type { CascadeOrder, ExclusionReason } from "../../domain/fii-cascade";
 
 /** A classe de uma ordem ou de um ativo de fora: FII ou ação. */
 export type OrderKind = MergedOrder["kind"];

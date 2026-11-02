@@ -4,7 +4,7 @@
 
 **Goal:** dividir o aporte entre FIIs e ações por uma meta de alocação entre as classes e rodar uma cascata por carteira, com o troco cruzado.
 
-**Architecture:** código puro em `smart-buy/domain`: `sunoCascade` ganha `caps` opcional (`STOCK_CAPS` para ações), `splitByClassTarget` divide pela meta, `classAporte` orquestra as cascatas e o troco. O snapshot ganha `stockCascadeInput` e `classValues`. A meta fica em `class_targets` (feature strategy), editada na Carteira Alvo. A calculadora roda tudo no navegador.
+**Architecture:** código puro em `smart-buy/domain`: `fiiCascade` ganha `caps` opcional (`STOCK_CAPS` para ações), `splitByClassTarget` divide pela meta, `classAporte` orquestra as cascatas e o troco. O snapshot ganha `stockCascadeInput` e `classValues`. A meta fica em `class_targets` (feature strategy), editada na Carteira Alvo. A calculadora roda tudo no navegador.
 
 **Tech Stack:** Next.js 16 (cacheComponents), TypeScript, Mongoose, next-safe-action, Zod, nuqs, Vitest.
 
@@ -21,7 +21,7 @@
 | Arquivo | Papel |
 | --- | --- |
 | `src/features/smart-buy/domain/risk.ts` | `STOCK_CAPS`, tipo `RiskCaps` |
-| `src/features/smart-buy/domain/suno-cascade.ts` | `caps` opcional |
+| `src/features/smart-buy/domain/fii-cascade.ts` | `caps` opcional |
 | `src/features/smart-buy/domain/class-split.ts` (novo) + teste | `splitByClassTarget` |
 | `src/features/smart-buy/domain/class-aporte.ts` (novo) + teste | `classAporte` |
 | `src/features/smart-buy/index.ts` | Exportar o novo |
@@ -37,21 +37,21 @@
 
 ### Task 1: Cascata com limites por carteira, divisão e aporte combinado (código puro)
 
-**Goal:** `sunoCascade` com `caps`, `splitByClassTarget` e `classAporte`, todos testados.
+**Goal:** `fiiCascade` com `caps`, `splitByClassTarget` e `classAporte`, todos testados.
 
 **Files:**
 - Modify: `src/features/smart-buy/domain/risk.ts`
-- Modify: `src/features/smart-buy/domain/suno-cascade.ts:214-220`
+- Modify: `src/features/smart-buy/domain/fii-cascade.ts:214-220`
 - Create: `src/features/smart-buy/domain/class-split.ts`, `class-split.test.ts`
 - Create: `src/features/smart-buy/domain/class-aporte.ts`, `class-aporte.test.ts`
-- Modify: `src/features/smart-buy/domain/suno-cascade.test.ts` (um caso novo)
+- Modify: `src/features/smart-buy/domain/fii-cascade.test.ts` (um caso novo)
 - Modify: `src/features/smart-buy/index.ts`
 
 **Acceptance Criteria:**
-- [ ] `sunoCascade(amount, assets)` sem `caps` dá os mesmos resultados de hoje (os testes atuais passam sem mudança).
+- [ ] `fiiCascade(amount, assets)` sem `caps` dá os mesmos resultados de hoje (os testes atuais passam sem mudança).
 - [ ] Com `STOCK_CAPS`, um ativo passa de 35% do aporte sem setor e o macro não limita; nenhum passa de 25%.
 - [ ] `splitByClassTarget`: duas classes abaixo da meta; uma acima; as duas acima; uma que não pode receber; meta 0% nunca recebe; a soma das partes é o aporte, em centavos.
-- [ ] `classAporte`: o troco das ações compra FIIs; o troco dos FIIs volta para as ações; `fii.spent + stock.spent + leftover = amount`; com `fiiPercent = 100`, `fii` é igual a `sunoCascade(amount, fii)` e não há ordens de ações; invariantes em 200 carteiras aleatórias com semente (nenhuma ação passa de 25% do `stock.amount`; a soma fecha).
+- [ ] `classAporte`: o troco das ações compra FIIs; o troco dos FIIs volta para as ações; `fii.spent + stock.spent + leftover = amount`; com `fiiPercent = 100`, `fii` é igual a `fiiCascade(amount, fii)` e não há ordens de ações; invariantes em 200 carteiras aleatórias com semente (nenhuma ação passa de 25% do `stock.amount`; a soma fecha).
 
 **Verify:** `npx vitest run src/features/smart-buy` → todos passam.
 
@@ -72,10 +72,10 @@ export type RiskCaps = { asset: number; sector: number; macro: number };
 export const STOCK_CAPS: RiskCaps = { asset: 0.25, sector: Infinity, macro: Infinity };
 ```
 
-Em `suno-cascade.ts`:
+Em `fii-cascade.ts`:
 
 ```ts
-export function sunoCascade(
+export function fiiCascade(
   amount: number,
   assets: readonly CascadeAsset[],
   limits: RiskCaps = RISK_CAPS,
@@ -90,20 +90,20 @@ export function sunoCascade(
 
 (importar `type RiskCaps`). `Infinity * budget` é `Infinity`, e com `budget = 0` vira `NaN`: trate `budget <= 0` devolvendo o resultado vazio antes, se `prepare` ainda não o fizer — confira o comportamento atual com `amount = 0` e mantenha-o. O tipo `CascadeResult.caps` aceita `Infinity`.
 
-Teste novo em `suno-cascade.test.ts` (use os helpers do arquivo para montar ativos; ajuste os nomes):
+Teste novo em `fii-cascade.test.ts` (use os helpers do arquivo para montar ativos; ajuste os nomes):
 
 ```ts
-describe("sunoCascade: travas da carteira de ações", () => {
+describe("fiiCascade: travas da carteira de ações", () => {
   it("sem setor nem macro, só 25% por ação", () => {
     // 4 ações no mesmo macro "Outros", sem setor, todas muito abaixo da meta.
     const assets = ["AAAA3", "BBBB3", "CCCC3", "DDDD3"].map((ticker, index) =>
       asset({ ticker, rank: index + 1, weight: 0.25, price: 10, ceiling: 20, macro: "Outros", sector: null }),
     );
-    const withStock = sunoCascade(1000, assets, STOCK_CAPS);
+    const withStock = fiiCascade(1000, assets, STOCK_CAPS);
     for (const order of withStock.orders) expect(order.total).toBeLessThanOrEqual(250 + 1e-6);
     expect(withStock.spent).toBeCloseTo(1000, 2);
     // Com as travas de FII, o macro "Outros" segura em 60%.
-    expect(sunoCascade(1000, assets).spent).toBeLessThanOrEqual(600 + 1e-6);
+    expect(fiiCascade(1000, assets).spent).toBeLessThanOrEqual(600 + 1e-6);
   });
 });
 ```
@@ -271,12 +271,12 @@ Run → PASS.
 
 - [ ] **Step 4: Aporte combinado — teste**
 
-`src/features/smart-buy/domain/class-aporte.test.ts`: use os helpers de `suno-cascade.test.ts` como modelo (copie um `asset(...)` mínimo para este arquivo; ele não exporta helpers). Casos:
+`src/features/smart-buy/domain/class-aporte.test.ts`: use os helpers de `fii-cascade.test.ts` como modelo (copie um `asset(...)` mínimo para este arquivo; ele não exporta helpers). Casos:
 
 ```ts
 import { describe, expect, it } from "vitest";
 import { classAporte } from "./class-aporte";
-import { sunoCascade } from "./suno-cascade";
+import { fiiCascade } from "./fii-cascade";
 // const asset = (patch: Partial<CascadeAsset> & { ticker: string }): CascadeAsset => ({ ...defaults, ...patch });
 
 describe("classAporte", () => {
@@ -284,7 +284,7 @@ describe("classAporte", () => {
     const fii = [asset({ ticker: "AAAA11", rank: 1, weight: 1, price: 10, ceiling: 20 })];
     const stock = [asset({ ticker: "PETR4", rank: 1, weight: 1, price: 30, ceiling: 50, macro: "Outros" })];
     const result = classAporte({ amount: 1000, target: { fiiPercent: 100 }, values: { FII: 0, ACAO: 0 }, fii, stock });
-    expect(result.fii).toEqual(sunoCascade(1000, fii));
+    expect(result.fii).toEqual(fiiCascade(1000, fii));
     expect(result.stock.orders).toEqual([]);
   });
 
@@ -309,7 +309,7 @@ describe("classAporte", () => {
   });
 
   it("gasto + troco = aporte, e nenhuma ação passa de 25% da parte final (200 carteiras)", () => {
-    // gerador com semente (copie o do suno-cascade.test.ts, se houver), 2–6 FIIs e 1–5 ações,
+    // gerador com semente (copie o do fii-cascade.test.ts, se houver), 2–6 FIIs e 1–5 ações,
     // preços de 5 a 500, metas de 0 a 100, patrimônios de 0 a 50 mil.
     // para cada caso:
     //   expect(result.fii.spent + result.stock.spent + result.leftover).toBeCloseTo(amount, 2);
@@ -318,7 +318,7 @@ describe("classAporte", () => {
 });
 ```
 
-O caso aleatório deve ter o gerador escrito por inteiro (veja o de `suno-cascade.test.ts`, que roda 500 carteiras com semente, e reaproveite a mesma técnica).
+O caso aleatório deve ter o gerador escrito por inteiro (veja o de `fii-cascade.test.ts`, que roda 500 carteiras com semente, e reaproveite a mesma técnica).
 
 Run → FAIL.
 
@@ -330,7 +330,7 @@ Run → FAIL.
 // por carteira e passa o troco de uma para a outra.
 import { splitByClassTarget, type ClassKey, type ClassSplit, type ClassTarget } from "./class-split";
 import { STOCK_CAPS } from "./risk";
-import { sunoCascade, type CascadeAsset, type CascadeResult } from "./suno-cascade";
+import { fiiCascade, type CascadeAsset, type CascadeResult } from "./fii-cascade";
 
 export type ClassAporteResult = {
   split: ClassSplit;
@@ -366,14 +366,14 @@ export function classAporte(input: {
     values: input.values,
     canReceive,
   });
-  let stock = sunoCascade(split.ACAO.share, input.stock, STOCK_CAPS);
+  let stock = fiiCascade(split.ACAO.share, input.stock, STOCK_CAPS);
   // O troco das ações vai para os FIIs, se eles podem receber.
   const stockToFii = canReceive.FII ? stock.leftover : 0;
-  const fii = sunoCascade(round2(split.FII.share + stockToFii), input.fii);
+  const fii = fiiCascade(round2(split.FII.share + stockToFii), input.fii);
   let fiiToStock = 0;
   if (fii.leftover > 0 && canReceive.ACAO) {
     // O troco das ações já foi para os FIIs: a nova rodada usa o que elas gastaram + o troco dos FIIs.
-    const again = sunoCascade(round2(stock.spent + fii.leftover), input.stock, STOCK_CAPS);
+    const again = fiiCascade(round2(stock.spent + fii.leftover), input.stock, STOCK_CAPS);
     if (again.spent > stock.spent) {
       fiiToStock = round2(again.spent - stock.spent);
       stock = again;
@@ -697,7 +697,7 @@ git commit -m "feat(smart-buy): recommend the aporte across FIIs and stocks"
 - [ ] CLAUDE.md: Domain flow item 3 (divisão pela meta, cascata de ações com `STOCK_CAPS`, troco cruzado, `classAporte`), Pages (`/recomendacoes` com as duas carteiras; `/carteira-alvo` com o painel da meta), Product rules (Aporte engine e Stocks: as ações agora entram nas Recomendações pela meta), Asset class, Data layer (coleção `class_targets`), Tests (os arquivos novos).
 - [ ] Spec da Carteira Alvo de ações: nota "As Recomendações passaram a incluir ações: ver `2026-10-31-aporte-por-classe-design.md`". Spec do aporte: status "aprovado e implementado (branch feat/aporte-por-classe)".
 - [ ] `format:check`, `lint`, `typecheck`, `test` e `build` passam.
-- [ ] O script imprime, para R$ 10.000: com meta 100%, as ordens de FIIs iguais a `sunoCascade(10000, cascadeInput)` (e nenhuma de ações); com meta 80%, a divisão, as ordens das duas carteiras e o troco, com gasto + troco = 10.000.
+- [ ] O script imprime, para R$ 10.000: com meta 100%, as ordens de FIIs iguais a `fiiCascade(10000, cascadeInput)` (e nenhuma de ações); com meta 80%, a divisão, as ordens das duas carteiras e o troco, com gasto + troco = 10.000.
 
 **Verify:** `npm run format && npm run format:check && npm run lint && npm run typecheck && npm test && npm run build` → tudo passa; o script mostra as duas tabelas.
 

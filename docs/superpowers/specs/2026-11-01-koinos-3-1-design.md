@@ -74,7 +74,7 @@ export const CURRENT_ENGINE: EngineVersion = "3.1";
 ```
 
 - **Opções como último parâmetro:**
-  - `sunoCascade(amount, assets, options = ENGINE_VERSIONS["3.0"])`;
+  - `fiiCascade(amount, assets, options = ENGINE_VERSIONS["3.0"])`;
   - `aportePriorities(assets, options)`;
   - `stockSmartBuy(amount, assets, options)`;
   - `stockPriorities(assets, options)`.
@@ -224,7 +224,7 @@ As notas de renda real e de DY contra a inflação ficam para a spec do SGS.
   - os 158 testes atuais passam sem mudança;
   - um teste novo roda as 500 carteiras aleatórias da invariante da cascata e confere que, sem opções e com `ENGINE_VERSIONS["3.0"]`, o resultado é idêntico;
   - o mesmo vale para `stockSmartBuy` em carteiras aleatórias.
-- **Mínimo (`suno-cascade.test.ts`):**
+- **Mínimo (`fii-cascade.test.ts`):**
   - com a 3.1 nas 500 carteiras, nenhuma ordem abaixo do mínimo e gasto + sobra = aporte;
   - o dinheiro de um FII pulado vai para o próximo da fila;
   - a sobra completa uma ordem existente com 1 cota e só abre ordem nova no mínimo;

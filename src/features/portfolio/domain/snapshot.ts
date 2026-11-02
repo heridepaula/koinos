@@ -158,7 +158,7 @@ export function buildSnapshot({
         : null;
     return {
       ticker: member.ticker,
-      rank: member.sunoRank,
+      rank: member.rank,
       ceiling: member.ceilingPrice,
       weight: weights.get(member.ticker) ?? 0,
       price: priceOf(member.ticker),
@@ -198,7 +198,7 @@ export function buildSnapshot({
   const stockBuyInput: StockBuyAsset[] = strategies.ACAO.members
     .map((member) => ({
       ticker: member.ticker,
-      rank: member.sunoRank,
+      rank: member.rank,
       ceiling: member.ceilingPrice,
       price: priceOf(member.ticker),
       quantity: openByTicker.get(member.ticker)?.quantity ?? 0,
@@ -305,7 +305,7 @@ export function buildSnapshot({
         dy12m: info?.dy12m ?? null,
         portfolioWeight: patrimony > 0 ? value / patrimony : 0,
         inStrategy,
-        sunoRank: target?.sunoRank ?? null,
+        rank: target?.rank ?? null,
         ceilingPrice: target?.ceilingPrice ?? null,
         marginToCeiling: marginToCeiling(target?.ceilingPrice ?? null, price),
         suspiciousCeiling: isSuspiciousCeiling(target?.ceilingPrice ?? null, price),
@@ -338,7 +338,7 @@ export function buildSnapshot({
           held: openByTicker.has(ticker),
           quantity: openByTicker.get(ticker)?.quantity ?? 0,
           inStrategy,
-          sunoRank: target?.sunoRank ?? null,
+          rank: target?.rank ?? null,
           ceilingPrice: target?.ceilingPrice ?? null,
           suggestedPercent: target?.suggestedPercent ?? null,
           category: cls === "ACAO" ? "ACAO" : (target?.category ?? null),
@@ -359,7 +359,7 @@ export function buildSnapshot({
       .sort(
         (a, b) =>
           Number(b.inStrategy) - Number(a.inStrategy) ||
-          (a.sunoRank ?? Infinity) - (b.sunoRank ?? Infinity) ||
+          (a.rank ?? Infinity) - (b.rank ?? Infinity) ||
           a.ticker.localeCompare(b.ticker),
       );
   };

@@ -9,7 +9,7 @@ import {
 } from "lucide-react";
 import { CURRENT_ENGINE } from "../domain/engine-options";
 
-// Princípios de aporte da Suno: à vista na tela de recomendações da mesa; no iPhone, na folha ⓘ
+// Princípios de aporte do ranking: à vista na tela de recomendações da mesa; no iPhone, na folha ⓘ
 // da calculadora, para o campo do valor subir.
 export const PRINCIPLES = [
   { icon: CalendarCheckIcon, text: "Aporte todo mês" },

@@ -24,7 +24,7 @@ Recomendar o aporte nas duas carteiras: o valor é dividido entre FIIs e ações
 | Plano de origem | Decisão | Motivo |
 | --- | --- | --- |
 | Checkboxes para escolher as carteiras do aporte | As duas carteiras sempre entram, pela meta | Escolha do dono: meta por classe |
-| % do aporte digitada a cada vez (ex.: 60/40) | Meta de alocação salva, aplicada ao patrimônio | Escolha do dono. O método Suno já rebalanceia só com dinheiro novo |
+| % do aporte digitada a cada vez (ex.: 60/40) | Meta de alocação salva, aplicada ao patrimônio | Escolha do dono. O método Koinos já rebalanceia só com dinheiro novo |
 | A cascata roda no backend duas vezes | Roda no navegador, como hoje, até três vezes (troco cruzado) | A calculadora já é do cliente (`AporteCalculator`) |
 | O troco de cada carteira fica parado | O troco passa para a outra carteira | Escolha do dono |
 
@@ -60,7 +60,7 @@ Entrada: o aporte, a meta, o patrimônio de cada classe e se cada classe pode re
 
 ### 4.3 Cascata com limites por carteira
 
-- `sunoCascade(amount, assets, caps = RISK_CAPS)`: o parâmetro novo é opcional, então FIIs não mudam.
+- `fiiCascade(amount, assets, caps = RISK_CAPS)`: o parâmetro novo é opcional, então FIIs não mudam.
 - `STOCK_CAPS = { asset: 0.25, sector: Infinity, macro: Infinity }`.
 - A ação entra como `CascadeAsset` com `priceToBook: null`, `vacancy: null`, `macro: "Outros"`, `sector: null`: `lastDividend: null` e `dividends12m: null`: os tensores de valuation, vacância e dividendos ficam em 1; só age a margem até o teto. O freio de dividendos supõe pagador mensal, e ação mistura JCP pequeno com dividendo grande: o freio cortaria o pedido em ~80% à toa.
 
@@ -74,7 +74,7 @@ Entrada: o aporte, a meta, o patrimônio de cada classe e se cada classe pode re
 
 Os limites de 25% são sobre a parte final de cada classe (a da rodada que vale). Saída: `{ split, fii: CascadeResult, stock: CascadeResult, leftover }`.
 
-Com `fiiPercent = 100` e as ações sem parte, o resultado dos FIIs é exatamente `sunoCascade(aporte, cascadeInput)`.
+Com `fiiPercent = 100` e as ações sem parte, o resultado dos FIIs é exatamente `fiiCascade(aporte, cascadeInput)`.
 
 ### 4.5 Snapshot
 
@@ -120,8 +120,8 @@ Com `fiiPercent = 100` e as ações sem parte, o resultado dos FIIs é exatament
 Vitest, só no código puro:
 
 - `smart-buy/domain/class-split.test.ts`: as duas classes abaixo da meta; uma acima; as duas acima; uma classe sem estratégia; a soma das partes é o aporte, em centavos.
-- `smart-buy/domain/suno-cascade.test.ts`: com `STOCK_CAPS`, um ativo passa de 35% sem setor e o macro não limita; sem o parâmetro, os resultados de hoje (os cenários A, B e C e as invariantes) não mudam.
-- `smart-buy/domain/class-aporte.test.ts`: o troco das ações compra FIIs; o troco dos FIIs volta para as ações; gasto + troco = aporte; com `fiiPercent = 100`, igual a `sunoCascade` só de FIIs; invariantes em carteiras aleatórias com semente (nenhuma ação passa de 25% da parte final).
+- `smart-buy/domain/fii-cascade.test.ts`: com `STOCK_CAPS`, um ativo passa de 35% sem setor e o macro não limita; sem o parâmetro, os resultados de hoje (os cenários A, B e C e as invariantes) não mudam.
+- `smart-buy/domain/class-aporte.test.ts`: o troco das ações compra FIIs; o troco dos FIIs volta para as ações; gasto + troco = aporte; com `fiiPercent = 100`, igual a `fiiCascade` só de FIIs; invariantes em carteiras aleatórias com semente (nenhuma ação passa de 25% da parte final).
 - `smart-buy/components/aporte/explain.test.ts`: o "Por quê" da ação.
 - `portfolio/domain/snapshot.test.ts`: `stockCascadeInput` só com ações da estratégia; `classValues` soma o patrimônio.
 

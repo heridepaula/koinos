@@ -3831,7 +3831,7 @@ import { readCatalogTypes } from "@/features/market-data/repo";
 import { getAssetSnapshots } from "@/features/market-data/server/assets-read";
 import { buildSnapshot, closedPositions } from "@/features/portfolio";
 import type { PriceInfo } from "@/features/portfolio/domain/types";
-import { sunoCascade } from "@/features/smart-buy";
+import { fiiCascade } from "@/features/smart-buy";
 import { listTargetAssets } from "@/features/strategy/repo";
 import {
   planB3Import,
@@ -4020,7 +4020,7 @@ async function main() {
   const before = buildSnapshot({ now, transactions: existing, targets, dividends: storedDividends, prices, classes });
   const after = buildSnapshot({ now, transactions: applied, targets, dividends: appliedDividends, prices, classes });
   check("9. entrada da cascata igual", isDeepStrictEqual(before.cascadeInput, after.cascadeInput));
-  check("9. mesmas ordens para R$ 1.000", isDeepStrictEqual(sunoCascade(1000, before.cascadeInput).orders, sunoCascade(1000, after.cascadeInput).orders));
+  check("9. mesmas ordens para R$ 1.000", isDeepStrictEqual(fiiCascade(1000, before.cascadeInput).orders, fiiCascade(1000, after.cascadeInput).orders));
   check("9. Carteira Alvo sem ações", after.strategy.rows.every((row) => !isStock(row.ticker)));
 
   console.log(failures === 0 ? "\nTodos os critérios passaram." : `\n${failures} critério(s) falharam.`);

@@ -1,5 +1,5 @@
 import { Badge } from "@/shared/ui/badge";
-import { EXCLUSION_LABELS, type AportePriority } from "../domain/suno-cascade";
+import { EXCLUSION_LABELS, type AportePriority } from "../domain/fii-cascade";
 
 /**
  * "Prioridade de aporte": posição na fila (1º, 2º...) ou o motivo de estar fora. `quiet` é o das

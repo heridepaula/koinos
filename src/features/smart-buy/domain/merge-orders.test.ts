@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { mergeOrders } from "./merge-orders";
 import type { StockBuyOrder } from "./stock-buy";
-import type { CascadeOrder } from "./suno-cascade";
+import type { CascadeOrder } from "./fii-cascade";
 
 function fiiOrder(ticker: string, total: number): CascadeOrder {
   return {

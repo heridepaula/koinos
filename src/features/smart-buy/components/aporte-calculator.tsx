@@ -31,7 +31,7 @@ import { CURRENT_ENGINE, ENGINE_VERSIONS } from "../domain/engine-options";
 import { mergeOrders, type MergedOrder } from "../domain/merge-orders";
 import { RISK_CAPS } from "../domain/risk";
 import { stockSmartBuy, type StockBuyAsset, type StockBuyOrder } from "../domain/stock-buy";
-import { sunoCascade, type CascadeAsset, type CascadeOrder } from "../domain/suno-cascade";
+import { fiiCascade, type CascadeAsset, type CascadeOrder } from "../domain/fii-cascade";
 import { ExcludedCard } from "./aporte/excluded-card";
 import { groupExcluded, unitOf } from "./aporte/explain";
 import { OrdersList, OrdersTable, type AssetMeta } from "./aporte/orders";
@@ -164,7 +164,7 @@ function OrdersCard({
  * Calculadora de aporte. O valor é a ação principal da página: entra num campo grande, como o do
  * Apple Pay, e os motores rodam no navegador a cada tecla (o valor e a divisão ficam na URL).
  * A visão (`?classe=`) escolhe a carteira: FIIs (o padrão), Ações ou Geral, em que um controle
- * deslizante divide o aporte (`?fiis=`). Os FIIs vão pela cascata Suno e as ações pela margem de
+ * deslizante divide o aporte (`?fiis=`). Os FIIs vão pela cascata e as ações pela margem de
  * segurança. Embaixo, o resumo em cards de número, as ordens das carteiras numa tabela só e quem
  * ficou fora.
  */
@@ -197,7 +197,7 @@ export function AporteCalculator({
   const showFii = amount > 0 && fiiPart > 0;
   const showStock = amount > 0 && stockPart > 0;
   const engine = ENGINE_VERSIONS[CURRENT_ENGINE];
-  const fiiResult = showFii ? sunoCascade(fiiPart, fiiAssets, engine) : null;
+  const fiiResult = showFii ? fiiCascade(fiiPart, fiiAssets, engine) : null;
   const stockResult = showStock ? stockSmartBuy(stockPart, stockAssets, engine) : null;
 
   const spent = (fiiResult?.spent ?? 0) + (stockResult?.spent ?? 0);

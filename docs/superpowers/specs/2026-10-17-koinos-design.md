@@ -10,7 +10,7 @@ O Koinos substitui a planilha `FII's.xlsx` (exportada do Google Sheets) por um a
 
 - consolida as posições a partir dos lançamentos de compra e venda;
 - mostra cotações, rentabilidade, evolução do patrimônio e composição da carteira;
-- recomenda o aporte do mês pela metodologia pública da Suno: ranking, preço teto e % de alocação sugerida.
+- recomenda o aporte do mês pela metodologia pública do ranking: ranking, preço teto e % de alocação sugerida.
 
 ### Critérios de sucesso
 
@@ -31,15 +31,15 @@ O Koinos substitui a planilha `FII's.xlsx` (exportada do Google Sheets) por um a
 - Importador da planilha (script de linha de comando).
 - Dashboard: cards, evolução mensal, aportes por mês, composição, alertas e tabela de posições.
 - Transações: listar, criar, editar e excluir.
-- Carteira Alvo: ranking Suno, preço teto, % sugerida, categoria e "na estratégia".
-- Recomendações: motor de aporte pelo método Suno.
+- Carteira Alvo: ranking, preço teto, % sugerida, categoria e "na estratégia".
+- Recomendações: motor de aporte pelo método Koinos.
 
 **Fora deste ciclo**
 
 - Calendário de dividendos.
 - Eventos corporativos (desdobramento, grupamento, bonificação, subscrição, amortização).
 - Proventos recebidos somados ao L/P.
-- Várias carteiras na interface, e várias estratégias Suno (Dividendos, Valor...) com % do patrimônio para cada uma.
+- Várias carteiras na interface, e várias estratégias (Dividendos, Valor...) com % do patrimônio para cada uma.
 - Importação pela interface (ex.: extrato da B3).
 - O IPA antigo da planilha (a "nota base" digitada).
 - Testes automatizados (unitários e end-to-end).
@@ -57,10 +57,10 @@ O Koinos substitui a planilha `FII's.xlsx` (exportada do Google Sheets) por um a
 | Paralelismo | Na Vercel, o Fluid compute escala requisições e instâncias; no código, tarefas de rede em paralelo com limite por `os.availableParallelism()` (brapi gratuita: 1 por vez) | Pedido do usuário: aproveitar todos os núcleos |
 | Cotações | Listagem em lote da brapi (`quote/list`: uma requisição traz os 679 fundos listados); cotação individual da brapi e depois Yahoo como reservas; Yahoo para histórico e proventos | Plano gratuito da brapi: cotação individual com 1 ticker por requisição, 15 mil/mês, sem dividendos, 3 meses de histórico. A listagem responde em lote e sem token (testado em 17/10/2026) |
 | Atualização | Sob demanda (preço vencido) + cron diário | No plano Hobby, o cron da Vercel roda 1x por dia |
-| Motor de aporte | Método Suno: cascata pelo ranking até a % sugerida, só abaixo do teto | Pedido do usuário; substitui o IPA da planilha |
-| Base do peso | Só os ativos "na estratégia" | A Suno orienta separar uma fatia do patrimônio para cada carteira |
-| Ativo sem teto | Não recebe aporte | Regra da Suno: só comprar abaixo do preço teto |
-| % sugerida vazia | O que falta para 100% é dividido igualmente | A Suno publica as %; isto é só o fallback |
+| Motor de aporte | Método Koinos: cascata pelo ranking até a % sugerida, só abaixo do teto | Pedido do usuário; substitui o IPA da planilha |
+| Base do peso | Só os ativos "na estratégia" | O ranking orienta separar uma fatia do patrimônio para cada carteira |
+| Ativo sem teto | Não recebe aporte | Regra do ranking: só comprar abaixo do preço teto |
+| % sugerida vazia | O que falta para 100% é dividido igualmente | O ranking publica as %; isto é só o fallback |
 | Preço médio | Método da Receita | É o padrão; o da planilha abate vendas pelo preço de venda |
 | Importação | Ativo por ativo: importa os de histórico consistente e pula os demais, com relatório | Pedido do usuário; corrigir datas por conta própria distorceria quantidades e preço médio |
 | Testes automatizados | Nenhum; verificação por typecheck, lint, build e conferências pontuais | Decisão do usuário (projeto pessoal) |
@@ -89,7 +89,7 @@ O Koinos substitui a planilha `FII's.xlsx` (exportada do Google Sheets) por um a
 ### 4.2 Padrões
 
 1. **Monólito modular por features.** Cada feature tem regras puras, código de servidor e componentes, e só exporta uma API pública: `index.ts` para o cliente e `server.ts` para o servidor.
-2. **Núcleo puro, bordas com I/O.** Posições, preço médio, pesos e o motor Suno são funções puras, sem Next, banco ou variáveis de ambiente.
+2. **Núcleo puro, bordas com I/O.** Posições, preço médio, pesos e o motor Koinos são funções puras, sem Next, banco ou variáveis de ambiente.
 3. **Ports & Adapters nas integrações.** As cotações e o histórico ficam atrás de interfaces. A brapi e o Yahoo são adaptadores e podem ser trocados sem mexer no resto.
 4. **Data Access Layer (DAL).** É a recomendação do Next para projetos novos. São módulos `server-only` que conferem a sessão e o dono do dado e devolvem DTOs mínimos. Só a DAL acessa models, adaptadores e `env`.
 5. **Cache Components e PPR.** A estrutura da página (layout, menu, cabeçalhos, skeletons) é pré-renderizada. O que depende da sessão chega por streaming dentro de `<Suspense>`. Dados compartilhados que mudam pouco usam `'use cache'` com `cacheLife` e `cacheTag`. Os dados do usuário e as cotações não usam `'use cache'`.
@@ -116,7 +116,7 @@ src/
     transactions/  domain/ (posições, preço médio, validação do histórico, aportes por mês) · server/ · actions.ts · schemas.ts · components/ · import/ (parser puro)
     market-data/   domain/ (horário do pregão, vencimento) · ports.ts · adapters/ (brapi, yahoo) · server/ (models, serviços, trava) · actions.ts · components/
     strategy/      domain/ (pesos efetivos, teto suspeito) · server/ · actions.ts · schemas.ts · components/
-    smart-buy/     domain/ (cascata Suno, prioridade de aporte) · components/
+    smart-buy/     domain/ (cascata, prioridade de aporte) · components/
     portfolio/     domain/ (resumo, evolução, alertas, composição) · server/ (visão consolidada) · components/ (dashboard)
     (cada feature expõe index.ts para o cliente e server.ts para o servidor; portfolio depende das outras, e nenhuma depende de portfolio)
   shared/
@@ -174,7 +174,7 @@ A carteira padrão é criada no primeiro acesso (`findOneAndUpdate` com upsert).
 |---|---|---|
 | `portfolioId`, `ticker` | | índice único `{ portfolioId, ticker }` |
 | `inStrategy` | boolean | padrão `true`; o "99" da planilha vira `false` |
-| `sunoRank` | number \| null | inteiro ≥ 1 |
+| `rank` | number \| null | inteiro ≥ 1 |
 | `ceilingPrice` | number \| null | > 0 |
 | `suggestedPercent` | number \| null | 0 < x ≤ 100 |
 | `category` | enum \| null | `FII_TIJOLO`, `FII_PAPEL`, `FII_HIBRIDO`, `FII_FOF`, `FIAGRO`, `ACAO`, `ETF`, `OUTRO` |
@@ -302,7 +302,7 @@ A conta percorre os lançamentos uma única vez, em ordem.
 - **Teto suspeito:** alerta quando o teto é menor que 50% ou maior que 200% do preço atual.
 - **Configuração incompleta:** ativo na estratégia sem ranking ou sem teto; soma das % sugeridas inválida (seção 8); ranks repetidos.
 
-## 8. Estratégia Suno (Carteira Alvo)
+## 8. Estratégia do ranking (Carteira Alvo)
 
 A **estratégia** é o conjunto de `target_assets` com `inStrategy = true`, estejam ou não em carteira. Os outros ativos em carteira são "fora da estratégia": tanto os que têm `inStrategy = false` quanto os que ainda não têm documento em `target_assets`. Eles aparecem no dashboard, mas não entram nas contas de peso nem de aporte.
 
@@ -322,7 +322,7 @@ A **estratégia** é o conjunto de `target_assets` com `inStrategy = true`, este
 - Os elegíveis que estão abaixo da meta, ordenados por ranking, recebem 1º, 2º, 3º...
 - Os outros mostram o motivo: "Na meta", "Acima do teto", "Sem teto", "Sem ranking", "Sem cotação" ou "Fora da estratégia".
 
-## 9. Motor de aporte (método Suno)
+## 9. Motor de aporte (método Koinos)
 
 > **Atualizado em 2026-10-24:** o quanto cada FII pede passou a ser o gap até a meta vezes o Índice de Convicção (margem até o teto e P/VP), a sobra só roda quando todos compraram as cotas desejadas, e o limite por FII padrão é 33%. Ver `2026-10-24-indice-de-conviccao-design.md`.
 >
@@ -330,7 +330,7 @@ A **estratégia** é o conjunto de `target_assets` com `inStrategy = true`, este
 
 ### 9.1 Regras de origem
 
-As regras vêm das orientações da Suno no Suno Conecta:
+As regras vêm das orientações do ranking no ranking:
 
 1. Só comprar abaixo do preço teto.
 2. Priorizar os primeiros do ranking, respeitando a % de alocação sugerida: levar o 1º até a % dele, depois passar ao 2º, ao 3º e assim por diante.
@@ -343,7 +343,7 @@ Princípio do Tiago Reis: regularidade de aportes, diversificação e fundamento
 - `X`: valor do aporte, maior que 0 (validado com Zod).
 - Ativos da estratégia, cada um com `ticker`, `rank`, `ceiling`, `w` (peso efetivo), `price`, `quantity` (≥ 0) e `averagePrice`.
 
-### 9.3 Algoritmo (`sunoCascade`)
+### 9.3 Algoritmo (`fiiCascade`)
 
 **Definições**
 
@@ -382,7 +382,7 @@ Quando o dinheiro não alcança um ativo, a cascata continua: um ativo mais bara
 ### 9.4 Saída
 
 ```ts
-type SunoCascadeResult = {
+type FiiCascadeResult = {
   orders: Array<{
     ticker: string; rank: number; quantity: number; fromLeftover: number;
     price: number; total: number;
@@ -525,7 +525,7 @@ Um ativo só é importado se passar em tudo. Os outros são pulados, e o relató
 2. Insere os lançamentos.
 3. Faz upsert dos `target_assets` dos ativos importados, a partir de "Gráficos":
    - `inStrategy = rank ≠ 99`;
-   - `sunoRank = rank` (só quando ≠ 99);
+   - `rank = rank` (só quando ≠ 99);
    - `ceilingPrice = teto > 0 ? teto : null`;
    - categoria e % sugerida não são alteradas.
 
@@ -582,7 +582,7 @@ O README traz o passo a passo dessas três contas.
 
 - Calendário de dividendos (fonte oficial: FundosNET/B3).
 - Eventos corporativos.
-- Várias estratégias Suno com % do patrimônio para cada uma.
+- Várias estratégias com % do patrimônio para cada uma.
 - Importação pela interface (B3).
 - Proventos somados ao L/P.
 - IPA antigo para comparação, se o usuário quiser.

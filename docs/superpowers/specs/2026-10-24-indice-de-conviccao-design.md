@@ -29,10 +29,10 @@
 
 ## 3. O que observar
 
-- **Concentração:** com os três fundos da Suno marcados na estratégia, todas as outras metas sobem, e os primeiros do ranking batem no limite. Sem limite, um só FII levava de 72% a 99% de um aporte típico na carteira real.
+- **Concentração:** com os três fundos do ranking marcados na estratégia, todas as outras metas sobem, e os primeiros do ranking batem no limite. Sem limite, um só FII levava de 72% a 99% de um aporte típico na carteira real.
 - **A margem de 5% separa pouco:** na carteira real, 15 dos 17 FIIs têm mais de 5% de margem, então quase todos pedem 1,2 vez o gap. Os primeiros do ranking passam da meta, e o dinheiro acaba antes nos últimos da fila.
 - **O P/VP tem um degrau em 1,00:** de 0,999 para 1,001, o pedido cai pela metade. Uma oscilação de 1% no preço troca a recomendação de um dia para o outro.
-- **O P/VP diz mais em papel e FoF:** pela Suno, em tijolo o valor patrimonial depende de laudos. A regra vale igual para todos.
+- **O P/VP diz mais em papel e FoF:** pelo ranking, em tijolo o valor patrimonial depende de laudos. A regra vale igual para todos.
 - **A sobra quase nunca é redistribuída:** de R$ 100 a R$ 20.000, em nenhum aporte o passo 2 rodou na carteira real.
 
 ## 4. Arquitetura
@@ -40,7 +40,7 @@
 | Peça | Arquivo | Mudança |
 | --- | --- | --- |
 | Multiplicadores (puro) | `src/features/smart-buy/domain/conviction.ts` | `marginMultiplier`, `priceToBookMultiplier` |
-| Cascata (puro) | `src/features/smart-buy/domain/suno-cascade.ts` | `CascadeAsset.priceToBook`; cotas desejadas pelo gap ajustado; a trava da sobra usa as cotas desejadas. `CascadeOrder` ganha `priceToBook`, `marginMultiplier`, `priceToBookMultiplier`, `adjustedGap` e `desired`. O limite padrão (`DEFAULT_MAX_SHARE_PERCENT`) passa de 50% para 33% |
+| Cascata (puro) | `src/features/smart-buy/domain/fii-cascade.ts` | `CascadeAsset.priceToBook`; cotas desejadas pelo gap ajustado; a trava da sobra usa as cotas desejadas. `CascadeOrder` ganha `priceToBook`, `marginMultiplier`, `priceToBookMultiplier`, `adjustedGap` e `desired`. O limite padrão (`DEFAULT_MAX_SHARE_PERCENT`) passa de 50% para 33% |
 | Entrada | `src/features/portfolio/domain/snapshot.ts` | `priceToBook: null` até haver fonte |
 | Tela | `smart-buy/components` | "Por quê" com a margem, o P/VP (quando houver) e "convicção ×1,44: pediu R$ …"; princípio "Compre mais do que está descontado" |
 | 0% fora da estratégia | `strategy/domain/quarantine.ts`, `schemas.ts`, `actions.ts`, `server/target-asset.model.ts`, `server/target-asset-repo.ts`, `components/table/number-field.tsx` | Aceita 0. 0% na estratégia é recusado no campo (o aviso aparece e o campo volta ao valor salvo) e na action; quem entra na estratégia com 0% volta a ficar sem % |
@@ -56,7 +56,7 @@
 - **Opções para o usuário:**
   1. **CVM com o CNPJ de cada FII digitado uma vez na Carteira Alvo:** grátis e oficial, VP mensal (é de onde vem o VP dos sites de FIIs). Dispensa a lista da B3, que era o que falhava. O código do adaptador da CVM está na tag local `arquivo/pvp`.
   2. **brapi Pro** (R$ 139,99/mês): o mesmo número da CVM, automático.
-  3. **VP por cota digitado na Carteira Alvo**, a partir do relatório da Suno: simples, mas manual e mensal.
+  3. **VP por cota digitado na Carteira Alvo**, a partir do relatório do ranking: simples, mas manual e mensal.
 
 ## 5.1 Fonte escolhida em 2026-10-30
 

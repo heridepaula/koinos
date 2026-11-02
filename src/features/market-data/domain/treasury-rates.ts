@@ -5,7 +5,7 @@
 /** Um título pelo tipo e pelo vencimento (aaaa-mm-dd): o nome do arquivo traz o ano errado em alguns. */
 export type TrackedTitle = { kind: string; maturity: string };
 
-/** A NTN-B com cupom que vence em 15/05/2035: o título que a fórmula de teto da Suno cita. */
+/** A NTN-B com cupom que vence em 15/05/2035: o título que a fórmula de teto do ranking cita. */
 export const BENCHMARK_TITLE: TrackedTitle = {
   kind: "Tesouro IPCA+ com Juros Semestrais",
   maturity: "2035-05-15",

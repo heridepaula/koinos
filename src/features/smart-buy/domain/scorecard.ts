@@ -9,7 +9,7 @@ import {
   type SimulationParams,
   type SimulationPeriod,
 } from "./simulation";
-import { isDividendSuspended, type CascadeAsset } from "./suno-cascade";
+import { isDividendSuspended, type CascadeAsset } from "./fii-cascade";
 
 // Notas das lentes (spec koinos-3-1, §6.1): o laboratório roda as versões do motor sobre a mesma
 // carteira e compara estas notas. Frações em 0..1 (0,95 = 95%), valores em R$. Com caminhos de

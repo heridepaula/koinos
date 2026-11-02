@@ -23,7 +23,7 @@
 **Goal:** as regras puras de §3.1, §3.2 e §3.4 da spec, testadas.
 
 **Files:**
-- Modify: `src/features/smart-buy/domain/suno-cascade.ts`, `suno-cascade.test.ts`
+- Modify: `src/features/smart-buy/domain/fii-cascade.ts`, `fii-cascade.test.ts`
 - Modify: `src/features/smart-buy/domain/stock-buy.ts`, `stock-buy.test.ts`
 - Create: `src/features/smart-buy/domain/merge-orders.ts`, `merge-orders.test.ts`
 - Modify: `src/features/smart-buy/index.ts`
@@ -42,7 +42,7 @@
 **Steps (resumo do código):**
 
 ```ts
-// suno-cascade.ts
+// fii-cascade.ts
 export type CascadeAsset = {
   // ...campos de hoje
   /** Viés da casa de análise; Aguardar tira o FII deste aporte. Sem viés, nada muda. */
@@ -80,7 +80,7 @@ export function stockPriorities(assets: readonly StockBuyAsset[]): Map<string, A
 ```ts
 // merge-orders.ts
 import type { StockBuyOrder } from "./stock-buy";
-import type { CascadeOrder } from "./suno-cascade";
+import type { CascadeOrder } from "./fii-cascade";
 
 /** Uma ordem de qualquer carteira, para a tabela única das Recomendações. */
 export type MergedOrder =
@@ -135,7 +135,7 @@ Commit: `feat(portfolio): rescale the stock targets and give stocks a priority`
 - [ ] Cabeçalho e linha iguais nas duas abas: Ativo, Estratégia, Rank, Teto (R$), % sugerida, Categoria, Viés, Preço atual, Margem, Peso / meta, Prioridade, remover. Na ação, a Categoria é o texto "Ação" (só leitura); nos FIIs, o `CategorySelect` de hoje. O `BiasSelect` nas duas.
 - [ ] Lista do celular: resumo, selo "Aguardar" e `PriorityBadge` nas duas abas. Folha: Categoria (só leitura na ação), Viés e Prioridade nas duas.
 - [ ] O painel de ajuste (`PercentFixPanel`) e o aviso da soma nas duas abas (sai `stock ? null : …`).
-- [ ] A explicação: "Ranking, preço teto, % sugerida e viés pela Suno. Os campos salvam ao sair. Sem teto, ou com viés Aguardar, o ativo não recebe aporte." O texto do ⓘ fala de categoria (FIIs) e viés (as duas).
+- [ ] A explicação: "Ranking, preço teto, % sugerida e viés pelo ranking. Os campos salvam ao sair. Sem teto, ou com viés Aguardar, o ativo não recebe aporte." O texto do ⓘ fala de categoria (FIIs) e viés (as duas).
 - [ ] O comentário da lista do celular fala de 12 colunas.
 
 **Verify:** `npm run typecheck && npm run lint && npm test` → passa.

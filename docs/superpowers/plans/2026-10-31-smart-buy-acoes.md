@@ -4,7 +4,7 @@
 
 **Goal:** motor de ações do documento do dono (teto, meta, viés, margem de segurança), divisão do aporte escolhida em `/recomendacoes?fiis=`, e a remoção da meta por classe.
 
-**Architecture:** `stockSmartBuy` puro em `smart-buy/domain/stock-buy.ts`; o snapshot entrega `stockBuyInput`; a calculadora divide pelo `?fiis=` e roda `sunoCascade` (FIIs, sem `caps`) e `stockSmartBuy` (ações). Saem `class_targets`, `splitByClassTarget`, `classAporte`, `STOCK_CAPS` e o `caps` da cascata. `target_assets` ganha `bias`.
+**Architecture:** `stockSmartBuy` puro em `smart-buy/domain/stock-buy.ts`; o snapshot entrega `stockBuyInput`; a calculadora divide pelo `?fiis=` e roda `fiiCascade` (FIIs, sem `caps`) e `stockSmartBuy` (ações). Saem `class_targets`, `splitByClassTarget`, `classAporte`, `STOCK_CAPS` e o `caps` da cascata. `target_assets` ganha `bias`.
 
 **Tech Stack:** Next.js 16 (cacheComponents), TypeScript, Mongoose, next-safe-action, Zod, nuqs, Vitest.
 
@@ -225,14 +225,14 @@ git commit -m "feat(strategy): store the stock bias and feed the stock smart buy
 - Create (se ajudar): `src/features/smart-buy/components/aporte/stock-orders.tsx`
 - Modify: `src/app/(app)/recomendacoes/page.tsx`
 - Delete: `src/features/smart-buy/domain/class-split.ts` + teste, `class-aporte.ts` + teste
-- Modify: `src/features/smart-buy/domain/risk.ts` (sai `STOCK_CAPS`, `RiskCaps`), `suno-cascade.ts` (sai o parâmetro de limites e o `scaled`; volta ao corpo de antes da Fase 3 — veja `git show 79de569^:src/features/smart-buy/domain/suno-cascade.ts`), `suno-cascade.test.ts` (sai o caso de `STOCK_CAPS` e o de aporte zero com Infinity), `smart-buy/index.ts`
+- Modify: `src/features/smart-buy/domain/risk.ts` (sai `STOCK_CAPS`, `RiskCaps`), `fii-cascade.ts` (sai o parâmetro de limites e o `scaled`; volta ao corpo de antes da Fase 3 — veja `git show 79de569^:src/features/smart-buy/domain/fii-cascade.ts`), `fii-cascade.test.ts` (sai o caso de `STOCK_CAPS` e o de aporte zero com Infinity), `smart-buy/index.ts`
 - Delete: `src/features/strategy/server/class-target.model.ts`, `class-target-repo.ts`, `src/features/strategy/components/class-target-panel.tsx`
 - Modify: `src/features/strategy/server/strategy-dal.ts`, `server.ts`, `schemas.ts`, `actions.ts`, `ui.ts`; `src/app/(app)/carteira-alvo/page.tsx` (sem o painel e sem buscar a meta)
 
 **Acceptance Criteria:**
 - [ ] `?fiis=` inteiro 0–100 via `nuqs` (`parseAsInteger`, padrão 100, `history: "replace"`); fora da faixa vira o limite mais próximo. Parte FIIs = `Math.floor(valor × fiis) / 100`; ações = valor − FIIs.
 - [ ] Campo "% para FIIs" ao lado do valor (com "Ações: X%"), e "Hoje: FIIs A% · Ações B%" de `classValues`.
-- [ ] Card FIIs só com parte > 0: `sunoCascade(parteFIIs, cascadeInput)` e as exclusões de sempre. Sem `?fiis=`, a tela é a de antes da Fase 3 (título "Ordens de compra", sem card de ações).
+- [ ] Card FIIs só com parte > 0: `fiiCascade(parteFIIs, cascadeInput)` e as exclusões de sempre. Sem `?fiis=`, a tela é a de antes da Fase 3 (título "Ordens de compra", sem card de ações).
 - [ ] Card Ações só com parte > 0: `stockSmartBuy(parteAções, stockBuyInput)`, ordens na ordem da margem, exclusões com os textos de `STOCK_REASON_HELP` (novo, para os 7 motivos de §3.3 da spec).
 - [ ] `explainStock(order)`: "Margem de segurança de 37% (teto R$ 70,00, preço R$ 51,00) · faltavam R$ X para a meta de Y%"; `shortStockReason(order)`: "37% abaixo do teto · faltavam R$ X". Teste em `explain.test.ts`. As funções de FII voltam à assinatura de antes (sem `kind`), e `reasonHelp`/`OrderClass` saem se não forem mais usados.
 - [ ] Resumo: aporte, total das ordens (FIIs + ações) e troco somado; "Copiar ordens" com "FIIs:" e "Ações:" ("ações" nas linhas de ações).

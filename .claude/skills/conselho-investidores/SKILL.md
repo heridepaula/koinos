@@ -127,7 +127,7 @@ As personas são lentes inspiradas no que cada investidor defende publicamente. 
 
 ## Laboratório
 
-`scripts/lab.mts` reconstrói o snapshot como `getPortfolioSnapshot` (visão Geral), sem a sessão, e roda `sunoCascade` e `stockSmartBuy` com as opções de uma versão do motor (`--versao`, padrão a da tela). Só lê o banco e não chama nenhuma API. Rode da raiz do repositório:
+`scripts/lab.mts` reconstrói o snapshot como `getPortfolioSnapshot` (visão Geral), sem a sessão, e roda `fiiCascade` e `stockSmartBuy` com as opções de uma versão do motor (`--versao`, padrão a da tela). Só lê o banco e não chama nenhuma API. Rode da raiz do repositório:
 
 ```bash
 npx tsx --conditions=react-server --env-file=.env.local \

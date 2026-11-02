@@ -1,5 +1,5 @@
 import type { StockBuyOrder } from "./stock-buy";
-import type { CascadeOrder } from "./suno-cascade";
+import type { CascadeOrder } from "./fii-cascade";
 
 /** Uma ordem de qualquer carteira, para a tabela única das Recomendações. */
 export type MergedOrder =

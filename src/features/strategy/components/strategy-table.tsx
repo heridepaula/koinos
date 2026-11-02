@@ -13,7 +13,7 @@ import { StrategyRow } from "./table/strategy-row";
 import { Sensitive } from "@/shared/components/sensitive";
 
 const EXPLANATION =
-  "Ranking, preço teto, % sugerida e viés pela Suno. Os campos salvam ao sair. Sem teto, ou com viés Aguardar, o ativo não recebe aporte.";
+  "Ranking, preço teto, % sugerida e viés pelo ranking. Os campos salvam ao sair. Sem teto, ou com viés Aguardar, o ativo não recebe aporte.";
 
 /**
  * Carteira Alvo: a partir de 900 px de card, a tabela editável; abaixo disso, a lista do celular,
@@ -70,7 +70,7 @@ export function StrategyTable({
           <p className="px-(--card-spacing) py-10 text-center text-muted-foreground">
             {stock
               ? "Adicione as ações da sua carteira recomendada."
-              : "Adicione os ativos da carteira recomendada da Suno."}
+              : "Adicione os ativos da carteira recomendada do ranking."}
           </p>
         ) : (
           <>

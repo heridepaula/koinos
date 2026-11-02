@@ -4,7 +4,7 @@ import type { MonthPurchase, ReinvestmentMonth, ReinvestmentSplit } from "./type
 
 // Regras: docs/superpowers/specs/2026-10-23-reinvestimento-design.md (§3).
 
-/** Mês sem % salva: no método Suno, todo provento volta para a carteira. */
+/** Mês sem % salva: no método Koinos, todo provento volta para a carteira. */
 export const DEFAULT_REINVESTMENT_PERCENT = 100;
 
 /** Formato AAAA-MM dos meses do relatório. */

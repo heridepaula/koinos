@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { aportePriorities, sunoCascade } from "@/features/smart-buy";
+import { aportePriorities, fiiCascade } from "@/features/smart-buy";
 import type { ClosedLedgerEntry } from "./closed-positions";
 import { buildSnapshot, scopeToClass, type SnapshotInput } from "./snapshot";
 import type { ClassFilter } from "@/shared/lib/class-filter";
@@ -24,11 +24,11 @@ const target = (
   ticker: string,
   inStrategy: boolean,
   suggestedPercent: number | null,
-  sunoRank: number | null,
+  rank: number | null,
 ): TargetConfig => ({
   ticker,
   inStrategy,
-  sunoRank,
+  rank,
   ceilingPrice: 12,
   suggestedPercent,
   category: null,
@@ -86,7 +86,7 @@ describe("buildSnapshot: reescala de pesos com quarentena", () => {
     const small = buildSnapshot(portfolio(500, 0));
     const large = buildSnapshot(portfolio(50_000, 5));
     const ordersOf = (snapshot: typeof small) =>
-      sunoCascade(1_000, snapshot.cascadeInput).orders.map((item) => [item.ticker, item.quantity]);
+      fiiCascade(1_000, snapshot.cascadeInput).orders.map((item) => [item.ticker, item.quantity]);
     // Metas de 700 (50% de 400 + 1.000): os dois pedem mais que o limite de 25% do aporte
     // (R$ 250, 25 cotas de R$ 10).
     expect(ordersOf(small)).toEqual([
@@ -232,7 +232,7 @@ describe("buildSnapshot: viés nos FIIs (spec tabelas-unificadas, §3.3)", () =>
     };
   };
   const ordersOf = (snapshot: ReturnType<typeof buildSnapshot>) =>
-    sunoCascade(1_000, snapshot.cascadeInput).orders.map((item) => [item.ticker, item.quantity]);
+    fiiCascade(1_000, snapshot.cascadeInput).orders.map((item) => [item.ticker, item.quantity]);
 
   it("o viés chega à cascata e às linhas; Aguardar tira o FII do aporte com o motivo", () => {
     const snapshot = buildSnapshot(withBias("AGUARDAR", ["AAAA11"]));
@@ -247,7 +247,7 @@ describe("buildSnapshot: viés nos FIIs (spec tabelas-unificadas, §3.3)", () =>
       priority: waiting,
     });
     expect(snapshot.positions.find((row) => row.ticker === "AAAA11")?.priority).toEqual(waiting);
-    const result = sunoCascade(1_000, snapshot.cascadeInput);
+    const result = fiiCascade(1_000, snapshot.cascadeInput);
     expect(result.excluded).toContainEqual({ ticker: "AAAA11", rank: 1, reason: "AGUARDAR" });
     expect(result.orders.map((order) => order.ticker)).toEqual(["BBBB11"]);
   });
@@ -416,9 +416,7 @@ describe("buildSnapshot: Carteira Alvo de ações", () => {
   it("stockBuyInput fica na ordem das linhas: rank, depois ticker", () => {
     const { stockBuyInput } = buildSnapshot({
       ...input,
-      targets: input.targets.map((item) =>
-        item.ticker === "PETR4" ? { ...item, sunoRank: 3 } : item,
-      ),
+      targets: input.targets.map((item) => (item.ticker === "PETR4" ? { ...item, rank: 3 } : item)),
     });
     expect(stockBuyInput.map((asset) => asset.ticker)).toEqual(["VALE3", "PETR4"]);
   });
@@ -476,8 +474,8 @@ describe("buildSnapshot: Carteira Alvo de ações", () => {
     const without = buildSnapshot(fiiOnly);
     expect(withStocks.cascadeInput.map((asset) => asset.ticker)).toEqual(["AAAA11", "BBBB11"]);
     expect(withStocks.cascadeInput).toEqual(without.cascadeInput);
-    expect(sunoCascade(10_000, withStocks.cascadeInput)).toEqual(
-      sunoCascade(10_000, without.cascadeInput),
+    expect(fiiCascade(10_000, withStocks.cascadeInput)).toEqual(
+      fiiCascade(10_000, without.cascadeInput),
     );
   });
 
@@ -675,8 +673,8 @@ describe("buildSnapshot: aviso de divergência do teto (spec divergencia-teto)",
     expect(withRate.strategy.rows.map((row) => [row.ticker, row.priority])).toEqual(
       without.strategy.rows.map((row) => [row.ticker, row.priority]),
     );
-    expect(sunoCascade(1_000, withRate.cascadeInput).orders).toEqual(
-      sunoCascade(1_000, without.cascadeInput).orders,
+    expect(fiiCascade(1_000, withRate.cascadeInput).orders).toEqual(
+      fiiCascade(1_000, without.cascadeInput).orders,
     );
   });
 

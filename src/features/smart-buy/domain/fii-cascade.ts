@@ -9,7 +9,7 @@ import {
 import { ENGINE_VERSIONS, type EngineOptions } from "./engine-options";
 import { RISK_CAPS, type RiskMacro } from "./risk";
 
-// Motor de aporte Koinos 3.0 (documento do dono, 30/10/2026): cascata pelo ranking Suno, com
+// Motor de aporte Koinos 3.0 (documento do dono, 30/10/2026): cascata pelo ranking, com
 // valuation contínuo e travas de risco. Nunca vende: o rebalanceamento é só com dinheiro novo.
 // 1. Elegível: na estratégia, com ranking, teto, cotação, preço abaixo do teto e sem viés Aguardar.
 //    Koinos 3.1, freio de suspensão (suspensionBrake): o FII que parou de pagar também sai.
@@ -268,7 +268,7 @@ function exclusionReason(slot: Slot, minimum: number): ExclusionReason {
   }
 }
 
-export function sunoCascade(
+export function fiiCascade(
   amount: number,
   assets: readonly CascadeAsset[],
   options: EngineOptions = ENGINE_VERSIONS["3.0"],

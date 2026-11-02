@@ -21,7 +21,7 @@ import {
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/shared/ui/table";
 import type { MergedOrder } from "../../domain/merge-orders";
 import type { StockBuyOrder } from "../../domain/stock-buy";
-import type { CascadeOrder } from "../../domain/suno-cascade";
+import type { CascadeOrder } from "../../domain/fii-cascade";
 import {
   explain,
   explainStock,
@@ -35,7 +35,7 @@ export type AssetMeta = {
   ticker: string;
   name: string | null;
   logoUrl: string | null;
-  /** O teto da Suno está a mais de 10% do calculado pela NTN-B; só informativo (spec divergencia-teto). */
+  /** O teto do ranking está a mais de 10% do calculado pela NTN-B; só informativo (spec divergencia-teto). */
   ceilingWarning?: { check: CeilingCheck; ceiling: number };
 };
 

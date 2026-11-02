@@ -47,7 +47,7 @@ Formatos observados:
 - datas em texto `dd/mm/aaaa`;
 - quantidades e preços numéricos;
 - campos vazios como `"-"`;
-- em "Produto", o código vem antes de `" - "` (ex.: `SNCI11 - FII SUNO CRI`).
+- em "Produto", o código vem antes de `" - "` (ex.: `SNCI11 - FII EXEMPLO CRI`).
 
 Na Negociação, "Prazo/Vencimento" é ignorado: em 160 das 162 linhas preenchidas, ele repete a data do negócio.
 
@@ -222,7 +222,7 @@ Campos novos em `Transaction`:
 
 - `LedgerEntry` ganha `kind` opcional.
 - `monthlyContributions` ignora compras com `kind: INCORPORACAO`, porque não são aporte. Desdobro já soma 0.
-- O resto do domínio (`replayLedger`, `findOversells`, evolução, motor Suno) não muda.
+- O resto do domínio (`replayLedger`, `findOversells`, evolução, motor Koinos) não muda.
 
 **Efeitos nas actions de lançamento**
 

@@ -44,7 +44,7 @@
 
 **Acceptance Criteria:**
 - [ ] Com alvos de FIIs e de ações, os `targetWeight` dos membros de cada classe somam 1 sozinhos.
-- [ ] `cascadeInput` só tem FIIs; `sunoCascade` dá as mesmas ordens com e sem os alvos de ações.
+- [ ] `cascadeInput` só tem FIIs; `fiiCascade` dá as mesmas ordens com e sem os alvos de ações.
 - [ ] Em Geral, a ação configurada sai na tabela de posições com `inStrategy` true, `targetWeight` da carteira de ações e `priority` null.
 - [ ] Na visão Ações (`scopeToClass(input, "ACAO")`), `strategy.rows` são as ações e `cascadeInput` é vazio.
 - [ ] Em Geral, o alerta "fora da Carteira Alvo" de ações sai com id `sem-configuracao-acoes` e título com " (ações)"; na visão Ações, id `sem-configuracao`, sem sufixo; na visão FIIs, nenhum alerta de ações.
@@ -110,8 +110,8 @@ describe("buildSnapshot: Carteira Alvo de ações", () => {
     const without = buildSnapshot(fiiOnly);
     expect(withStocks.cascadeInput.map((asset) => asset.ticker)).toEqual(["AAAA11", "BBBB11"]);
     expect(withStocks.cascadeInput).toEqual(without.cascadeInput);
-    expect(sunoCascade(withStocks.cascadeInput, 10_000)).toEqual(
-      sunoCascade(without.cascadeInput, 10_000),
+    expect(fiiCascade(withStocks.cascadeInput, 10_000)).toEqual(
+      fiiCascade(without.cascadeInput, 10_000),
     );
   });
 
@@ -131,7 +131,7 @@ describe("buildSnapshot: Carteira Alvo de ações", () => {
 });
 ```
 
-Confira a assinatura real de `sunoCascade` em `src/features/smart-buy/domain/suno-cascade.ts` (o arquivo de teste já a importa) e ajuste a chamada se ela receber um objeto.
+Confira a assinatura real de `fiiCascade` em `src/features/smart-buy/domain/fii-cascade.ts` (o arquivo de teste já a importa) e ajuste a chamada se ela receber um objeto.
 
 Criar `src/features/portfolio/domain/alerts.test.ts`:
 
@@ -148,7 +148,7 @@ const row = (ticker: string, patch: Partial<StrategyRow> = {}): StrategyRow => (
   held: true,
   quantity: 10,
   inStrategy: false,
-  sunoRank: null,
+  rank: null,
   ceilingPrice: null,
   suggestedPercent: null,
   category: null,
@@ -533,7 +533,7 @@ O `SegmentedControl` é genérico em `T`: tipar as opções como `readonly Segme
 - `<AddAssetForm assetClass={assetClass} />`;
 - os cabeçalhos "Categoria" e "Prioridade" só sem `stock`;
 - `<StrategyList rows={rows} stock={stock} />` e `<StrategyRow key={row.ticker} row={row} stock={stock} />`;
-- o texto vazio: `stock ? "Adicione as ações da sua carteira recomendada." : "Adicione os ativos da carteira recomendada da Suno."`.
+- o texto vazio: `stock ? "Adicione as ações da sua carteira recomendada." : "Adicione os ativos da carteira recomendada do ranking."`.
 
 `StrategyRow({ row, stock = false })`: as células de `CategorySelect` e `PriorityBadge` só sem `stock`.
 

@@ -49,7 +49,7 @@ export function AppSidebar({ footer }: { footer: ReactNode }) {
               </div>
               <div className="grid flex-1 text-left leading-tight">
                 <span className="font-semibold">Koinos</span>
-                <span className="text-xs text-muted-foreground">Aportes pelo método Suno</span>
+                <span className="text-xs text-muted-foreground">Aportes pelo método Koinos</span>
               </div>
             </SidebarMenuButton>
           </SidebarMenuItem>

@@ -7,15 +7,15 @@ Estas lentes se inspiram no que cada investidor defende publicamente, a partir d
 
 ## Sumário
 
-1. Tiago Reis: método Suno, preço médio, carteira híbrida
+1. Tiago Reis: método Koinos, preço médio, carteira híbrida
 2. Professor Baroni: FIIs, renda mensal, reinvestimento
 3. Warren Buffett: valor, qualidade, margem de segurança, caixa
 4. Luiz Barsi: dividendos, setores perenes, carteira previdenciária
 5. Tensões entre as lentes
 
-## 1. Tiago Reis: método Suno, preço médio, carteira híbrida
+## 1. Tiago Reis: método Koinos, preço médio, carteira híbrida
 
-**A lente:** o Koinos implementa o método dele: o ranking e o preço-teto da Suno, com aportes constantes. Ela pergunta se a fórmula é fiel ao método e se protege o investidor de varejo de modismos e da tentação de acertar o mercado.
+**A lente:** o Koinos implementa o método dele: o ranking e o preço-teto do ranking, com aportes constantes. Ela pergunta se a fórmula é fiel ao método e se protege o investidor de varejo de modismos e da tentação de acertar o mercado.
 
 **Princípios:**
 
@@ -30,14 +30,14 @@ Estas lentes se inspiram no que cada investidor defende publicamente, a partir d
   - Na parte de ações, se nenhuma for elegível (todas acima do teto ou com Aguardar), o dinheiro fica parado, e isso quebra o preço médio.
 - **Estabilidade:** a recomendação muda por ruído de preço (`choque`)? Mudar por fundamento é esperado; mudar a lista por 1% de preço é ruído.
 - **Fidelidade ao método:** só compra abaixo do teto, segue o ranking e respeita o viés.
-  - O teto vem da Suno e é digitado à mão, então um teto velho deixa comprar caro.
+  - O teto vem do ranking e é digitado à mão, então um teto velho deixa comprar caro.
   - `isSuspiciousCeiling` só pega erro grosseiro (menos da metade ou mais do dobro do preço).
 - **Divisão entre classes:** escolher a % de FIIs a cada aporte abre espaço para market timing entre classes. Isso é contraponto a uma decisão do dono, não erro.
 - **Fundamentos:** o freio de proventos dos FIIs pune corte, mas nenhum dos motores exige histórico mínimo de fluxo de caixa, e o de ações não olha proventos.
 
 **Sinais de alerta:** sobra crescente; caixa parado; ativo que nunca recebe sem motivo de fundamento; regra que reage a preço de curto prazo.
 
-**Dados que pediria:** a data da última atualização de cada teto e o histórico da Carteira Alvo, para saber se ela está em dia com a Suno.
+**Dados que pediria:** a data da última atualização de cada teto e o histórico da Carteira Alvo, para saber se ela está em dia com o ranking.
 
 ## 2. Professor Baroni: FIIs, renda mensal, reinvestimento
 
@@ -86,7 +86,7 @@ Lições da live:
   - O Koinos não compara a renda com a inflação, porque não tem série do IPCA.
   - Uma fórmula de retirada (fruição) deveria ter a retenção embutida.
 - **Tijolo × papel:** use a composição por macro do `snapshot`.
-  - A trava de 60% por macro vale por aporte e não segura a composição; quem segura são as % da Suno.
+  - A trava de 60% por macro vale por aporte e não segura a composição; quem segura são as % do ranking.
   - Uma fórmula que premie DY puro empurra o aporte para o papel, cujo DY inclui inflação. Peça yield real ou trate o papel à parte.
 - **Diversificação:**
   - Conte os FIIs da estratégia (o estudo usa uns 20) e veja se os pesos estão próximos.
@@ -110,13 +110,13 @@ Lições da live:
 **O que verifica no Koinos:**
 
 - **Qualidade × preço:**
-  - Na cascata de FIIs, o ranking (a qualidade, pela Suno) vem primeiro, e os tensores ajustam pelo preço. Isso é alinhado.
+  - Na cascata de FIIs, o ranking (a qualidade, pelo ranking) vem primeiro, e os tensores ajustam pelo preço. Isso é alinhado.
   - No smart buy de ações, a ordem é só a margem de segurança, e o rank só desempata. O motor compra primeiro a ação mais barata frente ao teto, não o melhor negócio: preço maravilhoso antes de empresa maravilhosa.
 - **Margem de segurança:** só comprar abaixo do teto é bom, mas o teto é de terceiros, e a margem é tão boa quanto ele.
 - **Contrarianismo com freio:**
   - Nos FIIs, o motor freia corte de provento e vacância.
   - Nas ações, não há freio nenhum: a que caiu por deterioração vira a de maior margem e é comprada primeiro.
-- **Círculo de competência:** a tese é terceirizada para a Suno, e o Koinos não guarda por que cada ativo está na carteira.
+- **Círculo de competência:** a tese é terceirizada para o ranking, e o Koinos não guarda por que cada ativo está na carteira.
 - **Caixa e dívida:**
   - O Koinos investe tudo todo mês e não guarda reserva para o pânico.
   - Não há dado de alavancagem das empresas nem dos FIIs.

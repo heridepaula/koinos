@@ -4,11 +4,11 @@ Data: 2026-11-01. Estado: **aprovada pelo dono em 2026-11-01 (decisões no §7)*
 
 ## 1. Objetivo
 
-Guardar a taxa real de mercado da NTN-B 2035, dia a dia, para o Koinos ter a série. Hoje o app não tem nenhuma taxa de juros (só IPCA e Selic estão previstos, pelo SGS do Banco Central). Esta spec **só coleta e guarda o dado**. Nenhum motor passa a usá-lo, e o teto continua o da Suno, digitado pelo dono.
+Guardar a taxa real de mercado da NTN-B 2035, dia a dia, para o Koinos ter a série. Hoje o app não tem nenhuma taxa de juros (só IPCA e Selic estão previstos, pelo SGS do Banco Central). Esta spec **só coleta e guarda o dado**. Nenhum motor passa a usá-lo, e o teto continua o do ranking, digitado pelo dono.
 
 Usos futuros, cada um com sua própria spec e sua própria decisão do dono:
 
-- um alerta de divergência entre o teto da Suno e um teto calculado (P3 do parecer); este é o primeiro uso, só informativo (spec `2026-11-01-divergencia-teto-design.md`);
+- um alerta de divergência entre o teto do ranking e um teto calculado (P3 do parecer); este é o primeiro uso, só informativo (spec `2026-11-01-divergencia-teto-design.md`);
 - um indicador de "DY real" nos FIIs de papel, junto com o IPCA do SGS;
 - a retenção da fruição ligada à inflação.
 

@@ -115,7 +115,7 @@ function RowList({ rows, sheet }: { rows: StrategyRow[]; sheet: SheetHandle }) {
 
 const summary = (row: StrategyRow) =>
   [
-    row.sunoRank === null ? null : `${row.sunoRank}º`,
+    row.rank === null ? null : `${row.rank}º`,
     row.ceilingPrice === null ? "sem teto" : `teto ${formatBRL(row.ceilingPrice)}`,
     row.suggestedPercent === null ? null : formatPercent(row.suggestedPercent / 100, 1),
   ]
@@ -159,8 +159,8 @@ function StrategySheet({
               label="Rank"
               integer
               className="w-24 bg-card dark:bg-card"
-              value={row.sunoRank}
-              onCommit={(value) => save({ sunoRank: value })}
+              value={row.rank}
+              onCommit={(value) => save({ rank: value })}
             />
           </SheetRow>
           <SheetRow label="Preço teto (R$)">

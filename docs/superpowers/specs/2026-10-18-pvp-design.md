@@ -3,11 +3,11 @@
 - **Data:** 2026-10-18
 - **Status:** **descartado em 2026-10-19.** O usuário decidiu não implementar o P/VP. A B3 não oferece integração para pessoa física, e só com os dados da CVM a ligação ticker → fundo falhava em 5 FIIs da carteira. O documento fica como registro do que foi estudado.
 - **Design original:** aprovado na conversa ("informar e alertar", com dados da CVM).
-- **Ciclo:** complemento das Recomendações. A cascata Suno (spec do MVP, §9) não muda.
+- **Ciclo:** complemento das Recomendações. A cascata (spec do MVP, §9) não muda.
 
 ## 1. Objetivo
 
-Mostrar o P/VP (cotação ÷ valor patrimonial por cota) de cada FII e avisar quando um FII de papel ou FoF estiver com ágio alto. Para a Suno, o P/VP é mais útil nesses dois tipos, porque CRIs e cotas de FIIs têm preço objetivo. Em tijolo, o valor patrimonial depende de laudos. Um P/VP baixo sozinho não é sinal de compra, e o preço teto continua sendo o filtro do aporte.
+Mostrar o P/VP (cotação ÷ valor patrimonial por cota) de cada FII e avisar quando um FII de papel ou FoF estiver com ágio alto. Para o ranking, o P/VP é mais útil nesses dois tipos, porque CRIs e cotas de FIIs têm preço objetivo. Em tijolo, o valor patrimonial depende de laudos. Um P/VP baixo sozinho não é sinal de compra, e o preço teto continua sendo o filtro do aporte.
 
 ### Critérios de sucesso
 
@@ -21,7 +21,7 @@ Mostrar o P/VP (cotação ÷ valor patrimonial por cota) de cada FII e avisar qu
 | Tema | Decisão | Motivo |
 | --- | --- | --- |
 | Fonte | Informe Mensal da CVM (dados abertos) | Grátis, oficial, atualizado todo dia. A brapi Pro (R$ 139,99/mês) entrega o mesmo número. A B3 não tem API pública com esse dado para pessoa física |
-| Uso | Informar e alertar; a cascata não muda | O preço teto já é o filtro de preço no método Suno. Uma trava de P/VP filtraria duas vezes |
+| Uso | Informar e alertar; a cascata não muda | O preço teto já é o filtro de preço no método Koinos. Uma trava de P/VP filtraria duas vezes |
 | Quando alerta | FII de **papel ou FoF** com P/VP **acima de 1,05** | É onde o P/VP é mais objetivo; 5% de ágio sobre o patrimônio |
 | Categoria | A que o usuário define na Carteira Alvo | A CVM não ajuda: o segmento vem quase sempre "Multicategoria" ou "Outros", e o mandato vem vazio |
 

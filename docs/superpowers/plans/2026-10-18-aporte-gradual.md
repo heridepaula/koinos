@@ -5,7 +5,7 @@
 **Goal:** Nenhum FII leva mais que uma parte do aporte do mês (padrão 50%, ajustável na tela). Uma posição nova se monta em vários aportes e continua no topo da fila até a meta.
 
 **Architecture:**
-- **Regra:** a cascata Suno (`sunoCascade`) ganha um limite por ativo em % do aporte, com mínimo de 1 cota. Ele vale no passo 1 (fila) e no passo 2 (sobra).
+- **Regra:** a cascata (`fiiCascade`) ganha um limite por ativo em % do aporte, com mínimo de 1 cota. Ele vale no passo 1 (fila) e no passo 2 (sobra).
 - **Sem efeito na fila:** a fila de prioridade não muda.
 - **Tela:** a calculadora lê o limite da URL (`?limite=50`) e explica as ordens cortadas.
 
@@ -21,7 +21,7 @@
 
 | Arquivo | Ação | Responsabilidade |
 | --- | --- | --- |
-| `src/features/smart-buy/domain/suno-cascade.ts` | alterar | Limite por ativo, `limited`, `gapAfter` e `aportesLeft` nas ordens, e `maxSharePercent` no resultado |
+| `src/features/smart-buy/domain/fii-cascade.ts` | alterar | Limite por ativo, `limited`, `gapAfter` e `aportesLeft` nas ordens, e `maxSharePercent` no resultado |
 | `src/features/smart-buy/index.ts` | alterar | Exportar `MAX_SHARE_PERCENTS`, `DEFAULT_MAX_SHARE_PERCENT` e os tipos `MaxSharePercent` e `CascadeOptions` |
 | `src/features/smart-buy/components/aporte-calculator.tsx` | alterar | Seletor "Máximo por FII", "Por quê" e o aviso da entrada aos poucos |
 | `src/features/smart-buy/components/principles-banner.tsx` | alterar | Novo princípio "Monte posições aos poucos" |
@@ -30,10 +30,10 @@
 
 ### Task 1: Cascata com limite por FII
 
-**Goal:** `sunoCascade(amount, assets, { maxSharePercent })` limita a compra de cada ativo a essa % do aporte, com mínimo de 1 cota. Com 100%, devolve exatamente as ordens de antes.
+**Goal:** `fiiCascade(amount, assets, { maxSharePercent })` limita a compra de cada ativo a essa % do aporte, com mínimo de 1 cota. Com 100%, devolve exatamente as ordens de antes.
 
 **Files:**
-- Modify: `src/features/smart-buy/domain/suno-cascade.ts`
+- Modify: `src/features/smart-buy/domain/fii-cascade.ts`
 - Modify: `src/features/smart-buy/index.ts`
 
 **Acceptance Criteria:**
@@ -50,10 +50,10 @@
 
 - [ ] **Step 1: Comentário de abertura e tipos**
 
-Em `src/features/smart-buy/domain/suno-cascade.ts`, o comentário de abertura ganha a entrada aos poucos:
+Em `src/features/smart-buy/domain/fii-cascade.ts`, o comentário de abertura ganha a entrada aos poucos:
 
 ```ts
-// Motor de aporte pelo método Suno (orientações públicas da Suno no Suno Conecta):
+// Motor de aporte pelo método Koinos (orientações públicas do ranking no ranking):
 // 1. só comprar abaixo do preço teto;
 // 2. seguir o ranking respeitando a % sugerida: levar o 1º até a meta, depois o 2º, e assim por diante;
 // 3. se todos estiverem abaixo do teto e na meta, aportar no de menor peso ou mais abaixo do preço médio.
@@ -101,7 +101,7 @@ export type CascadeOptions = {
 Assinatura:
 
 ```ts
-export function sunoCascade(
+export function fiiCascade(
   amount: number,
   assets: readonly CascadeAsset[],
   { maxSharePercent = DEFAULT_MAX_SHARE_PERCENT }: CascadeOptions = {},
@@ -188,7 +188,7 @@ O `return` final ganha `maxSharePercent` depois de `strategyValue`:
   };
 ```
 
-`aportePriorities` continua chamando `sunoCascade(0, assets)`. Com aporte zero nada é comprado, então o limite não muda a fila.
+`aportePriorities` continua chamando `fiiCascade(0, assets)`. Com aporte zero nada é comprado, então o limite não muda a fila.
 
 - [ ] **Step 4: API da feature**
 
@@ -200,7 +200,7 @@ export {
   DEFAULT_MAX_SHARE_PERCENT,
   EXCLUSION_LABELS,
   MAX_SHARE_PERCENTS,
-  sunoCascade,
+  fiiCascade,
   type AportePriority,
   type CascadeAsset,
   type CascadeExclusion,
@@ -209,7 +209,7 @@ export {
   type CascadeResult,
   type ExclusionReason,
   type MaxSharePercent,
-} from "./domain/suno-cascade";
+} from "./domain/fii-cascade";
 ```
 
 - [ ] **Step 5: Verificar e commitar**
@@ -218,7 +218,7 @@ Run: `npx tsc --noEmit && npm run -s lint`
 Expected: sem saída de erro.
 
 ```bash
-git add src/features/smart-buy/domain/suno-cascade.ts src/features/smart-buy/index.ts
+git add src/features/smart-buy/domain/fii-cascade.ts src/features/smart-buy/index.ts
 git commit -m "feat(smart-buy): cap how much of one aporte a single FII can take"
 ```
 
@@ -257,12 +257,12 @@ import {
   DEFAULT_MAX_SHARE_PERCENT,
   EXCLUSION_LABELS,
   MAX_SHARE_PERCENTS,
-  sunoCascade,
+  fiiCascade,
   type CascadeAsset,
   type CascadeOrder,
   type ExclusionReason,
   type MaxSharePercent,
-} from "../domain/suno-cascade";
+} from "../domain/fii-cascade";
 ```
 
 Depois de `REASON_ORDER`:
@@ -315,7 +315,7 @@ Em `AporteCalculator`, depois do `useQueryState` do valor:
 O cálculo passa o limite:
 
 ```ts
-  const result = amount > 0 ? sunoCascade(amount, assets, { maxSharePercent: maxShare }) : null;
+  const result = amount > 0 ? fiiCascade(amount, assets, { maxSharePercent: maxShare }) : null;
   const limitedAny = result?.orders.some((order) => order.limited) ?? false;
 ```
 
@@ -391,7 +391,7 @@ import {
   ShieldCheckIcon,
 } from "lucide-react";
 
-// Princípios de aporte da Suno, sempre à vista na tela de recomendações.
+// Princípios de aporte do ranking, sempre à vista na tela de recomendações.
 const PRINCIPLES = [
   { icon: CalendarCheckIcon, text: "Aporte todo mês" },
   { icon: ShieldCheckIcon, text: "Só abaixo do preço teto" },
@@ -435,13 +435,13 @@ git commit -m "feat(recomendacoes): choose the max share per FII and explain cap
 - [ ] **Step 1: Cópia da cascata antiga**
 
 ```bash
-git show e9f1f14:src/features/smart-buy/domain/suno-cascade.ts > "$SCRATCH/aporte/old-cascade.ts"
+git show e9f1f14:src/features/smart-buy/domain/fii-cascade.ts > "$SCRATCH/aporte/old-cascade.ts"
 ```
 
 - [ ] **Step 2: Script de conferência**
 
 O script, `check-aporte.ts`, roda a partir da raiz do worktree:
-- importa `sunoCascade`, `aportePriorities` e o `buildSnapshot` do worktree;
+- importa `fiiCascade`, `aportePriorities` e o `buildSnapshot` do worktree;
 - importa a cascata antiga pela cópia;
 - lê a carteira com `findUserIdByEmail`, `listTransactions`, `listTargetAssets` e `getAssetSnapshots`, como `inspect-cascade.ts`;
 - compara as ordens por `ticker` e `quantity`.

@@ -36,7 +36,7 @@ export type PriceInfo = {
 export type TargetConfig = {
   ticker: string;
   inStrategy: boolean;
-  sunoRank: number | null;
+  rank: number | null;
   ceilingPrice: number | null;
   suggestedPercent: number | null;
   category: Category | null;
@@ -70,7 +70,7 @@ export type PositionRow = {
   /** Peso na carteira inteira. */
   portfolioWeight: number;
   inStrategy: boolean;
-  sunoRank: number | null;
+  rank: number | null;
   ceilingPrice: number | null;
   marginToCeiling: number | null;
   suspiciousCeiling: boolean;
@@ -88,7 +88,7 @@ export type StrategyRow = {
   held: boolean;
   quantity: number;
   inStrategy: boolean;
-  sunoRank: number | null;
+  rank: number | null;
   ceilingPrice: number | null;
   suggestedPercent: number | null;
   category: Category | null;
@@ -98,7 +98,7 @@ export type StrategyRow = {
   price: number | null;
   marginToCeiling: number | null;
   suspiciousCeiling: boolean;
-  /** O teto da Suno está a mais de 10% do calculado pela NTN-B (spec divergencia-teto). Só informativo. */
+  /** O teto do ranking está a mais de 10% do calculado pela NTN-B (spec divergencia-teto). Só informativo. */
   ceilingCheck: CeilingCheck | null;
   strategyWeight: number | null;
   targetWeight: number | null;

@@ -3,7 +3,7 @@ import { splitAmount } from "./aporte-split";
 import type { EngineOptions } from "./engine-options";
 import { splitIncome, type IncomePhase, type IncomeSplit } from "./income-phase";
 import { stockSmartBuy, type StockBuyAsset, type StockBuyResult } from "./stock-buy";
-import { sunoCascade, type CascadeAsset, type CascadeResult } from "./suno-cascade";
+import { fiiCascade, type CascadeAsset, type CascadeResult } from "./fii-cascade";
 
 // Simulação de N aportes com os motores reais (spec koinos-3-1, §6.1): cada período divide o aporte
 // entre FIIs e ações, roda a cascata e o smart buy de ações com as opções de uma versão e soma as
@@ -127,7 +127,7 @@ export function simulateAportes(
       income = { gross, ...splitIncome(gross, phase) };
     }
     const part = splitAmount(round2(params.amount + (income?.reinvest ?? 0)), params.fiisPercent);
-    const fii = part.fii > 0 ? sunoCascade(part.fii, fiis, options) : null;
+    const fii = part.fii > 0 ? fiiCascade(part.fii, fiis, options) : null;
     const stock = part.stock > 0 ? stockSmartBuy(part.stock, stocks, options) : null;
     fiiHoldings = withOrders(fiis, fii?.orders ?? []);
     stockHoldings = withOrders(stocks, stock?.orders ?? []);

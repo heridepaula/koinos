@@ -70,7 +70,7 @@
 
 - As duas abas: as 12 colunas de §2; na lista do celular, o resumo, o selo "Aguardar" e a Prioridade nas duas; na folha, Categoria e Viés nas duas (na ação, Categoria "Ação" só leitura).
 - O painel de ajuste e o aviso da soma nas duas abas.
-- A explicação do card: "Ranking, preço teto, % sugerida e viés pela Suno. Os campos salvam ao sair. Sem teto, ou com viés Aguardar, o ativo não recebe aporte."
+- A explicação do card: "Ranking, preço teto, % sugerida e viés pelo ranking. Os campos salvam ao sair. Sem teto, ou com viés Aguardar, o ativo não recebe aporte."
 
 ### 5.2 Recomendações
 
@@ -84,7 +84,7 @@
 
 ## 6. Testes
 
-- `suno-cascade.test.ts`: um FII com Aguardar sai com `AGUARDAR`, não recebe na sobra, e o seu valor fica na base; `aportePriorities` marca `AGUARDAR`; os cenários de hoje não mudam.
+- `fii-cascade.test.ts`: um FII com Aguardar sai com `AGUARDAR`, não recebe na sobra, e o seu valor fica na base; `aportePriorities` marca `AGUARDAR`; os cenários de hoje não mudam.
 - `stock-buy.test.ts`: os casos de hoje com `weight`; `stockPriorities` (fila pela margem, motivos).
 - `merge-orders.test.ts` (novo): ordem pelo total, empate pelo ticker, o `kind` de cada linha.
 - `snapshot.test.ts`: a estratégia de ações reescala (10 de 81,5 → 0,1227) e tem aviso; o alerta "% sugeridas (ações)" em Geral; `stockBuyInput.weight`; a Prioridade das linhas de ações; o viés dos FIIs na entrada da cascata.

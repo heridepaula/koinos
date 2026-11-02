@@ -65,8 +65,8 @@ describe("ceilingCheck: o limite de 10%", () => {
 
 describe("ceilingCheck: sem dado, sem aviso", () => {
   it.each([
-    ["sem teto da Suno", { ceiling: null }],
-    ["teto da Suno zero", { ceiling: 0 }],
+    ["sem teto do ranking", { ceiling: null }],
+    ["teto do ranking zero", { ceiling: 0 }],
     ["sem proventos de 12 meses", { income12m: null }],
     ["proventos zerados", { income12m: 0 }],
     ["proventos negativos", { income12m: -1 }],
@@ -79,33 +79,33 @@ describe("ceilingCheck: sem dado, sem aviso", () => {
 });
 
 describe("ceilingCheckDetails: o texto estruturado do aviso", () => {
-  // Tijolo, NTN-B 7%: renda 8 ÷ 0,08 = calculado 100. Contra um teto da Suno de 120: negativo.
+  // Tijolo, NTN-B 7%: renda 8 ÷ 0,08 = calculado 100. Contra um teto do ranking de 120: negativo.
   const negative = ceilingCheck({ ceiling: 120, income12m: 8, paper: false, ntnbRealRate: 0.07 })!;
-  // Renda 12 ÷ 0,08 = calculado 150. Contra um teto da Suno de 100: positivo.
+  // Renda 12 ÷ 0,08 = calculado 150. Contra um teto do ranking de 100: positivo.
   const positive = ceilingCheck(base)!;
 
-  it("calculado ABAIXO do teto da Suno é negativo", () => {
+  it("calculado ABAIXO do teto do ranking é negativo", () => {
     const d = ceilingCheckDetails(negative, 120);
     expect(d.direction).toBe("negative");
     expect(d.badge).toBe("Negativo");
     expect(d.change).toBe(formatSignedPercent(negative.divergence, 1));
-    expect(d.headline).toBe("Teto calculado abaixo do teto da Suno");
+    expect(d.headline).toBe("Teto calculado abaixo do teto do ranking");
     expect(d.meaning).toContain("pode sair caro");
   });
 
-  it("calculado ACIMA do teto da Suno é positivo", () => {
+  it("calculado ACIMA do teto do ranking é positivo", () => {
     const d = ceilingCheckDetails(positive, 100);
     expect(d.direction).toBe("positive");
     expect(d.badge).toBe("Positivo");
     expect(d.change).toBe(formatSignedPercent(positive.divergence, 1));
-    expect(d.headline).toBe("Teto calculado acima do teto da Suno");
+    expect(d.headline).toBe("Teto calculado acima do teto do ranking");
     expect(d.meaning).toContain("mais conservador");
   });
 
-  it("as linhas trazem o teto da Suno e o calculado, e só elas quando não há preço", () => {
+  it("as linhas trazem o teto do ranking e o calculado, e só elas quando não há preço", () => {
     const d = ceilingCheckDetails(negative, 120);
     expect(d.rows).toEqual([
-      { label: "Teto da Suno", value: formatBRL(120) },
+      { label: "Teto do ranking", value: formatBRL(120) },
       { label: "Teto calculado", value: formatBRL(100) },
     ]);
     expect(ceilingCheckDetails(negative, 120, null).rows).toHaveLength(2);

@@ -48,7 +48,7 @@ export default function LoginPage({ searchParams }: PageProps<"/login">) {
           </div>
           <CardTitle className="text-large-title">Koinos</CardTitle>
           <CardDescription className="text-subheadline text-balance">
-            Sua carteira de FIIs, com aportes pelo método Suno.
+            Sua carteira de FIIs, com aportes pelo método Koinos.
           </CardDescription>
         </CardHeader>
         <CardContent className="grid gap-4">

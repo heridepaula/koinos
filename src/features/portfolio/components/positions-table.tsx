@@ -42,7 +42,7 @@ type SortKey = (typeof SORT_KEYS)[number];
 
 const SORT_VALUE: Record<SortKey, (row: PositionRow) => number | string | null> = {
   ativo: (row) => row.ticker,
-  rank: (row) => row.sunoRank,
+  rank: (row) => row.rank,
   qtd: (row) => row.quantity,
   preco: (row) => row.price,
   pm: (row) => row.averagePrice,
@@ -238,7 +238,7 @@ export function PositionsTable({ rows }: { rows: PositionRow[] }) {
                 direction={direction}
                 onSort={() => toggle("prioridade")}
                 className="pr-(--card-spacing)"
-                title="Prioridade de aporte: FIIs pelo método Suno, ações pela margem de segurança"
+                title="Prioridade de aporte: FIIs pelo método Koinos, ações pela margem de segurança"
               >
                 Prioridade
               </SortableHead>
@@ -251,7 +251,7 @@ export function PositionsTable({ rows }: { rows: PositionRow[] }) {
                   <AssetLabel ticker={row.ticker} name={row.name} logoUrl={row.logoUrl} />
                 </TableCell>
                 <TableCell className="text-right tabular-nums">
-                  {row.sunoRank === null ? "—" : `${row.sunoRank}º`}
+                  {row.rank === null ? "—" : `${row.rank}º`}
                 </TableCell>
                 <TableCell className="text-right tabular-nums">
                   <Sensitive mask={QUANTITY_MASK}>{formatQuantity(row.quantity)}</Sensitive>

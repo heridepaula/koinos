@@ -35,7 +35,7 @@ Ter uma Carteira Alvo de ações ao lado da de FIIs, cada uma com os seus 100%: 
 | Quantas carteiras | Uma por classe: FIIs e Ações | Escolha do dono |
 | Uso antes da Fase 3 | Só acompanhar: tabela, painel dos 100% e alertas. Recomendações só de FIIs | Escolha do dono |
 | Modelo | Abordagem A: a classe do ticker define a carteira | Escolha do dono. Se um dia houver carteiras com nome, entra uma coleção nova |
-| Campos da ação | Os mesmos do FII (rank, teto, %, na estratégia, quarentena 0%). A categoria é sempre "Ação" | O método Suno usa rank e teto também em ações |
+| Campos da ação | Os mesmos do FII (rank, teto, %, na estratégia, quarentena 0%). A categoria é sempre "Ação" | O método Koinos usa rank e teto também em ações |
 
 ## 4. Regras (código puro)
 
@@ -101,7 +101,7 @@ Vitest, só no código puro:
 
 - `portfolio/domain/snapshot.test.ts`:
   - com alvos de FIIs e de ações, cada estratégia soma 100% sozinha (`targetWeight` dos membros da classe);
-  - a `cascadeInput` só tem FIIs, e `sunoCascade` dá as mesmas ordens com e sem os alvos de ações;
+  - a `cascadeInput` só tem FIIs, e `fiiCascade` dá as mesmas ordens com e sem os alvos de ações;
   - em Geral, a ação configurada sai com `inStrategy` true na tabela de posições e `priority` null;
   - na visão Ações, `strategy.rows` são as ações.
 - `portfolio/domain/alerts.test.ts` (novo): em Geral, "fora da Carteira Alvo" das ações sai com " (ações)" e id `sem-configuracao-acoes`; na visão FIIs, nenhum alerta de ações.

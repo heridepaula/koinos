@@ -6,9 +6,9 @@ Data: 2026-11-01. Origem: parecer do conselho sobre a proposta de 4 regras (pre�
 
 | Regra da proposta | Situação no Koinos 3.1 | Decisão |
 | --- | --- | --- |
-| 1. Bloquear a compra acima do preço-teto | Já existe: `ACIMA_DO_TETO` na elegibilidade da cascata; o valor do FII fica na base, então as metas dos outros não mudam | Nada a fazer. O teto continua o da Suno |
+| 1. Bloquear a compra acima do preço-teto | Já existe: `ACIMA_DO_TETO` na elegibilidade da cascata; o valor do FII fica na base, então as metas dos outros não mudam | Nada a fazer. O teto continua o do ranking |
 | 2. Estados COMPRAR / AGUARDAR / VENDER | Aguardar já tira FIIs e ações do aporte (`BIASES = ["COMPRAR","AGUARDAR"]`). A meta não é redistribuída; só o dinheiro do aporte escoa para os outros pela fila e pela sobra | Nada a fazer. VENDER contraria "nunca vender"; o equivalente é a quarentena (0% fora da estratégia) |
-| 3. Desempate por DY projetado | A cascata não escolhe um vencedor: ordena pelo rank Suno e multiplica o gap pelos tensores | Recusado: DY nominal puxa para papel (o DY embute o IPCA) e para o FII que cortou provento. Um tensor de yield real fica para depois da spec do SGS |
+| 3. Desempate por DY projetado | A cascata não escolhe um vencedor: ordena pelo rank e multiplica o gap pelos tensores | Recusado: DY nominal puxa para papel (o DY embute o IPCA) e para o FII que cortou provento. Um tensor de yield real fica para depois da spec do SGS |
 | 4. Fruição com retenção | Não existia | **Esta spec** |
 
 ### Nota sobre a fórmula de teto proposta
@@ -41,7 +41,7 @@ Primeiro resultado (carteira real, 2026-11-01, motor 3.1, 24 meses, 25%, IPCA 4,
 
 - Uma tela ou configuração da fase no app: hoje o dono está na acumulação, e a % reinvestida por mês (`reinvestments`, padrão 100%) já registra o que acontece. Quando a fruição começar, a fase vira uma configuração do portfólio e a tela de Recomendações pode sugerir o aporte = retenção dos proventos do mês.
 - Retenção ligada ao IPCA (≈ %papel × IPCA ÷ DY): depende da spec do SGS.
-- Teto calculado como alerta de divergência contra o teto Suno: depende de uma fonte da taxa da NTN-B (nunca a B3).
+- Teto calculado como alerta de divergência contra o teto do ranking: depende de uma fonte da taxa da NTN-B (nunca a B3).
 
 ## 5. Testes
 

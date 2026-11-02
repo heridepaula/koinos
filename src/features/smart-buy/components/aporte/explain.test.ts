@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import type { CascadeOrder } from "../../domain/suno-cascade";
+import type { CascadeOrder } from "../../domain/fii-cascade";
 import type { StockBuyOrder, StockExclusionReason } from "../../domain/stock-buy";
 import {
   explain,

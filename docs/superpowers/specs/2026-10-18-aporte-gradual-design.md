@@ -2,7 +2,7 @@
 
 - **Data:** 2026-10-18
 - **Status:** decidido na conversa. Em 2026-10-24 o padrão passou de 50% para 33%, a pedido do usuário (`2026-10-24-indice-de-conviccao-design.md`). O usuário pediu para seguir sem novas perguntas, então os padrões abaixo são a recomendação, e o limite pode ser trocado na tela.
-- **Ciclo:** muda a cascata Suno das Recomendações (spec do MVP, §9). A fila de prioridade não muda.
+- **Ciclo:** muda a cascata das Recomendações (spec do MVP, §9). A fila de prioridade não muda.
 - **Substituída em 2026-10-30** pelas travas fixas do Koinos 3.0 (`2026-10-30-koinos-3-0-design.md`): 25% do aporte por FII, 35% por setor e 60% por macro. O seletor "Máximo por FII" e o `?limite=` saíram.
 
 ## 1. Objetivo
@@ -15,10 +15,10 @@ Um FII não pode levar o aporte inteiro do mês.
   - o resto segue o ranking;
   - nos meses seguintes ele continua sendo o foco, até chegar à % sugerida.
 
-### Base no método Suno
+### Base no método Koinos
 
-- **Compra aos poucos:** "investir aos poucos, distribuindo as compras ao longo de alguns meses" e "pulverizar os ativos" (Suno Notícias, coluna de Gustavo Asdourian, 13/05/2022).
-- **Regularidade acima do momento:** no Suno Invest 2026, o resultado dos aportes "depende mais da regularidade, da diversificação e da análise dos fundamentos de cada fundo" (FIIs.com.br, 12/09/2026). Tiago Reis: "Tempo no mercado vale mais que o momento de entrada".
+- **Compra aos poucos:** "investir aos poucos, distribuindo as compras ao longo de alguns meses" e "pulverizar os ativos" (ranking, coluna de Gustavo Asdourian, 13/05/2022).
+- **Regularidade acima do momento:** no ranking 2026, o resultado dos aportes "depende mais da regularidade, da diversificação e da análise dos fundamentos de cada fundo" (FIIs.com.br, 12/09/2026). Tiago Reis: "Tempo no mercado vale mais que o momento de entrada".
 - **Regras que continuam:** só comprar abaixo do teto, seguir o ranking até a % sugerida e rebalancear com aportes, sem vender.
 
 ### Por que melhora o preço médio
@@ -106,7 +106,7 @@ Quando o peso do FII é igual ou maior que o limite, a meta cresce tão rápido 
 
 | Peça | Arquivo | Mudança |
 | --- | --- | --- |
-| Regra (puro) | `src/features/smart-buy/domain/suno-cascade.ts` | `sunoCascade(amount, assets, { maxSharePercent })`, `DEFAULT_MAX_SHARE_PERCENT = 50` e `MAX_SHARE_PERCENTS`. `CascadeOrder` ganha `limited`, `gapAfter` e `aportesLeft`. `CascadeResult` ganha `maxSharePercent` |
+| Regra (puro) | `src/features/smart-buy/domain/fii-cascade.ts` | `fiiCascade(amount, assets, { maxSharePercent })`, `DEFAULT_MAX_SHARE_PERCENT = 50` e `MAX_SHARE_PERCENTS`. `CascadeOrder` ganha `limited`, `gapAfter` e `aportesLeft`. `CascadeResult` ganha `maxSharePercent` |
 | API da feature | `src/features/smart-buy/index.ts` | Exporta as constantes e os tipos novos |
 | Calculadora | `src/features/smart-buy/components/aporte-calculator.tsx` | Seletor "Máximo por FII" (nuqs, `limite`), "Por quê" e o aviso da entrada aos poucos |
 | Princípios | `src/features/smart-buy/components/principles-banner.tsx` | Novo item |

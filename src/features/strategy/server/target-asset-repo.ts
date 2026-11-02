@@ -10,7 +10,7 @@ import { TargetAssetModel, type TargetAssetDoc } from "./target-asset.model";
 export type TargetAssetRecord = {
   ticker: string;
   inStrategy: boolean;
-  sunoRank: number | null;
+  rank: number | null;
   ceilingPrice: number | null;
   suggestedPercent: number | null;
   category: Category | null;
@@ -23,7 +23,7 @@ const toObjectId = (id: string) => new Types.ObjectId(id);
 
 const DEFAULTS: Omit<TargetAssetRecord, "ticker"> = {
   inStrategy: true,
-  sunoRank: null,
+  rank: null,
   ceilingPrice: null,
   suggestedPercent: null,
   category: null,
@@ -34,7 +34,7 @@ function toRecord(doc: TargetAssetDoc): TargetAssetRecord {
   return {
     ticker: doc.ticker,
     inStrategy: doc.inStrategy,
-    sunoRank: doc.sunoRank ?? null,
+    rank: doc.rank ?? null,
     ceilingPrice: doc.ceilingPrice ?? null,
     suggestedPercent: doc.suggestedPercent ?? null,
     category: doc.category ?? null,

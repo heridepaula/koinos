@@ -7,7 +7,7 @@ import { CEILING_MAX } from "./domain/ceiling";
 export const targetPatchSchema = z.object({
   ticker: tickerSchema,
   inStrategy: z.boolean().optional(),
-  sunoRank: z.number().int("Use um número inteiro").min(1).max(999).nullable().optional(),
+  rank: z.number().int("Use um número inteiro").min(1).max(999).nullable().optional(),
   ceilingPrice: z
     .number()
     .positive("O teto deve ser maior que zero")

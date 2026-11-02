@@ -1,6 +1,6 @@
 import { Badge } from "@/shared/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/shared/ui/card";
-import { EXCLUSION_LABELS, type ExclusionReason } from "../../domain/suno-cascade";
+import { EXCLUSION_LABELS, type ExclusionReason } from "../../domain/fii-cascade";
 import { REASON_ORDER, reasonHelp, type ExcludedAsset } from "./explain";
 
 /**

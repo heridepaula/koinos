@@ -27,7 +27,7 @@ Um relatório mensal que separa o aporte do mês em duas partes: o que veio de p
 | Tema | Decisão | Motivo |
 | --- | --- | --- |
 | % por mês | Salva por mês, editável depois | Decisão do usuário ("Uma % por mês, salva") |
-| Mês sem % | 100% | Decisão do usuário. No método Suno, todo provento volta para a carteira; uma exceção fica só no mês dela |
+| Mês sem % | 100% | Decisão do usuário. No método Koinos, todo provento volta para a carteira; uma exceção fica só no mês dela |
 | Onde guardar | Coleção nova `reinvestments` (carteira, mês, %) | É isolada, filtrada pela carteira, e apagar o documento volta o mês ao padrão. Um mapa dentro da carteira misturaria configuração com cadastro e cresceria sem limite |
 | Aporte do mês | Compras em dinheiro: negócios e subscrições, com taxas | Desdobro (custo zero), incorporação (só transfere custo) e posição anterior (não foi comprada naquele mês) não são dinheiro novo |
 | Proventos do mês | Os pagos pela B3 no mês (`paidAt`) | O "a receber" é estimado e ainda não está em caixa |

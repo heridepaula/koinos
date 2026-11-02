@@ -2,7 +2,7 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers-extended-cc:subagent-driven-development (recommended) or superpowers-extended-cc:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Mostrar um triângulo de aviso, só informativo, nos FIIs da estratégia cujo teto da Suno difere em mais de 10% do teto calculado pela taxa real da NTN-B, na Carteira Alvo e nas ordens das Recomendações.
+**Goal:** Mostrar um triângulo de aviso, só informativo, nos FIIs da estratégia cujo teto do ranking difere em mais de 10% do teto calculado pela taxa real da NTN-B, na Carteira Alvo e nas ordens das Recomendações.
 
 **Architecture:** Uma função pura em `strategy/domain/ceiling.ts` calcula o teto (proventos de 12 meses ÷ rendimento exigido) e devolve um `CeilingCheck` só quando há divergência. O snapshot recebe a taxa (mediana de 60 pregões, em fração) e põe o campo nas linhas dos FIIs da estratégia, sem tocar na cascata. Um componente `CeilingCheckIcon` desenha o triângulo nas duas telas. Spec: `docs/superpowers/specs/2026-11-01-divergencia-teto-design.md`.
 
@@ -53,9 +53,9 @@
 
 **Acceptance Criteria:**
 - [ ] Tijolo: teto calculado = renda ÷ (NTN-B + 1,0 p.p.). Papel: renda ÷ (NTN-B + 4,0% + 1,0 p.p.).
-- [ ] Devolve `CeilingCheck` só quando |calculado ÷ Suno − 1| passa de 10%; exatamente 10% (nos dois lados) não avisa.
+- [ ] Devolve `CeilingCheck` só quando |calculado ÷ teto do ranking − 1| passa de 10%; exatamente 10% (nos dois lados) não avisa.
 - [ ] Devolve `null` sem teto, sem renda (nula, zero, negativa ou não finita) e sem taxa.
-- [ ] `ceilingCheckMessage` cita o teto da Suno, o calculado, a divergência, a taxa e o spread (e o IPCA no papel).
+- [ ] `ceilingCheckMessage` cita o teto do ranking, o calculado, a divergência, a taxa e o spread (e o IPCA no papel).
 
 **Verify:** `npx vitest run src/features/strategy/domain/ceiling.test.ts` → todos passam
 
@@ -126,8 +126,8 @@ describe("ceilingCheck: o limite de 10%", () => {
 
 describe("ceilingCheck: sem dado, sem aviso", () => {
   it.each([
-    ["sem teto da Suno", { ceiling: null }],
-    ["teto da Suno zero", { ceiling: 0 }],
+    ["sem teto do ranking", { ceiling: null }],
+    ["teto do ranking zero", { ceiling: 0 }],
     ["sem proventos de 12 meses", { income12m: null }],
     ["proventos zerados", { income12m: 0 }],
     ["proventos negativos", { income12m: -1 }],
@@ -140,10 +140,10 @@ describe("ceilingCheck: sem dado, sem aviso", () => {
 });
 
 describe("ceilingCheckMessage", () => {
-  it("tijolo: cita o teto da Suno, o calculado, a divergência, a taxa e o spread", () => {
+  it("tijolo: cita o teto do ranking, o calculado, a divergência, a taxa e o spread", () => {
     const check = ceilingCheck(base)!;
     const message = ceilingCheckMessage(check, 100);
-    expect(message).toContain(`Teto da Suno ${formatBRL(100)}`);
+    expect(message).toContain(`Teto do ranking ${formatBRL(100)}`);
     expect(message).toContain(`calculado ${formatBRL(check.calculated)}`);
     expect(message).toContain(formatSignedPercent(check.divergence, 0));
     expect(message).toContain(`NTN-B ${formatPercent(0.07, 2)}`);
@@ -187,15 +187,15 @@ export const CEILING_CHECK = {
   /** Papel: NTN-B real + IPCA assumido + este spread. O DY do papel já traz a inflação. */
   paperSpread: 0.01,
   assumedInflation: 0.04,
-  /** Há aviso quando |teto calculado ÷ teto da Suno − 1| passa disto. */
+  /** Há aviso quando |teto calculado ÷ teto do ranking − 1| passa disto. */
   limit: 0.1,
 } as const;
 
-/** O teto calculado de um FII cujo teto da Suno está fora do limite. Frações, exceto os preços. */
+/** O teto calculado de um FII cujo teto do ranking está fora do limite. Frações, exceto os preços. */
 export type CeilingCheck = {
   /** Teto calculado, em R$ por cota. */
   calculated: number;
-  /** calculado ÷ teto da Suno − 1, com 6 casas. Positivo: o teto da Suno está abaixo do calculado. */
+  /** calculado ÷ teto do ranking − 1, com 6 casas. Positivo: o teto do ranking está abaixo do calculado. */
   divergence: number;
   /** Rendimento exigido que dividiu a renda. */
   requiredYield: number;
@@ -206,7 +206,7 @@ export type CeilingCheck = {
 };
 
 export type CeilingCheckInput = {
-  /** Teto da Suno. */
+  /** Teto do ranking. */
   ceiling: number | null;
   /** Proventos por cota dos 12 meses; null quando não há ou estão velhos. */
   income12m: number | null;
@@ -216,7 +216,7 @@ export type CeilingCheckInput = {
 };
 
 /**
- * Compara o teto da Suno com o teto calculado: proventos de 12 meses ÷ rendimento exigido. Devolve
+ * Compara o teto do ranking com o teto calculado: proventos de 12 meses ÷ rendimento exigido. Devolve
  * o cálculo só quando a divergência passa do limite, nos dois lados; sem dado, null (sem aviso).
  */
 export function ceilingCheck({
@@ -242,14 +242,14 @@ export function ceilingCheck({
 /** "1,0 p.p." a partir de uma fração. */
 const pointsOf = (fraction: number) => `${(fraction * 100).toFixed(1).replace(".", ",")} p.p.`;
 
-/** O texto do aviso (tooltip e folha do celular). `ceiling` é o teto da Suno. */
+/** O texto do aviso (tooltip e folha do celular). `ceiling` é o teto do ranking. */
 export function ceilingCheckMessage(check: CeilingCheck, ceiling: number): string {
   const rate = `NTN-B ${formatPercent(check.ntnbRealRate, 2)}`;
   const premium = check.paper
     ? `${rate} + IPCA ${formatPercent(CEILING_CHECK.assumedInflation, 1)} + ${pointsOf(CEILING_CHECK.paperSpread)}`
     : `${rate} + ${pointsOf(CEILING_CHECK.tijoloSpread)}`;
   return (
-    `Teto da Suno ${formatBRL(ceiling)}; calculado ${formatBRL(check.calculated)} ` +
+    `Teto do ranking ${formatBRL(ceiling)}; calculado ${formatBRL(check.calculated)} ` +
     `(${formatSignedPercent(check.divergence, 0)}). ` +
     `Proventos de 12 meses ÷ (${premium}). Confira o teto.`
   );
@@ -286,9 +286,9 @@ Expected: PASS; sem erros de lint nem de tipo.
 ```bash
 git add src/features/strategy/domain/ceiling.ts src/features/strategy/domain/ceiling.test.ts src/features/strategy/index.ts docs/superpowers/plans/2026-11-01-divergencia-teto.md docs/superpowers/plans/2026-11-01-divergencia-teto.md.tasks.json
 git commit -q -F - <<'EOF'
-feat(strategy): add the Suno ceiling divergence rule
+feat(strategy): add the ranking ceiling divergence rule
 
-ceilingCheck compares the Suno ceiling with 12-month income divided by the
+ceilingCheck compares the ranking ceiling with 12-month income divided by the
 NTN-B real rate plus a spread (plus an assumed IPCA for paper funds) and
 returns a result only when they differ by more than 10%, in either direction.
 
@@ -430,8 +430,8 @@ describe("buildSnapshot: aviso de divergência do teto (spec divergencia-teto)",
     expect(withRate.strategy.rows.map((row) => [row.ticker, row.priority])).toEqual(
       without.strategy.rows.map((row) => [row.ticker, row.priority]),
     );
-    expect(sunoCascade(1_000, withRate.cascadeInput).orders).toEqual(
-      sunoCascade(1_000, without.cascadeInput).orders,
+    expect(fiiCascade(1_000, withRate.cascadeInput).orders).toEqual(
+      fiiCascade(1_000, without.cascadeInput).orders,
     );
   });
 });
@@ -450,7 +450,7 @@ Em `src/features/portfolio/domain/types.ts`:
 2. No tipo `StrategyRow` (o que tem `held: boolean;`), logo depois de `suspiciousCeiling: boolean;`, acrescentar:
 
 ```ts
-  /** O teto da Suno está a mais de 10% do calculado pela NTN-B (spec divergencia-teto). Só informativo. */
+  /** O teto do ranking está a mais de 10% do calculado pela NTN-B (spec divergencia-teto). Só informativo. */
   ceilingCheck: CeilingCheck | null;
 ```
 
@@ -688,7 +688,7 @@ import { ceilingCheckMessage, type CeilingCheck } from "../domain/ceiling";
 const LABEL = "Teto diverge do calculado";
 
 /**
- * Triângulo âmbar: o teto da Suno está a mais de 10% do calculado pela NTN-B (spec
+ * Triângulo âmbar: o teto do ranking está a mais de 10% do calculado pela NTN-B (spec
  * divergencia-teto, §4). Com `tooltip={false}` vira só o ícone, para dentro de um botão (a linha
  * do celular), onde o texto sai numa folha.
  */
@@ -698,7 +698,7 @@ export function CeilingCheckIcon({
   tooltip = true,
 }: {
   check: CeilingCheck;
-  /** O teto da Suno. */
+  /** O teto do ranking. */
   ceiling: number;
   tooltip?: boolean;
 }) {
@@ -756,7 +756,7 @@ export type AssetMeta = {
   ticker: string;
   name: string | null;
   logoUrl: string | null;
-  /** O teto da Suno está a mais de 10% do calculado pela NTN-B; só informativo (spec divergencia-teto). */
+  /** O teto do ranking está a mais de 10% do calculado pela NTN-B; só informativo (spec divergencia-teto). */
   ceilingWarning?: { check: CeilingCheck; ceiling: number };
 };
 ```
@@ -883,7 +883,7 @@ EOF
 Na seção **Domain flow**, depois do item 8, acrescentar o item:
 
 ```md
-9. **Ceiling divergence warning** (`strategy/domain/ceiling.ts`, spec `2026-11-01-divergencia-teto-design.md`): `ceilingCheck` compares the Suno ceiling with the 12-month income per share divided by the required yield, the NTN-B real rate (the 60-trading-day median from `getRealRate`) plus 1.0 p.p. for tijolo and the other classes, or plus an assumed IPCA of 4.0% and 1.0 p.p. for paper (the paper DY already carries inflation). It returns a `CeilingCheck` only when |calculated ÷ Suno − 1| exceeds 10%, in either direction; without a ceiling, income, fresh dividends (fetched within 10 days), or a fresh rate there is no warning. The parameters are the constants `CEILING_CHECK`, with no setting screen. `buildSnapshot` takes `ntnbRealRate` (a fraction; the server converts the % once) and sets `StrategyRow.ceilingCheck` on the FIIs in the strategy only; the cascade, the Prioridade and the alerts don't use it. The Carteira Alvo shows an amber triangle next to the margin (`CeilingCheckIcon`), and the Recomendações orders show it next to the asset (a tooltip on desktop; on phones the icon on the row and the text in the order sheet, through `AssetMeta.ceilingWarning`). A failed rate read means no warning, never a broken page. Until the first daily cron stores rates in production, no triangle appears.
+9. **Ceiling divergence warning** (`strategy/domain/ceiling.ts`, spec `2026-11-01-divergencia-teto-design.md`): `ceilingCheck` compares the ranking ceiling with the 12-month income per share divided by the required yield, the NTN-B real rate (the 60-trading-day median from `getRealRate`) plus 1.0 p.p. for tijolo and the other classes, or plus an assumed IPCA of 4.0% and 1.0 p.p. for paper (the paper DY already carries inflation). It returns a `CeilingCheck` only when |calculated ÷ teto do ranking − 1| exceeds 10%, in either direction; without a ceiling, income, fresh dividends (fetched within 10 days), or a fresh rate there is no warning. The parameters are the constants `CEILING_CHECK`, with no setting screen. `buildSnapshot` takes `ntnbRealRate` (a fraction; the server converts the % once) and sets `StrategyRow.ceilingCheck` on the FIIs in the strategy only; the cascade, the Prioridade and the alerts don't use it. The Carteira Alvo shows an amber triangle next to the margin (`CeilingCheckIcon`), and the Recomendações orders show it next to the asset (a tooltip on desktop; on phones the icon on the row and the text in the order sheet, through `AssetMeta.ceilingWarning`). A failed rate read means no warning, never a broken page. Until the first daily cron stores rates in production, no triangle appears.
 ```
 
 Na lista **Covered** dos testes, acrescentar:
@@ -897,13 +897,13 @@ Na lista **Covered** dos testes, acrescentar:
 Na seção 5, no bloco **Teto** (`ceiling.ts`), acrescentar o item:
 
 ```md
-  - `ceilingCheck` (`CEILING_CHECK`): teto calculado = proventos de 12 meses ÷ (NTN-B real + spread); tijolo e demais classes + 1,0 p.p., papel + 4,0% de IPCA assumido + 1,0 p.p. Avisa (só informativo) quando difere do teto da Suno em mais de 10%, nos dois lados, e só para FIIs da estratégia com proventos de até 10 dias e taxa em dia.
+  - `ceilingCheck` (`CEILING_CHECK`): teto calculado = proventos de 12 meses ÷ (NTN-B real + spread); tijolo e demais classes + 1,0 p.p., papel + 4,0% de IPCA assumido + 1,0 p.p. Avisa (só informativo) quando difere do teto do ranking em mais de 10%, nos dois lados, e só para FIIs da estratégia com proventos de até 10 dias e taxa em dia.
 ```
 
 Na seção 11 (**Parece erro, mas é projeto**), acrescentar:
 
 ```md
-- **Teto calculado × teto da Suno:** o triângulo de divergência não muda ordem, Prioridade nem alerta, e o teto que decide a compra continua o da Suno. O teto calculado reproduz o da Suno na mediana (97%), mas varia com a taxa: o IPCA do papel é um número fixo (4,0%) e o tijolo compara provento nominal com taxa real de propósito (o aluguel acompanha a inflação).
+- **Teto calculado × teto do ranking:** o triângulo de divergência não muda ordem, Prioridade nem alerta, e o teto que decide a compra continua o do ranking. O teto calculado reproduz o do ranking na mediana (97%), mas varia com a taxa: o IPCA do papel é um número fixo (4,0%) e o tijolo compara provento nominal com taxa real de propósito (o aluguel acompanha a inflação).
 ```
 
 - [ ] **Step 3: A spec**
@@ -911,7 +911,7 @@ Na seção 11 (**Parece erro, mas é projeto**), acrescentar:
 Em `docs/superpowers/specs/2026-11-01-divergencia-teto-design.md`:
 
 1. Trocar a linha de estado por: `Data: 2026-11-01. Estado: **implementada** (plano em `docs/superpowers/plans/2026-11-01-divergencia-teto.md`).` mantendo o resto do parágrafo de origem.
-2. No §3, onde diz "A página de Recomendações monta `ceilingChecks: Record<ticker, CeilingCheck>` só com os FIIs avisados e passa ao `AporteCalculator`.", trocar por: "A página de Recomendações põe o aviso no `AssetMeta` de cada FII avisado (`ceilingWarning`: o `CeilingCheck` e o teto da Suno), que já chega às ordens pelo `AporteCalculator`."
+2. No §3, onde diz "A página de Recomendações monta `ceilingChecks: Record<ticker, CeilingCheck>` só com os FIIs avisados e passa ao `AporteCalculator`.", trocar por: "A página de Recomendações põe o aviso no `AssetMeta` de cada FII avisado (`ceilingWarning`: o `CeilingCheck` e o teto do ranking), que já chega às ordens pelo `AporteCalculator`."
 
 - [ ] **Step 4: Formatar e verificar tudo**
 

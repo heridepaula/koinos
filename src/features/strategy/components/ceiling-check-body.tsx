@@ -23,7 +23,7 @@ const TONES = {
 
 /**
  * O corpo do aviso de divergência do teto (spec divergencia-teto, §4): um selo colorido com o
- * sinal (Positivo: o calculado está acima do teto da Suno; Negativo: abaixo) e a diferença, a
+ * sinal (Positivo: o calculado está acima do teto do ranking; Negativo: abaixo) e a diferença, a
  * manchete, os valores em colunas (e o preço atual contra o calculado, quando há), a conta e o que
  * ela quer dizer. `surface` diz onde ele está: "card" (a folha do celular, o padrão) ou "inverse"
  * (o tooltip, de fundo invertido).
@@ -36,7 +36,7 @@ export function CeilingCheckBody({
   className,
 }: {
   check: CeilingCheck;
-  /** O teto da Suno. */
+  /** O teto do ranking. */
   ceiling: number;
   /** O preço atual, para dizer se já passou do teto calculado. */
   price?: number | null;

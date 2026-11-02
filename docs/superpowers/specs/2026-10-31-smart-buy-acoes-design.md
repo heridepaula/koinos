@@ -32,7 +32,7 @@
 | Motor de ações | O do documento, sem limite por ação | Escolha do dono. A meta já limita cada ação |
 | Troco | Cada carteira guarda o seu; sem troco cruzado | Escolha do dono. A divisão é dele |
 | Viés | Campo novo, só "Aguardar" bloqueia | O documento usa o viés como trava |
-| % das ações | Usada como está (sem reescalar para 100%) | A tabela da Suno soma 81,5%: o resto é caixa, como no documento (`newTotalEquity * targetWeight / 100`) |
+| % das ações | Usada como está (sem reescalar para 100%) | A tabela do ranking soma 81,5%: o resto é caixa, como no documento (`newTotalEquity * targetWeight / 100`) |
 
 ## 3. Motor de ações (`smart-buy/domain/stock-buy.ts`, puro)
 
@@ -72,7 +72,7 @@ Precedência quando há mais de um: a ordem da tabela.
 ## 4. Divisão do aporte
 
 - `?fiis=` inteiro de 0 a 100 (fora disso ou ausente: 100). Parte dos FIIs = `floor(aporte × fiis) / 100` em centavos; ações = aporte − FIIs.
-- FIIs: `sunoCascade(parteFIIs, cascadeInput)`, a de antes da Fase 3 (sem `caps`).
+- FIIs: `fiiCascade(parteFIIs, cascadeInput)`, a de antes da Fase 3 (sem `caps`).
 - Ações: `stockSmartBuy(parteAções, stockBuyInput)`.
 - Cada carteira tem o seu troco; o resumo mostra o total das ordens e o troco somado.
 
@@ -87,7 +87,7 @@ Precedência quando há mais de um: a ordem da tabela.
 ### 5.2 O que sai
 
 - `class_targets`: modelo, repositório, `getMyClassTarget`, `setClassTargetAction`, `classTargetSchema`, `ClassTargetPanel`. A coleção no banco fica como está (sem documentos do dono; nenhuma migração).
-- `splitByClassTarget`, `classAporte`, `DEFAULT_CLASS_TARGET`, `STOCK_CAPS`, `RiskCaps` e o parâmetro de limites da `sunoCascade`, com os seus testes.
+- `splitByClassTarget`, `classAporte`, `DEFAULT_CLASS_TARGET`, `STOCK_CAPS`, `RiskCaps` e o parâmetro de limites da `fiiCascade`, com os seus testes.
 - `stockCascadeInput` e `stockStrategyMeta` do snapshot dão lugar a `stockBuyInput: StockBuyAsset[]` e `stockMeta` (nome e logo das ações da estratégia). `classValues` fica (a tela mostra a alocação atual ao lado do campo).
 
 ### 5.3 Snapshot

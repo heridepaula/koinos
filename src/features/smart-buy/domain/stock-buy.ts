@@ -1,5 +1,5 @@
 import { ENGINE_VERSIONS, type EngineOptions } from "./engine-options";
-import type { AportePriority } from "./suno-cascade";
+import type { AportePriority } from "./fii-cascade";
 
 // Smart Buy de ações (documento do dono "Smart Buy Ações (Dividendos)"; spec smart-buy-acoes, §3):
 // só compra abaixo do teto, abaixo da meta e sem viés Aguardar; a maior margem de segurança

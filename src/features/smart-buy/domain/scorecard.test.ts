@@ -13,7 +13,7 @@ import {
   type SimulationParams,
 } from "./simulation";
 import type { StockBuyAsset } from "./stock-buy";
-import type { CascadeAsset } from "./suno-cascade";
+import type { CascadeAsset } from "./fii-cascade";
 
 /** FII de teste: R$ 100 a cota, teto R$ 110 (tensor de segurança 1,0909), sem setor. */
 function fii(ticker: string, overrides: Partial<CascadeAsset> = {}): CascadeAsset {

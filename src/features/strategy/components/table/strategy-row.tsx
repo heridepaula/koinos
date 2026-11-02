@@ -41,8 +41,8 @@ export function StrategyRow({ row, stock = false }: { row: StrategyRowData; stoc
           label="Rank"
           integer
           className="w-14"
-          value={row.sunoRank}
-          onCommit={(value) => save({ sunoRank: value })}
+          value={row.rank}
+          onCommit={(value) => save({ rank: value })}
         />
       </TableCell>
       <TableCell>
