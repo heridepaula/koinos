@@ -1,19 +1,19 @@
 "use client";
 
-import { InfoIcon, LayersIcon, PiggyBankIcon, ShoppingCartIcon, WalletIcon } from "lucide-react";
+import { LayersIcon, PiggyBankIcon, ShoppingCartIcon, WalletIcon } from "lucide-react";
 import { parseAsFloat, parseAsInteger, parseAsStringLiteral, useQueryState } from "nuqs";
 import { MetricCard, StatList, StatRow } from "@/shared/components/metric";
 import { MoneyInput } from "@/shared/components/money-input";
 import { Sensitive } from "@/shared/components/sensitive";
 import { formatBRL, formatPercent } from "@/shared/lib/format";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/shared/ui/card";
-import { Slider } from "@/shared/ui/slider";
 import { splitAmount } from "../domain/aporte-split";
 import { CURRENT_ENGINE, ENGINE_VERSIONS } from "../domain/engine-options";
 import { mergeOrders, type MergedOrder } from "../domain/merge-orders";
 import { RISK_CAPS } from "../domain/risk";
 import { stockSmartBuy, type StockBuyAsset, type StockBuyOrder } from "../domain/stock-buy";
 import { fiiCascade, type CascadeAsset, type CascadeOrder } from "../domain/fii-cascade";
+import { SplitControl } from "./split-control";
 import { ExcludedCard } from "./aporte/excluded-card";
 import { groupExcluded } from "./aporte/explain";
 import { OrdersList, OrdersTable, type AssetMeta } from "./aporte/orders";
@@ -189,7 +189,6 @@ export function AporteCalculator({
 
   const totalValue = values.FII + values.ACAO;
   const todayFii = totalValue > 0 ? values.FII / totalValue : 0;
-  const todayStock = totalValue > 0 ? values.ACAO / totalValue : 0;
 
   // O campo do aporte mora no card "Aporte"; no Geral, o controle da divisão fica logo abaixo.
   const amountField = (
@@ -202,40 +201,14 @@ export function AporteCalculator({
         onValueChange={(value) => void setAmount(value !== null && value > 0 ? value : null)}
       />
       {view === "geral" ? (
-        <div className="grid gap-3">
-          <div className="flex items-baseline justify-between gap-4 text-sm">
-            <span>
-              <span className="font-medium">FIIs {fiis}%</span>
-              {amount > 0 ? (
-                <span className="text-muted-foreground tabular-nums">
-                  {" "}
-                  · <Sensitive>{formatBRL(fiiPart)}</Sensitive>
-                </span>
-              ) : null}
-            </span>
-            <span className="text-right">
-              <span className="font-medium">Ações {100 - fiis}%</span>
-              {amount > 0 ? (
-                <span className="text-muted-foreground tabular-nums">
-                  {" "}
-                  · <Sensitive>{formatBRL(stockPart)}</Sensitive>
-                </span>
-              ) : null}
-            </span>
-          </div>
-          {/* O trecho à esquerda do polegar é a parte dos FIIs; o resto, a das ações. Passos de 5%. */}
-          <Slider
-            label="Parte do aporte para FIIs"
-            value={fiis}
-            step={FIIS_STEP}
-            onValueChange={(next) => void setFiis(next)}
-            valueText={(current) => `${current}% para FIIs, ${100 - current}% para ações`}
-          />
-          <p className="flex items-center gap-2 text-sm text-muted-foreground">
-            <InfoIcon className="size-4 shrink-0 text-info" aria-hidden="true" />
-            Hoje: FIIs {formatPercent(todayFii, 0)} · Ações {formatPercent(todayStock, 0)}
-          </p>
-        </div>
+        <SplitControl
+          fiis={fiis}
+          onChange={(next) => void setFiis(next)}
+          step={FIIS_STEP}
+          fiiAmount={amount > 0 ? fiiPart : null}
+          stockAmount={amount > 0 ? stockPart : null}
+          todayFiis={todayFii}
+        />
       ) : null}
     </div>
   );
