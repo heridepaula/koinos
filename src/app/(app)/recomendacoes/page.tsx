@@ -2,7 +2,12 @@ import type { Metadata } from "next";
 import { Suspense } from "react";
 import { getPortfolioSnapshot } from "@/features/portfolio/server";
 import { QuoteRefresher } from "@/features/portfolio/ui";
-import { AporteCalculator, PrinciplesBanner, type AssetMeta } from "@/features/smart-buy/ui";
+import {
+  AporteCalculator,
+  HowItWorks,
+  PrinciplesBanner,
+  type AssetMeta,
+} from "@/features/smart-buy/ui";
 import { AssetClassControl } from "@/shared/components/asset-class-control";
 import { PageHeader } from "@/shared/components/page-header";
 import { CardSkeleton } from "@/shared/components/skeletons";
@@ -27,6 +32,9 @@ export default function RecommendationsPage() {
       <Suspense fallback={<CardSkeleton height="h-40" />}>
         <RecommendationsContent />
       </Suspense>
+      <div id="como-calculamos" className="mt-4 scroll-mt-20 md:mt-6">
+        <HowItWorks />
+      </div>
     </>
   );
 }
