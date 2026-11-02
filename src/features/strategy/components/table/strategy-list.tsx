@@ -1,6 +1,6 @@
 "use client";
 
-import { ChevronRightIcon, Trash2Icon } from "lucide-react";
+import { ChevronRightIcon, Trash2Icon, TriangleAlertIcon } from "lucide-react";
 import { useState, type ReactNode } from "react";
 import type { StrategyRow } from "@/features/portfolio";
 import { PriorityBadge } from "@/features/smart-buy/ui";
@@ -22,6 +22,7 @@ import { Switch } from "@/shared/ui/switch";
 import { BiasSelect } from "./bias-select";
 import { CategorySelect } from "./category-select";
 import { CATEGORY_LABELS } from "../../domain/categories";
+import { ceilingCheckMessage } from "../../domain/ceiling";
 import { suggestedPercentProblem } from "../../domain/quarantine";
 import { NumberField } from "./number-field";
 import { MarginValue, WeightValue } from "./read-only-cells";
@@ -201,6 +202,12 @@ function StrategySheet({
             <PriorityBadge priority={row.priority} />
           </SheetRow>
         </SheetGroup>
+        {row.ceilingCheck && row.ceilingPrice !== null ? (
+          <p className="flex items-start gap-2 rounded-2xl bg-secondary/60 px-4 py-3 text-footnote text-muted-foreground">
+            <TriangleAlertIcon className="mt-0.5 size-3.5 shrink-0 text-warn" aria-hidden="true" />
+            {ceilingCheckMessage(row.ceilingCheck, row.ceilingPrice)}
+          </p>
+        ) : null}
         {row.configured ? (
           <Button variant="destructive" className="h-12" disabled={removing} onClick={remove}>
             <Trash2Icon />
