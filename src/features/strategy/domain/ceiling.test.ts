@@ -4,7 +4,7 @@ import {
   CEILING_CHECK,
   CEILING_MAX,
   ceilingCheck,
-  ceilingCheckMessage,
+  ceilingCheckDetails,
   ceilingFromInput,
 } from "./ceiling";
 
@@ -21,6 +21,7 @@ describe("ceilingCheck: a fórmula", () => {
     expect(check?.requiredYield).toBeCloseTo(0.08, 10);
     expect(check?.ntnbRealRate).toBe(0.07);
     expect(check?.paper).toBe(false);
+    expect(check?.income12m).toBe(12);
   });
 
   it("papel: soma o IPCA assumido ao rendimento exigido", () => {
@@ -77,25 +78,78 @@ describe("ceilingCheck: sem dado, sem aviso", () => {
   });
 });
 
-describe("ceilingCheckMessage", () => {
-  it("tijolo: cita o teto da Suno, o calculado, a divergência, a taxa e o spread", () => {
-    const check = ceilingCheck(base)!;
-    const message = ceilingCheckMessage(check, 100);
-    expect(message).toContain(`Teto da Suno ${formatBRL(100)}`);
-    expect(message).toContain(`calculado ${formatBRL(check.calculated)}`);
-    expect(message).toContain(formatSignedPercent(check.divergence, 0));
-    expect(message).toContain(`NTN-B ${formatPercent(0.07, 2)}`);
-    expect(message).toContain("1,0 p.p.");
-    expect(message).not.toContain("IPCA");
-    expect(message).toContain("Confira o teto.");
+describe("ceilingCheckDetails: o texto estruturado do aviso", () => {
+  // Tijolo, NTN-B 7%: renda 8 ÷ 0,08 = calculado 100. Contra um teto da Suno de 120: negativo.
+  const negative = ceilingCheck({ ceiling: 120, income12m: 8, paper: false, ntnbRealRate: 0.07 })!;
+  // Renda 12 ÷ 0,08 = calculado 150. Contra um teto da Suno de 100: positivo.
+  const positive = ceilingCheck(base)!;
+
+  it("calculado ABAIXO do teto da Suno é negativo", () => {
+    const d = ceilingCheckDetails(negative, 120);
+    expect(d.direction).toBe("negative");
+    expect(d.badge).toBe("Negativo");
+    expect(d.change).toBe(formatSignedPercent(negative.divergence, 1));
+    expect(d.headline).toBe("Teto calculado abaixo do teto da Suno");
+    expect(d.meaning).toContain("pode sair caro");
   });
 
-  it("papel: cita também o IPCA assumido", () => {
-    const check = ceilingCheck({ ...base, income12m: 9.6, paper: true })!;
-    const message = ceilingCheckMessage(check, 100);
-    expect(message).toContain(`NTN-B ${formatPercent(0.07, 2)}`);
-    expect(message).toContain(`IPCA ${formatPercent(0.04, 1)}`);
-    expect(message).toContain("1,0 p.p.");
+  it("calculado ACIMA do teto da Suno é positivo", () => {
+    const d = ceilingCheckDetails(positive, 100);
+    expect(d.direction).toBe("positive");
+    expect(d.badge).toBe("Positivo");
+    expect(d.change).toBe(formatSignedPercent(positive.divergence, 1));
+    expect(d.headline).toBe("Teto calculado acima do teto da Suno");
+    expect(d.meaning).toContain("mais conservador");
+  });
+
+  it("as linhas trazem o teto da Suno e o calculado, e só elas quando não há preço", () => {
+    const d = ceilingCheckDetails(negative, 120);
+    expect(d.rows).toEqual([
+      { label: "Teto da Suno", value: formatBRL(120) },
+      { label: "Teto calculado", value: formatBRL(100) },
+    ]);
+    expect(ceilingCheckDetails(negative, 120, null).rows).toHaveLength(2);
+    expect(ceilingCheckDetails(negative, 120, 0).rows).toHaveLength(2);
+    expect(ceilingCheckDetails(negative, 120, Number.NaN).rows).toHaveLength(2);
+  });
+
+  it("o preço acima do teto calculado vem destacado, com quanto passa", () => {
+    // 110 contra 100 calculado: 10% acima.
+    const row = ceilingCheckDetails(negative, 120, 110).rows[2];
+    expect(row).toEqual({
+      label: "Preço atual",
+      value: formatBRL(110),
+      note: `${formatPercent(0.1, 1)} acima do teto calculado`,
+      tone: "warn",
+    });
+  });
+
+  it("o preço abaixo do teto calculado mostra a margem, sem destaque", () => {
+    // 90 contra 150 calculado: margem de 40%.
+    const row = ceilingCheckDetails(positive, 100, 90).rows[2];
+    expect(row).toEqual({
+      label: "Preço atual",
+      value: formatBRL(90),
+      note: `margem de ${formatPercent(0.4, 1)} até o teto calculado`,
+    });
+  });
+
+  it("a fórmula mostra a renda, o rendimento exigido e de onde ele vem (tijolo)", () => {
+    const formula = ceilingCheckDetails(negative, 120).formula;
+    expect(formula).toContain(`Proventos de 12 meses ${formatBRL(8)}`);
+    expect(formula).toContain(formatPercent(0.08, 2));
+    expect(formula).toContain(`NTN-B ${formatPercent(0.07, 2)}`);
+    expect(formula).toContain("1,0 p.p.");
+    expect(formula).not.toContain("IPCA");
+  });
+
+  it("no papel a fórmula inclui também o IPCA assumido", () => {
+    const paper = ceilingCheck({ ...base, income12m: 9.6, paper: true })!;
+    const formula = ceilingCheckDetails(paper, 100).formula;
+    expect(formula).toContain(`Proventos de 12 meses ${formatBRL(9.6)}`);
+    expect(formula).toContain(formatPercent(0.12, 2));
+    expect(formula).toContain(`IPCA ${formatPercent(0.04, 1)}`);
+    expect(formula).toContain("1,0 p.p.");
   });
 });
 

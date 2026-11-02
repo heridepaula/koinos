@@ -51,6 +51,8 @@ export type CeilingCheck = {
   calculated: number;
   /** calculado ÷ teto da Suno − 1, com 6 casas. Positivo: o teto da Suno está abaixo do calculado. */
   divergence: number;
+  /** Proventos por cota dos 12 meses que entraram na conta. */
+  income12m: number;
   /** Rendimento exigido que dividiu a renda. */
   requiredYield: number;
   /** NTN-B real usada (a mediana de 60 pregões). */
@@ -92,21 +94,72 @@ export function ceilingCheck({
   // 6 casas: o ponto flutuante não pode empurrar um 10% exato para 10,000000000000002%.
   const divergence = Math.round((calculated / ceiling - 1) * 1_000_000) / 1_000_000;
   if (Math.abs(divergence) <= CEILING_CHECK.limit) return null;
-  return { calculated, divergence, requiredYield, ntnbRealRate, paper };
+  return { calculated, divergence, requiredYield, income12m, ntnbRealRate, paper };
 }
+
+/** Uma linha de valores do aviso. `tone: "warn"` destaca a linha (o preço já passou do calculado). */
+export type CeilingCheckRow = { label: string; value: string; note?: string; tone?: "warn" };
+
+/**
+ * O aviso pronto para desenhar (tooltip e folha do celular). Positivo: o teto calculado está ACIMA
+ * do da Suno (o da Suno é o mais conservador). Negativo: está ABAIXO (o da Suno pode estar alto
+ * para a renda atual).
+ */
+export type CeilingCheckDetails = {
+  direction: "positive" | "negative";
+  badge: "Positivo" | "Negativo";
+  /** A diferença com sinal, em 1 casa: "+29,2%". */
+  change: string;
+  headline: string;
+  rows: CeilingCheckRow[];
+  /** A conta: proventos de 12 meses ÷ rendimento exigido, e de onde ele vem. */
+  formula: string;
+  /** O que a divergência quer dizer e o que conferir. */
+  meaning: string;
+};
 
 /** "1,0 p.p." a partir de uma fração. */
 const pointsOf = (fraction: number) => `${(fraction * 100).toFixed(1).replace(".", ",")} p.p.`;
 
-/** O texto do aviso (tooltip e folha do celular). `ceiling` é o teto da Suno. */
-export function ceilingCheckMessage(check: CeilingCheck, ceiling: number): string {
+/**
+ * Monta o texto do aviso. `ceiling` é o teto da Suno; `price` (opcional) é o preço atual, que
+ * ganha uma linha dizendo se já passou do teto calculado.
+ */
+export function ceilingCheckDetails(
+  check: CeilingCheck,
+  ceiling: number,
+  price: number | null = null,
+): CeilingCheckDetails {
+  const positive = check.divergence > 0;
+  const rows: CeilingCheckRow[] = [
+    { label: "Teto da Suno", value: formatBRL(ceiling) },
+    { label: "Teto calculado", value: formatBRL(check.calculated) },
+  ];
+  if (price !== null && Number.isFinite(price) && price > 0) {
+    const row: CeilingCheckRow = { label: "Preço atual", value: formatBRL(price) };
+    if (price > check.calculated) {
+      row.note = `${formatPercent(price / check.calculated - 1, 1)} acima do teto calculado`;
+      row.tone = "warn";
+    } else {
+      row.note = `margem de ${formatPercent(1 - price / check.calculated, 1)} até o teto calculado`;
+    }
+    rows.push(row);
+  }
   const rate = `NTN-B ${formatPercent(check.ntnbRealRate, 2)}`;
   const premium = check.paper
     ? `${rate} + IPCA ${formatPercent(CEILING_CHECK.assumedInflation, 1)} + ${pointsOf(CEILING_CHECK.paperSpread)}`
     : `${rate} + ${pointsOf(CEILING_CHECK.tijoloSpread)}`;
-  return (
-    `Teto da Suno ${formatBRL(ceiling)}; calculado ${formatBRL(check.calculated)} ` +
-    `(${formatSignedPercent(check.divergence, 0)}). ` +
-    `Proventos de 12 meses ÷ (${premium}). Confira o teto.`
-  );
+  return {
+    direction: positive ? "positive" : "negative",
+    badge: positive ? "Positivo" : "Negativo",
+    change: formatSignedPercent(check.divergence, 1),
+    headline: positive
+      ? "Teto calculado acima do teto da Suno"
+      : "Teto calculado abaixo do teto da Suno",
+    rows,
+    formula: `Proventos de 12 meses ${formatBRL(check.income12m)} ÷ ${formatPercent(check.requiredYield, 2)} (${premium})`,
+    meaning: positive
+      ? "A renda atual sustenta um teto maior que o da Suno: o teto da Suno é o mais conservador dos dois. Ele pode estar desatualizado, ou os proventos de 12 meses incluem algum pagamento extraordinário."
+      : "A renda atual sustenta um teto menor que o da Suno: comprar perto do teto da Suno pode sair caro. Confira se os proventos caíram ou se o teto da Suno está desatualizado.",
+  };
 }

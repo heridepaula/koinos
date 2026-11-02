@@ -13,10 +13,12 @@ export {
   CEILING_MAX,
   ceilingCheck,
   ceilingFromInput,
-  ceilingCheckMessage,
+  ceilingCheckDetails,
   isSuspiciousCeiling,
   marginToCeiling,
   type CeilingCheck,
+  type CeilingCheckDetails,
   type CeilingCheckInput,
+  type CeilingCheckRow,
 } from "./domain/ceiling";
 export { targetPatchSchema, type TargetPatchInput } from "./schemas";

@@ -38,6 +38,9 @@ Nenhuma destas situações é erro; o resultado é "sem aviso":
 
 ## 4. Telas
 
+> **Revisado em 2026-11-02, a pedido do dono:** o triângulo fica **ao lado do preço teto** (célula da coluna Teto na tabela; na folha do celular, ao lado da linha "Preço teto" e no resumo da lista), e não ao lado da margem. O texto ganhou o sinal (**Positivo**: o teto calculado está acima do da Suno; **Negativo**: abaixo) e um layout em blocos: selo com seta e a diferença, manchete, valores em colunas, o preço atual contra o teto calculado (destacado quando já passou), a conta e o que ela significa. É a função pura `ceilingCheckDetails` e o componente `CeilingCheckBody`. O sinal tem cor: o triângulo e o selo são **verdes no positivo e vermelhos no negativo** (tokens `gain`/`loss` sobre o card e a folha; no tooltip, de fundo invertido, um par de tons por tema, com no mínimo 4,5:1 sobre o selo). O resto desta seção descreve a primeira versão.
+
+
 - **Carteira Alvo** (`MarginValue`, `strategy/components/table/read-only-cells.tsx`): triângulo âmbar (`text-warn`) ao lado do "Teto suspeito" que já existe, com tooltip e `aria-label` próprios ("Teto diverge do calculado"), para as duas poderem aparecer juntas.
   - Texto do tooltip: "Teto da Suno R$ 84,00; calculado R$ 57,52 (−32%). Proventos de 12 meses ÷ (NTN-B 7,68% + 1,0 p.p.). Confira o teto." Para papel, o texto cita o IPCA assumido.
   - Aparece nas duas abas só onde há `ceilingCheck` (ações nunca têm).

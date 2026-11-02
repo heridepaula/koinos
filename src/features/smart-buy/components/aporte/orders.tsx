@@ -2,8 +2,8 @@
 
 import { ChevronRightIcon } from "lucide-react";
 import { useState, type ReactNode } from "react";
-import { ceilingCheckMessage, type CeilingCheck } from "@/features/strategy";
-import { CeilingCheckIcon } from "@/features/strategy/ui";
+import type { CeilingCheck } from "@/features/strategy";
+import { CeilingCheckBody, CeilingCheckIcon } from "@/features/strategy/ui";
 import { AssetLabel } from "@/shared/components/asset-label";
 import { InsetGroup, InsetValueRow } from "@/shared/components/inset-list";
 import { QUANTITY_MASK, Sensitive } from "@/shared/components/sensitive";
@@ -104,6 +104,7 @@ export function OrdersTable({ rows, meta, showClass }: OrdersProps) {
                       <CeilingCheckIcon
                         check={info.ceilingWarning.check}
                         ceiling={info.ceilingWarning.ceiling}
+                        price={order.price}
                       />
                     ) : null}
                   </div>
@@ -274,9 +275,13 @@ function OrderSheetFrame({
         <InsetGroup title="Por quê">{children}</InsetGroup>
         {info?.ceilingWarning ? (
           <InsetGroup title="Aviso">
-            <ReasonRow>
-              {ceilingCheckMessage(info.ceilingWarning.check, info.ceilingWarning.ceiling)}
-            </ReasonRow>
+            <div className="px-4 py-3 text-footnote">
+              <CeilingCheckBody
+                check={info.ceilingWarning.check}
+                ceiling={info.ceilingWarning.ceiling}
+                price={order.price}
+              />
+            </div>
           </InsetGroup>
         ) : null}
       </DrawerBody>

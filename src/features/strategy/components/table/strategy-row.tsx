@@ -12,6 +12,7 @@ import { BiasSelect } from "./bias-select";
 import { CategorySelect } from "./category-select";
 import { CATEGORY_LABELS } from "../../domain/categories";
 import { suggestedPercentProblem } from "../../domain/quarantine";
+import { CeilingCheckIcon } from "../ceiling-check-icon";
 import { MoneyField } from "./money-field";
 import { NumberField } from "./number-field";
 import { MarginValue, WeightValue } from "./read-only-cells";
@@ -45,12 +46,24 @@ export function StrategyRow({ row, stock = false }: { row: StrategyRowData; stoc
         />
       </TableCell>
       <TableCell>
-        <MoneyField
-          label="Preço teto"
-          className="w-28"
-          value={row.ceilingPrice}
-          onCommit={(value) => save({ ceilingPrice: value })}
-        />
+        <div className="flex items-center gap-1.5">
+          {/* O espaço do triângulo fica reservado, para os campos alinharem com ou sem aviso. */}
+          <span className="inline-flex size-3.5 shrink-0 items-center justify-center">
+            {row.ceilingCheck && row.ceilingPrice !== null ? (
+              <CeilingCheckIcon
+                check={row.ceilingCheck}
+                ceiling={row.ceilingPrice}
+                price={row.price}
+              />
+            ) : null}
+          </span>
+          <MoneyField
+            label="Preço teto"
+            className="w-28"
+            value={row.ceilingPrice}
+            onCommit={(value) => save({ ceilingPrice: value })}
+          />
+        </div>
       </TableCell>
       <TableCell>
         <NumberField

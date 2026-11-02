@@ -1,6 +1,6 @@
 "use client";
 
-import { ChevronRightIcon, Trash2Icon, TriangleAlertIcon } from "lucide-react";
+import { ChevronRightIcon, Trash2Icon } from "lucide-react";
 import { useState, type ReactNode } from "react";
 import type { StrategyRow } from "@/features/portfolio";
 import { PriorityBadge } from "@/features/smart-buy/ui";
@@ -22,7 +22,8 @@ import { Switch } from "@/shared/ui/switch";
 import { BiasSelect } from "./bias-select";
 import { CategorySelect } from "./category-select";
 import { CATEGORY_LABELS } from "../../domain/categories";
-import { ceilingCheckMessage } from "../../domain/ceiling";
+import { CeilingCheckBody } from "../ceiling-check-body";
+import { CeilingCheckIcon } from "../ceiling-check-icon";
 import { suggestedPercentProblem } from "../../domain/quarantine";
 import { MoneyField } from "./money-field";
 import { NumberField } from "./number-field";
@@ -83,6 +84,15 @@ function RowList({ rows, sheet }: { rows: StrategyRow[]; sheet: SheetHandle }) {
               {row.inStrategy ? (
                 <span className="text-footnote text-muted-foreground tabular-nums">
                   {summary(row)}
+                  {row.ceilingCheck && row.ceilingPrice !== null ? (
+                    <span className="ml-1.5 inline-flex align-middle">
+                      <CeilingCheckIcon
+                        check={row.ceilingCheck}
+                        ceiling={row.ceilingPrice}
+                        tooltip={false}
+                      />
+                    </span>
+                  ) : null}
                   {row.bias === "AGUARDAR" ? (
                     <span className="ml-2 rounded-full bg-secondary px-2 py-0.5 text-caption">
                       Aguardar
@@ -154,12 +164,22 @@ function StrategySheet({
             />
           </SheetRow>
           <SheetRow label="Preço teto (R$)">
-            <MoneyField
-              label="Preço teto"
-              className="w-36 bg-card dark:bg-card"
-              value={row.ceilingPrice}
-              onCommit={(value) => save({ ceilingPrice: value })}
-            />
+            <div className="flex items-center gap-2">
+              {/* Só o ícone: o texto do aviso aparece no bloco abaixo, porque o toque não abre tooltip. */}
+              {row.ceilingCheck && row.ceilingPrice !== null ? (
+                <CeilingCheckIcon
+                  check={row.ceilingCheck}
+                  ceiling={row.ceilingPrice}
+                  tooltip={false}
+                />
+              ) : null}
+              <MoneyField
+                label="Preço teto"
+                className="w-36 bg-card dark:bg-card"
+                value={row.ceilingPrice}
+                onCommit={(value) => save({ ceilingPrice: value })}
+              />
+            </div>
           </SheetRow>
           <SheetRow label="% sugerida">
             <NumberField
@@ -204,10 +224,13 @@ function StrategySheet({
           </SheetRow>
         </SheetGroup>
         {row.ceilingCheck && row.ceilingPrice !== null ? (
-          <p className="flex items-start gap-2 rounded-2xl bg-secondary/60 px-4 py-3 text-footnote text-muted-foreground">
-            <TriangleAlertIcon className="mt-0.5 size-3.5 shrink-0 text-warn" aria-hidden="true" />
-            {ceilingCheckMessage(row.ceilingCheck, row.ceilingPrice)}
-          </p>
+          <div className="rounded-2xl bg-secondary/60 px-4 py-3 text-footnote">
+            <CeilingCheckBody
+              check={row.ceilingCheck}
+              ceiling={row.ceilingPrice}
+              price={row.price}
+            />
+          </div>
         ) : null}
         {row.configured ? (
           <Button variant="destructive" className="h-12" disabled={removing} onClick={remove}>
