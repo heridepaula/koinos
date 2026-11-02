@@ -59,7 +59,9 @@ const DATE = /^(\d{2})\/(\d{2})\/(\d{4})$/;
 const round4 = (value: number) => Math.round(value * 10_000) / 10_000;
 
 function parseNumber(text: string): number | null {
-  return NUMBER.test(text) ? Number(text.replace(",", ".")) : null;
+  if (!NUMBER.test(text)) return null;
+  // "-0,00" vira 0 (e não -0).
+  return Number(text.replace(",", ".")) + 0;
 }
 
 const inRange = (rate: number) => rate >= RATE_LIMITS.min && rate <= RATE_LIMITS.max;
@@ -101,6 +103,8 @@ export function parseTreasuryCsv(
 
   for (let index = 1; index < lines.length; index++) {
     const raw = lines[index].replace(/\r$/, "");
+    // Linha em branco (só "") é ignorada; uma só com espaços tem 1 coluna e recusa o arquivo de
+    // propósito: qualquer anomalia recusa tudo.
     if (raw === "") continue;
     const cells = raw.split(";");
     if (cells.length !== TREASURY_COLUMNS.length) {
@@ -108,7 +112,13 @@ export function parseTreasuryCsv(
     }
     if (!kinds.has(cells[0])) continue;
     const maturity = parseBrDate(cells[1]);
-    if (maturity === null || !wanted.has(`${cells[0]}|${maturity}`)) continue;
+    if (maturity === null) {
+      // Tipo acompanhado com vencimento que não é data: linha acompanhada inválida.
+      seen++;
+      invalid++;
+      continue;
+    }
+    if (!wanted.has(`${cells[0]}|${maturity}`)) continue;
 
     seen++;
     const baseDate = parseBrDate(cells[2]);
@@ -159,7 +169,11 @@ export function medianRate(values: readonly number[]): number | null {
   return sorted.length % 2 === 1 ? sorted[middle] : (sorted[middle - 1] + sorted[middle]) / 2;
 }
 
-/** Dias corridos entre a data-base (aaaa-mm-dd) e o dia de `now`, em UTC. */
+/**
+ * Dias corridos entre a data-base (aaaa-mm-dd) e o dia de `now`, em UTC. A conta em UTC é uma
+ * escolha: perto da meia-noite de Brasília pode adiantar o "velho" em algumas horas, o que não
+ * importa com o limite de 10 dias.
+ */
 export function daysSince(baseDate: string, now: Date): number {
   const today = Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate());
   return Math.floor((today - Date.parse(`${baseDate}T00:00:00Z`)) / 86_400_000);
@@ -184,17 +198,20 @@ export function summarizeRate(
   window = MEDIAN_WINDOW,
 ): RateSummary | null {
   if (series.length === 0) return null;
-  const ordered = [...series].sort((a, b) => a.baseDate.localeCompare(b.baseDate)).slice(-window);
+  const ordered = [...series]
+    .sort((a, b) => (a.baseDate < b.baseDate ? -1 : a.baseDate > b.baseDate ? 1 : 0))
+    .slice(-window);
   const mids = ordered.map(midRate);
   const last = mids[mids.length - 1];
   const median = medianRate(mids) as number;
   const baseDate = ordered[ordered.length - 1].baseDate;
+  const age = daysSince(baseDate, now);
   return {
     last,
     median,
     divergence: round4(last - median),
     baseDate,
-    stale: daysSince(baseDate, now) > STALE_AFTER_DAYS,
+    stale: !Number.isFinite(age) || age > STALE_AFTER_DAYS,
     points: ordered.length,
   };
 }
@@ -212,23 +229,33 @@ export function parseTreasuryPackage(payload: unknown): { url: string; lastModif
   if (!Array.isArray(resources)) {
     throw new Error("Catálogo do Tesouro Transparente sem a lista de recursos");
   }
-  const csv = (resources as (CatalogResource | null)[]).find(
-    (resource) =>
+  const csvs = (resources as (CatalogResource | null)[]).filter(
+    (resource): resource is CatalogResource =>
       typeof resource === "object" &&
       resource !== null &&
       String(resource.format).toUpperCase() === "CSV",
   );
-  if (!csv) throw new Error("Catálogo do Tesouro Transparente sem recurso CSV");
+  if (csvs.length === 0) throw new Error("Catálogo do Tesouro Transparente sem recurso CSV");
+  // O primeiro CSV que tem last_modified.
+  const csv = csvs.find(
+    (resource) => typeof resource.last_modified === "string" && resource.last_modified !== "",
+  );
+  if (!csv) throw new Error("Recurso CSV do Tesouro Transparente sem last_modified");
   const url = typeof csv.url === "string" ? csv.url : "";
-  const lastModified = typeof csv.last_modified === "string" ? csv.last_modified : "";
-  if (!lastModified) throw new Error("Recurso CSV do Tesouro Transparente sem last_modified");
+  const lastModified = csv.last_modified as string;
   let parsed: URL;
   try {
     parsed = new URL(url);
   } catch {
     throw new Error("Recurso CSV do Tesouro Transparente com URL inválida");
   }
-  if (parsed.protocol !== "https:" || parsed.hostname !== CATALOG_HOST) {
+  if (
+    parsed.protocol !== "https:" ||
+    parsed.hostname !== CATALOG_HOST ||
+    parsed.username !== "" ||
+    parsed.password !== "" ||
+    parsed.port !== ""
+  ) {
     throw new Error(`Recurso CSV fora do host esperado: ${parsed.hostname}`);
   }
   return { url, lastModified };

@@ -79,9 +79,19 @@ describe("parseTreasuryCsv", () => {
   });
 
   it("aceita BOM e quebras de linha CRLF", () => {
+    // O \r do cabeçalho é o que o teste protege: a 8ª coluna ("PU Base Manha") não é lida,
+    // então um \r a mais nela só quebraria a conferência do cabeçalho.
     const text = "\uFEFF" + [HEADER, ntnb("30/10/2026", "7,86", "7,98")].join("\r\n") + "\r\n";
     const result = parseTreasuryCsv(text);
-    expect(result.ok).toBe(true);
+    if (!result.ok) throw new Error(result.reason);
+    expect(result.rows).toHaveLength(1);
+    expect(result.latestBaseDate).toBe("2026-10-30");
+    expect(result.rows[0]).toMatchObject({
+      buyRate: 7.86,
+      sellRate: 7.98,
+      buyPrice: 4389.83,
+      sellPrice: 4355.94,
+    });
   });
 
   it("rejeita o arquivo quando o cabeçalho muda", () => {
@@ -274,5 +284,126 @@ describe("parseTreasuryPackage", () => {
 describe("título de referência", () => {
   it("é a NTN-B com cupom que vence em 15/05/2035", () => {
     expect(BENCHMARK_TITLE).toEqual({ kind: KIND, maturity: "2035-05-15" });
+  });
+});
+
+describe("endurecimento depois da revisão", () => {
+  const good = () => ntnb("30/10/2026", "7,86", "7,98");
+
+  it("normaliza -0,00 para 0", () => {
+    const result = parseTreasuryCsv(file(ntnb("30/10/2026", "-0,00", "7,98")));
+    if (!result.ok) throw new Error(result.reason);
+    expect(Object.is(result.rows[0].buyRate, 0)).toBe(true);
+  });
+
+  it.each([
+    ["taxa de venda inválida sozinha", ntnb("30/10/2026", "7,86", "7.98")],
+    [
+      "PU de compra inválido",
+      line(KIND, "15/05/2035", "30/10/2026", "7,86", "7,98").replace("4389,83", "4389.83"),
+    ],
+    [
+      "PU de venda inválido",
+      [KIND, "15/05/2035", "30/10/2026", "7,86", "7,98", "4389,83", "abc", "4355,94"].join(";"),
+    ],
+  ])("conta como inválida a linha com %s", (_name, badLine) => {
+    const result = parseTreasuryCsv(file(badLine, good()));
+    expect(result.ok).toBe(false);
+    if (!result.ok) expect(result.reason).toContain("inválidas");
+  });
+
+  it("aceita as taxas nos limites exatos", () => {
+    const result = parseTreasuryCsv(
+      file(ntnb("30/10/2026", "30,00", "-10,00"), ntnb("29/10/2026", "-10,00", "30,00")),
+    );
+    expect(result.ok).toBe(true);
+  });
+
+  it("o limite de 1%: 1 inválida em 100 passa e 2 em 100 recusa", () => {
+    const ok = Array.from({ length: 99 }, good);
+    const bad = ntnb("30/10/2026", "7.86", "7,98");
+    expect(parseTreasuryCsv(file(...ok, bad)).ok).toBe(true);
+    const fewer = Array.from({ length: 98 }, good);
+    expect(parseTreasuryCsv(file(...fewer, bad, bad)).ok).toBe(false);
+  });
+
+  it("conta como inválida a linha do tipo acompanhado com vencimento que não é data", () => {
+    const result = parseTreasuryCsv(
+      file(good(), line(KIND, "xx/yy/zzzz", "30/10/2026", "7,86", "7,98")),
+    );
+    expect(result.ok).toBe(false);
+    if (!result.ok) expect(result.reason).toContain("inválidas");
+  });
+
+  it("ignora sem contar o vencimento válido de outro ano", () => {
+    const result = parseTreasuryCsv(
+      file(good(), line(KIND, "15/05/2045", "30/10/2026", "7,86", "7,98")),
+    );
+    if (!result.ok) throw new Error(result.reason);
+    expect(result.invalid).toBe(0);
+    expect(result.rows).toHaveLength(1);
+  });
+
+  it("aceita arquivo sem quebra de linha no fim", () => {
+    expect(parseTreasuryCsv(HEADER + "\n" + good()).ok).toBe(true);
+  });
+
+  it("ignora linha em branco no meio e recusa linha só com espaços", () => {
+    expect(parseTreasuryCsv([HEADER, good(), "", good()].join("\n")).ok).toBe(true);
+    const spaces = parseTreasuryCsv([HEADER, good(), "   ", good()].join("\n"));
+    expect(spaces.ok).toBe(false);
+  });
+
+  it("a data-base inválida na série deixa o dado velho", () => {
+    const summary = summarizeRate(
+      [{ baseDate: "xx", buyRate: 7, sellRate: 7 }],
+      new Date("2026-10-28T12:00:00Z"),
+    );
+    expect(summary?.stale).toBe(true);
+  });
+
+  it("ordena as datas pela comparação direta", () => {
+    const summary = summarizeRate(
+      [
+        { baseDate: "2026-10-27", buyRate: 7, sellRate: 7 },
+        { baseDate: "2026-10-02", buyRate: 1, sellRate: 1 },
+      ],
+      new Date("2026-10-28T12:00:00Z"),
+    );
+    expect(summary?.baseDate).toBe("2026-10-27");
+  });
+
+  describe("parseTreasuryPackage", () => {
+    const URL_OK = "https://www.tesourotransparente.gov.br/x.csv";
+    const pkg = (...resources: object[]) => ({ result: { resources } });
+
+    it("recusa URL com porta ou com usuário", () => {
+      for (const url of [
+        "https://www.tesourotransparente.gov.br:8443/x.csv",
+        "https://user@www.tesourotransparente.gov.br/x.csv",
+        "https://user:pw@www.tesourotransparente.gov.br/x.csv",
+      ]) {
+        expect(() =>
+          parseTreasuryPackage(pkg({ format: "CSV", url, last_modified: "2026-10-31" })),
+        ).toThrow();
+      }
+    });
+
+    it("escolhe o primeiro CSV que tem last_modified e aceita format em minúsculas", () => {
+      expect(
+        parseTreasuryPackage(
+          pkg(
+            { format: "CSV", url: URL_OK },
+            { format: "csv", url: URL_OK, last_modified: "2026-10-31" },
+          ),
+        ),
+      ).toEqual({ url: URL_OK, lastModified: "2026-10-31" });
+    });
+
+    it("lança quando nenhum CSV tem last_modified", () => {
+      expect(() => parseTreasuryPackage(pkg({ format: "CSV", url: URL_OK }))).toThrow(
+        /last_modified/,
+      );
+    });
   });
 });
