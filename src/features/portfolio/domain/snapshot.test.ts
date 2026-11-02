@@ -563,3 +563,120 @@ describe("buildSnapshot: Carteira Alvo de ações", () => {
     expect(alertOf("FII", "sem-configuracao")?.detail).not.toContain("ITUB4");
   });
 });
+
+describe("buildSnapshot: aviso de divergência do teto (spec divergencia-teto)", () => {
+  const now = new Date(Date.UTC(2026, 10, 1));
+  const fresh = new Date(Date.UTC(2026, 9, 30)); // 2 dias antes de `now`
+  const stale = new Date(Date.UTC(2026, 9, 10)); // 22 dias antes: passa dos 10 dias
+
+  const priced = (overrides: Partial<PriceInfo> = {}): PriceInfo => ({
+    ...quote,
+    price: 100,
+    dividends12m: 8,
+    dividendsFetchedAt: fresh,
+    ...overrides,
+  });
+  const paperFii: PriceInfo["fii"] = {
+    vacancyPct: null,
+    segment: null,
+    fundType: "Papel",
+    paperPct: null,
+    realEstatePct: null,
+  };
+
+  /**
+   * AAAA11 e BBBB11 sem perfil (macro "Outros", tratada como tijolo), PPPP11 de papel e QQQQ11 fora
+   * da estratégia. Com NTN-B 7%: tijolo exige 8% (renda 8 → calculado 100) e papel 12% (→ 66,67).
+   */
+  function withCeilings(
+    ntnbRealRate: number | null | undefined,
+    prices: Record<string, PriceInfo> = {},
+  ): SnapshotInput {
+    const ceilingOf = (
+      ticker: string,
+      inStrategy: boolean,
+      ceilingPrice: number,
+      rank: number,
+    ) => ({
+      ...target(ticker, inStrategy, inStrategy ? 25 : null, inStrategy ? rank : null),
+      ceilingPrice,
+    });
+    return {
+      now,
+      transactions: [buy("AAAA11", 10), buy("BBBB11", 10), buy("PPPP11", 10), buy("QQQQ11", 10)],
+      targets: [
+        ceilingOf("AAAA11", true, 120, 1), // calculado 100 contra 120: −16,7%
+        ceilingOf("BBBB11", true, 100, 2), // calculado 100 contra 100: 0%
+        ceilingOf("PPPP11", true, 100, 3), // calculado 66,67 contra 100: −33,3%
+        ceilingOf("QQQQ11", false, 120, 4), // fora da estratégia
+      ],
+      dividends: [],
+      prices: new Map([
+        ["AAAA11", prices.AAAA11 ?? priced()],
+        ["BBBB11", prices.BBBB11 ?? priced()],
+        ["PPPP11", prices.PPPP11 ?? priced({ fii: paperFii })],
+        ["QQQQ11", prices.QQQQ11 ?? priced()],
+      ]),
+      classes: new Map(),
+      ntnbRealRate,
+    };
+  }
+
+  const checkOf = (snapshot: ReturnType<typeof buildSnapshot>, ticker: string) =>
+    snapshot.strategy.rows.find((row) => row.ticker === ticker)?.ceilingCheck;
+
+  it("avisa tijolo e papel pela fórmula de cada um, e não avisa quem está dentro do limite", () => {
+    const snapshot = buildSnapshot(withCeilings(0.07));
+    const tijolo = checkOf(snapshot, "AAAA11");
+    expect(tijolo?.calculated).toBeCloseTo(100, 6);
+    expect(tijolo?.divergence).toBeCloseTo(-1 / 6, 5);
+    expect(tijolo?.paper).toBe(false);
+    expect(checkOf(snapshot, "BBBB11")).toBeNull();
+    const papel = checkOf(snapshot, "PPPP11");
+    expect(papel?.calculated).toBeCloseTo(8 / 0.12, 6);
+    expect(papel?.paper).toBe(true);
+  });
+
+  it("FII fora da estratégia não recebe o aviso", () => {
+    expect(checkOf(buildSnapshot(withCeilings(0.07)), "QQQQ11")).toBeNull();
+  });
+
+  it.each([
+    ["sem taxa (null)", null],
+    ["sem taxa (ausente)", undefined],
+  ])("%s: nenhuma linha recebe o aviso", (_name, rate) => {
+    const snapshot = buildSnapshot(withCeilings(rate));
+    expect(snapshot.strategy.rows.every((row) => row.ceilingCheck === null)).toBe(true);
+  });
+
+  it("proventos buscados há mais de 10 dias: sem aviso naquele FII", () => {
+    const snapshot = buildSnapshot(
+      withCeilings(0.07, { AAAA11: priced({ dividendsFetchedAt: stale }) }),
+    );
+    expect(checkOf(snapshot, "AAAA11")).toBeNull();
+    expect(checkOf(snapshot, "PPPP11")).not.toBeNull();
+  });
+
+  it("proventos nunca buscados ou de 12 meses ausentes: sem aviso", () => {
+    const snapshot = buildSnapshot(
+      withCeilings(0.07, {
+        AAAA11: priced({ dividendsFetchedAt: null }),
+        PPPP11: priced({ dividends12m: null, fii: paperFii }),
+      }),
+    );
+    expect(checkOf(snapshot, "AAAA11")).toBeNull();
+    expect(checkOf(snapshot, "PPPP11")).toBeNull();
+  });
+
+  it("a cascata e as Prioridades são idênticas com e sem a taxa", () => {
+    const withRate = buildSnapshot(withCeilings(0.07));
+    const without = buildSnapshot(withCeilings(null));
+    expect(withRate.cascadeInput).toEqual(without.cascadeInput);
+    expect(withRate.strategy.rows.map((row) => [row.ticker, row.priority])).toEqual(
+      without.strategy.rows.map((row) => [row.ticker, row.priority]),
+    );
+    expect(sunoCascade(1_000, withRate.cascadeInput).orders).toEqual(
+      sunoCascade(1_000, without.cascadeInput).orders,
+    );
+  });
+});

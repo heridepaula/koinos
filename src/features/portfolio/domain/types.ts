@@ -1,6 +1,6 @@
 import type { AssetClass } from "@/features/market-data";
 import type { AportePriority, CascadeAsset, StockBuyAsset } from "@/features/smart-buy";
-import type { Bias, Category } from "@/features/strategy";
+import type { Bias, Category, CeilingCheck } from "@/features/strategy";
 import type { DividendKind, MonthlyContribution } from "@/features/transactions";
 
 // DTOs entregues às telas. Nenhum carrega userId, portfolioId ou documento cru do banco.
@@ -98,6 +98,8 @@ export type StrategyRow = {
   price: number | null;
   marginToCeiling: number | null;
   suspiciousCeiling: boolean;
+  /** O teto da Suno está a mais de 10% do calculado pela NTN-B (spec divergencia-teto). Só informativo. */
+  ceilingCheck: CeilingCheck | null;
   strategyWeight: number | null;
   targetWeight: number | null;
   priority: AportePriority | null;

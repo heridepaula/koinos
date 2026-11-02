@@ -19,6 +19,7 @@ const row = (ticker: string, patch: Partial<StrategyRow> = {}): StrategyRow => (
   price: 10,
   marginToCeiling: null,
   suspiciousCeiling: false,
+  ceilingCheck: null,
   strategyWeight: null,
   targetWeight: null,
   priority: null,

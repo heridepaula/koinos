@@ -9,10 +9,12 @@ import {
   type StockBuyAsset,
 } from "@/features/smart-buy";
 import {
+  ceilingCheck,
   effectiveWeights,
   isSuspiciousCeiling,
   marginToCeiling,
   suggestCategory,
+  type CeilingCheck,
 } from "@/features/strategy";
 import { monthlyContributions, replayLedger, type DividendEntry } from "@/features/transactions";
 import { byClass, type ClassFilter } from "@/shared/lib/class-filter";
@@ -48,6 +50,11 @@ export type SnapshotInput = {
   classes: ReadonlyMap<string, AssetClass | null>;
   /** Visão do snapshot (spec etapa 2): decide a estratégia de `strategy` e os alertas. Padrão: Geral. */
   view?: ClassFilter;
+  /**
+   * NTN-B real em fração (mediana de 60 pregões; 7,675% = 0,07675), só informativa: alimenta o aviso
+   * de divergência do teto (spec divergencia-teto). Null ou ausente: sem aviso. Não entra na cascata.
+   */
+  ntnbRealRate?: number | null;
 };
 
 /**
@@ -76,6 +83,7 @@ export function buildSnapshot({
   prices,
   classes,
   view = "TODOS",
+  ntnbRealRate = null,
 }: SnapshotInput): PortfolioSnapshot {
   const { positions } = replayLedger(transactions);
   const classOf = (ticker: string): AssetClass | null =>
@@ -124,6 +132,10 @@ export function buildSnapshot({
 
   // Entrada do motor 3.0: P/VP e perfil do FII (usebolsai, cron das 2h), proventos (Yahoo) e os
   // baldes de risco. Sem dado, cada tensor fica neutro.
+  // Os proventos só valem quando a busca é recente (spec koinos-3-1, §4.2).
+  const isDividendsFresh = (info: PriceInfo | undefined) =>
+    info?.dividendsFetchedAt != null &&
+    now.getTime() - info.dividendsFetchedAt.getTime() <= DIVIDENDS_FRESH_DAYS * DAY_MS;
   const toCascadeAsset = (
     member: (typeof strategies.FII.members)[number],
     weights: Map<string, number>,
@@ -139,9 +151,7 @@ export function buildSnapshot({
       category: member.category,
     });
     // Dias desde o último provento, só com a busca de proventos recente (spec koinos-3-1, §4.2).
-    const dividendsFresh =
-      info?.dividendsFetchedAt != null &&
-      now.getTime() - info.dividendsFetchedAt.getTime() <= DIVIDENDS_FRESH_DAYS * DAY_MS;
+    const dividendsFresh = isDividendsFresh(info);
     const daysSinceLastDividend =
       info?.lastDividend && dividendsFresh
         ? Math.floor((now.getTime() - info.lastDividend.exDate.getTime()) / DAY_MS)
@@ -169,6 +179,19 @@ export function buildSnapshot({
   const cascadeInput = strategies.FII.members.map((member) =>
     toCascadeAsset(member, strategies.FII.weights),
   );
+  // Aviso de divergência do teto: só FIIs da estratégia (têm a macro calculada), com proventos
+  // recentes e a taxa da NTN-B. Papel soma o IPCA assumido; as demais classes, não. Só informativo.
+  const cascadeByTicker = new Map(cascadeInput.map((asset) => [asset.ticker, asset]));
+  const ceilingCheckOf = (ticker: string, ceiling: number | null): CeilingCheck | null => {
+    const asset = cascadeByTicker.get(ticker);
+    if (!asset) return null;
+    return ceilingCheck({
+      ceiling,
+      income12m: isDividendsFresh(prices.get(ticker)) ? asset.dividends12m : null,
+      paper: asset.macro === "Papel",
+      ntnbRealRate,
+    });
+  };
   // Smart Buy de ações (spec smart-buy-acoes, §3): os membros da estratégia de ações com o peso
   // efetivo, reescalado para 100% como nos FIIs (spec tabelas-unificadas, §3.3). Na ordem das
   // linhas (rank, ticker): o motor lista os de fora na ordem da entrada.
@@ -324,6 +347,10 @@ export function buildSnapshot({
           price,
           marginToCeiling: marginToCeiling(target?.ceilingPrice ?? null, price),
           suspiciousCeiling: isSuspiciousCeiling(target?.ceilingPrice ?? null, price),
+          ceilingCheck:
+            cls === "FII" && inStrategy
+              ? ceilingCheckOf(ticker, target?.ceilingPrice ?? null)
+              : null,
           strategyWeight: inStrategy ? strategy.weightOf(ticker) : null,
           targetWeight: inStrategy ? (strategy.weights.get(ticker) ?? 0) : null,
           priority: inStrategy ? (priorities.get(ticker) ?? null) : null,
