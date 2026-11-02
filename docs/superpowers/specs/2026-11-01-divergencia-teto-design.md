@@ -1,6 +1,6 @@
 # Aviso de divergência do teto (Suno × NTN-B)
 
-Data: 2026-11-01. Estado: **desenho aprovado pelo dono em 2026-11-01; aguardando a revisão desta spec**. Origem: o item 1 do parecer do conselho sobre as 4 regras (`2026-11-01-fruicao-design.md`, §1) e a coleta da taxa real da NTN-B (`2026-11-01-taxa-ntnb-design.md`), que deixou o dado pronto e sem uso.
+Data: 2026-11-01. Estado: **implementada** (plano em `docs/superpowers/plans/2026-11-01-divergencia-teto.md`). Origem: o item 1 do parecer do conselho sobre as 4 regras (`2026-11-01-fruicao-design.md`, §1) e a coleta da taxa real da NTN-B (`2026-11-01-taxa-ntnb-design.md`), que deixou o dado pronto e sem uso.
 
 ## 1. Objetivo
 
@@ -33,7 +33,7 @@ Nenhuma destas situações é erro; o resultado é "sem aviso":
 - `SnapshotInput` ganha `ntnbRealRate?: number | null` (fração; padrão null). Os chamadores que não passam nada continuam iguais.
 - `getPortfolioSnapshot` (`portfolio/server`) lê `getRealRate(now)`. Se há resumo e ele não é velho, passa `median / 100`; senão, null. **Uma falha na leitura da taxa não pode derrubar a página:** o erro é registrado no log e vira null.
 - Tipo `CeilingCheck` (DTO, sem ids internos): `{ calculated: number; divergence: number; requiredYield: number; ntnbRealRate: number }`. É criado **só quando há aviso**; sem aviso, o campo é null. O teto da Suno e o provento já estão na linha.
-- `StrategyRow` ganha `ceilingCheck: CeilingCheck | null`. A página de Recomendações monta `ceilingChecks: Record<ticker, CeilingCheck>` só com os FIIs avisados e passa ao `AporteCalculator`.
+- `StrategyRow` ganha `ceilingCheck: CeilingCheck | null`. A página de Recomendações põe o aviso no `AssetMeta` de cada FII avisado (`ceilingWarning`: o `CeilingCheck` e o teto da Suno), que já chega às ordens pelo `AporteCalculator`.
 - `buildSnapshot` calcula o campo ao montar as linhas dos FIIs da estratégia, com `macro`, `dividends12m` e o teto que a cascata já usa. **A cascata, o `cascadeInput` e a Prioridade ficam iguais com e sem a taxa.**
 
 ## 4. Telas

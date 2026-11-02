@@ -124,6 +124,7 @@ Resumo para orientar a avaliação, conferido no código em 2026-11-01 (Koinos 3
 - **Teto** (`ceiling.ts`):
   - `marginToCeiling` = (teto − preço) ÷ teto;
   - `isSuspiciousCeiling` marca o teto abaixo de 50% ou acima de 200% do preço.
+  - `ceilingCheck` (`CEILING_CHECK`): teto calculado = proventos de 12 meses ÷ (NTN-B real + spread); tijolo e demais classes + 1,0 p.p., papel + 4,0% de IPCA assumido + 1,0 p.p. Avisa (só informativo) quando difere do teto da Suno em mais de 10%, nos dois lados, e só para FIIs da estratégia com proventos de até 10 dias e taxa em dia.
 
 ## 6. Reinvestimento
 
@@ -211,7 +212,7 @@ As lentes podem discordar destas decisões; a síntese marca o conflito, mas nã
   - os proventos recebidos por ativo;
   - a % reinvestida por mês;
   - as encerradas e a evolução mensal.
-- **Taxa real da NTN-B 2035** (Tesouro Transparente, `treasury_rates`, `getRealRate`): média de compra e venda por pregão desde 2006, a mediana dos últimos 60 pregões e a diferença para o último. Nenhum motor, teto ou tela usa; é só dado. A fonte é aberta (ODbL) e foi liberada pelo dono. Um teto calculado com ela precisa casar yield **real** com taxa real (ou os dois nominais).
+- **Taxa real da NTN-B 2035** (Tesouro Transparente, `treasury_rates`, `getRealRate`): média de compra e venda por pregão desde 2006, a mediana dos últimos 60 pregões e a diferença para o último. Só o aviso de divergência do teto usa (informativo); nenhum motor nem decisão de compra. A fonte é aberta (ODbL) e foi liberada pelo dono. Um teto calculado com ela precisa casar yield **real** com taxa real (ou os dois nominais).
 
 **Faltam:**
 
@@ -230,6 +231,7 @@ Uma fonte nova é decisão de produto. A B3 está fora, e a StatusInvest foi rec
 
 Confira esta lista antes de apontar um erro.
 
+- **Teto calculado × teto da Suno:** o triângulo de divergência não muda ordem, Prioridade nem alerta, e o teto que decide a compra continua o da Suno. O teto calculado reproduz o da Suno na mediana (97%), mas varia com a taxa: o IPCA do papel é um número fixo (4,0%) e o tijolo compara provento nominal com taxa real de propósito (o aluguel acompanha a inflação).
 - **Travas por aporte:** valem sobre cada aporte, não sobre a composição da carteira. Quem segura a composição são as % da Suno.
 - **Meta com aporte:** o alvo já inclui o aporte (peso × (estratégia + aporte)).
 - **Tensores passam da meta:** como multiplicam o gap, o FII pode terminar acima da meta. É de propósito.

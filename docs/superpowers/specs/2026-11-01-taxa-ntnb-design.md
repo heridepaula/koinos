@@ -8,7 +8,7 @@ Guardar a taxa real de mercado da NTN-B 2035, dia a dia, para o Koinos ter a sé
 
 Usos futuros, cada um com sua própria spec e sua própria decisão do dono:
 
-- um alerta de divergência entre o teto da Suno e um teto calculado (P3 do parecer);
+- um alerta de divergência entre o teto da Suno e um teto calculado (P3 do parecer); este é o primeiro uso, só informativo (spec `2026-11-01-divergencia-teto-design.md`);
 - um indicador de "DY real" nos FIIs de papel, junto com o IPCA do SGS;
 - a retenção da fruição ligada à inflação.
 
