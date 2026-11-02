@@ -27,7 +27,7 @@ export function CeilingCheckIcon({
     <Tooltip>
       <TooltipTrigger
         render={
-          <span className="relative inline-flex pointer-coarse:after:absolute pointer-coarse:after:-inset-3" />
+          <span className="relative inline-flex pointer-coarse:after:absolute pointer-coarse:after:-inset-4" />
         }
       >
         {icon}
