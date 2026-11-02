@@ -1,13 +1,17 @@
 import { TriangleAlertIcon } from "lucide-react";
 import type { StrategyRow } from "@/features/portfolio";
 import { formatPercent } from "@/shared/lib/format";
+import { CeilingCheckIcon } from "../ceiling-check-icon";
 
-/** Margem até o teto, com o alerta de teto suspeito (âmbar, com ícone e rótulo). */
+/** Margem até o teto, com os avisos de teto suspeito e de teto divergente do calculado (âmbar, com ícone e rótulo). */
 export function MarginValue({ row }: { row: StrategyRow }) {
   return (
     <span className="inline-flex items-center gap-1">
       {row.suspiciousCeiling ? (
         <TriangleAlertIcon className="size-3.5 text-warn" aria-label="Teto suspeito" />
+      ) : null}
+      {row.ceilingCheck && row.ceilingPrice !== null ? (
+        <CeilingCheckIcon check={row.ceilingCheck} ceiling={row.ceilingPrice} />
       ) : null}
       {row.marginToCeiling === null ? "—" : formatPercent(row.marginToCeiling, 1)}
     </span>

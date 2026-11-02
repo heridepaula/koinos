@@ -40,7 +40,18 @@ async function RecommendationsContent() {
   const { cascadeInput, stockBuyInput, stockMeta, classValues, strategy, positions } =
     await getPortfolioSnapshot();
   const meta = new Map<string, AssetMeta>();
-  for (const row of [...strategy.rows, ...stockMeta, ...positions]) {
+  // As linhas da estratégia primeiro: só elas trazem o aviso de divergência do teto.
+  for (const row of strategy.rows) {
+    meta.set(row.ticker, {
+      ticker: row.ticker,
+      name: row.name,
+      logoUrl: row.logoUrl,
+      ...(row.ceilingCheck && row.ceilingPrice !== null
+        ? { ceilingWarning: { check: row.ceilingCheck, ceiling: row.ceilingPrice } }
+        : {}),
+    });
+  }
+  for (const row of [...stockMeta, ...positions]) {
     if (!meta.has(row.ticker)) {
       meta.set(row.ticker, { ticker: row.ticker, name: row.name, logoUrl: row.logoUrl });
     }

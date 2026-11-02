@@ -2,6 +2,8 @@
 
 import { ChevronRightIcon } from "lucide-react";
 import { useState, type ReactNode } from "react";
+import { ceilingCheckMessage, type CeilingCheck } from "@/features/strategy";
+import { CeilingCheckIcon } from "@/features/strategy/ui";
 import { AssetLabel } from "@/shared/components/asset-label";
 import { InsetGroup, InsetValueRow } from "@/shared/components/inset-list";
 import { QUANTITY_MASK, Sensitive } from "@/shared/components/sensitive";
@@ -29,7 +31,13 @@ import {
   type OrderKind,
 } from "./explain";
 
-export type AssetMeta = { ticker: string; name: string | null; logoUrl: string | null };
+export type AssetMeta = {
+  ticker: string;
+  name: string | null;
+  logoUrl: string | null;
+  /** O teto da Suno está a mais de 10% do calculado pela NTN-B; só informativo (spec divergencia-teto). */
+  ceilingWarning?: { check: CeilingCheck; ceiling: number };
+};
 
 type OrdersProps = {
   /** As ordens das carteiras da visão, já na ordem da tabela. */
@@ -90,7 +98,15 @@ export function OrdersTable({ rows, meta, showClass }: OrdersProps) {
               <TableCell className="pl-(--card-spacing)">
                 {/* O selo à direita da célula: os de todas as linhas ficam numa coluna. */}
                 <div className="flex items-center justify-between gap-3">
-                  <AssetLabel ticker={order.ticker} name={info?.name} logoUrl={info?.logoUrl} />
+                  <div className="flex min-w-0 items-center gap-2">
+                    <AssetLabel ticker={order.ticker} name={info?.name} logoUrl={info?.logoUrl} />
+                    {info?.ceilingWarning ? (
+                      <CeilingCheckIcon
+                        check={info.ceilingWarning.check}
+                        ceiling={info.ceilingWarning.ceiling}
+                      />
+                    ) : null}
+                  </div>
                   {showClass ? <ClassBadge kind={row.kind} /> : null}
                 </div>
               </TableCell>
@@ -145,6 +161,13 @@ export function OrdersList({ rows, meta, showClass }: OrdersProps) {
                   <div className="flex items-center justify-between gap-3">
                     <div className="flex min-w-0 items-center gap-2">
                       <AssetLabel ticker={order.ticker} name={info?.name} logoUrl={info?.logoUrl} />
+                      {info?.ceilingWarning ? (
+                        <CeilingCheckIcon
+                          check={info.ceilingWarning.check}
+                          ceiling={info.ceilingWarning.ceiling}
+                          tooltip={false}
+                        />
+                      ) : null}
                       {showClass ? <ClassBadge kind={row.kind} /> : null}
                     </div>
                     <span className="text-headline whitespace-nowrap tabular-nums">
@@ -249,6 +272,13 @@ function OrderSheetFrame({
           <InsetValueRow label="Meta" value={formatPercent(order.targetWeight, 1)} />
         </InsetGroup>
         <InsetGroup title="Por quê">{children}</InsetGroup>
+        {info?.ceilingWarning ? (
+          <InsetGroup title="Aviso">
+            <ReasonRow>
+              {ceilingCheckMessage(info.ceilingWarning.check, info.ceilingWarning.ceiling)}
+            </ReasonRow>
+          </InsetGroup>
+        ) : null}
       </DrawerBody>
     </DrawerContent>
   );
