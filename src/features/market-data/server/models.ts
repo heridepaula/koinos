@@ -204,6 +204,8 @@ export interface TreasurySyncDoc {
   etag?: string | null;
   /** Maior data-base dos títulos acompanhados já gravada (aaaa-mm-dd). */
   lastBaseDate?: string | null;
+  /** `trackedTitlesKey` da última gravação completa: se mudar, o histórico é regravado. */
+  titlesKey?: string | null;
   checkedAt?: Date | null;
 }
 
@@ -213,6 +215,7 @@ const treasurySyncSchema = new Schema<TreasurySyncDoc>(
     lastModified: { type: String, default: null },
     etag: { type: String, default: null },
     lastBaseDate: { type: String, default: null },
+    titlesKey: { type: String, default: null },
     checkedAt: { type: Date, default: null },
   },
   { versionKey: false },

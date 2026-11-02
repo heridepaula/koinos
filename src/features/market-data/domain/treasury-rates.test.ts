@@ -8,6 +8,7 @@ import {
   parseTreasuryCsv,
   parseTreasuryPackage,
   summarizeRate,
+  trackedTitlesKey,
   treasuryRowId,
   TREASURY_COLUMNS,
   type TreasurySeriesPoint,
@@ -405,5 +406,19 @@ describe("endurecimento depois da revisão", () => {
         /last_modified/,
       );
     });
+  });
+});
+
+describe("trackedTitlesKey", () => {
+  const a = { kind: "A", maturity: "2035-05-15" };
+  const b = { kind: "B", maturity: "2030-01-01" };
+  it("não depende da ordem da lista", () => {
+    expect(trackedTitlesKey([a, b])).toBe(trackedTitlesKey([b, a]));
+  });
+  it("muda ao acrescentar um título", () => {
+    expect(trackedTitlesKey([a, b])).not.toBe(trackedTitlesKey([a]));
+  });
+  it("lista vazia dá texto vazio", () => {
+    expect(trackedTitlesKey([])).toBe("");
   });
 });

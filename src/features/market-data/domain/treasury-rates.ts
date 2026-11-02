@@ -14,6 +14,14 @@ export const BENCHMARK_TITLE: TrackedTitle = {
 /** Os títulos que o app guarda. Acrescentar um aqui basta; o resto não muda. */
 export const TRACKED_TITLES: readonly TrackedTitle[] = [BENCHMARK_TITLE];
 
+/** Identifica a lista de títulos acompanhados (independe da ordem): muda quando um título entra ou sai. */
+export function trackedTitlesKey(tracked: readonly TrackedTitle[] = TRACKED_TITLES): string {
+  return tracked
+    .map((title) => `${title.kind}|${title.maturity}`)
+    .sort()
+    .join(";");
+}
+
 /** Pregões da mediana (decisão do dono, spec §7). */
 export const MEDIAN_WINDOW = 60;
 /** A taxa é velha quando a última data-base tem mais dias que isso. */

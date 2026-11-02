@@ -9,15 +9,28 @@ const CATALOG_TIMEOUT_MS = 15_000;
 // O CSV tem uns 15 MB e levou 9 s numa medição; a folga cobre um dia lento.
 const CSV_TIMEOUT_MS = 60_000;
 
+/** Dá contexto a uma falha de rede ou de leitura, sem esconder a causa. */
+function networkError(step: string, error: unknown): Error {
+  const message = error instanceof Error ? error.message : String(error);
+  return new Error(`Tesouro Transparente (${step}): ${message}`, { cause: error });
+}
+
 /** A URL e o `last_modified` do CSV, lidos do catálogo (5 KB). */
 export async function fetchTreasuryCatalog(): Promise<{ url: string; lastModified: string }> {
-  const response = await fetch(CATALOG_URL, {
-    headers: { Accept: "application/json" },
-    signal: AbortSignal.timeout(CATALOG_TIMEOUT_MS),
-    cache: "no-store",
-  });
+  let response: Response;
+  let payload: unknown;
+  try {
+    response = await fetch(CATALOG_URL, {
+      headers: { Accept: "application/json" },
+      signal: AbortSignal.timeout(CATALOG_TIMEOUT_MS),
+      cache: "no-store",
+    });
+    if (response.ok) payload = await response.json();
+  } catch (error) {
+    throw networkError("catálogo", error);
+  }
   if (!response.ok) throw new Error(`Tesouro Transparente (catálogo) respondeu ${response.status}`);
-  return parseTreasuryPackage(await response.json());
+  return parseTreasuryPackage(payload);
 }
 
 export type TreasuryCsv =
@@ -25,12 +38,19 @@ export type TreasuryCsv =
 
 /** Baixa o CSV. Com o ETag da última vez, o servidor responde 304 (0,2 s, sem corpo) se nada mudou. */
 export async function fetchTreasuryCsv(url: string, etag: string | null): Promise<TreasuryCsv> {
-  const response = await fetch(url, {
-    headers: etag ? { "If-None-Match": etag } : {},
-    signal: AbortSignal.timeout(CSV_TIMEOUT_MS),
-    cache: "no-store",
-  });
-  if (response.status === 304) return { status: "not-modified" };
+  let response: Response;
+  let text = "";
+  try {
+    response = await fetch(url, {
+      headers: etag ? { "If-None-Match": etag } : {},
+      signal: AbortSignal.timeout(CSV_TIMEOUT_MS),
+      cache: "no-store",
+    });
+    if (response.status === 304) return { status: "not-modified" };
+    if (response.ok) text = await response.text();
+  } catch (error) {
+    throw networkError("CSV", error);
+  }
   if (!response.ok) throw new Error(`Tesouro Transparente (CSV) respondeu ${response.status}`);
-  return { status: "ok", text: await response.text(), etag: response.headers.get("etag") };
+  return { status: "ok", text, etag: response.headers.get("etag") };
 }
