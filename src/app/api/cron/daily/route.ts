@@ -35,6 +35,7 @@ export async function GET(request: Request) {
       "koinos.dividends.updated": summary.dividends,
       "koinos.history.months_fetched": summary.historyMonths,
       "koinos.catalog.entries": summary.catalog,
+      "koinos.treasury.status": summary.treasury.status,
     });
     return Response.json(summary, { headers: { "Cache-Control": "no-store" } });
   });

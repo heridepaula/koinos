@@ -8,6 +8,7 @@ import {
   type HistoryRequest,
 } from "./history-service";
 import { refreshQuotes, type RefreshResult } from "./quote-service";
+import { syncTreasuryRates } from "./treasury-service";
 
 export type DailyJobSummary = {
   tickers: number;
@@ -16,6 +17,7 @@ export type DailyJobSummary = {
   historyMonths: number;
   recentCloses: number;
   catalog: number;
+  treasury: { status: "not-modified" | "updated" | "busy" | "error"; upserted: number };
 };
 
 const errorMessage = (error: unknown) => (error instanceof Error ? error.message : String(error));
@@ -87,6 +89,26 @@ export async function runDailyMarketJob(
       return 0;
     }
   });
+  // Falhar a taxa do Tesouro não derruba a rotina: o erro fica no span e no log.
+  const treasury = await withSpan("cron.treasury", {}, async (span) => {
+    try {
+      const result = await syncTreasuryRates(now);
+      span.setAttributes({
+        "koinos.treasury.status": result.status,
+        "koinos.treasury.rows_upserted": result.upserted,
+      });
+      if (result.baseDateAgeDays !== null) {
+        span.setAttribute("koinos.treasury.base_date_age_days", result.baseDateAgeDays);
+      }
+      return { status: result.status, upserted: result.upserted };
+    } catch (error) {
+      recordError(span, error);
+      span.setAttribute("koinos.treasury.status", "error");
+      console.warn("[tesouro]", errorMessage(error));
+      return { status: "error" as const, upserted: 0 };
+    }
+  });
+
   return {
     tickers: tickers.length,
     quotes,
@@ -94,5 +116,6 @@ export async function runDailyMarketJob(
     historyMonths: history.fetched,
     recentCloses: recent.updated,
     catalog,
+    treasury,
   };
 }

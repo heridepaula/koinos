@@ -3,3 +3,4 @@ import "server-only";
 
 export { getAssetSnapshots } from "./server/assets-read";
 export { readCatalogTypes } from "./server/catalog-db";
+export { readTreasurySeries } from "./server/treasury-read";

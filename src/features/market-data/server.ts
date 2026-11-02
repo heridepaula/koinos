@@ -28,3 +28,5 @@ export {
   type FundamentalsSummary,
 } from "./server/fundamentals-service";
 export { readCatalogTypes } from "./server/catalog-db";
+export { getRealRate } from "./server/treasury-read";
+export { syncTreasuryRates, type TreasurySyncResult } from "./server/treasury-service";

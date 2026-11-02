@@ -7,3 +7,13 @@ export {
 } from "./domain/market-hours";
 export { assetClassOf, type AssetClass, type CatalogType } from "./domain/asset-class";
 export type { CatalogEntry, Quote, QuoteSource } from "./ports";
+export {
+  BENCHMARK_TITLE,
+  MEDIAN_WINDOW,
+  midRate,
+  summarizeRate,
+  trackedTitlesKey,
+  type RateSummary,
+  type TrackedTitle,
+  type TreasurySeriesPoint,
+} from "./domain/treasury-rates";
