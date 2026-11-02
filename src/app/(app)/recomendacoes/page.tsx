@@ -32,7 +32,7 @@ export default function RecommendationsPage() {
       <Suspense fallback={<CardSkeleton height="h-40" />}>
         <RecommendationsContent />
       </Suspense>
-      <div id="como-calculamos" className="mt-4 scroll-mt-20 md:mt-6">
+      <div className="mt-4 md:mt-6">
         <HowItWorks />
       </div>
     </>

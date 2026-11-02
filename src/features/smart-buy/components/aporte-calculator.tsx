@@ -1,16 +1,11 @@
 "use client";
 
 import {
-  ActivityIcon,
-  BanIcon,
-  BuildingIcon,
   CopyIcon,
   InfoIcon,
   LayersIcon,
   PiggyBankIcon,
   ShoppingCartIcon,
-  SplitIcon,
-  TrendingUpIcon,
   WalletIcon,
 } from "lucide-react";
 import { parseAsFloat, parseAsInteger, parseAsStringLiteral, useQueryState } from "nuqs";
@@ -43,50 +38,6 @@ import { OrdersList, OrdersTable, type AssetMeta } from "./aporte/orders";
 import { PRINCIPLES } from "./principles-banner";
 
 export type { AssetMeta };
-
-/** Como o cálculo funciona, em poucos pontos. A conta etapa por etapa fica em HowItWorks. */
-const CALCULATION_POINTS = [
-  {
-    icon: ActivityIcon,
-    text: "Usa as cotações de agora, a Carteira Alvo e os dados de cada ativo.",
-  },
-  { icon: SplitIcon, text: "Você escolhe quanto do aporte vai para FIIs e quanto vai para ações." },
-  {
-    icon: BuildingIcon,
-    text: "FIIs: cada um pede o que falta para a meta, mais se está descontado e menos se o provento caiu ou há vacância.",
-  },
-  {
-    icon: TrendingUpIcon,
-    text: "Ações: compra primeiro quem tem mais margem de segurança, em lotes de 100.",
-  },
-  {
-    icon: BanIcon,
-    text: "Fica de fora quem está acima do teto, com viés Aguardar ou sem pagar proventos.",
-  },
-  { icon: PiggyBankIcon, text: "A sobra vai, aos poucos, para quem está mais abaixo da meta." },
-] as const;
-
-/** Os pontos do cálculo em lista, com o atalho para a conta completa. */
-function CalculationPoints({ className }: { className?: string }) {
-  return (
-    <div className={className}>
-      <ul className="grid gap-x-8 gap-y-2.5 text-sm text-muted-foreground @min-[720px]:grid-cols-2">
-        {CALCULATION_POINTS.map(({ icon: Icon, text }) => (
-          <li key={text} className="flex items-start gap-3">
-            <Icon className="mt-0.5 size-4 shrink-0 text-info" aria-hidden="true" />
-            {text}
-          </li>
-        ))}
-      </ul>
-      <a
-        href="#como-calculamos"
-        className="mt-3 inline-block text-sm font-medium text-primary underline-offset-4 hover:underline"
-      >
-        Ver a conta completa, etapa por etapa
-      </a>
-    </div>
-  );
-}
 
 const RISK_NOTE = `Travas de risco: nenhum FII leva mais de ${formatPercent(RISK_CAPS.asset, 0)} do aporte, nenhum setor mais de ${formatPercent(RISK_CAPS.sector, 0)}, e nem papel nem tijolo mais de ${formatPercent(RISK_CAPS.macro, 0)}.`;
 
@@ -285,7 +236,6 @@ export function AporteCalculator({
           {/* No iPhone, a explicação e os princípios ficam na folha ⓘ: o valor é o que importa. */}
           <CardAction className="md:hidden">
             <InfoSheet title="Como o aporte é calculado" label="Como o aporte é calculado">
-              <CalculationPoints />
               <ul className="grid gap-3 text-foreground">
                 {PRINCIPLES.map(({ icon: Icon, text }) => (
                   <li key={text} className="flex items-center gap-3">
@@ -357,7 +307,6 @@ export function AporteCalculator({
               </p>
             </div>
           ) : null}
-          <CalculationPoints className="max-md:hidden" />
         </CardContent>
       </Card>
 
