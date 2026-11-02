@@ -1,29 +1,12 @@
 "use client";
 
-import {
-  CopyIcon,
-  InfoIcon,
-  LayersIcon,
-  PiggyBankIcon,
-  ShoppingCartIcon,
-  WalletIcon,
-} from "lucide-react";
+import { InfoIcon, LayersIcon, PiggyBankIcon, ShoppingCartIcon, WalletIcon } from "lucide-react";
 import { parseAsFloat, parseAsInteger, parseAsStringLiteral, useQueryState } from "nuqs";
-import { toast } from "sonner";
 import { MetricCard, StatList, StatRow } from "@/shared/components/metric";
 import { MoneyInput } from "@/shared/components/money-input";
 import { Sensitive } from "@/shared/components/sensitive";
-import { useTabBarAction } from "@/shared/components/tab-bar-action";
-import { formatBRL, formatPercent, formatQuantity } from "@/shared/lib/format";
-import { Button } from "@/shared/ui/button";
-import {
-  Card,
-  CardAction,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/shared/ui/card";
+import { formatBRL, formatPercent } from "@/shared/lib/format";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/shared/ui/card";
 import { Slider } from "@/shared/ui/slider";
 import { splitAmount } from "../domain/aporte-split";
 import { CURRENT_ENGINE, ENGINE_VERSIONS } from "../domain/engine-options";
@@ -32,7 +15,7 @@ import { RISK_CAPS } from "../domain/risk";
 import { stockSmartBuy, type StockBuyAsset, type StockBuyOrder } from "../domain/stock-buy";
 import { fiiCascade, type CascadeAsset, type CascadeOrder } from "../domain/fii-cascade";
 import { ExcludedCard } from "./aporte/excluded-card";
-import { groupExcluded, unitOf } from "./aporte/explain";
+import { groupExcluded } from "./aporte/explain";
 import { OrdersList, OrdersTable, type AssetMeta } from "./aporte/orders";
 
 export type { AssetMeta };
@@ -83,7 +66,6 @@ function OrdersCard({
   view,
   rows,
   riskLimited,
-  onCopy,
   metaByTicker,
   fiiMinimum,
   fiiCount,
@@ -94,8 +76,6 @@ function OrdersCard({
   rows: readonly MergedOrder[];
   /** Alguma trava de risco cortou o pedido de um FII. */
   riskLimited: boolean;
-  /** Copia as ordens (só na mesa; no celular o botão fica ao lado da tab bar). */
-  onCopy: () => void;
   metaByTicker: ReadonlyMap<string, AssetMeta>;
   /** O mínimo por ordem de FII, em R$ (0 sem parte de FIIs ou na 3.0). */
   fiiMinimum: number;
@@ -127,14 +107,6 @@ function OrdersCard({
     <Card className="@container">
       <CardHeader>
         <CardTitle>Ordens de compra</CardTitle>
-        {rows.length > 0 ? (
-          <CardAction className="max-md:hidden">
-            <Button type="button" variant="outline" onClick={onCopy}>
-              <CopyIcon />
-              Copiar ordens
-            </Button>
-          </CardAction>
-        ) : null}
         <CardDescription>
           <span className="max-md:hidden">{orderText} </span>Os preços são de referência: confira na
           corretora.
@@ -210,7 +182,6 @@ export function AporteCalculator({
   const leftover = (fiiResult?.leftover ?? 0) + (stockResult?.leftover ?? 0);
   const hasResult = fiiResult !== null || stockResult !== null;
   const rows = orderRows(view, fiiResult?.orders ?? [], stockResult?.orders ?? []);
-  const hasOrders = rows.length > 0;
   // Alguma trava de risco cortou o pedido de um FII (o saldo acabar não conta).
   const riskLimited = (fiiResult?.orders ?? []).some(
     (order) => order.limitedBy !== null && order.limitedBy !== "saldo",
@@ -219,23 +190,6 @@ export function AporteCalculator({
   const totalValue = values.FII + values.ACAO;
   const todayFii = totalValue > 0 ? values.FII / totalValue : 0;
   const todayStock = totalValue > 0 ? values.ACAO / totalValue : 0;
-
-  async function copyOrders() {
-    if (rows.length === 0) return;
-    // Na ordem da tabela, cada linha com a sua unidade (cotas ou ações).
-    const lines = rows.map(
-      ({ kind, order }) =>
-        `${order.ticker}: comprar ${formatQuantity(order.quantity)} ${unitOf(kind, order.quantity)} a ~${formatBRL(order.price)} = ${formatBRL(order.total)}`,
-    );
-    lines.push(`Total: ${formatBRL(spent)} · Sobra: ${formatBRL(leftover)}`);
-    await navigator.clipboard.writeText(lines.join("\n"));
-    toast.success("Ordens copiadas.");
-  }
-
-  // No iPhone, copiar as ordens é a ação principal depois do cálculo: fica ao lado da tab bar.
-  useTabBarAction(
-    hasOrders ? { label: "Copiar ordens", icon: CopyIcon, onPress: () => void copyOrders() } : null,
-  );
 
   // O campo do aporte mora no card "Aporte"; no Geral, o controle da divisão fica logo abaixo.
   const amountField = (
@@ -342,7 +296,6 @@ export function AporteCalculator({
             view={view}
             rows={rows}
             riskLimited={riskLimited}
-            onCopy={copyOrders}
             metaByTicker={metaByTicker}
             fiiMinimum={fiiResult?.minimum ?? 0}
             fiiCount={fiiAssets.length}
