@@ -24,6 +24,11 @@ type MoneyInputProps = Omit<
   defaultValue?: number | null;
   /** "lg": entrada de valor em destaque, como a do Apple Pay (56 px, algarismos em Title 2). */
   size?: "default" | "lg";
+  /**
+   * Aceita "sem valor": `defaultValue` nulo deixa o campo em branco (com o placeholder, se houver),
+   * e apagar todos os dígitos volta ao branco em vez de "0,00". `onValueChange` recebe null.
+   */
+  allowEmpty?: boolean;
   /** Valor em reais a cada tecla (0 com o campo em "0,00"). */
   onValueChange: (value: number | null) => void;
 };
@@ -44,12 +49,16 @@ function pastedToMask(text: string): string | null {
 export function MoneyInput({
   defaultValue,
   size = "default",
+  allowEmpty = false,
   onValueChange,
   className,
   onFocus,
   ...props
 }: MoneyInputProps) {
-  const [text, setText] = useState(() => moneyToInput(defaultValue ?? 0));
+  // Com allowEmpty, "sem valor" (nulo) é o campo em branco, e não "0,00".
+  const textOf = (value: number | null | undefined) =>
+    allowEmpty && (value === null || value === undefined) ? "" : moneyToInput(value ?? 0);
+  const [text, setText] = useState(() => textOf(defaultValue));
   // O valor de fora (a URL, por exemplo) manda: se ele muda sem vir da digitação, o campo
   // acompanha. Sem isso, ao voltar a uma tela preservada pelo Next (Activity) sem o ?valor=, o
   // campo ainda mostrava o valor antigo, e a tabela que depende dele não aparecia.
@@ -57,7 +66,7 @@ export function MoneyInput({
   const outside = defaultValue ?? 0;
   if (outside !== lastValue) {
     setLastValue(outside);
-    if (outside !== (parseMoneyInput(text) ?? 0)) setText(moneyToInput(outside));
+    if (outside !== (parseMoneyInput(text) ?? 0)) setText(textOf(defaultValue));
   }
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -85,7 +94,9 @@ export function MoneyInput({
     } else if (inputType?.startsWith("delete")) {
       next = next === "" ? "" : digits.slice(0, -1);
     }
-    show(maskMoneyInput(next));
+    // Com allowEmpty, sem dígitos (ou só zeros) o campo fica em branco: "sem valor".
+    const blank = allowEmpty && next.replace(/\D/g, "").replace(/^0+/, "") === "";
+    show(blank ? "" : maskMoneyInput(next));
   }
 
   function handlePaste(event: ClipboardEvent<HTMLInputElement>) {

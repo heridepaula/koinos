@@ -10,7 +10,9 @@ export {
 } from "./domain/weights";
 export {
   CEILING_CHECK,
+  CEILING_MAX,
   ceilingCheck,
+  ceilingFromInput,
   ceilingCheckMessage,
   isSuspiciousCeiling,
   marginToCeiling,

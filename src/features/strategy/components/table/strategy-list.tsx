@@ -24,6 +24,7 @@ import { CategorySelect } from "./category-select";
 import { CATEGORY_LABELS } from "../../domain/categories";
 import { ceilingCheckMessage } from "../../domain/ceiling";
 import { suggestedPercentProblem } from "../../domain/quarantine";
+import { MoneyField } from "./money-field";
 import { NumberField } from "./number-field";
 import { MarginValue, WeightValue } from "./read-only-cells";
 import { useTargetRow } from "./use-target-row";
@@ -153,9 +154,9 @@ function StrategySheet({
             />
           </SheetRow>
           <SheetRow label="Preço teto (R$)">
-            <NumberField
+            <MoneyField
               label="Preço teto"
-              className="w-28 bg-card dark:bg-card"
+              className="w-36 bg-card dark:bg-card"
               value={row.ceilingPrice}
               onCommit={(value) => save({ ceilingPrice: value })}
             />

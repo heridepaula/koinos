@@ -2,6 +2,7 @@ import { z } from "zod";
 import { tickerSchema } from "@/features/transactions";
 import { BIASES } from "./domain/bias";
 import { CATEGORIES } from "./domain/categories";
+import { CEILING_MAX } from "./domain/ceiling";
 
 export const targetPatchSchema = z.object({
   ticker: tickerSchema,
@@ -10,7 +11,7 @@ export const targetPatchSchema = z.object({
   ceilingPrice: z
     .number()
     .positive("O teto deve ser maior que zero")
-    .max(1_000_000)
+    .max(CEILING_MAX)
     .nullable()
     .optional(),
   // 0% é a quarentena: só vale fora da estratégia (a action confere).

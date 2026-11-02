@@ -12,6 +12,7 @@ import { BiasSelect } from "./bias-select";
 import { CategorySelect } from "./category-select";
 import { CATEGORY_LABELS } from "../../domain/categories";
 import { suggestedPercentProblem } from "../../domain/quarantine";
+import { MoneyField } from "./money-field";
 import { NumberField } from "./number-field";
 import { MarginValue, WeightValue } from "./read-only-cells";
 import { useTargetRow } from "./use-target-row";
@@ -44,9 +45,9 @@ export function StrategyRow({ row, stock = false }: { row: StrategyRowData; stoc
         />
       </TableCell>
       <TableCell>
-        <NumberField
+        <MoneyField
           label="Preço teto"
-          className="w-20"
+          className="w-28"
           value={row.ceilingPrice}
           onCommit={(value) => save({ ceilingPrice: value })}
         />

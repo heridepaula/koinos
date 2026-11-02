@@ -6,6 +6,24 @@ export function marginToCeiling(ceiling: number | null, price: number | null): n
   return (ceiling - price) / ceiling;
 }
 
+/** O maior teto aceito, em R$ (o mesmo limite do schema da action). */
+export const CEILING_MAX = 1_000_000;
+
+/**
+ * O teto como sai do campo com máscara de moeda: em branco ou 0,00 é "sem teto" (null), e acima do
+ * máximo é recusado com a mensagem. Devolve o valor a salvar ou o problema.
+ */
+export function ceilingFromInput(typed: number | null): {
+  value: number | null;
+  problem: string | null;
+} {
+  if (typed === null || typed === 0) return { value: null, problem: null };
+  if (typed > CEILING_MAX) {
+    return { value: null, problem: `O teto deve ser de até ${formatBRL(CEILING_MAX)}.` };
+  }
+  return { value: typed, problem: null };
+}
+
 /** Teto muito longe do preço (menos da metade ou mais do dobro) costuma ser erro de digitação ou dado velho. */
 export function isSuspiciousCeiling(ceiling: number | null, price: number | null): boolean {
   if (ceiling === null || price === null || price <= 0) return false;

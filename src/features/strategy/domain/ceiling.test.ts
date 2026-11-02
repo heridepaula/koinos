@@ -1,6 +1,12 @@
 import { describe, expect, it } from "vitest";
 import { formatBRL, formatPercent, formatSignedPercent } from "@/shared/lib/format";
-import { CEILING_CHECK, ceilingCheck, ceilingCheckMessage } from "./ceiling";
+import {
+  CEILING_CHECK,
+  CEILING_MAX,
+  ceilingCheck,
+  ceilingCheckMessage,
+  ceilingFromInput,
+} from "./ceiling";
 
 // NTN-B real de 7%: o tijolo exige 8% (7% + 1 p.p.) e o papel 12% (7% + 4% de IPCA + 1 p.p.).
 const base = { ceiling: 100, income12m: 12, paper: false, ntnbRealRate: 0.07 } as const;
@@ -90,5 +96,26 @@ describe("ceilingCheckMessage", () => {
     expect(message).toContain(`NTN-B ${formatPercent(0.07, 2)}`);
     expect(message).toContain(`IPCA ${formatPercent(0.04, 1)}`);
     expect(message).toContain("1,0 p.p.");
+  });
+});
+
+describe("ceilingFromInput: o teto digitado na máscara de moeda", () => {
+  it("campo em branco ou em 0,00 é 'sem teto'", () => {
+    expect(ceilingFromInput(null)).toEqual({ value: null, problem: null });
+    expect(ceilingFromInput(0)).toEqual({ value: null, problem: null });
+  });
+
+  it("um valor em reais passa como está, com os centavos", () => {
+    expect(ceilingFromInput(124.5)).toEqual({ value: 124.5, problem: null });
+    expect(ceilingFromInput(0.01)).toEqual({ value: 0.01, problem: null });
+  });
+
+  it("o máximo (R$ 1.000.000,00) vale; acima dele é recusado com a mensagem", () => {
+    expect(CEILING_MAX).toBe(1_000_000);
+    expect(ceilingFromInput(CEILING_MAX)).toEqual({ value: CEILING_MAX, problem: null });
+    expect(ceilingFromInput(CEILING_MAX + 0.01)).toEqual({
+      value: null,
+      problem: `O teto deve ser de até ${formatBRL(CEILING_MAX)}.`,
+    });
   });
 });
