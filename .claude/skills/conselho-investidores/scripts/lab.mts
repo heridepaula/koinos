@@ -20,12 +20,25 @@
 //                notas das lentes (preços parados e preços sorteados)
 //   fruicao      [--periodos 24] [--retencao 25] [--fiis 100] [--ipca 4.5]: vive dos proventos, sem
 //                aporte; a retenção volta pelos motores e o resto é o gasto (spec fruicao)
+//   taxa-real    [--dias 30]: a taxa real da NTN-B 2035 gravada (cron.treasury) e o resumo
+//                de getRealRate; só lê o banco e não carrega a carteira
 // Opções comuns: --email (padrão: o primeiro e-mail de ALLOWED_EMAILS no .env.local) e, em
 // recomendar, projetar, choque, mes e fruicao, --versao 3.0|3.1 (padrão: CURRENT_ENGINE, a da tela).
 import { parseArgs } from "node:util";
 import { findDefaultPortfolioId, findUserIdByEmail } from "@/features/auth/repo";
-import { assetClassOf, type AssetClass } from "@/features/market-data";
-import { getAssetSnapshots, readCatalogTypes } from "@/features/market-data/repo";
+import {
+  assetClassOf,
+  BENCHMARK_TITLE,
+  MEDIAN_WINDOW,
+  midRate,
+  summarizeRate,
+  type AssetClass,
+} from "@/features/market-data";
+import {
+  getAssetSnapshots,
+  readCatalogTypes,
+  readTreasurySeries,
+} from "@/features/market-data/repo";
 import { buildSnapshot } from "@/features/portfolio";
 import {
   CURRENT_ENGINE,
@@ -563,6 +576,40 @@ function fruitionCommand(
   }
 }
 
+// Taxa real da NTN-B 2035 gravada pelo cron.treasury (spec taxa-ntnb): a série dos últimos pregões
+// e o resumo que getRealRate devolve. Só lê o banco; não precisa da carteira.
+async function realRateCommand(days: number) {
+  const series = await readTreasurySeries(BENCHMARK_TITLE, Math.max(days, MEDIAN_WINDOW));
+  if (series.length === 0) {
+    console.log("Nenhuma taxa gravada: o passo cron.treasury ainda não rodou neste banco.");
+    return;
+  }
+  const offset = Math.max(0, series.length - days);
+  const shown = series.slice(offset);
+  console.log(
+    `${BENCHMARK_TITLE.kind} ${BENCHMARK_TITLE.maturity} | taxa real (IPCA +) em % ao ano | ${series.length} pregões lidos`,
+  );
+  console.log(row(["data", 12], ["compra", 8], ["venda", 8], ["média", 8], ["Δ p.p.", 0]));
+  for (const [index, point] of shown.entries()) {
+    const previous = offset + index > 0 ? series[offset + index - 1] : null;
+    const change = previous ? midRate(point) - midRate(previous) : null;
+    console.log(
+      row(
+        [point.baseDate, 12],
+        [fixed(point.buyRate), 8],
+        [fixed(point.sellRate), 8],
+        [fixed(midRate(point)), 8],
+        [change === null ? "-" : `${change >= 0 ? "+" : ""}${change.toFixed(2)}`, 0],
+      ),
+    );
+  }
+  const summary = summarizeRate(series, new Date())!;
+  console.log(
+    `
+último ${fixed(summary.last)}% (${summary.baseDate}) | mediana de ${summary.points} pregões ${fixed(summary.median, 3)}% | diferença ${summary.divergence >= 0 ? "+" : ""}${fixed(summary.divergence)} p.p. | ${summary.stale ? "DADO VELHO (mais de 10 dias)" : "dado em dia"}`,
+  );
+}
+
 function shockCommand(
   data: Data,
   amount: number,
@@ -929,7 +976,7 @@ function compareCommand(
 }
 
 const USAGE =
-  "uso: lab.mts <snapshot|recomendar|projetar|choque|mes|comparar|fruicao> [--valor 10000] [--fiis 100] [--periodos 8] [--cenarios 5000] [--comum 0.025] [--proprio 0.03] [--semente 20261031] [--mes AAAA-MM] [--versao 3.0|3.1] [--a 3.0 --b 3.1] [--retencao 25] [--ipca 4.5] [--email voce@exemplo.com]";
+  "uso: lab.mts <snapshot|recomendar|projetar|choque|mes|comparar|fruicao|taxa-real> [--valor 10000] [--fiis 100] [--periodos 8] [--cenarios 5000] [--comum 0.025] [--proprio 0.03] [--semente 20261031] [--mes AAAA-MM] [--versao 3.0|3.1] [--a 3.0 --b 3.1] [--retencao 25] [--ipca 4.5] [--dias 30] [--email voce@exemplo.com]";
 
 // A versão do motor pedida: desconhecida dá erro com as válidas; sem opção, a da tela.
 function engineOf(raw: string | undefined, name: string, fallback = CURRENT_ENGINE): Engine {
@@ -974,16 +1021,28 @@ async function main(): Promise<number> {
       email: { type: "string" },
       retencao: { type: "string" },
       ipca: { type: "string" },
+      dias: { type: "string" },
     },
   });
   const command = positionals[0];
   if (
-    !["snapshot", "recomendar", "projetar", "choque", "mes", "comparar", "fruicao"].includes(
-      command ?? "",
-    )
+    ![
+      "snapshot",
+      "recomendar",
+      "projetar",
+      "choque",
+      "mes",
+      "comparar",
+      "fruicao",
+      "taxa-real",
+    ].includes(command ?? "")
   ) {
     console.log(USAGE);
     return 1;
+  }
+  if (command === "taxa-real") {
+    await realRateCommand(Math.round(toNumber(values.dias, 30, "dias", 1, 600)));
+    return 0;
   }
   const email = values.email ?? process.env.ALLOWED_EMAILS?.split(",")[0]?.trim();
   if (!email) throw new Error("Passe --email (ou defina ALLOWED_EMAILS no .env.local).");
