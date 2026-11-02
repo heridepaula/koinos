@@ -21,7 +21,7 @@ Mostrar o P/VP (cotação ÷ valor patrimonial por cota) de cada FII e avisar qu
 | Tema | Decisão | Motivo |
 | --- | --- | --- |
 | Fonte | Informe Mensal da CVM (dados abertos) | Grátis, oficial, atualizado todo dia. A brapi Pro (R$ 139,99/mês) entrega o mesmo número. A B3 não tem API pública com esse dado para pessoa física |
-| Uso | Informar e alertar; a cascata não muda | O preço teto já é o filtro de preço no método Koinos. Uma trava de P/VP filtraria duas vezes |
+| Uso | Informar e alertar; a cascata não muda | O preço teto já é o filtro de preço na carteira. Uma trava de P/VP filtraria duas vezes |
 | Quando alerta | FII de **papel ou FoF** com P/VP **acima de 1,05** | É onde o P/VP é mais objetivo; 5% de ágio sobre o patrimônio |
 | Categoria | A que o usuário define na Carteira Alvo | A CVM não ajuda: o segmento vem quase sempre "Multicategoria" ou "Outros", e o mandato vem vazio |
 

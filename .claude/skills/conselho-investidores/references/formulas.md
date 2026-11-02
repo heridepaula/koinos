@@ -130,7 +130,7 @@ Resumo para orientar a avaliação, conferido no código em 2026-11-01 (Koinos 3
 
 - **Onde:** `src/features/portfolio/domain/reinvestment.ts`. Spec `2026-10-23-reinvestimento-design.md`.
 - **Regra:** as compras em dinheiro do mês (negócios e subscrições, com taxas) são divididas entre dinheiro de proventos e dinheiro do bolso. O reinvestido pretendido é proventos × % do mês, limitado ao que foi comprado.
-- **% do mês:** fica salva por mês; sem % salva, vale 100% (no método Koinos, todo provento volta para a carteira).
+- **% do mês:** fica salva por mês; sem % salva, vale 100% (na carteira, todo provento volta para a carteira).
 - **Por classe:** a conta continua sobre a carteira inteira, e a parte "de proventos" de uma classe é rateada pelo aporte dela (`shareReinvestment`).
 
 - **Fruição** (`smart-buy/domain/income-phase.ts`, spec `2026-11-01-fruicao-design.md`): `IncomePhase` é acumulação (todo provento volta) ou fruição com `retention` (padrão 25%, de 20% a 100%; abaixo, `fruition()` lança erro). `splitIncome` divide em centavos, com a retenção para cima. A fase não entra nos motores: só decide o valor do aporte. `simulateAportes` aceita `phase`, `stockDividends` e `otherIncome`; o laboratório tem `fruicao`. Não há tela nem configuração ainda.
@@ -245,7 +245,7 @@ Confira esta lista antes de apontar um erro.
 - **Dado velho:** P/VP e vacância com mais de 60 dias deixam o tensor neutro.
 - **Sobra:** cada classe guarda a sua.
 - **FIIs fora da estratégia:** só os FIIs da estratégia formam a base. Os de fora (legado) não entram na meta e podem concentrar o patrimônio sem a cascata ver.
-- **Ranking no passo 1:** um FII mais abaixo da meta, mas pior ranqueado, só recebe o que sobra dos que estão à frente. É o método Koinos; avalie a consequência, sem chamar de bug.
+- **Ranking no passo 1:** um FII mais abaixo da meta, mas pior ranqueado, só recebe o que sobra dos que estão à frente. É o ranking; avalie a consequência, sem chamar de bug.
 - **Mínimo por ordem (3.1):** com o mínimo, um FII abaixo da meta pode ficar sem ordem (`ABAIXO_DO_MINIMO`): o pedido dele não chegava à fatia justa. O dinheiro vai para os próximos da fila, e no próximo aporte o pedido cresce. É a regra funcionando.
 - **Lote de 100 (3.1):** com o lote, uma ação comprada pode passar da meta, porque a compra é em lote inteiro e a sobra vai um lote por vez para a mais abaixo da meta. Há ações com um lote maior que a meta (a spec do 3.1 cita TUPY3, UNIP6 e VALE3). Uma ação com `MENOS_DE_UM_LOTE` pode receber pela sobra.
 - **Suspensão sem dado (3.1):** o FII com provento atrasado só sai do aporte quando a busca de proventos tem até 10 dias. Sem ela, a regra fica neutra; não é falha da regra.

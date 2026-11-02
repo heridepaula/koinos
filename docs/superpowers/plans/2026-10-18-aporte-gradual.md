@@ -53,7 +53,7 @@
 Em `src/features/smart-buy/domain/fii-cascade.ts`, o comentário de abertura ganha a entrada aos poucos:
 
 ```ts
-// Motor de aporte pelo método Koinos (orientações públicas do ranking no ranking):
+// Motor de aporte pelo ranking (orientações públicas do ranking):
 // 1. só comprar abaixo do preço teto;
 // 2. seguir o ranking respeitando a % sugerida: levar o 1º até a meta, depois o 2º, e assim por diante;
 // 3. se todos estiverem abaixo do teto e na meta, aportar no de menor peso ou mais abaixo do preço médio.

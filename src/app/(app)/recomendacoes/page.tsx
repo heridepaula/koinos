@@ -14,7 +14,7 @@ export default function RecommendationsPage() {
     <>
       <PageHeader
         title="Recomendações"
-        description="Onde aportar hoje: FIIs pelo método Koinos e ações pela margem de segurança."
+        description="Onde aportar hoje: FIIs pelo ranking e ações pela margem de segurança."
         actions={
           <Suspense fallback={null}>
             <QuoteStatus />

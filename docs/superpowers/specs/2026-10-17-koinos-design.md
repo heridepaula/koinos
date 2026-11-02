@@ -32,7 +32,7 @@ O Koinos substitui a planilha `FII's.xlsx` (exportada do Google Sheets) por um a
 - Dashboard: cards, evolução mensal, aportes por mês, composição, alertas e tabela de posições.
 - Transações: listar, criar, editar e excluir.
 - Carteira Alvo: ranking, preço teto, % sugerida, categoria e "na estratégia".
-- Recomendações: motor de aporte pelo método Koinos.
+- Recomendações: motor de aporte pelo ranking.
 
 **Fora deste ciclo**
 
@@ -57,7 +57,7 @@ O Koinos substitui a planilha `FII's.xlsx` (exportada do Google Sheets) por um a
 | Paralelismo | Na Vercel, o Fluid compute escala requisições e instâncias; no código, tarefas de rede em paralelo com limite por `os.availableParallelism()` (brapi gratuita: 1 por vez) | Pedido do usuário: aproveitar todos os núcleos |
 | Cotações | Listagem em lote da brapi (`quote/list`: uma requisição traz os 679 fundos listados); cotação individual da brapi e depois Yahoo como reservas; Yahoo para histórico e proventos | Plano gratuito da brapi: cotação individual com 1 ticker por requisição, 15 mil/mês, sem dividendos, 3 meses de histórico. A listagem responde em lote e sem token (testado em 17/10/2026) |
 | Atualização | Sob demanda (preço vencido) + cron diário | No plano Hobby, o cron da Vercel roda 1x por dia |
-| Motor de aporte | Método Koinos: cascata pelo ranking até a % sugerida, só abaixo do teto | Pedido do usuário; substitui o IPA da planilha |
+| Motor de aporte | ranking: cascata pelo ranking até a % sugerida, só abaixo do teto | Pedido do usuário; substitui o IPA da planilha |
 | Base do peso | Só os ativos "na estratégia" | O ranking orienta separar uma fatia do patrimônio para cada carteira |
 | Ativo sem teto | Não recebe aporte | Regra do ranking: só comprar abaixo do preço teto |
 | % sugerida vazia | O que falta para 100% é dividido igualmente | O ranking publica as %; isto é só o fallback |
@@ -89,7 +89,7 @@ O Koinos substitui a planilha `FII's.xlsx` (exportada do Google Sheets) por um a
 ### 4.2 Padrões
 
 1. **Monólito modular por features.** Cada feature tem regras puras, código de servidor e componentes, e só exporta uma API pública: `index.ts` para o cliente e `server.ts` para o servidor.
-2. **Núcleo puro, bordas com I/O.** Posições, preço médio, pesos e o motor Koinos são funções puras, sem Next, banco ou variáveis de ambiente.
+2. **Núcleo puro, bordas com I/O.** Posições, preço médio, pesos e o motor de aporte são funções puras, sem Next, banco ou variáveis de ambiente.
 3. **Ports & Adapters nas integrações.** As cotações e o histórico ficam atrás de interfaces. A brapi e o Yahoo são adaptadores e podem ser trocados sem mexer no resto.
 4. **Data Access Layer (DAL).** É a recomendação do Next para projetos novos. São módulos `server-only` que conferem a sessão e o dono do dado e devolvem DTOs mínimos. Só a DAL acessa models, adaptadores e `env`.
 5. **Cache Components e PPR.** A estrutura da página (layout, menu, cabeçalhos, skeletons) é pré-renderizada. O que depende da sessão chega por streaming dentro de `<Suspense>`. Dados compartilhados que mudam pouco usam `'use cache'` com `cacheLife` e `cacheTag`. Os dados do usuário e as cotações não usam `'use cache'`.
@@ -322,7 +322,7 @@ A **estratégia** é o conjunto de `target_assets` com `inStrategy = true`, este
 - Os elegíveis que estão abaixo da meta, ordenados por ranking, recebem 1º, 2º, 3º...
 - Os outros mostram o motivo: "Na meta", "Acima do teto", "Sem teto", "Sem ranking", "Sem cotação" ou "Fora da estratégia".
 
-## 9. Motor de aporte (método Koinos)
+## 9. Motor de aporte (ranking)
 
 > **Atualizado em 2026-10-24:** o quanto cada FII pede passou a ser o gap até a meta vezes o Índice de Convicção (margem até o teto e P/VP), a sobra só roda quando todos compraram as cotas desejadas, e o limite por FII padrão é 33%. Ver `2026-10-24-indice-de-conviccao-design.md`.
 >

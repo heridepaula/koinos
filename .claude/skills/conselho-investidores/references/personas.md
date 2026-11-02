@@ -7,13 +7,13 @@ Estas lentes se inspiram no que cada investidor defende publicamente, a partir d
 
 ## Sumário
 
-1. Tiago Reis: método Koinos, preço médio, carteira híbrida
+1. Tiago Reis: ranking, preço médio, carteira híbrida
 2. Professor Baroni: FIIs, renda mensal, reinvestimento
 3. Warren Buffett: valor, qualidade, margem de segurança, caixa
 4. Luiz Barsi: dividendos, setores perenes, carteira previdenciária
 5. Tensões entre as lentes
 
-## 1. Tiago Reis: método Koinos, preço médio, carteira híbrida
+## 1. Tiago Reis: ranking, preço médio, carteira híbrida
 
 **A lente:** o Koinos implementa o método dele: o ranking e o preço-teto do ranking, com aportes constantes. Ela pergunta se a fórmula é fiel ao método e se protege o investidor de varejo de modismos e da tentação de acertar o mercado.
 

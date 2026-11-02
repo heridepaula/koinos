@@ -22,7 +22,7 @@ import { QUANTITY_MASK, Sensitive } from "@/shared/components/sensitive";
 /**
  * Celular: as posições numa lista como a do app Bolsa. Cada célula traz só o essencial (o ativo,
  * o valor atual e o L/P em %); o toque abre a folha com o resto: a posição, a conta do resultado
- * e o método Koinos. Uma folha só para a lista inteira, com a linha tocada como carga.
+ * e as regras do aporte. Uma folha só para a lista inteira, com a linha tocada como carga.
  */
 export function PositionsList({ rows }: { rows: PositionRow[] }) {
   const [sheet] = useState(() => createDrawerHandle<PositionRow>());
@@ -105,7 +105,7 @@ function PositionSheet({ row }: { row: PositionRow }) {
           <InsetValueRow label="Resultado total" value={<Delta value={row.totalResult} />} strong />
         </InsetGroup>
         <InsetGroup
-          title="Método Koinos"
+          title="Regras do aporte"
           footer={
             row.suspiciousCeiling ? (
               <span className="inline-flex items-start gap-1.5">

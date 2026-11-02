@@ -1,6 +1,6 @@
 # Koinos
 
-Dashboard pessoal de FIIs que substitui a planilha. As posições saem dos lançamentos, as cotações vêm da B3 e o motor de aportes segue o método Koinos: ranking até a % sugerida, só abaixo do preço teto, rebalanceando com aportes (nunca com vendas).
+Dashboard pessoal de FIIs que substitui a planilha. As posições saem dos lançamentos, as cotações vêm da B3 e o motor de aportes segue o ranking: ranking até a % sugerida, só abaixo do preço teto, rebalanceando com aportes (nunca com vendas).
 
 - **Dashboard:** patrimônio, L/P, proventos recebidos e o resultado com proventos, DY 12 meses, alertas, evolução, aportes por mês, composição e posições.
 - **Posições encerradas:** os FIIs com posição zerada, com o custo pelo preço médio, o vendido, o resultado e o IR estimado (20% do lucro de cada um, sem compensar prejuízos). Tem menu próprio (`/encerradas`), com o IR no subitem **IR estimado** (`/encerradas/ir`).

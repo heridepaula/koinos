@@ -3,7 +3,7 @@
 > Executado nesta sessão, tarefa por tarefa, com commit a cada uma. Spec: `docs/superpowers/specs/2026-10-17-koinos-design.md`.
 > Decisão do usuário: sem testes automatizados. Cada tarefa é verificada com `npm run lint`, `npm run typecheck` e `npm run build`, mais as conferências indicadas.
 
-**Objetivo:** app web pessoal que substitui a planilha de FIIs: posições, cotações, dashboard e motor de aporte pelo método Koinos.
+**Objetivo:** app web pessoal que substitui a planilha de FIIs: posições, cotações, dashboard e motor de aporte pelo ranking.
 
 **Arquitetura:** Next.js 16 (App Router, Cache Components) organizado como monólito modular por features (`src/features/*`) e `src/shared`, com Data Access Layer `server-only`, núcleo de regras puro em `domain/` e adaptadores de cotação (brapi, Yahoo) atrás de interfaces.
 
@@ -91,7 +91,7 @@
 - o cron exige `CRON_SECRET` e responde só contagens;
 - a busca de tickers exige sessão.
 
-## Tarefa 7: estratégia e motor Koinos
+## Tarefa 7: estratégia e motor de aporte
 
 **Arquivos:**
 - `src/features/smart-buy/domain/fii-cascade.ts`: cascata e prioridade de aporte.

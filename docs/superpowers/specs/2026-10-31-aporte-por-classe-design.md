@@ -24,7 +24,7 @@ Recomendar o aporte nas duas carteiras: o valor é dividido entre FIIs e ações
 | Plano de origem | Decisão | Motivo |
 | --- | --- | --- |
 | Checkboxes para escolher as carteiras do aporte | As duas carteiras sempre entram, pela meta | Escolha do dono: meta por classe |
-| % do aporte digitada a cada vez (ex.: 60/40) | Meta de alocação salva, aplicada ao patrimônio | Escolha do dono. O método Koinos já rebalanceia só com dinheiro novo |
+| % do aporte digitada a cada vez (ex.: 60/40) | Meta de alocação salva, aplicada ao patrimônio | Escolha do dono. O ranking já rebalanceia só com dinheiro novo |
 | A cascata roda no backend duas vezes | Roda no navegador, como hoje, até três vezes (troco cruzado) | A calculadora já é do cliente (`AporteCalculator`) |
 | O troco de cada carteira fica parado | O troco passa para a outra carteira | Escolha do dono |
 

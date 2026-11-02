@@ -15,7 +15,7 @@ Um FII não pode levar o aporte inteiro do mês.
   - o resto segue o ranking;
   - nos meses seguintes ele continua sendo o foco, até chegar à % sugerida.
 
-### Base no método Koinos
+### Base na carteira
 
 - **Compra aos poucos:** "investir aos poucos, distribuindo as compras ao longo de alguns meses" e "pulverizar os ativos" (ranking, coluna de Gustavo Asdourian, 13/05/2022).
 - **Regularidade acima do momento:** no ranking 2026, o resultado dos aportes "depende mais da regularidade, da diversificação e da análise dos fundamentos de cada fundo" (FIIs.com.br, 12/09/2026). Tiago Reis: "Tempo no mercado vale mais que o momento de entrada".

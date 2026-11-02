@@ -35,7 +35,7 @@ Ter uma Carteira Alvo de ações ao lado da de FIIs, cada uma com os seus 100%: 
 | Quantas carteiras | Uma por classe: FIIs e Ações | Escolha do dono |
 | Uso antes da Fase 3 | Só acompanhar: tabela, painel dos 100% e alertas. Recomendações só de FIIs | Escolha do dono |
 | Modelo | Abordagem A: a classe do ticker define a carteira | Escolha do dono. Se um dia houver carteiras com nome, entra uma coleção nova |
-| Campos da ação | Os mesmos do FII (rank, teto, %, na estratégia, quarentena 0%). A categoria é sempre "Ação" | O método Koinos usa rank e teto também em ações |
+| Campos da ação | Os mesmos do FII (rank, teto, %, na estratégia, quarentena 0%). A categoria é sempre "Ação" | O ranking usa rank e teto também em ações |
 
 ## 4. Regras (código puro)
 

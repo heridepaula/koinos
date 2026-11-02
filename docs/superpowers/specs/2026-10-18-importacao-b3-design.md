@@ -222,7 +222,7 @@ Campos novos em `Transaction`:
 
 - `LedgerEntry` ganha `kind` opcional.
 - `monthlyContributions` ignora compras com `kind: INCORPORACAO`, porque não são aporte. Desdobro já soma 0.
-- O resto do domínio (`replayLedger`, `findOversells`, evolução, motor Koinos) não muda.
+- O resto do domínio (`replayLedger`, `findOversells`, evolução, motor de aporte) não muda.
 
 **Efeitos nas actions de lançamento**
 
