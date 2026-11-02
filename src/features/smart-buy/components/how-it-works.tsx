@@ -57,8 +57,8 @@ function Points({ items }: { items: readonly (readonly [string, string])[] }) {
 }
 
 /**
- * Como as recomendações são calculadas, etapa por etapa. Texto fixo (não depende dos dados do
- * dono), no fim da página: quem quer conferir a conta abre a etapa.
+ * Como as recomendações são calculadas, em linguagem simples. Texto fixo (não depende dos dados
+ * do dono), no fim da página: quem quer conferir abre a etapa. As regras exatas estão em `domain/`.
  */
 export function HowItWorks() {
   return (
@@ -66,30 +66,26 @@ export function HowItWorks() {
       <CardHeader>
         <CardTitle>Como as recomendações são calculadas</CardTitle>
         <CardDescription>
-          Toque numa etapa para ver a conta. Nada é vendido: a carteira só é rebalanceada com
-          dinheiro novo.
+          Em resumo: o app olha para a sua Carteira Alvo, descarta o que está caro e divide o
+          dinheiro entre os ativos que mais precisam de reforço. Nada é vendido.
         </CardDescription>
       </CardHeader>
       <CardContent>
         <Step
           number={1}
-          title="O que você escolhe"
-          summary="O valor e quanto vai para FIIs e para ações"
+          title="Você diz quanto vai investir"
+          summary="E quanto vai para FIIs e quanto vai para ações"
         >
           <Points
             items={[
-              ["Valor do aporte:", "é o único número digitado. Tudo é recalculado a cada tecla."],
+              ["O valor:", "é a única coisa que você digita. As ordens se atualizam a cada tecla."],
               [
-                "FIIs, Ações ou Geral:",
-                "em FIIs, o aporte inteiro vai para os FIIs; em Ações, para as ações. No Geral, o controle deslizante (passos de 5%) divide o valor.",
+                "A divisão:",
+                "em FIIs, o dinheiro todo vai para FIIs; em Ações, para ações. No Geral, você move o controle deslizante para dividir.",
               ],
               [
-                "Duas carteiras, duas sobras:",
-                "cada carteira roda o seu cálculo com a sua parte e guarda a sua sobra. Nenhum troco passa de uma para a outra.",
-              ],
-              [
-                "Centavos:",
-                "a parte dos FIIs é arredondada para baixo em centavos, e as ações levam o resto.",
+                "O troco:",
+                "cada carteira calcula a sua parte e guarda o que sobrar. Um troco não passa para a outra.",
               ],
             ]}
           />
@@ -97,42 +93,44 @@ export function HowItWorks() {
 
         <Step
           number={2}
-          title="Quem pode receber"
-          summary="Cada ativo passa por uma fila de condições, na ordem"
+          title="O app tira o que não deve comprar"
+          summary="Está caro, está pausado ou faltam dados"
         >
           <Points
             items={[
-              ["Sem cotação:", "sem preço não há ordem."],
-              ["Sem rank (FIIs):", "o ranking define a prioridade da fila."],
-              ["Sem teto:", "o preço teto é o filtro de compra."],
-              ["Preço no teto ou acima:", "só se compra abaixo do preço teto."],
-              ["Viés Aguardar:", "marcado na Carteira Alvo, o ativo fica fora do aporte."],
+              ["Preço no teto ou acima:", "só se compra abaixo do preço teto que você definiu."],
+              ["Marcado como Aguardar:", "você pediu para esperar, então fica de fora."],
+              ["Sem cotação, teto ou rank:", "faltam informações para decidir."],
               [
-                "Provento suspenso (FIIs):",
-                "pagador regular (6 ou mais pagamentos em 12 meses) há mais de 45 dias sem data ex, ou sem pagar há mais de 365 dias. Só vale com proventos atualizados nos últimos 10 dias.",
+                "FII que parou de pagar:",
+                "se um FII que pagava todo mês ficou mais de 45 dias sem pagar, ou passou um ano sem pagar, ele espera.",
               ],
               [
-                "O primeiro motivo que falha é o que aparece em “Fora deste aporte”.",
-                "O valor do ativo que ficou de fora continua na base da carteira, então não distorce as metas dos outros.",
+                "Onde ver:",
+                "quem ficou de fora aparece em “Fora deste aporte”, com o motivo de cada um.",
               ],
             ]}
           />
         </Step>
 
-        <Step number={3} title="A meta de cada ativo" summary="Peso × (valor da carteira + aporte)">
+        <Step
+          number={3}
+          title="Cada ativo tem uma meta"
+          summary="Quanto ele deveria valer na carteira"
+        >
           <Points
             items={[
               [
-                "Peso:",
-                "a % sugerida da Carteira Alvo, reescalada para somar 100% em cada classe. % vazia divide igualmente o que falta; 0% é quarentena (fora da estratégia).",
+                "A meta:",
+                "é a % sugerida do ativo na Carteira Alvo, aplicada sobre o total da classe já com o dinheiro novo.",
               ],
               [
-                "Meta:",
-                "peso × (valor atual da carteira da classe + a parte do aporte dela). Somar o aporte à base evita que a meta fique desatualizada.",
+                "O que falta:",
+                "a meta menos o que você já tem. Quem já está na meta, ou acima, não recebe.",
               ],
               [
-                "Falta:",
-                "meta − valor atual. Quem já está na meta ou acima não pede nada (“Na meta”).",
+                "As porcentagens:",
+                "são ajustadas para somar 100% em cada classe, mesmo que o total digitado seja outro.",
               ],
             ]}
           />
@@ -140,165 +138,89 @@ export function HowItWorks() {
 
         <Step
           number={4}
-          title="FIIs: quanto cada um pede"
-          summary="A falta até a meta × quatro fatores"
+          title="FIIs: quem compra primeiro e quanto"
+          summary="Segue o ranking, com ajustes e limites de segurança"
         >
-          <p className="mb-3 text-sm text-muted-foreground">
-            O pedido é a falta até a meta multiplicada por quatro fatores. Cada um vale 1 quando
-            falta o dado, e assim não pesa nem para cima nem para baixo.
-          </p>
           <Points
             items={[
               [
-                "Valuation:",
-                "1 + (1 − P/VP), nunca abaixo de 0. P/VP de 0,80 dá 1,20: pede 20% a mais. P/VP de 1,10 dá 0,90.",
+                "A ordem:",
+                "os FIIs são atendidos na ordem do seu ranking. Cada um pede o que falta para a meta.",
               ],
               [
-                "Proventos:",
-                "o menor entre 1 e (último provento ÷ média mensal de 12 meses). Se o último pagamento caiu, o pedido encolhe na mesma proporção.",
+                "Ajustes no pedido:",
+                "pede mais se está barato (preço abaixo do valor do patrimônio e longe do teto) e menos se o último rendimento caiu ou se há muito imóvel vago.",
               ],
               [
-                "Segurança:",
-                "1 + a margem até o teto, (teto − preço) ÷ teto. Quanto mais abaixo do teto, mais pede.",
+                "Limites:",
+                `nenhum FII recebe mais de ${pct(RISK_CAPS.asset)} do aporte, nenhum segmento mais de ${pct(RISK_CAPS.sector)}, e nem papel nem tijolo mais de ${pct(RISK_CAPS.macro)}. Isso evita concentrar demais.`,
               ],
               [
-                "Vacância (só tijolo):",
-                "1 − a vacância física. Com 5% de vacância, o fator é 0,95.",
+                "Sem compras pequenas:",
+                "cada ordem de FII tem um valor mínimo (o aporte dividido pelo número de FIIs, até 12,5% do aporte). Ordem menor que isso é descartada.",
               ],
+              ["Cotas:", "só se compram cotas inteiras."],
             ]}
           />
         </Step>
 
         <Step
           number={5}
-          title="FIIs: o primeiro passo, pelo ranking"
-          summary="Do 1º ao último, cada um compra o que pede, respeitando as travas"
+          title="Ações: quem compra primeiro e quanto"
+          summary="Primeiro as que estão mais abaixo do teto, em lotes de 100"
         >
           <Points
             items={[
               [
-                "Quanto compra:",
-                "o menor entre o pedido, a folga que sobra nas travas de risco e o saldo do aporte, em cotas inteiras arredondadas para baixo.",
+                "A ordem:",
+                "as ações são atendidas pela margem de segurança, ou seja, pela folga entre o preço de hoje e o teto. Maior folga, primeiro.",
               ],
               [
-                "Travas de risco:",
-                `nenhum FII leva mais de ${pct(RISK_CAPS.asset)} do aporte, nenhum setor mais de ${pct(RISK_CAPS.sector)}, e nem papel nem tijolo mais de ${pct(RISK_CAPS.macro)}. “Multicategoria”, “Outros” e “Híbrido” não têm trava de setor.`,
+                "Lotes de 100:",
+                "as ações são compradas de 100 em 100, como no mercado. Se faltar menos de um lote para a meta, ela fica de fora.",
               ],
-              [
-                "Classe de risco:",
-                "vem do tipo do fundo (papel, tijolo, híbrido, FoF); sem o tipo, vale a categoria da Carteira Alvo.",
-              ],
-              [
-                "Mínimo por ordem:",
-                `aporte ÷ nº de FIIs da estratégia, no máximo ${formatPercent(0.125, 1)} do aporte. Ordem abaixo disso é descartada e o dinheiro desce na fila. Se a própria trava cortou abaixo do mínimo, o motivo da trava é o que aparece.`,
-              ],
-              [
-                "Ranking manda:",
-                "um FII mais abaixo da meta, mas pior ranqueado, só recebe o que sobra dos que vêm antes.",
-              ],
+              ["Sem limite por ação:", "no primeiro passo, só vale a meta de cada uma."],
             ]}
           />
         </Step>
 
         <Step
           number={6}
-          title="FIIs: a sobra"
-          summary="O troco do primeiro passo vai, uma cota por vez, para quem está mais abaixo"
+          title="O que sobra é redistribuído"
+          summary="Uma cota ou um lote por vez, para quem está mais longe da meta"
         >
           <Points
             items={[
               [
-                "Quem recebe:",
-                "a cada cota, o FII mais distante da meta já multiplicada pelos fatores de proventos e vacância. Empate vai para o melhor rank.",
-              ],
-              ["Pode passar da meta:", "a sobra respeita as travas de risco, mas não a meta."],
-              [
-                "FII sem ordem:",
-                "só abre uma ordem nova se couber o mínimo de uma vez, dentro das travas e do saldo. Quem já tem ordem segue ganhando uma cota por vez.",
+                "Por quê:",
+                "depois do primeiro passo costuma sobrar um troco que não paga a compra de quem ficou na fila.",
               ],
               [
-                "Fim:",
-                "quando nenhuma cota cabe. O que resta fica em caixa para o próximo aporte.",
+                "FIIs:",
+                "o troco compra uma cota por vez do FII mais distante da meta, respeitando os mesmos limites de segurança.",
               ],
+              [
+                "Ações:",
+                `o troco compra um lote por vez da ação mais distante da meta. Nenhuma passa de ${pct(STOCK_LEFTOVER_CAP)} da parte das ações, ou de um lote.`,
+              ],
+              ["O resto:", "o que ainda não couber fica com você, para somar ao próximo aporte."],
             ]}
           />
         </Step>
 
-        <Step
-          number={7}
-          title="Ações: a fila pela margem de segurança"
-          summary="Sem fatores: quem tem mais folga até o teto compra primeiro"
-        >
-          <Points
-            items={[
-              [
-                "Entra:",
-                "ação com preço e teto, preço no teto ou abaixo, valor abaixo da meta e sem viés Aguardar.",
-              ],
-              [
-                "Meta:",
-                "(valor das ações + a parte do aporte) × o peso da ação. Não há trava por ação.",
-              ],
-              [
-                "Ordem:",
-                "margem de segurança = teto ÷ preço − 1, a maior primeiro. Empate vai para o melhor rank e, depois, para o ticker.",
-              ],
-              [
-                "Lotes de 100:",
-                "cada ordem é múltiplo de 100: o menor entre os lotes que faltam para a meta e os que o caixa paga. Falta menos de um lote: “Menos de um lote”. Falta um lote ou mais e acabou o caixa: “Sem saldo”.",
-              ],
-            ]}
-          />
-        </Step>
-
-        <Step
-          number={8}
-          title="Ações: a sobra, em lotes"
-          summary="Um lote por vez para a ação mais abaixo da meta"
-        >
-          <Points
-            items={[
-              [
-                "Quem recebe:",
-                "entre as ações que podem comprar, a de menor (valor + comprado) ÷ meta, desde que o lote caiba no caixa. Empate vai para o melhor rank.",
-              ],
-              [
-                "Limite:",
-                `a ação não passa do maior entre ${pct(STOCK_LEFTOVER_CAP)} da parte das ações do aporte e um lote. Só a sobra é limitada: o que o primeiro passo comprou fica como está.`,
-              ],
-              [
-                "Pode passar da meta,",
-                "e uma ação que ficou em “Na meta” ou “Menos de um lote” no primeiro passo também pode receber aqui.",
-              ],
-              ["Caixa final:", "fica abaixo do lote da ação mais barata que ainda cabe no limite."],
-            ]}
-          />
-        </Step>
-
-        <Step number={9} title="O que sai na tela" summary="Ordens, motivos, sobra e avisos">
+        <Step number={7} title="O que você vê na tela" summary="Ordens, motivos e avisos">
           <Points
             items={[
               [
                 "Ordens de compra:",
-                "quantidade, preço de referência e total. No Geral, da maior para a menor; em FIIs, na ordem do ranking; em Ações, pela margem de segurança.",
+                "quanto comprar de cada ativo, com o preço de referência e o total.",
               ],
-              [
-                "Por quê:",
-                "cada ordem mostra o rank, a distância até a meta e o sinal mais forte. A conta completa abre no ⓘ da linha.",
-              ],
-              [
-                "Fora deste aporte:",
-                "quem não recebeu, agrupado pelo motivo, com a explicação de cada um.",
-              ],
-              ["Sobra:", "o que não coube em nenhuma ordem. Fica com você para o próximo aporte."],
+              ["Por quê:", "cada ordem tem um resumo do motivo, e o ⓘ mostra a conta completa."],
               [
                 "Triângulo ao lado do ativo:",
-                "o teto digitado diverge mais de 10% do teto calculado pela NTN-B. É só informativo e não muda nenhuma ordem.",
+                "o teto que você digitou está muito diferente do teto calculado pelos juros do Tesouro. É só um aviso e não muda a ordem.",
               ],
-              [
-                "Preços:",
-                "são de referência (últimas cotações). Confira na corretora antes de enviar a ordem.",
-              ],
+              ["Preços:", "são os das últimas cotações. Confira na corretora antes de comprar."],
             ]}
           />
         </Step>
