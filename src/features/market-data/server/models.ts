@@ -161,3 +161,63 @@ const tickerCatalogSchema = new Schema<TickerCatalogDoc>(
 export const TickerCatalogModel: Model<TickerCatalogDoc> =
   (mongoose.models.TickerCatalog as Model<TickerCatalogDoc> | undefined) ??
   mongoose.model<TickerCatalogDoc>("TickerCatalog", tickerCatalogSchema, "ticker_catalog");
+
+export interface TreasuryRateDoc {
+  _id: string; // TIPO|AAAA-MM-DD (vencimento)|AAAA-MM-DD (data-base)
+  kind: string;
+  /** aaaa-mm-dd */
+  maturity: string;
+  /** Data de negócio: meia-noite UTC. */
+  baseDate: Date;
+  /** % ao ano, taxa real (IPCA +). */
+  buyRate: number;
+  sellRate: number;
+  buyPrice: number;
+  sellPrice: number;
+}
+
+const treasuryRateSchema = new Schema<TreasuryRateDoc>(
+  {
+    _id: { type: String, required: true },
+    kind: { type: String, required: true },
+    maturity: { type: String, required: true },
+    baseDate: { type: Date, required: true },
+    buyRate: { type: Number, required: true },
+    sellRate: { type: Number, required: true },
+    buyPrice: { type: Number, required: true },
+    sellPrice: { type: Number, required: true },
+  },
+  { timestamps: true, versionKey: false },
+);
+treasuryRateSchema.index({ kind: 1, maturity: 1, baseDate: -1 });
+
+export const TreasuryRateModel: Model<TreasuryRateDoc> =
+  (mongoose.models.TreasuryRate as Model<TreasuryRateDoc> | undefined) ??
+  mongoose.model<TreasuryRateDoc>("TreasuryRate", treasuryRateSchema, "treasury_rates");
+
+/** O estado da sincronização com o Tesouro Transparente: um único documento. */
+export interface TreasurySyncDoc {
+  _id: string;
+  /** `last_modified` do recurso CSV no catálogo, como veio. */
+  lastModified?: string | null;
+  /** ETag do CSV, com as aspas, para o GET condicional. */
+  etag?: string | null;
+  /** Maior data-base dos títulos acompanhados já gravada (aaaa-mm-dd). */
+  lastBaseDate?: string | null;
+  checkedAt?: Date | null;
+}
+
+const treasurySyncSchema = new Schema<TreasurySyncDoc>(
+  {
+    _id: { type: String, required: true },
+    lastModified: { type: String, default: null },
+    etag: { type: String, default: null },
+    lastBaseDate: { type: String, default: null },
+    checkedAt: { type: Date, default: null },
+  },
+  { versionKey: false },
+);
+
+export const TreasurySyncModel: Model<TreasurySyncDoc> =
+  (mongoose.models.TreasurySync as Model<TreasurySyncDoc> | undefined) ??
+  mongoose.model<TreasurySyncDoc>("TreasurySync", treasurySyncSchema, "treasury_sync");
