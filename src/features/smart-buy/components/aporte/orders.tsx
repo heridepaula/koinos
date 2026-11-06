@@ -166,6 +166,7 @@ export function OrdersList({ rows, meta, showClass }: OrdersProps) {
                         <CeilingCheckIcon
                           check={info.ceilingWarning.check}
                           ceiling={info.ceilingWarning.ceiling}
+                          price={order.price}
                           tooltip={false}
                         />
                       ) : null}

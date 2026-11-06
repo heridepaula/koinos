@@ -89,6 +89,7 @@ function RowList({ rows, sheet }: { rows: StrategyRow[]; sheet: SheetHandle }) {
                       <CeilingCheckIcon
                         check={row.ceilingCheck}
                         ceiling={row.ceilingPrice}
+                        price={row.price}
                         tooltip={false}
                       />
                     </span>
@@ -170,6 +171,7 @@ function StrategySheet({
                 <CeilingCheckIcon
                   check={row.ceilingCheck}
                   ceiling={row.ceilingPrice}
+                  price={row.price}
                   tooltip={false}
                 />
               ) : null}

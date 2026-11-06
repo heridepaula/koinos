@@ -2,11 +2,13 @@
 
 import { TriangleAlertIcon } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/shared/ui/tooltip";
-import type { CeilingCheck } from "../domain/ceiling";
+import { cn } from "@/shared/lib/utils";
+import { ceilingCheckTone, type CeilingCheck } from "../domain/ceiling";
 import { CeilingCheckBody } from "./ceiling-check-body";
 
 /**
- * Triângulo verde (positivo) ou vermelho (negativo): o teto do ranking está a mais de 10% do calculado pela NTN-B (spec
+ * Triângulo verde (positivo), vermelho (negativo) ou amarelo (negativo, mas com o preço atual
+ * ainda abaixo do teto calculado): o teto do ranking está a mais de 10% do calculado pela NTN-B (spec
  * divergencia-teto, §4). Fica ao lado do preço teto. O tooltip traz o sinal (positivo ou
  * negativo), os valores, a conta e o preço atual contra o calculado. Com `tooltip={false}` vira só
  * o ícone, para dentro de um botão (a linha do celular), onde o texto sai numa folha.
@@ -26,11 +28,16 @@ export function CeilingCheckIcon({
 }) {
   // O triângulo leva a cor do sinal: verde se o calculado está acima do teto do ranking (positivo),
   // vermelho se está abaixo (negativo). Os dois são os tokens AA do projeto sobre o card.
-  const positive = check.divergence > 0;
+  const tone = ceilingCheckTone(check, price);
   const icon = (
     <TriangleAlertIcon
-      className={positive ? "size-3.5 text-gain" : "size-3.5 text-loss"}
-      aria-label={`Teto diverge do calculado: ${positive ? "positivo" : "negativo"}`}
+      className={cn(
+        "size-3.5",
+        tone === "positive" && "text-gain",
+        tone === "negative" && "text-loss",
+        tone === "caution" && "text-amber-600 dark:text-amber-400",
+      )}
+      aria-label={`Teto diverge do calculado: ${tone === "caution" ? "atenção" : tone === "positive" ? "positivo" : "negativo"}`}
     />
   );
   if (!tooltip) return icon;

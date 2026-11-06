@@ -14,10 +14,12 @@ const TONES = {
   card: {
     positive: "bg-gain/6 text-gain dark:bg-gain/8",
     negative: "bg-loss/6 text-loss dark:bg-loss/8",
+    caution: "bg-amber-500/10 text-amber-700 dark:bg-amber-400/10 dark:text-amber-400",
   },
   inverse: {
     positive: "bg-emerald-300/15 text-emerald-300 dark:bg-emerald-800/10 dark:text-emerald-800",
     negative: "bg-red-300/15 text-red-300 dark:bg-red-700/10 dark:text-red-700",
+    caution: "bg-amber-300/15 text-amber-300 dark:bg-amber-800/10 dark:text-amber-800",
   },
 } as const;
 
@@ -51,7 +53,7 @@ export function CeilingCheckBody({
         <span
           className={cn(
             "inline-flex items-center gap-1 rounded-full px-2 py-0.5 font-semibold tabular-nums",
-            TONES[surface][details.direction],
+            TONES[surface][details.tone],
           )}
         >
           <Arrow className="size-3" aria-hidden="true" />

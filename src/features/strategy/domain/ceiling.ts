@@ -107,7 +107,9 @@ export type CeilingCheckRow = { label: string; value: string; note?: string; ton
  */
 export type CeilingCheckDetails = {
   direction: "positive" | "negative";
-  badge: "Positivo" | "Negativo";
+  /** A cor do selo: o negativo com o preço ainda abaixo do calculado vira "caution" (amarelo). */
+  tone: "positive" | "negative" | "caution";
+  badge: "Positivo" | "Negativo" | "Atenção";
   /** A diferença com sinal, em 1 casa: "+29,2%". */
   change: string;
   headline: string;
@@ -117,6 +119,22 @@ export type CeilingCheckDetails = {
   /** O que a divergência quer dizer e o que conferir. */
   meaning: string;
 };
+
+/**
+ * A cor do aviso. Positivo é verde. Negativo é vermelho, salvo quando o preço atual ainda está no
+ * teto calculado ou abaixo dele: o teto do ranking está alto, mas a compra de hoje cabe no calculado,
+ * então é só atenção (amarelo).
+ */
+export function ceilingCheckTone(
+  check: CeilingCheck,
+  price: number | null = null,
+): "positive" | "negative" | "caution" {
+  if (check.divergence > 0) return "positive";
+  if (price !== null && Number.isFinite(price) && price > 0 && price <= check.calculated) {
+    return "caution";
+  }
+  return "negative";
+}
 
 /** "1,0 p.p." a partir de uma fração. */
 const pointsOf = (fraction: number) => `${(fraction * 100).toFixed(1).replace(".", ",")} p.p.`;
@@ -131,6 +149,7 @@ export function ceilingCheckDetails(
   price: number | null = null,
 ): CeilingCheckDetails {
   const positive = check.divergence > 0;
+  const tone = ceilingCheckTone(check, price);
   const rows: CeilingCheckRow[] = [
     { label: "Teto do ranking", value: formatBRL(ceiling) },
     { label: "Teto calculado", value: formatBRL(check.calculated) },
@@ -151,15 +170,20 @@ export function ceilingCheckDetails(
     : `${rate} + ${pointsOf(CEILING_CHECK.tijoloSpread)}`;
   return {
     direction: positive ? "positive" : "negative",
-    badge: positive ? "Positivo" : "Negativo",
+    tone,
+    badge: tone === "caution" ? "Atenção" : positive ? "Positivo" : "Negativo",
     change: formatSignedPercent(check.divergence, 1),
     headline: positive
       ? "Teto calculado acima do teto do ranking"
-      : "Teto calculado abaixo do teto do ranking",
+      : tone === "caution"
+        ? "Teto do ranking acima do calculado, mas o preço atual está abaixo do calculado"
+        : "Teto calculado abaixo do teto do ranking",
     rows,
     formula: `Proventos de 12 meses ${formatBRL(check.income12m)} ÷ ${formatPercent(check.requiredYield, 2)} (${premium})`,
     meaning: positive
       ? "A renda atual sustenta um teto maior que o do ranking: o teto do ranking é o mais conservador dos dois. Ele pode estar desatualizado, ou os proventos de 12 meses incluem algum pagamento extraordinário."
-      : "A renda atual sustenta um teto menor que o do ranking: comprar perto do teto do ranking pode sair caro. Confira se os proventos caíram ou se o teto do ranking está desatualizado.",
+      : tone === "caution"
+        ? "A renda atual sustenta um teto menor que o do ranking, mas o preço de hoje ainda cabe no teto calculado. Dá para comprar com margem; só não conte com o teto do ranking para os preços mais altos."
+        : "A renda atual sustenta um teto menor que o do ranking: comprar perto do teto do ranking pode sair caro. Confira se os proventos caíram ou se o teto do ranking está desatualizado.",
   };
 }

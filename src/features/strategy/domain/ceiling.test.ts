@@ -102,6 +102,20 @@ describe("ceilingCheckDetails: o texto estruturado do aviso", () => {
     expect(d.meaning).toContain("mais conservador");
   });
 
+  it("negativo com o preço no teto calculado ou abaixo é atenção (amarelo); acima, segue vermelho", () => {
+    // Calculado 100: 90 e 100 cabem; 110 passou.
+    for (const price of [90, 100]) {
+      const d = ceilingCheckDetails(negative, 120, price);
+      expect(d.tone).toBe("caution");
+      expect(d.badge).toBe("Atenção");
+      expect(d.headline).toContain("preço atual está abaixo do calculado");
+    }
+    expect(ceilingCheckDetails(negative, 120, 110).tone).toBe("negative");
+    expect(ceilingCheckDetails(negative, 120).tone).toBe("negative");
+    // O positivo nunca vira atenção.
+    expect(ceilingCheckDetails(positive, 100, 90).tone).toBe("positive");
+  });
+
   it("as linhas trazem o teto do ranking e o calculado, e só elas quando não há preço", () => {
     const d = ceilingCheckDetails(negative, 120);
     expect(d.rows).toEqual([
