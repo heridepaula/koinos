@@ -1,6 +1,7 @@
 import "server-only";
 import mongoose from "mongoose";
 import { connectMongo } from "@/shared/db/mongo";
+import type { PaySchedule } from "../domain/fundamentus";
 import { isQuoteStale } from "../domain/market-hours";
 import type { QuoteSource } from "../ports";
 import { AssetModel, PriceHistoryModel } from "./models";
@@ -28,6 +29,11 @@ export type AssetSnapshot = {
   dividendPayments12m: number | null;
   /** Quando os proventos foram buscados no Yahoo. Null se nunca. */
   dividendsFetchedAt: Date | null;
+  /**
+   * Proventos anunciados com data de pagamento (Fundamentus). Null sem dado: nunca buscado, ativo
+   * que o site não conhece ou busca de mais de 10 dias (a fonte parou).
+   */
+  payDates: PaySchedule[] | null;
   /** Perfil do FII na usebolsai (vacância só com dado de até 60 dias). Null sem dado. */
   fii: FiiProfile | null;
 };
@@ -42,6 +48,8 @@ export type FiiProfile = {
 
 /** VP de mais de 60 dias sem atualizar: a fonte parou, e o multiplicador do P/VP fica neutro. */
 const FUNDAMENTALS_MAX_AGE_MS = 60 * 86_400_000;
+/** Pagamentos buscados há mais de 10 dias: a fonte parou, e o "a receber" volta ao Yahoo. */
+const PAY_DATES_MAX_AGE_MS = 10 * 86_400_000;
 const fresh = (fetchedAt: Date | null | undefined) =>
   Boolean(fetchedAt) && Date.now() - fetchedAt!.getTime() <= FUNDAMENTALS_MAX_AGE_MS;
 
@@ -80,6 +88,17 @@ export async function getAssetSnapshots(
         dividends12m: doc.dividends12m ?? null,
         dividendPayments12m: doc.dividendPayments12m ?? null,
         dividendsFetchedAt: doc.dividendsFetchedAt ?? null,
+        payDates:
+          doc.payDates &&
+          doc.payDatesFetchedAt &&
+          Date.now() - doc.payDatesFetchedAt.getTime() <= PAY_DATES_MAX_AGE_MS
+            ? doc.payDates.map((item) => ({
+                comDate: item.comDate,
+                payDate: item.payDate,
+                perShare: item.perShare,
+                kind: item.kind,
+              }))
+            : null,
         fii: doc.fundamentalsFetchedAt
           ? {
               vacancyPct: fresh(doc.fundamentalsFetchedAt) ? (doc.vacancyPct ?? null) : null,

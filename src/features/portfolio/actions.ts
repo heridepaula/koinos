@@ -4,6 +4,7 @@ import { refresh } from "next/cache";
 import { ActionError, authActionClient } from "@/features/auth/server";
 import {
   refreshDividends,
+  refreshPayDates,
   refreshMissingFundamentals,
   refreshQuotes,
 } from "@/features/market-data/server";
@@ -33,11 +34,14 @@ export const refreshMyQuotesAction = authActionClient
     // DY e último rendimento também sob demanda (antes só no cron): quem acabou de importar
     // já vê o DY. refreshDividends pula o que foi buscado nas últimas 20 h.
     const dividends = await refreshDividends(held);
+    // Datas de pagamento do "a receber" (Fundamentus): também pula o buscado nas últimas 20 h.
+    const payDates = await refreshPayDates(held);
     // VP/P/VP (usebolsai): o cron das 2h é o normal; aqui só entra o que estiver faltando.
     const fundamentals = await refreshMissingFundamentals(targets.map((target) => target.ticker));
     if (
       (result.status === "done" && result.updated > 0) ||
       dividends.updated > 0 ||
+      payDates.updated > 0 ||
       fundamentals.updated > 0
     ) {
       refresh();

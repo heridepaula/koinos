@@ -7,6 +7,7 @@ import {
   refreshDividends,
   type HistoryRequest,
 } from "./history-service";
+import { refreshPayDates } from "./pay-dates-service";
 import { refreshQuotes, type RefreshResult } from "./quote-service";
 import { syncTreasuryRates } from "./treasury-service";
 
@@ -14,6 +15,7 @@ export type DailyJobSummary = {
   tickers: number;
   quotes: RefreshResult;
   dividends: number;
+  payDates: { updated: number; failed: number };
   historyMonths: number;
   recentCloses: number;
   catalog: number;
@@ -56,6 +58,25 @@ export async function runDailyMarketJob(
       const result = await refreshDividends(tickers, now);
       span.setAttribute("koinos.dividends.updated", result.updated);
       return result;
+    },
+  );
+  // Datas de pagamento (Fundamentus): uma falha por ativo fica no log e não para a rotina.
+  const payDates = await withSpan(
+    "cron.refresh-pay-dates",
+    { "koinos.tickers": tickers.length },
+    async (span) => {
+      try {
+        const result = await refreshPayDates(tickers, now);
+        span.setAttributes({
+          "koinos.pay_dates.updated": result.updated,
+          "koinos.pay_dates.failed": result.failed,
+        });
+        return result;
+      } catch (error) {
+        recordError(span, error);
+        console.warn("[pagamentos]", errorMessage(error));
+        return { updated: 0, failed: tickers.length };
+      }
     },
   );
   const history = await withSpan(
@@ -113,6 +134,7 @@ export async function runDailyMarketJob(
     tickers: tickers.length,
     quotes,
     dividends: dividends.updated,
+    payDates,
     historyMonths: history.fetched,
     recentCloses: recent.updated,
     catalog,

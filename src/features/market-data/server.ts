@@ -21,6 +21,7 @@ export {
   refreshCatalog,
   searchTickers,
 } from "./server/catalog";
+export { refreshPayDates } from "./server/pay-dates-service";
 export { runDailyMarketJob, type DailyJobSummary } from "./server/daily-job";
 export {
   refreshFundamentals,

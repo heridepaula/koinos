@@ -35,6 +35,18 @@ const PAY_WINDOW_DAYS = 15;
 /** Quantos pagamentos casados o fundo precisa ter para valer o intervalo dele, e o maior intervalo aceito. */
 const MIN_LAG_SAMPLES = 2;
 const MAX_LAG_DAYS = 45;
+/** O JCP anunciado é bruto; o crédito da B3 vem com os 15% de IR retidos. */
+const JCP_NET = 0.85;
+/** Folga entre a data anunciada e a do crédito da B3 ao dar um anúncio por pago. */
+const PAID_TOLERANCE_DAYS = 5;
+
+/** Provento anunciado com data de pagamento (Fundamentus), valor bruto por cota. */
+export type ScheduledDividend = {
+  comDate: Date;
+  payDate: Date;
+  perShare: number;
+  kind: DividendKind;
+};
 
 /** `?tipo=` da URL (rendimento, jcp…). Ausente ou desconhecido: todos os tipos. */
 export function parseKindParam(
@@ -106,7 +118,12 @@ export function payLagDays(
 
 /**
  * Proventos a receber. Com a foto da B3 (extrato de Eventos), valem os itens dela, com a data
- * oficial; o Yahoo só completa com o que foi anunciado depois do envio (data ex posterior).
+ * oficial; o Fundamentus e o Yahoo só completam com o que foi anunciado depois do envio.
+ *
+ * Do Fundamentus (`schedules`, FIIs e ações, com a data de pagamento anunciada): pagamento a
+ * partir do 1º dia do mês atual, data com depois do `asOf` da foto e fora dela (mesmo ativo, tipo e
+ * data), cotas no fim da data com e sem crédito da B3 do mesmo ativo e tipo até 5 dias da data
+ * anunciada. O JCP entra líquido (85%). O ativo com `schedules` não usa o Yahoo.
  *
  * Do Yahoo: data ex no mês atual ou no anterior, até hoje, sem provento da B3 do mesmo FII pago
  * na data ex ou depois. O pagamento é a data ex mais o intervalo habitual do fundo (`payLag`; 15
@@ -121,6 +138,8 @@ export function upcomingDividends(input: {
   forecast?: PlannedUpcoming | null;
   /** Intervalo habitual data ex → pagamento por FII (`payLagDays`); sem ele, 15 dias. */
   payLag?: ReadonlyMap<string, number>;
+  /** Anúncios com data de pagamento por ativo (Fundamentus). Quem está aqui não usa o Yahoo. */
+  schedules?: ReadonlyMap<string, readonly ScheduledDividend[]>;
 }): UpcomingDividend[] {
   const month = currentMonthKey(input.now);
   const firstMonth = addMonths(month, -1);
@@ -136,9 +155,12 @@ export function upcomingDividends(input: {
     perShare: item.perShare,
     amount: item.amount,
     payBy: item.payDate,
+    comDate: null,
     source: "B3",
   }));
+  result.push(...scheduledUpcoming(input, monthStart));
   for (const [ticker, list] of input.announcements) {
+    if (input.schedules?.has(ticker)) continue;
     for (const announcement of list) {
       // A B3 tem prioridade: o que foi anunciado até o envio já está (ou não) na foto dela.
       if (forecast && announcement.exDate.getTime() <= forecast.asOf.getTime()) continue;
@@ -162,6 +184,7 @@ export function upcomingDividends(input: {
         perShare: announcement.perShare,
         amount: quantity * announcement.perShare,
         payBy,
+        comDate: null,
         source: "YAHOO",
       });
     }
@@ -174,6 +197,72 @@ export function upcomingDividends(input: {
       (a.exDate?.getTime() ?? 0) - (b.exDate?.getTime() ?? 0) ||
       a.ticker.localeCompare(b.ticker),
   );
+}
+
+/** O mesmo tipo, ou o Reembolso (o que volta do aluguel no lugar do provento). */
+const sameKind = (credit: DividendKind, announced: DividendKind) =>
+  credit === announced || credit === "REEMBOLSO";
+
+/** Os itens do Fundamentus do "a receber" (regras em `upcomingDividends`). */
+function scheduledUpcoming(
+  input: {
+    transactions: readonly LedgerEntry[];
+    received: readonly DividendEntry[];
+    forecast?: PlannedUpcoming | null;
+    schedules?: ReadonlyMap<string, readonly ScheduledDividend[]>;
+  },
+  monthStart: Date,
+): UpcomingDividend[] {
+  const { forecast } = input;
+  const tolerance = PAID_TOLERANCE_DAYS * DAY;
+  const result: UpcomingDividend[] = [];
+  for (const [ticker, list] of input.schedules ?? []) {
+    // Cada crédito da B3 confirma um anúncio só: dois JCP no mesmo dia são dois créditos.
+    const credits = input.received.filter((item) => item.ticker === ticker);
+    const used = new Set<DividendEntry>();
+    const ordered = [...list].sort((a, b) => a.payDate.getTime() - b.payDate.getTime());
+    for (const item of ordered) {
+      if (item.payDate.getTime() < monthStart.getTime()) continue;
+      if (forecast && item.comDate.getTime() <= forecast.asOf.getTime()) continue;
+      const inSnapshot = forecast?.items.some(
+        (planned) =>
+          planned.ticker === ticker &&
+          planned.kind === item.kind &&
+          planned.payDate?.getTime() === item.payDate.getTime(),
+      );
+      if (inSnapshot) continue;
+      const credit = credits.find(
+        (entry) =>
+          !used.has(entry) &&
+          sameKind(entry.kind, item.kind) &&
+          Math.abs(entry.paidAt.getTime() - item.payDate.getTime()) <= tolerance,
+      );
+      if (credit) {
+        used.add(credit);
+        continue;
+      }
+      // Quem tinha no fim da data com recebe: as cotas antes do dia seguinte.
+      const quantity = quantityBefore(
+        input.transactions,
+        ticker,
+        new Date(item.comDate.getTime() + DAY),
+      );
+      if (quantity <= 0) continue;
+      const perShare = item.kind === "JCP" ? item.perShare * JCP_NET : item.perShare;
+      result.push({
+        ticker,
+        kind: item.kind,
+        exDate: null,
+        comDate: item.comDate,
+        quantity,
+        perShare,
+        amount: quantity * perShare,
+        payBy: item.payDate,
+        source: "FUNDAMENTUS",
+      });
+    }
+  }
+  return result;
 }
 
 /**

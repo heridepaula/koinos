@@ -263,18 +263,23 @@ export type UpcomingDividend = {
   ticker: string;
   /** Tipo do provento: o do extrato da B3; no anúncio do Yahoo, sempre Rendimento. */
   kind: DividendKind;
-  /** Data ex do anúncio do Yahoo; null nos itens da B3, que não trazem essa data. */
+  /** Data ex do anúncio do Yahoo; null nos demais. */
   exDate: Date | null;
+  /** Data com do anúncio do Fundamentus; null nos demais. */
+  comDate: Date | null;
   quantity: number | null;
   perShare: number | null;
   amount: number;
   /**
-   * Pagamento: a previsão oficial da B3 ou, no estimado, a data ex mais o intervalo habitual do
+   * Pagamento: a previsão oficial da B3, a data anunciada (Fundamentus) ou, no estimado, a data ex mais o intervalo habitual do
    * FII até o pagamento (15 dias sem histórico), porque o Yahoo não informa a data de pagamento. Null quando a B3 ainda não informou.
    */
   payBy: Date | null;
-  /** "B3": extrato de Eventos (Proventos a Receber); "YAHOO": anúncio, estimado. */
-  source: "B3" | "YAHOO";
+  /**
+   * "B3": extrato de Eventos (Proventos a Receber); "FUNDAMENTUS": anúncio com a data de
+   * pagamento da empresa; "YAHOO": anúncio, pagamento estimado.
+   */
+  source: "B3" | "FUNDAMENTUS" | "YAHOO";
 };
 
 /** FII que paga todo mês e ainda não divulgou o provento deste mês. */

@@ -1,5 +1,6 @@
 import "server-only";
 import mongoose, { Schema, type Model } from "mongoose";
+import type { PaySchedule } from "../domain/fundamentus";
 import type { CatalogEntry, QuoteSource } from "../ports";
 
 // Dados de mercado são públicos e compartilhados: nenhuma destas coleções guarda dado de usuário.
@@ -22,6 +23,12 @@ export interface AssetDoc {
    */
   dividendAnnouncements?: { exDate: Date; perShare: number }[];
   dividendsFetchedAt?: Date | null;
+  /**
+   * Proventos anunciados com data de pagamento (Fundamentus), de ~2 meses atrás em diante, com o
+   * valor bruto por cota. Null quando o site não conhece o ativo.
+   */
+  payDates?: PaySchedule[] | null;
+  payDatesFetchedAt?: Date | null;
   historyCheckedAt?: Date | null;
   /** Início (YYYY-MM) da faixa de histórico já buscada. */
   historyFromMonth?: string | null;
@@ -74,6 +81,16 @@ const assetSchema = new Schema<AssetDoc>(
       default: [],
     },
     dividendsFetchedAt: { type: Date, default: null },
+    payDates: {
+      type: [
+        new Schema(
+          { comDate: Date, payDate: Date, perShare: Number, kind: String },
+          { _id: false },
+        ),
+      ],
+      default: undefined,
+    },
+    payDatesFetchedAt: { type: Date, default: null },
     historyCheckedAt: { type: Date, default: null },
     historyFromMonth: { type: String, default: null },
     bookValuePerShare: { type: Number, default: null },

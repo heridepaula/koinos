@@ -28,7 +28,7 @@ function PayBy({ row }: { row: Row }) {
     );
   }
   if (!row.payBy) return <>sem data</>;
-  return row.source === "B3" ? (
+  return row.source !== "YAHOO" ? (
     <>{formatTradeDate(row.payBy)}</>
   ) : (
     <>~ até {formatTradeDate(row.payBy)}</>
@@ -68,6 +68,13 @@ function UpcomingLegend({
       key: "b3",
       term: <Badge variant="secondary">B3</Badge>,
       text: "data oficial de pagamento",
+    });
+  }
+  if (rows.some((row) => row.source === "FUNDAMENTUS")) {
+    items.push({
+      key: "fundamentus",
+      term: <Badge variant="outline">anunciado</Badge>,
+      text: "anúncio da empresa (Fundamentus), com a data de pagamento; o extrato da B3 confirma",
     });
   }
   if (rows.some((row) => row.source === "YAHOO")) {
@@ -185,8 +192,8 @@ export function UpcomingDividends({
   forecastAsOf: Date | null;
 }) {
   const description = forecastAsOf
-    ? `Da lista Proventos a Receber da B3 (envio de ${formatTradeDate(forecastAsOf)}) e, nos FIIs, dos anúncios do Yahoo depois dela.`
-    : "Pelos anúncios do Yahoo, sobre as cotas da véspera da data ex.";
+    ? `Da lista Proventos a Receber da B3 (envio de ${formatTradeDate(forecastAsOf)}) e dos anúncios publicados depois dela (Fundamentus; sem ele, o Yahoo nos FIIs).`
+    : "Pelos anúncios publicados (Fundamentus; sem ele, o Yahoo nos FIIs), sobre as cotas da data com.";
   return (
     <Card>
       <CardHeader>
@@ -214,7 +221,7 @@ export function UpcomingDividends({
                 <TableRow>
                   <TableHead className="pl-(--card-spacing)">Ativo</TableHead>
                   <TableHead className="hidden @min-[400px]:table-cell">Origem</TableHead>
-                  <TableHead className="hidden @min-[520px]:table-cell">Data ex</TableHead>
+                  <TableHead className="hidden @min-[520px]:table-cell">Data com</TableHead>
                   <TableHead className="hidden text-right @min-[640px]:table-cell">Qtd.</TableHead>
                   <TableHead className="hidden text-right @min-[640px]:table-cell">
                     Unitário
@@ -235,12 +242,18 @@ export function UpcomingDividends({
                     <TableCell className="hidden @min-[400px]:table-cell">
                       {row.source === "B3" ? (
                         <Badge variant="secondary">B3</Badge>
+                      ) : row.source === "FUNDAMENTUS" ? (
+                        <Badge variant="outline">anunciado</Badge>
                       ) : (
                         <Badge variant="outline">estimado</Badge>
                       )}
                     </TableCell>
                     <TableCell className="hidden tabular-nums @min-[520px]:table-cell">
-                      {row.exDate ? formatTradeDate(row.exDate) : "—"}
+                      {row.comDate
+                        ? formatTradeDate(row.comDate)
+                        : row.exDate
+                          ? `${formatTradeDate(row.exDate)} (ex)`
+                          : "—"}
                     </TableCell>
                     <TableCell className="hidden text-right tabular-nums @min-[640px]:table-cell">
                       {row.quantity !== null ? (

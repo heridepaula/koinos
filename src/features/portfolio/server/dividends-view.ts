@@ -31,7 +31,7 @@ const CHART_MONTHS = 24;
 
 /**
  * Tela de proventos do usuário logado: recebidos (extratos da B3), a receber (a foto do extrato de
- * Eventos da B3, completada pelos anúncios do Yahoo) e os agrupamentos do histórico. O resultado é
+ * Eventos da B3, completada pelos anúncios do Fundamentus e, sem eles, do Yahoo) e os agrupamentos do histórico. O resultado é
  * um DTO sem ids internos.
  */
 export const getDividendsView = traced(
@@ -96,6 +96,18 @@ export const getDividendsView = traced(
           .map(([ticker, asset]) => [ticker, asset.dividendAnnouncements]),
       ),
     );
+    // Datas de pagamento do Fundamentus, de FIIs e ações: quem tem não usa a estimativa do Yahoo.
+    const classSchedules = new Map(
+      [...assets].flatMap(([ticker, asset]) =>
+        asset.payDates && ofClass(ticker) ? [[ticker, asset.payDates] as const] : [],
+      ),
+    );
+    const schedules = new Map(
+      [...classSchedules].map(([ticker, list]) => [
+        ticker,
+        list.filter((item) => ofKind(item.kind)),
+      ]),
+    );
     const upcoming = upcomingDividends({
       now,
       transactions,
@@ -103,6 +115,7 @@ export const getDividendsView = traced(
       announcements,
       forecast,
       payLag,
+      schedules,
     });
     // O "não divulgado" olha o "a receber" de todos os tipos da classe: um FII alugado tem
     // Reembolso na previsão da B3 e não deve aparecer só porque o filtro é Rendimento.
@@ -116,6 +129,7 @@ export const getDividendsView = traced(
             announcements,
             forecast: classForecast,
             payLag,
+            schedules: classSchedules,
           });
     const undisclosed = withYahoo
       ? undisclosedDividends({
