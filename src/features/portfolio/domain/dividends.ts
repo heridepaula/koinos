@@ -30,8 +30,11 @@ import type {
 
 const DAY = 86_400_000;
 const EPSILON = 1e-9;
-/** FIIs costumam pagar de 5 a 15 dias depois da data com. */
+/** FIIs costumam pagar de 5 a 15 dias depois da data com. Vale quando o fundo não tem histórico. */
 const PAY_WINDOW_DAYS = 15;
+/** Quantos pagamentos casados o fundo precisa ter para valer o intervalo dele, e o maior intervalo aceito. */
+const MIN_LAG_SAMPLES = 2;
+const MAX_LAG_DAYS = 45;
 
 /** `?tipo=` da URL (rendimento, jcp…). Ausente ou desconhecido: todos os tipos. */
 export function parseKindParam(
@@ -67,11 +70,47 @@ export function quantityBefore(
 }
 
 /**
+ * O intervalo habitual, em dias, entre a data ex e o pagamento de cada FII: a mediana dos
+ * rendimentos que a B3 já creditou, cada um casado com o anúncio de data ex mais próxima antes do
+ * crédito (até 45 dias; um anúncio casa uma vez só). Só entra o fundo com ao menos 2 pagamentos
+ * casados; os demais seguem os 15 dias de `PAY_WINDOW_DAYS`. Os anúncios guardados dão uns 13 meses.
+ */
+export function payLagDays(
+  received: readonly DividendEntry[],
+  announcements: ReadonlyMap<string, readonly { exDate: Date }[]>,
+): Map<string, number> {
+  const result = new Map<string, number>();
+  for (const [ticker, list] of announcements) {
+    const unused = list.map((announcement) => announcement.exDate.getTime()).sort((a, b) => a - b);
+    const credits = received
+      .filter((item) => item.ticker === ticker && item.kind === "RENDIMENTO")
+      .map((item) => item.paidAt.getTime())
+      .sort((a, b) => a - b);
+    const lags: number[] = [];
+    for (const paidAt of credits) {
+      let match = -1;
+      for (let i = 0; i < unused.length && unused[i] <= paidAt; i++) match = i;
+      if (match < 0) continue;
+      const lag = Math.round((paidAt - unused[match]) / DAY);
+      unused.splice(match, 1);
+      if (lag <= MAX_LAG_DAYS) lags.push(lag);
+    }
+    if (lags.length < MIN_LAG_SAMPLES) continue;
+    lags.sort((a, b) => a - b);
+    const middle = lags.length >> 1;
+    const median = lags.length % 2 ? lags[middle] : (lags[middle - 1] + lags[middle]) / 2;
+    result.set(ticker, Math.max(1, Math.round(median)));
+  }
+  return result;
+}
+
+/**
  * Proventos a receber. Com a foto da B3 (extrato de Eventos), valem os itens dela, com a data
  * oficial; o Yahoo só completa com o que foi anunciado depois do envio (data ex posterior).
  *
  * Do Yahoo: data ex no mês atual ou no anterior, até hoje, sem provento da B3 do mesmo FII pago
- * na data ex ou depois. Do mês anterior, só o que tinha pagamento previsto para este mês: o que
+ * na data ex ou depois. O pagamento é a data ex mais o intervalo habitual do fundo (`payLag`; 15
+ * dias sem histórico). Do mês anterior, só o que tinha pagamento previsto para este mês: o que
  * vencia no mês passado é daquele mês, não deste.
  */
 export function upcomingDividends(input: {
@@ -80,6 +119,8 @@ export function upcomingDividends(input: {
   received: readonly DividendEntry[];
   announcements: ReadonlyMap<string, readonly { exDate: Date; perShare: number }[]>;
   forecast?: PlannedUpcoming | null;
+  /** Intervalo habitual data ex → pagamento por FII (`payLagDays`); sem ele, 15 dias. */
+  payLag?: ReadonlyMap<string, number>;
 }): UpcomingDividend[] {
   const month = currentMonthKey(input.now);
   const firstMonth = addMonths(month, -1);
@@ -104,7 +145,8 @@ export function upcomingDividends(input: {
       const exMonth = monthKeyOfTradeDate(announcement.exDate);
       if (exMonth < firstMonth || exMonth > month) continue;
       if (announcement.exDate.getTime() > today.getTime()) continue;
-      const payBy = new Date(announcement.exDate.getTime() + PAY_WINDOW_DAYS * DAY);
+      const lag = input.payLag?.get(ticker) ?? PAY_WINDOW_DAYS;
+      const payBy = new Date(announcement.exDate.getTime() + lag * DAY);
       if (exMonth < month && payBy.getTime() < monthStart.getTime()) continue;
       const paid = input.received.some(
         (item) => item.ticker === ticker && item.paidAt.getTime() >= announcement.exDate.getTime(),

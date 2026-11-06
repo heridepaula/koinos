@@ -16,7 +16,7 @@ export type AssetSnapshot = {
   quoteFetchedAt: Date | null;
   dy12m: number | null;
   lastDividend: { amount: number; exDate: Date } | null;
-  /** Anúncios dos últimos 90 dias (Yahoo). A data ex é uma data de negócio. */
+  /** Anúncios dos últimos 400 dias (Yahoo). A data ex é uma data de negócio. */
   dividendAnnouncements: { exDate: Date; perShare: number }[];
   /** Fechamentos diários das últimas semanas, do mais antigo ao mais recente. */
   recentCloses: { date: Date; close: number }[];

@@ -17,7 +17,7 @@ export interface AssetDoc {
   dy12m?: number | null;
   lastDividend?: { amount: number; exDate: Date } | null;
   /**
-   * Anúncios dos últimos 90 dias (Yahoo): data ex e valor por cota. A data ex é data de negócio
+   * Anúncios dos últimos 400 dias (Yahoo): data ex e valor por cota. A data ex é data de negócio
    * (meia-noite UTC do dia em São Paulo), como as datas dos lançamentos, e não o horário do Yahoo.
    */
   dividendAnnouncements?: { exDate: Date; perShare: number }[];

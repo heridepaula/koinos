@@ -20,6 +20,7 @@ import {
   groupByTicker,
   groupByYear,
   monthSummary,
+  payLagDays,
   undisclosedDividends,
   upcomingDividends,
 } from "../domain/dividends";
@@ -86,12 +87,22 @@ export const getDividendsView = traced(
         .filter(([ticker]) => withYahoo && isFiiLike(ticker) && ofClass(ticker))
         .map(([ticker, asset]) => [ticker, asset.dividendAnnouncements]),
     );
+    // O intervalo habitual olha todos os anúncios e todos os tipos da classe, mesmo com o filtro.
+    const payLag = payLagDays(
+      classReceived,
+      new Map(
+        [...assets]
+          .filter(([ticker]) => isFiiLike(ticker) && ofClass(ticker))
+          .map(([ticker, asset]) => [ticker, asset.dividendAnnouncements]),
+      ),
+    );
     const upcoming = upcomingDividends({
       now,
       transactions,
       received: classReceived,
       announcements,
       forecast,
+      payLag,
     });
     // O "não divulgado" olha o "a receber" de todos os tipos da classe: um FII alugado tem
     // Reembolso na previsão da B3 e não deve aparecer só porque o filtro é Rendimento.
@@ -104,6 +115,7 @@ export const getDividendsView = traced(
             received: classReceived,
             announcements,
             forecast: classForecast,
+            payLag,
           });
     const undisclosed = withYahoo
       ? undisclosedDividends({

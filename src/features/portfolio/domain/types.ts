@@ -269,8 +269,8 @@ export type UpcomingDividend = {
   perShare: number | null;
   amount: number;
   /**
-   * Pagamento: a previsão oficial da B3 ou, no estimado, a data ex + 15 dias (o Yahoo não informa
-   * a data de pagamento). Null quando a B3 ainda não informou.
+   * Pagamento: a previsão oficial da B3 ou, no estimado, a data ex mais o intervalo habitual do
+   * FII até o pagamento (15 dias sem histórico), porque o Yahoo não informa a data de pagamento. Null quando a B3 ainda não informou.
    */
   payBy: Date | null;
   /** "B3": extrato de Eventos (Proventos a Receber); "YAHOO": anúncio, estimado. */

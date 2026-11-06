@@ -12,7 +12,7 @@ const HISTORY_RECHECK_MS = 12 * 60 * 60 * 1000;
 const RECENT_CLOSES_DAYS = 21;
 const DIVIDENDS_RECHECK_MS = 20 * 60 * 60 * 1000;
 /** Janela dos anúncios de proventos guardados no ativo. */
-const ANNOUNCEMENT_WINDOW_MS = 90 * 86_400_000;
+const ANNOUNCEMENT_WINDOW_MS = 400 * 86_400_000;
 /**
  * Histórico de proventos buscado no Yahoo: 760 dias cabem na janela de 12 meses de calendário
  * de um FII parado há até 12 meses (o último provento fica a até 365 dias de hoje).
@@ -162,7 +162,7 @@ export async function ensureRecentCloses(
 
 /**
  * Atualiza o DY e a soma dos últimos 12 meses de calendário (com o número de pagamentos), o
- * último rendimento e os anúncios dos últimos 90 dias de cada ativo (Yahoo), em paralelo com
+ * último rendimento e os anúncios dos últimos 400 dias de cada ativo (Yahoo), em paralelo com
  * limite pelos núcleos disponíveis. Uma busca sem proventos não apaga o último rendimento guardado.
  * Pula o ativo buscado nas últimas 20 h; `force` ignora essa checagem (conferência manual).
  */
@@ -187,7 +187,7 @@ export async function refreshDividends(
   );
 
   const from = new Date(now.getTime() - DIVIDENDS_LOOKBACK_DAYS * 86_400_000);
-  // As datas ex guardadas são datas de negócio: o corte dos 90 dias também.
+  // As datas ex guardadas são datas de negócio: o corte dos 400 dias também.
   const announcementsFrom = todayTradeDate(new Date(now.getTime() - ANNOUNCEMENT_WINDOW_MS));
   const results = await mapWithConcurrency(
     due,

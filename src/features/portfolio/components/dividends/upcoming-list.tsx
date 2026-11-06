@@ -74,7 +74,7 @@ function UpcomingLegend({
     items.push({
       key: "yahoo",
       term: <Badge variant="outline">estimado</Badge>,
-      text: "anúncio do Yahoo; a data de pagamento é uma estimativa",
+      text: "anúncio do Yahoo; o pagamento é estimado pelo intervalo habitual do fundo",
     });
   }
   if (undisclosed) {
