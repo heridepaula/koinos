@@ -17,9 +17,6 @@ export function Slider({
   label,
   valueText,
   className,
-  trackClassName,
-  indicatorClassName,
-  thumbClassName,
 }: {
   value: number;
   onValueChange: (value: number) => void;
@@ -31,10 +28,6 @@ export function Slider({
   /** Texto do valor para leitor de tela (ex.: "70% FIIs, 30% ações"). */
   valueText?: (value: number) => string;
   className?: string;
-  /** Trilho, trecho preenchido e polegar com outro visual (ex.: duas cores, polegar maior). */
-  trackClassName?: string;
-  indicatorClassName?: string;
-  thumbClassName?: string;
 }) {
   return (
     <SliderPrimitive.Root
@@ -47,19 +40,12 @@ export function Slider({
       className={cn("w-full touch-none select-none", className)}
     >
       <SliderPrimitive.Control className="relative flex h-6 w-full items-center pointer-coarse:h-11">
-        <SliderPrimitive.Track
-          className={cn("relative h-1.5 w-full rounded-full bg-secondary", trackClassName)}
-        >
-          <SliderPrimitive.Indicator
-            className={cn("h-full rounded-full bg-primary", indicatorClassName)}
-          />
+        <SliderPrimitive.Track className="relative h-1.5 w-full rounded-full bg-secondary">
+          <SliderPrimitive.Indicator className="h-full rounded-full bg-primary" />
           <SliderPrimitive.Thumb
             aria-label={label}
             getAriaValueText={valueText ? (_text, current) => valueText(current) : undefined}
-            className={cn(
-              "size-5 rounded-full bg-white shadow-[0_1px_3px_rgb(0_0_0/0.3),0_0_0_0.5px_rgb(0_0_0/0.08)] transition-[scale] ease-snappy outline-none focus-visible:ring-3 focus-visible:ring-ring/50 data-[dragging]:scale-110 motion-reduce:transition-none pointer-coarse:size-7",
-              thumbClassName,
-            )}
+            className="size-5 rounded-full bg-white shadow-[0_1px_3px_rgb(0_0_0/0.3),0_0_0_0.5px_rgb(0_0_0/0.08)] transition-[scale] ease-snappy outline-none focus-visible:ring-3 focus-visible:ring-ring/50 data-[dragging]:scale-110 motion-reduce:transition-none pointer-coarse:size-7"
           />
         </SliderPrimitive.Track>
       </SliderPrimitive.Control>

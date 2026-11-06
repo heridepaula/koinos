@@ -20,7 +20,8 @@ export function SegmentedControl<T extends string>({
   size = "default",
   className,
 }: {
-  value: T;
+  /** null: nenhuma opção marcada (o valor está fora delas); o marcador some. */
+  value: T | null;
   onChange: (value: T) => void;
   options: readonly SegmentedOption<T>[];
   /** Nome do grupo para leitor de tela. */
@@ -29,10 +30,8 @@ export function SegmentedControl<T extends string>({
   className?: string;
 }) {
   const refs = useRef<(HTMLButtonElement | null)[]>([]);
-  const index = Math.max(
-    0,
-    options.findIndex((option) => option.value === value),
-  );
+  const found = options.findIndex((option) => option.value === value);
+  const index = Math.max(0, found);
 
   function onKeyDown(event: KeyboardEvent<HTMLDivElement>) {
     const step =
@@ -62,14 +61,15 @@ export function SegmentedControl<T extends string>({
       {/* O marcador: um segmento de largura, deslocado pelo índice da opção escolhida. */}
       <span
         aria-hidden="true"
-        className="absolute inset-y-0.5 left-0.5 -z-10 rounded-full bg-white shadow-[0_1px_2px_rgb(0_0_0/0.12),0_2px_6px_rgb(0_0_0/0.08),inset_0_0_0_0.5px_rgb(0_0_0/0.04)] transition-transform duration-690 ease-bouncy motion-reduce:transition-none dark:bg-[#636366] dark:shadow-[0_1px_2px_rgb(0_0_0/0.4)]"
+        className="absolute inset-y-0.5 left-0.5 -z-10 rounded-full bg-white shadow-[0_1px_2px_rgb(0_0_0/0.12),0_2px_6px_rgb(0_0_0/0.08),inset_0_0_0_0.5px_rgb(0_0_0/0.04)] transition-[transform,opacity] duration-690 ease-bouncy motion-reduce:transition-none dark:bg-[#636366] dark:shadow-[0_1px_2px_rgb(0_0_0/0.4)]"
         style={{
           width: `calc((100% - 4px) / ${options.length})`,
           transform: `translateX(${index * 100}%)`,
+          opacity: found === -1 ? 0 : 1,
         }}
       />
       {options.map((option, position) => {
-        const selected = position === index;
+        const selected = position === found;
         return (
           <button
             key={option.value}
@@ -79,7 +79,7 @@ export function SegmentedControl<T extends string>({
             type="button"
             role="radio"
             aria-checked={selected}
-            tabIndex={selected ? 0 : -1}
+            tabIndex={position === index ? 0 : -1}
             onClick={() => onChange(option.value)}
             className={cn(
               "relative rounded-full px-3 font-medium whitespace-nowrap outline-none select-none [-webkit-touch-callout:none] after:absolute after:inset-x-0 after:-inset-y-0.5 focus-visible:ring-3 focus-visible:ring-ring/50",

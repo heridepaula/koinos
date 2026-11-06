@@ -106,6 +106,14 @@
  * passa 5% e volta em 690 ms; smooth (0,45 s; 1) é criticamente amortecida, 660 ms.
  */
 @theme {
+  /* O número da divisão do aporte sobe ao mudar, na mola (SplitControl). */
+  --animate-split-tick: split-tick 420ms var(--ease-bouncy);
+  @keyframes split-tick {
+    from {
+      opacity: 0.35;
+      translate: 0 40%;
+    }
+  }
   --ease-snappy: linear(
     0,
     0.032,
