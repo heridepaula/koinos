@@ -190,6 +190,21 @@ describe("upcomingDividends: datas de pagamento do Fundamentus", () => {
     expect(upcoming[0].amount).toBeCloseTo(12, 10);
   });
 
+  it("o rendimento leva as casas do Yahoo quando cabe no arredondamento; senão, o do Fundamentus", () => {
+    const close = upcomingDividends({
+      ...base,
+      announcements: new Map([["AAAA11", [{ exDate: at("2026-10-01"), perShare: 0.083 }]]]),
+      schedules: new Map([["AAAA11", [sched("RENDIMENTO", "2026-09-30", "2026-10-15", 0.08)]]]),
+    });
+    expect(close[0].perShare).toBe(0.083);
+    const far = upcomingDividends({
+      ...base,
+      announcements: new Map([["AAAA11", [{ exDate: at("2026-10-01"), perShare: 0.095 }]]]),
+      schedules: new Map([["AAAA11", [sched("RENDIMENTO", "2026-09-30", "2026-10-15", 0.08)]]]),
+    });
+    expect(far[0].perShare).toBe(0.08);
+  });
+
   it("ações entram, inclusive pagamento meses à frente, e o JCP vem líquido", () => {
     const upcoming = upcomingDividends({
       ...base,

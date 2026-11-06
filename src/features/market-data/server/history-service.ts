@@ -3,8 +3,11 @@ import mongoose from "mongoose";
 import { connectMongo } from "@/shared/db/mongo";
 import { ioConcurrency, mapWithConcurrency } from "@/shared/lib/concurrency";
 import { addMonths, currentMonthKey, monthRange, todayTradeDate } from "@/shared/lib/time";
+import { fetchFundamentusDividendsPage } from "../adapters/fundamentus";
 import { yahooProvider } from "../adapters/yahoo";
+import { mergeDividendHistory } from "../domain/dividend-merge";
 import { dividendWindow, nextLastDividend, toDividendEntries } from "../domain/dividend-window";
+import { parseFundamentusDividends, type PaySchedule } from "../domain/fundamentus";
 import { AssetModel, PriceHistoryModel } from "./models";
 
 const HISTORY_RECHECK_MS = 12 * 60 * 60 * 1000;
@@ -19,6 +22,20 @@ const ANNOUNCEMENT_WINDOW_MS = 400 * 86_400_000;
  */
 const DIVIDENDS_LOOKBACK_DAYS = 760;
 const YAHOO_CONCURRENCY_CAP = 6;
+
+/**
+ * Os rendimentos do FII no Fundamentus, para completar o Yahoo. Só XXXX11 (a página de FII não
+ * tem tabela para units). Qualquer falha devolve null: o histórico fica só com o Yahoo.
+ */
+async function fundamentusRendimentos(ticker: string): Promise<PaySchedule[] | null> {
+  if (!/^[A-Z]{4}11$/.test(ticker)) return null;
+  try {
+    return parseFundamentusDividends(await fetchFundamentusDividendsPage(ticker, "fii"), "fii");
+  } catch (error) {
+    console.warn(`[proventos] Fundamentus ${ticker}:`, errorMessage(error));
+    return null;
+  }
+}
 
 const errorMessage = (error: unknown) => (error instanceof Error ? error.message : String(error));
 const monthStart = (monthKey: string) => {
@@ -162,7 +179,8 @@ export async function ensureRecentCloses(
 
 /**
  * Atualiza o DY e a soma dos últimos 12 meses de calendário (com o número de pagamentos), o
- * último rendimento e os anúncios dos últimos 400 dias de cada ativo (Yahoo), em paralelo com
+ * último rendimento e os anúncios dos últimos 400 dias de cada ativo (Yahoo; nos FIIs, completado
+ * pelo Fundamentus com `mergeDividendHistory`), em paralelo com
  * limite pelos núcleos disponíveis. Uma busca sem proventos não apaga o último rendimento guardado.
  * Pula o ativo buscado nas últimas 20 h; `force` ignora essa checagem (conferência manual).
  */
@@ -194,7 +212,16 @@ export async function refreshDividends(
     ioConcurrency(YAHOO_CONCURRENCY_CAP),
     async (ticker): Promise<number> => {
       try {
-        const dividends = toDividendEntries(await yahooProvider.getDividends(ticker, from));
+        // O Yahoo é a base; o Fundamentus completa os meses que faltam e corrige valor errado.
+        const [yahoo, fundamentus] = await Promise.all([
+          yahooProvider.getDividends(ticker, from),
+          fundamentusRendimentos(ticker),
+        ]);
+        const dividends = mergeDividendHistory(
+          toDividendEntries(yahoo),
+          fundamentus,
+          todayTradeDate(from),
+        );
         const { total, trailingTotal, payments, last } = dividendWindow(dividends, now);
         const stored = byTicker.get(ticker);
         const price = stored?.price ?? null;

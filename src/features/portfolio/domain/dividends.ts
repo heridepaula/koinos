@@ -39,6 +39,10 @@ const MAX_LAG_DAYS = 45;
 const JCP_NET = 0.85;
 /** Folga entre a data anunciada e a do crédito da B3 ao dar um anúncio por pago. */
 const PAID_TOLERANCE_DAYS = 5;
+/** A data ex do Yahoo vem até 10 dias depois da data com do Fundamentus. */
+const EX_AFTER_COM_DAYS = 10;
+/** O Fundamentus arredonda o rendimento do FII para 2 casas. */
+const ROUNDING_TOLERANCE = 0.0051;
 
 /** Provento anunciado com data de pagamento (Fundamentus), valor bruto por cota. */
 export type ScheduledDividend = {
@@ -123,7 +127,8 @@ export function payLagDays(
  * Do Fundamentus (`schedules`, FIIs e ações, com a data de pagamento anunciada): pagamento a
  * partir do 1º dia do mês atual, data com depois do `asOf` da foto e fora dela (mesmo ativo, tipo e
  * data), cotas no fim da data com e sem crédito da B3 do mesmo ativo e tipo até 5 dias da data
- * anunciada. O JCP entra líquido (85%). O ativo com `schedules` não usa o Yahoo.
+ * anunciada. O JCP entra líquido (85%); o rendimento de FII leva o valor do Yahoo com todas as
+ * casas quando ele cabe no arredondamento. O ativo com `schedules` não gera item do Yahoo.
  *
  * Do Yahoo: data ex no mês atual ou no anterior, até hoje, sem provento da B3 do mesmo FII pago
  * na data ex ou depois. O pagamento é a data ex mais o intervalo habitual do fundo (`payLag`; 15
@@ -203,9 +208,28 @@ export function upcomingDividends(input: {
 const sameKind = (credit: DividendKind, announced: DividendKind) =>
   credit === announced || credit === "REEMBOLSO";
 
+/**
+ * O rendimento do FII com todas as casas: o do anúncio do Yahoo do mesmo evento (data ex até 10
+ * dias depois da data com) quando a diferença cabe no arredondamento do Fundamentus; senão, o do
+ * Fundamentus (GARE11: 0,08 no Fundamentus, 0,083 no Yahoo e na B3).
+ */
+function precisePerShare(
+  item: ScheduledDividend,
+  announcements: readonly { exDate: Date; perShare: number }[],
+): number {
+  const match = announcements.find((announcement) => {
+    const diff = announcement.exDate.getTime() - item.comDate.getTime();
+    return diff > 0 && diff <= EX_AFTER_COM_DAYS * DAY;
+  });
+  return match && Math.abs(match.perShare - item.perShare) <= ROUNDING_TOLERANCE
+    ? match.perShare
+    : item.perShare;
+}
+
 /** Os itens do Fundamentus do "a receber" (regras em `upcomingDividends`). */
 function scheduledUpcoming(
   input: {
+    announcements: ReadonlyMap<string, readonly { exDate: Date; perShare: number }[]>;
     transactions: readonly LedgerEntry[];
     received: readonly DividendEntry[];
     forecast?: PlannedUpcoming | null;
@@ -248,7 +272,11 @@ function scheduledUpcoming(
         new Date(item.comDate.getTime() + DAY),
       );
       if (quantity <= 0) continue;
-      const perShare = item.kind === "JCP" ? item.perShare * JCP_NET : item.perShare;
+      const gross =
+        item.kind === "RENDIMENTO"
+          ? precisePerShare(item, input.announcements.get(ticker) ?? [])
+          : item.perShare;
+      const perShare = item.kind === "JCP" ? gross * JCP_NET : gross;
       result.push({
         ticker,
         kind: item.kind,
