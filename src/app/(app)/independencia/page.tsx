@@ -40,6 +40,7 @@ async function IndependenceContent() {
   const data = {
     koinosWealth: view.koinosWealth,
     monthlyAporte: view.monthlyAporte,
+    portfolioYield: view.portfolioYield,
     currentMonth: view.currentMonth,
   };
   if (!view.plan || !view.summary) {

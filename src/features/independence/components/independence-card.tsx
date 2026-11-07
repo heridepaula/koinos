@@ -1,15 +1,31 @@
 import { ChevronRightIcon } from "lucide-react";
 import Link from "next/link";
+import type { ReactNode } from "react";
 import { Sensitive } from "@/shared/components/sensitive";
 import { formatCompactBRL, formatPercent } from "@/shared/lib/format";
 import type { IndependenceSummary } from "../domain/types";
-import { shortForecast } from "./format";
 import { ProgressBar } from "./progress-bar";
 
+const LINK =
+  "relative rounded-xl text-footnote text-muted-foreground outline-none after:absolute after:inset-x-0 after:-inset-y-2 hover:text-foreground focus-visible:ring-3 focus-visible:ring-ring/50";
+
+/** Um dos três números da faixa: o nome pequeno e o valor compacto embaixo. */
+function Figure({ label, value }: { label: string; value: number }) {
+  return (
+    <div className="grid gap-0.5">
+      <dt className="text-caption">{label}</dt>
+      <dd className="text-headline font-semibold text-foreground tabular-nums">
+        <Sensitive>{formatCompactBRL(value)}</Sensitive>
+      </dd>
+    </div>
+  );
+}
+
 /**
- * A meta no topo do Dashboard: uma linha discreta, sem card. No iPhone, o rótulo, a barra fina e a
- * %; a partir do `sm`, também o montante e a idade prevista: "22,8% de R$ 4,4 mi · aos ~55". Os
- * detalhes ficam em /independencia. A linha inteira é o link; no toque, a área tem 44 px.
+ * A meta no topo do Dashboard: uma faixa sem card, em tipo pequeno. No alto, o nome e o progresso;
+ * embaixo, a barra e os três números que importam: o montante necessário, o que a meta rende por
+ * mês e o que dele é reinvestido. A faixa inteira é o link para /independencia (dono, 2026-11-07).
+ * Sem meta, vira uma linha com o convite.
  */
 export function IndependenceCard({
   summary,
@@ -19,32 +35,46 @@ export function IndependenceCard({
   /** Um plano da v1 salvo: a meta ganhou perguntas novas. */
   needsUpdate?: boolean;
 }) {
-  return (
-    <Link
-      href="/independencia"
-      className="relative mt-2 mb-3 flex h-5 w-fit max-w-full items-center gap-2 rounded-md text-footnote text-muted-foreground outline-none after:absolute after:inset-x-0 after:-inset-y-3 hover:text-foreground focus-visible:ring-3 focus-visible:ring-ring/50"
-    >
-      <span className="shrink-0">Independência financeira</span>
-      {summary ? (
-        <>
-          <ProgressBar
-            value={summary.progress}
-            label="Progresso da independência financeira"
-            className="h-1 w-20 shrink-0 sm:w-28"
-          />
-          <span className="shrink-0 font-medium text-foreground tabular-nums">
-            {formatPercent(summary.progress, 1)}
-          </span>
-          <span className="truncate tabular-nums max-sm:hidden">
-            de <Sensitive>{formatCompactBRL(summary.target)}</Sensitive> · {shortForecast(summary)}
-          </span>
-        </>
-      ) : (
+  if (!summary) {
+    return (
+      <Link
+        href="/independencia"
+        className={`${LINK} mt-2 mb-3 flex h-5 w-fit max-w-full items-center gap-2`}
+      >
+        <span className="shrink-0">Independência financeira</span>
         <span className="font-medium text-foreground">
           {needsUpdate ? "Atualizar meta" : "Definir meta"}
         </span>
+        <ChevronRightIcon aria-hidden="true" className="size-3.5 shrink-0" />
+      </Link>
+    );
+  }
+  const row = (children: ReactNode) => (
+    <div className="flex items-center justify-between gap-3">{children}</div>
+  );
+  return (
+    <Link href="/independencia" className={`${LINK} mt-2 mb-3 grid max-w-xl gap-2`}>
+      {row(
+        <>
+          <span>Independência financeira</span>
+          <span className="flex items-center gap-1">
+            <span className="font-medium text-foreground tabular-nums">
+              {formatPercent(summary.progress, 1)}
+            </span>
+            <ChevronRightIcon aria-hidden="true" className="size-3.5" />
+          </span>
+        </>,
       )}
-      <ChevronRightIcon aria-hidden="true" className="size-3.5 shrink-0" />
+      <ProgressBar
+        value={summary.progress}
+        label="Progresso da independência financeira"
+        className="h-1.5"
+      />
+      <dl className="grid grid-cols-3 gap-3">
+        <Figure label="Montante" value={summary.target} />
+        <Figure label="Rende/mês" value={summary.monthlyYield} />
+        <Figure label="Reinveste" value={summary.reinvestment} />
+      </dl>
     </Link>
   );
 }

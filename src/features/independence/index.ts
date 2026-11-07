@@ -12,10 +12,10 @@ export {
   EDUCATION_INFLATION,
   EDUCATION_UNTIL_OPTIONS,
   EXTERNAL_WEALTH_MAX,
-  IMPLIED_MONTHLY_INFLATION,
   NOMINAL_ANNUAL_RETURN,
   PLAN_AMOUNT_MAX,
   REAL_MONTHLY_RATE,
+  REINVESTMENT_SHARE,
   SPOUSE_AGE_RANGE,
   TARGET_AGE_MAX,
   TUITIONS_PER_YEAR,
@@ -31,16 +31,24 @@ export {
   type HealthLevel,
 } from "./domain/health";
 export {
+  accumulationRate,
   childrenHealthFund,
   durationLabel,
   educationFund,
   independenceSummary,
+  monthlyYieldOf,
   monthsToTarget,
   perpetualIncome,
   planTarget,
   requiredAporte,
   targetMonthKey,
+  yieldSplit,
 } from "./domain/plan";
 export { draftFromV1, type PlanV1Fields } from "./domain/migrate";
 export { APORTE_MONTHS, averageMonthlyAporte, cashSales, closedMonths } from "./domain/aporte";
-export type { IndependencePlan, IndependenceSummary, IndependenceView } from "./domain/types";
+export type {
+  IndependencePlan,
+  IndependenceSummary,
+  IndependenceView,
+  YieldSource,
+} from "./domain/types";

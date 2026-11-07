@@ -30,6 +30,7 @@ import {
   EXTERNAL_WEALTH_MAX,
   PLAN_AMOUNT_MAX,
   REAL_MONTHLY_RATE,
+  REINVESTMENT_SHARE,
   SPOUSE_AGE_RANGE,
   TARGET_AGE_MAX,
   YOUNGEST_AGE_MAX,
@@ -75,6 +76,7 @@ export function IndependenceWizard({
   start = "perfil",
   koinosWealth,
   monthlyAporte,
+  portfolioYield,
   currentMonth,
   notice,
   reviewFooter,
@@ -86,6 +88,7 @@ export function IndependenceWizard({
   start?: StepKey;
   koinosWealth: number;
   monthlyAporte: number;
+  portfolioYield: number | null;
   currentMonth: string;
   /** Aviso no primeiro passo (o plano da v1 que ganhou perguntas novas). */
   notice?: string;
@@ -261,6 +264,7 @@ export function IndependenceWizard({
                 plan={plan}
                 koinosWealth={koinosWealth}
                 monthlyAporte={monthlyAporte}
+                portfolioYield={portfolioYield}
                 currentMonth={currentMonth}
                 onEdit={edit}
               />
@@ -489,17 +493,25 @@ function WizardReview({
   plan,
   koinosWealth,
   monthlyAporte,
+  portfolioYield,
   currentMonth,
   onEdit,
 }: {
   plan: IndependencePlan;
   koinosWealth: number;
   monthlyAporte: number;
+  portfolioYield: number | null;
   currentMonth: string;
   onEdit: (step: StepKey) => void;
 }) {
   const answersId = useId();
-  const summary = independenceSummary({ plan, koinosWealth, monthlyAporte, currentMonth });
+  const summary = independenceSummary({
+    plan,
+    koinosWealth,
+    monthlyAporte,
+    portfolioYield,
+    currentMonth,
+  });
   const verdict = forecastVerdict(plan, summary);
   const reached = summary.progress >= 1;
   return (
@@ -526,8 +538,9 @@ function WizardReview({
           </p>
         ) : null}
         <p className="text-footnote text-muted-foreground">
-          A meta rende {money(summary.monthlyYield)} por mês: {money(summary.realIncome)} para viver
-          e {money(summary.inflationReinvestment)} reinvestidos contra a inflação.
+          A meta recebe {money(summary.monthlyYield)} por mês: {money(summary.livingIncome)} para
+          viver e {money(summary.reinvestment)} ({formatPercent(REINVESTMENT_SHARE, 0)})
+          reinvestidos para repor a inflação.
         </p>
       </section>
       <section aria-labelledby={answersId} className="grid gap-1.5">

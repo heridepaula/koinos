@@ -38,9 +38,9 @@ export default function DashboardPage({ searchParams }: PageProps<"/dashboard">)
           </Suspense>
         }
       />
-      {/* A meta é sempre da carteira toda: uma linha discreta acima de tudo, em qualquer classe.
-          O fallback tem a altura da linha, para nada pular quando ela chega. */}
-      <Suspense fallback={<div className="mt-2 mb-3 h-5" />}>
+      {/* A meta é sempre da carteira toda: uma faixa discreta acima de tudo, em qualquer classe.
+          O fallback tem a altura da faixa (80 px), para nada pular quando ela chega. */}
+      <Suspense fallback={<div className="mt-2 mb-3 h-20" />}>
         <IndependenceSection />
       </Suspense>
       <AssetClassControl className="mb-4 md:mb-6" />

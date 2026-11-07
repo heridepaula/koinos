@@ -1,7 +1,8 @@
 import { describe, expect, it } from "vitest";
 import { independenceSummary } from "../domain/plan";
 import type { IndependencePlan } from "../domain/types";
-import { forecastTitle, forecastVerdict, monthSlash, shortForecast } from "./format";
+import { REAL_MONTHLY_RATE, REINVESTMENT_SHARE } from "../domain/constants";
+import { forecastTitle, forecastVerdict, monthSlash, yieldLabel } from "./format";
 
 /** O exemplo da spec v2 §2.6: aos ~55, alvo 45. */
 const example: IndependencePlan = {
@@ -19,8 +20,22 @@ const example: IndependencePlan = {
   healthLevel: "conforto",
 };
 
-const summaryOf = (plan: IndependencePlan, koinosWealth: number, monthlyAporte: number) =>
-  independenceSummary({ plan, koinosWealth, monthlyAporte, currentMonth: "2026-11" });
+/** O DY (ao ano) que dá os 0,4% a.m. reais da v2: com ele valem os 190 meses do exemplo. */
+const V2_YIELD = (12 * REAL_MONTHLY_RATE) / (1 - REINVESTMENT_SHARE * (1 + REAL_MONTHLY_RATE));
+
+const summaryOf = (
+  plan: IndependencePlan,
+  koinosWealth: number,
+  monthlyAporte: number,
+  portfolioYield: number | null = V2_YIELD,
+) =>
+  independenceSummary({
+    plan,
+    koinosWealth,
+    monthlyAporte,
+    portfolioYield,
+    currentMonth: "2026-11",
+  });
 
 describe("forecastVerdict", () => {
   it("depois da idade alvo: âmbar, com a diferença em anos e meses", () => {
@@ -62,17 +77,22 @@ describe("forecastVerdict", () => {
   });
 });
 
-describe("forecastTitle e shortForecast", () => {
+describe("forecastTitle", () => {
   it("a idade prevista, a meta alcançada ou sem previsão", () => {
-    const late = summaryOf(example, 1_000_000, 8_000);
-    expect(forecastTitle(late)).toBe("Aos ~55 anos");
-    expect(shortForecast(late)).toBe("aos ~55");
-    const reached = summaryOf(example, 9_000_000, 0);
-    expect(forecastTitle(reached)).toBe("Meta alcançada");
-    expect(shortForecast(reached)).toBe("meta alcançada");
-    const stuck = summaryOf(example, 0, 0);
-    expect(forecastTitle(stuck)).toBe("Sem previsão");
-    expect(shortForecast(stuck)).toBe("sem previsão");
+    expect(forecastTitle(summaryOf(example, 1_000_000, 8_000))).toBe("Aos ~55 anos");
+    expect(forecastTitle(summaryOf(example, 9_000_000, 0))).toBe("Meta alcançada");
+    expect(forecastTitle(summaryOf(example, 0, 0))).toBe("Sem previsão");
+  });
+});
+
+describe("yieldLabel", () => {
+  it("o DY dos ativos ou, sem DY ainda, o rendimento de referência", () => {
+    expect(yieldLabel(summaryOf(example, 1_000_000, 8_000, 0.132))).toBe(
+      "o DY de 13,2% ao ano dos seus ativos",
+    );
+    expect(yieldLabel(summaryOf(example, 1_000_000, 8_000, null))).toBe(
+      "o rendimento de referência de 9,5% ao ano",
+    );
   });
 });
 

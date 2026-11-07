@@ -4,15 +4,17 @@
 export const REAL_MONTHLY_RATE = 0.004;
 /** Inflação da educação, ao ano (≈ IPCA + 3%). */
 export const EDUCATION_INFLATION = 0.08;
-/** Rendimento nominal da carteira, ao ano: desconta a escola. Com a taxa real, implica IPCA ≈ 4,38%. */
+/**
+ * Rendimento nominal da carteira, ao ano: desconta a escola (spec v2 §2.4) e é o rendimento de
+ * referência da conta quando a carteira ainda não tem DY.
+ */
 export const NOMINAL_ANNUAL_RETURN = 0.095;
 /**
- * Inflação mensal implícita nas duas taxas acima: o rendimento nominal (9,5% a.a.) sobre a taxa
- * real (0,4% a.m.), ≈ 0,358% a.m. (≈ 4,38% a.a.). É o que a meta reinveste por mês para não perder
- * para a inflação (spec v2 §2.7).
+ * A regra dos 24% (pedido do dono, 2026-11-07): do montante que a meta recebe por mês, 24% voltam
+ * para a carteira, para repor a inflação, e o resto é para viver. Na acumulação todo o rendimento
+ * é reinvestido, e esses 24% dele só mantêm o valor: o crescimento real é o que sobra.
  */
-export const IMPLIED_MONTHLY_INFLATION =
-  (1 + NOMINAL_ANNUAL_RETURN) ** (1 / 12) / (1 + REAL_MONTHLY_RATE) - 1;
+export const REINVESTMENT_SHARE = 0.24;
 /** Mensalidades de escola por ano: 12 meses + matrícula e material. */
 export const TUITIONS_PER_YEAR = 13;
 

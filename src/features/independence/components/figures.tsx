@@ -2,9 +2,9 @@ import type { ReactNode } from "react";
 import { Sensitive } from "@/shared/components/sensitive";
 import { formatBRL, formatPercent } from "@/shared/lib/format";
 import { cn } from "@/shared/lib/utils";
-import { NOMINAL_ANNUAL_RETURN } from "../domain/constants";
+import { REINVESTMENT_SHARE } from "../domain/constants";
 import type { IndependenceSummary } from "../domain/types";
-import type { VerdictTone } from "./format";
+import { yieldLabel, type VerdictTone } from "./format";
 
 // Peças pequenas da página e da revisão do questionário: a barra dividida, o selo da previsão e a
 // rentabilidade mensal da meta.
@@ -64,12 +64,12 @@ export function VerdictChip({ tone, children }: { tone: VerdictTone; children: R
   );
 }
 
-/** As duas partes da rentabilidade: azul volta para a carteira (como um aporte), laranja é renda. */
+/** As duas partes do que a meta recebe: azul volta para a carteira (como um aporte), laranja é renda. */
 const YIELD_COLORS = { reinvest: "var(--chart-1)", income: "var(--chart-2)" } as const;
 
 /**
- * A rentabilidade mensal da meta (spec v2 §2.7): quanto ela rende num mês, dividido entre o
- * reinvestimento que repõe a inflação e a renda real que dá para gastar.
+ * O que a meta recebe por mês no usufruto (spec v2 §2.7), dividido pela regra dos 24%: 24%
+ * reinvestidos para repor a inflação e o resto para viver.
  */
 export function YieldSplit({
   summary,
@@ -78,21 +78,17 @@ export function YieldSplit({
   summary: IndependenceSummary;
   headingLevel?: "h2" | "h3";
 }) {
-  const rate = summary.realRate + summary.inflationRate;
-  const inflationYear = (1 + summary.inflationRate) ** 12 - 1;
   const parts = [
     {
       key: "reinvest",
-      label: "Reinvestir contra a inflação",
-      value: summary.inflationReinvestment,
-      rate: summary.inflationRate,
+      label: `Reinvestir (${formatPercent(REINVESTMENT_SHARE, 0)})`,
+      value: summary.reinvestment,
       color: YIELD_COLORS.reinvest,
     },
     {
-      key: "income",
-      label: "Renda real para viver",
-      value: summary.realIncome,
-      rate: summary.realRate,
+      key: "living",
+      label: `Para viver (${formatPercent(1 - REINVESTMENT_SHARE, 0)})`,
+      value: summary.livingIncome,
       color: YIELD_COLORS.income,
     },
   ];
@@ -103,7 +99,7 @@ export function YieldSplit({
         <p className="text-title-3 font-semibold tabular-nums">
           <Sensitive>{formatBRL(summary.monthlyYield)}</Sensitive>
           <span className="ml-1.5 text-footnote font-normal text-muted-foreground">
-            ≈ {formatPercent(rate, 2)} a.m.
+            ≈ {formatPercent(summary.monthlyYieldRate, 2)} a.m.
           </span>
         </p>
       </div>
@@ -115,21 +111,16 @@ export function YieldSplit({
               <Swatch color={part.color} />
               {part.label}
             </dt>
-            <dd className="text-right tabular-nums">
-              <span className="font-medium">
-                <Sensitive>{formatBRL(part.value)}</Sensitive>
-              </span>
-              <span className="ml-2 text-footnote text-muted-foreground">
-                {formatPercent(part.rate, 2)}
-              </span>
+            <dd className="text-right font-medium tabular-nums">
+              <Sensitive>{formatBRL(part.value)}</Sensitive>
             </dd>
           </div>
         ))}
       </dl>
       <p className="text-footnote text-muted-foreground">
-        Com rendimento de {formatPercent(NOMINAL_ANNUAL_RETURN, 1)} ao ano, a parte da inflação (≈{" "}
-        {formatPercent(inflationYear, 2)} ao ano) volta para a carteira todo mês, e a meta mantém o
-        poder de compra.
+        Com {yieldLabel(summary)}, a meta recebe esse valor por mês. Os{" "}
+        {formatPercent(REINVESTMENT_SHARE, 0)} reinvestidos repõem a inflação (≈&nbsp;
+        {formatPercent(REINVESTMENT_SHARE * summary.annualYield, 1)} ao ano) e o resto é para viver.
       </p>
     </section>
   );

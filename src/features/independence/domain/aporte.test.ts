@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { LedgerEntry, TransactionKind } from "@/features/transactions";
-import { averageMonthlyAporte, cashSales, closedMonths } from "./aporte";
+import { APORTE_MONTHS, averageMonthlyAporte, cashSales, closedMonths } from "./aporte";
 
 let id = 0;
 function entry(
@@ -27,8 +27,15 @@ function entry(
 }
 
 describe("closedMonths", () => {
-  it("os 6 meses fechados antes do atual, do mais antigo ao mais novo", () => {
+  it("os 12 meses fechados antes do atual (a média anual), do mais antigo ao mais novo", () => {
+    expect(APORTE_MONTHS).toBe(12);
     expect(closedMonths("2026-11")).toEqual([
+      "2025-11",
+      "2025-12",
+      "2026-01",
+      "2026-02",
+      "2026-03",
+      "2026-04",
       "2026-05",
       "2026-06",
       "2026-07",

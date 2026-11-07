@@ -14,12 +14,14 @@ export function IndependencePanel({
   plan,
   koinosWealth,
   monthlyAporte,
+  portfolioYield,
   currentMonth,
   children,
 }: {
   plan: IndependencePlan;
   koinosWealth: number;
   monthlyAporte: number;
+  portfolioYield: number | null;
   currentMonth: string;
   children: ReactNode;
 }) {
@@ -40,6 +42,7 @@ export function IndependencePanel({
       start="revisao"
       koinosWealth={koinosWealth}
       monthlyAporte={monthlyAporte}
+      portfolioYield={portfolioYield}
       currentMonth={currentMonth}
       reviewFooter={<DeletePlanButton />}
       onCancel={() => setEditing(false)}

@@ -1,11 +1,11 @@
 import type { LedgerEntry } from "@/features/transactions";
 import { addMonths, monthKeyOfTradeDate } from "@/shared/lib/time";
 
-// O aporte médio do bolso (spec 2026-11-07-independencia-financeira §2.4). Os proventos ficam de
-// fora: eles já entram no prazo pela taxa real.
+// O aporte médio do bolso (spec 2026-11-07-independencia-financeira-v2 §2.5). Os proventos ficam de
+// fora: o prazo os reinveste por inteiro, pelo DY.
 
-/** Meses fechados usados na média. */
-export const APORTE_MONTHS = 6;
+/** Meses fechados usados na média: a média anual do bolso (pedido do dono, 2026-11-07). */
+export const APORTE_MONTHS = 12;
 
 /** Os `count` meses fechados antes do atual, do mais antigo ao mais novo. */
 export function closedMonths(currentMonth: string, count: number = APORTE_MONTHS): string[] {

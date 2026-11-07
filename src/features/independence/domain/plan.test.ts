@@ -1,16 +1,19 @@
 import { describe, expect, it } from "vitest";
 import { defaultPlan } from "./catalog";
-import { IMPLIED_MONTHLY_INFLATION, NOMINAL_ANNUAL_RETURN, REAL_MONTHLY_RATE } from "./constants";
+import { NOMINAL_ANNUAL_RETURN, REAL_MONTHLY_RATE, REINVESTMENT_SHARE } from "./constants";
 import {
+  accumulationRate,
   childrenHealthFund,
   durationLabel,
   educationFund,
   independenceSummary,
+  monthlyYieldOf,
   monthsToTarget,
   perpetualIncome,
   planTarget,
   requiredAporte,
   targetMonthKey,
+  yieldSplit,
 } from "./plan";
 import type { IndependencePlan } from "./types";
 
@@ -35,8 +38,25 @@ const plan = (patch: Partial<IndependencePlan> = {}): IndependencePlan => ({
   ...patch,
 });
 
-const summaryOf = (p: IndependencePlan, koinosWealth = 1_000_000, monthlyAporte = 8_000) =>
-  independenceSummary({ plan: p, koinosWealth, monthlyAporte, currentMonth: "2026-11" });
+/**
+ * O DY (ao ano) que faz o patrimônio crescer os 0,4% a.m. reais da v2: com ele valem os números do
+ * exemplo da spec (190 meses, R$ 46.126,93). É a inversa de `accumulationRate`.
+ */
+const V2_YIELD = (12 * REAL_MONTHLY_RATE) / (1 - REINVESTMENT_SHARE * (1 + REAL_MONTHLY_RATE));
+
+const summaryOf = (
+  p: IndependencePlan,
+  koinosWealth = 1_000_000,
+  monthlyAporte = 8_000,
+  portfolioYield: number | null = V2_YIELD,
+) =>
+  independenceSummary({
+    plan: p,
+    koinosWealth,
+    monthlyAporte,
+    portfolioYield,
+    currentMonth: "2026-11",
+  });
 
 describe("o exemplo da spec v2", () => {
   const summary = summaryOf(example);
@@ -75,35 +95,107 @@ describe("o exemplo da spec v2", () => {
     );
   });
 
-  it("rentabilidade mensal: renda real + reinvestimento da inflação (§2.7)", () => {
-    expect(summary.realIncome).toBe(17_566.39);
-    expect(summary.inflationReinvestment).toBe(15_709.73);
-    expect(summary.monthlyYield).toBe(33_276.12);
-    expect(summary.monthlyYield).toBe(
-      Math.round((summary.realIncome + summary.inflationReinvestment) * 100) / 100,
+  it("o V2_YIELD dá mesmo os 0,4% a.m. reais da v2", () => {
+    expect(accumulationRate(V2_YIELD / 12)).toBeCloseTo(REAL_MONTHLY_RATE, 12);
+    expect(summary.accumulationRate).toBeCloseTo(REAL_MONTHLY_RATE, 12);
+  });
+});
+
+describe("rendimento: o DY da carteira", () => {
+  it("o DY ÷ 12 é o rendimento do mês; sem DY, o de referência de 9,5% a.a.", () => {
+    expect(monthlyYieldOf(0.12)).toEqual({ rate: 0.01, source: "dy" });
+    for (const missing of [null, undefined, 0, -0.05, Number.NaN]) {
+      expect(monthlyYieldOf(missing)).toEqual({
+        rate: NOMINAL_ANNUAL_RETURN / 12,
+        source: "reference",
+      });
+    }
+  });
+
+  it("o resumo diz de onde veio o rendimento", () => {
+    const withDy = summaryOf(example, 1_000_000, 8_000, 0.132);
+    expect(withDy.yieldSource).toBe("dy");
+    expect(withDy.annualYield).toBeCloseTo(0.132, 12);
+    expect(withDy.monthlyYieldRate).toBeCloseTo(0.011, 12);
+    const reference = summaryOf(example, 1_000_000, 8_000, null);
+    expect(reference.yieldSource).toBe("reference");
+    expect(reference.annualYield).toBeCloseTo(NOMINAL_ANNUAL_RETURN, 12);
+  });
+
+  it("a meta e as partes dela não dependem do rendimento", () => {
+    expect(summaryOf(example, 1_000_000, 8_000, 0.2).target).toBe(
+      summaryOf(example, 1_000_000, 8_000, null).target,
     );
   });
 });
 
-describe("inflação implícita", () => {
-  it("9,5% a.a. nominal sobre 0,4% a.m. real: ≈ 0,358% a.m. e ≈ 4,38% a.a.", () => {
-    expect(IMPLIED_MONTHLY_INFLATION).toBeCloseTo(0.003577, 6);
-    expect((1 + IMPLIED_MONTHLY_INFLATION) ** 12 - 1).toBeCloseTo(0.0438, 4);
-    // Real e inflação juntos dão o rendimento nominal da carteira.
-    expect(((1 + REAL_MONTHLY_RATE) * (1 + IMPLIED_MONTHLY_INFLATION)) ** 12 - 1).toBeCloseTo(
-      NOMINAL_ANNUAL_RETURN,
-      10,
-    );
+describe("crescimento na acumulação", () => {
+  it("(1 + y) ÷ (1 + 24% × y) − 1: perto de 76% do rendimento", () => {
+    expect(accumulationRate(0.01)).toBeCloseTo(1.01 / 1.0024 - 1, 12);
+    expect(accumulationRate(0.01)).toBeCloseTo(0.0076, 4);
+    expect(accumulationRate(0)).toBe(0);
   });
 
-  it("meta zero não rende nada", () => {
-    const summary = summaryOf(defaultPlan(), 0, 0);
-    expect(summary.target).toBeGreaterThan(0); // a saúde Conforto do padrão já pede patrimônio
-    const empty = summaryOf({ ...defaultPlan(), healthLevel: "nenhum" }, 0, 0);
+  it("o prazo bate com a simulação mês a mês: o DY todo reinvestido mais o aporte do bolso", () => {
+    const summary = summaryOf(example, 1_000_000, 8_000, 0.12);
+    const growth = accumulationRate(0.12 / 12);
+    let patrimony = 1_000_000;
+    let months = 0;
+    while (patrimony < summary.target) {
+      patrimony = patrimony * (1 + growth) + 8_000;
+      months += 1;
+    }
+    expect(summary.accumulationRate).toBeCloseTo(growth, 12);
+    expect(summary.months).toBe(months);
+    expect(months).toBe(130);
+  });
+
+  it("DY maior, prazo menor; e menor que com os 0,4% reais de antes", () => {
+    const months = (dy: number) => summaryOf(example, 1_000_000, 8_000, dy).months!;
+    expect(months(0.14)).toBeLessThan(months(0.1));
+    expect(months(0.12)).toBeLessThan(summaryOf(example).months!);
+  });
+
+  it("o aporte necessário leva o patrimônio à meta na idade alvo, com o mesmo crescimento", () => {
+    const summary = summaryOf(example, 1_000_000, 8_000, 0.12);
+    const growth = Math.pow(1 + summary.accumulationRate, 60);
+    const reached =
+      1_000_000 * growth + (summary.requiredAporte! * (growth - 1)) / summary.accumulationRate;
+    expect(reached).toBeCloseTo(summary.target, -1);
+  });
+});
+
+describe("o que a meta recebe por mês (§2.7)", () => {
+  it("meta × rendimento do mês, 24% reinvestidos e o resto para viver", () => {
+    const summary = summaryOf(example, 1_000_000, 8_000, 0.12); // 1% a.m.
+    expect(summary.monthlyYield).toBe(43_915.97);
+    expect(summary.reinvestment).toBe(10_539.84);
+    expect(summary.livingIncome).toBe(33_376.13);
+  });
+
+  it("as duas partes somam o total, e os 24% arredondam para cima no centavo", () => {
+    expect(yieldSplit(1_000_000, 0.01)).toEqual({
+      received: 10_000,
+      reinvestment: 2_400,
+      living: 7_600,
+    });
+    expect(yieldSplit(1_000_001, 0.01)).toEqual({
+      received: 10_000.01,
+      reinvestment: 2_400.01,
+      living: 7_600,
+    });
+    expect(yieldSplit(100.03, 0.01)).toEqual({ received: 1, reinvestment: 0.24, living: 0.76 });
+  });
+
+  it("meta zero não recebe nada, e sem o -0", () => {
+    expect(yieldSplit(0, 0.01)).toEqual({ received: 0, reinvestment: 0, living: 0 });
+    const empty = summaryOf({ ...defaultPlan(), healthLevel: "nenhum" }, 0, 0, 0.12);
     expect(empty.target).toBe(0);
     expect(empty.monthlyYield).toBe(0);
-    expect(empty.inflationReinvestment).toBe(0);
-    expect(empty.realIncome).toBe(0);
+    expect(empty.reinvestment).toBe(0);
+    expect(empty.livingIncome).toBe(0);
+    // A saúde Conforto do padrão já pede patrimônio.
+    expect(summaryOf(defaultPlan(), 0, 0).target).toBeGreaterThan(0);
   });
 });
 
@@ -203,7 +295,7 @@ describe("monthsToTarget", () => {
 });
 
 describe("requiredAporte", () => {
-  it("o exemplo da spec: R$ 46.126,93 em 60 meses", () => {
+  it("com os 0,4% reais da spec v2 §2.6: R$ 46.126,93 em 60 meses", () => {
     expect(requiredAporte({ pv: 1_000_000, fv: 4_391_596.94, r: 0.004, m: 60 })).toBeCloseTo(
       46_126.93,
       1,

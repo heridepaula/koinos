@@ -1,13 +1,13 @@
 import { addMonths } from "@/shared/lib/time";
 import {
   EDUCATION_INFLATION,
-  IMPLIED_MONTHLY_INFLATION,
   NOMINAL_ANNUAL_RETURN,
   REAL_MONTHLY_RATE,
+  REINVESTMENT_SHARE,
   TUITIONS_PER_YEAR,
 } from "./constants";
 import { healthCost, healthPerpetuity, healthSteps } from "./health";
-import type { IndependencePlan, IndependenceSummary } from "./types";
+import type { IndependencePlan, IndependenceSummary, YieldSource } from "./types";
 
 // A meta e o prazo (spec 2026-11-07-independencia-financeira-v2 §2.3 a §2.5), em reais de hoje.
 
@@ -144,6 +144,44 @@ function targetParts(plan: IndependencePlan, r: number) {
   };
 }
 
+/**
+ * O rendimento mensal da carteira: o DY de 12 meses ÷ 12 (é a soma de 12 distribuições mensais,
+ * não um juro composto). Sem DY (nulo, zero ou negativo), o de referência da v2, 9,5% a.a.
+ */
+export function monthlyYieldOf(portfolioYield: number | null | undefined): {
+  rate: number;
+  source: YieldSource;
+} {
+  if (portfolioYield != null && Number.isFinite(portfolioYield) && portfolioYield > 0) {
+    return { rate: portfolioYield / 12, source: "dy" };
+  }
+  return { rate: NOMINAL_ANNUAL_RETURN / 12, source: "reference" };
+}
+
+/**
+ * O crescimento real do patrimônio por mês enquanto acumula: todo o rendimento volta para a
+ * carteira, e a fatia que repõe a inflação (24% do rendimento) só mantém o valor. Com y o
+ * rendimento do mês: (1 + y) ÷ (1 + 24% × y) − 1, perto de 76% de y.
+ */
+export function accumulationRate(monthlyYield: number): number {
+  return (1 + monthlyYield) / (1 + REINVESTMENT_SHARE * monthlyYield) - 1;
+}
+
+/**
+ * O que a meta recebe num mês (a meta × o rendimento do mês) e como se divide no usufruto: 24%
+ * reinvestidos, arredondados para cima no centavo como a retenção da fruição, e o resto para
+ * viver. As duas partes somam o total.
+ */
+export function yieldSplit(
+  target: number,
+  monthlyYield: number,
+): { received: number; reinvestment: number; living: number } {
+  const total = Math.max(0, Math.round(target * monthlyYield * 100));
+  // O − 1e-9 evita que 0,24 × 10.000 = 2.400,0000001 suba um centavo.
+  const kept = total === 0 ? 0 : Math.min(total, Math.ceil(total * REINVESTMENT_SHARE - 1e-9));
+  return { received: total / 100, reinvestment: kept / 100, living: (total - kept) / 100 };
+}
+
 /** A meta total do plano, sem patrimônio nem prazo: o questionário a refaz a cada resposta. */
 export function planTarget(plan: IndependencePlan): number {
   return targetParts(plan, REAL_MONTHLY_RATE).target;
@@ -156,6 +194,8 @@ export function independenceSummary(input: {
   koinosWealth: number;
   /** Aporte médio mensal do bolso (`averageMonthlyAporte`). */
   monthlyAporte: number;
+  /** O DY de 12 meses da carteira (fração ao ano); nulo usa o rendimento de referência. */
+  portfolioYield?: number | null;
   currentMonth: string;
 }): IndependenceSummary {
   const { plan, koinosWealth, monthlyAporte, currentMonth } = input;
@@ -173,11 +213,13 @@ export function independenceSummary(input: {
     temporary,
     target,
   } = targetParts(plan, r);
-  // A rentabilidade do mês (§2.7): cada parte arredonda no centavo, e o total é a soma delas.
-  const realIncome = cents(target * r);
-  const inflationReinvestment = cents(target * IMPLIED_MONTHLY_INFLATION);
+  // Na acumulação, todo o DY volta para a carteira com o aporte do bolso (§2.5); no usufruto, a
+  // meta recebe o rendimento do mês e 24% dele reinvestem (§2.7).
+  const { rate: monthlyRate, source } = monthlyYieldOf(input.portfolioYield);
+  const growth = accumulationRate(monthlyRate);
+  const received = yieldSplit(target, monthlyRate);
   const patrimony = koinosWealth + plan.externalWealth;
-  const months = monthsToTarget({ pv: patrimony, fv: target, pmt: monthlyAporte, r });
+  const months = monthsToTarget({ pv: patrimony, fv: target, pmt: monthlyAporte, r: growth });
   const untilTarget = 12 * years;
   const reachesInTime = months !== null && months <= untilTarget;
   return {
@@ -193,10 +235,13 @@ export function independenceSummary(input: {
     childrenHealthFund: cents(childrenHealth),
     temporary: cents(temporary),
     target,
-    monthlyYield: cents(realIncome + inflationReinvestment),
-    inflationReinvestment,
-    realIncome,
-    inflationRate: IMPLIED_MONTHLY_INFLATION,
+    yieldSource: source,
+    annualYield: monthlyRate * 12,
+    monthlyYieldRate: monthlyRate,
+    accumulationRate: growth,
+    monthlyYield: received.received,
+    reinvestment: received.reinvestment,
+    livingIncome: received.living,
     koinosWealth,
     externalWealth: plan.externalWealth,
     patrimony,
@@ -209,7 +254,7 @@ export function independenceSummary(input: {
     slackMonths: years > 0 && reachesInTime ? untilTarget - months : null,
     requiredAporte:
       years > 0 && !reachesInTime
-        ? cents(requiredAporte({ pv: patrimony, fv: target, r, m: untilTarget }))
+        ? cents(requiredAporte({ pv: patrimony, fv: target, r: growth, m: untilTarget }))
         : null,
   };
 }

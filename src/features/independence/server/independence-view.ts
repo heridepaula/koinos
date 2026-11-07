@@ -13,7 +13,7 @@ import { findIndependencePlan } from "./plan-repo";
 
 /**
  * A meta de independência do usuário logado: o plano (ou o rascunho de um plano da v1), o
- * patrimônio do snapshot Geral e o aporte médio do bolso. DTO sem ids internos.
+ * patrimônio e o DY de 12 meses do snapshot Geral e o aporte médio do bolso. DTO sem ids internos.
  */
 export const getIndependenceView = cache(
   traced(
@@ -37,14 +37,16 @@ export const getIndependenceView = cache(
         })),
       );
       const koinosWealth = snapshot.summary.patrimony;
+      const portfolioYield = snapshot.summary.dy12m;
       return {
         plan,
         draft,
         summary: plan
-          ? independenceSummary({ plan, koinosWealth, monthlyAporte, currentMonth })
+          ? independenceSummary({ plan, koinosWealth, monthlyAporte, portfolioYield, currentMonth })
           : null,
         koinosWealth,
         monthlyAporte,
+        portfolioYield,
         currentMonth,
       };
     },

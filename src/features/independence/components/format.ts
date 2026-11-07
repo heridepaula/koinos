@@ -1,3 +1,4 @@
+import { formatPercent } from "@/shared/lib/format";
 import { durationLabel } from "../domain/plan";
 import type { IndependencePlan, IndependenceSummary } from "../domain/types";
 
@@ -35,9 +36,13 @@ export function forecastTitle(summary: IndependenceSummary): string {
   return `Aos ~${summary.predictedAge} anos`;
 }
 
-/** A previsão da linha do Dashboard: "aos ~55", "meta alcançada" ou "sem previsão". */
-export function shortForecast(summary: IndependenceSummary): string {
-  if (summary.months === 0) return "meta alcançada";
-  if (summary.months === null || summary.predictedAge === null) return "sem previsão";
-  return `aos ~${summary.predictedAge}`;
+/**
+ * De onde vem o rendimento da conta, numa expressão: "o DY de 13,2% ao ano dos seus ativos" ou, sem
+ * DY ainda, "o rendimento de referência de 9,5% ao ano".
+ */
+export function yieldLabel(summary: IndependenceSummary): string {
+  const rate = formatPercent(summary.annualYield, 1);
+  return summary.yieldSource === "dy"
+    ? `o DY de ${rate} ao ano dos seus ativos`
+    : `o rendimento de referência de ${rate} ao ano`;
 }

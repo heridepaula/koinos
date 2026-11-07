@@ -5,11 +5,13 @@ import { Sensitive } from "@/shared/components/sensitive";
 import { formatBRL, formatPercent } from "@/shared/lib/format";
 import { cn } from "@/shared/lib/utils";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/shared/ui/card";
+import { APORTE_MONTHS } from "../domain/aporte";
 import { HEALTH_LEVEL_LABELS } from "../domain/catalog";
+import { REINVESTMENT_SHARE } from "../domain/constants";
 import { durationLabel } from "../domain/plan";
 import type { IndependencePlan, IndependenceSummary } from "../domain/types";
 import { SplitBar, Swatch, VerdictChip, YieldSplit } from "./figures";
-import { forecastTitle, forecastVerdict, monthSlash } from "./format";
+import { forecastTitle, forecastVerdict, monthSlash, yieldLabel } from "./format";
 import { ProgressBar } from "./progress-bar";
 
 const money = (value: number) => <Sensitive>{formatBRL(value)}</Sensitive>;
@@ -156,8 +158,10 @@ export function ForecastCard({
               <AporteMeter current={summary.monthlyAporte} required={summary.requiredAporte} />
             ) : null}
             <MetricNote>
-              O aporte de hoje é a média do dinheiro do bolso nos 6 meses fechados, menos as vendas.
-              O patrimônio rende {formatPercent(summary.realRate, 1)} ao mês acima da inflação.
+              O aporte de hoje é a média do dinheiro do bolso nos {APORTE_MONTHS} meses fechados,
+              menos as vendas. Até a meta, todo o rendimento volta para a carteira junto com ele (
+              {yieldLabel(summary)}): {formatPercent(REINVESTMENT_SHARE, 0)} dele repõem a inflação,
+              e o patrimônio cresce {formatPercent(summary.accumulationRate, 2)} ao mês acima dela.
             </MetricNote>
           </section>
         </div>
