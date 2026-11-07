@@ -23,3 +23,9 @@ export { MonthPicker } from "./components/reinvestment/month-picker";
 export { PurchasesTable } from "./components/reinvestment/purchases-table";
 export { ReinvestmentCards } from "./components/reinvestment/reinvestment-cards";
 export { ReinvestmentHistory } from "./components/reinvestment/reinvestment-history";
+
+export { AssetHero } from "./components/asset/asset-hero";
+export { AssetTabs } from "./components/asset/asset-tabs";
+export { MarketCard } from "./components/asset/market-card";
+export { PositionCard } from "./components/asset/position-card";
+export { StrategyCard } from "./components/asset/strategy-card";
