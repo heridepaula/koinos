@@ -1,4 +1,4 @@
-import type { AssetClass } from "@/features/market-data";
+import type { AssetClass, MarketSession } from "@/features/market-data";
 import type { DividendMonths, PricePeriod } from "./asset-overview";
 import type { AportePriority, CascadeAsset, StockBuyAsset } from "@/features/smart-buy";
 import type { Bias, Category, CeilingCheck } from "@/features/strategy";
@@ -249,8 +249,26 @@ export type PortfolioSnapshot = {
   allocation: { byCategory: AllocationSlice[]; byAsset: AllocationSlice[] };
   contributions: MonthlyContribution[];
   alerts: PortfolioAlert[];
-  quotes: { staleCount: number; lastFetchedAt: Date | null };
+  /** As 3 maiores altas e baixas do pregão entre as posições abertas da visão. */
+  dayMovers: DayMovers;
+  /** `market`: o mercado agora e o pregão da variação do dia (pela cotação mais recente). */
+  quotes: { staleCount: number; lastFetchedAt: Date | null; market: MarketSession };
 };
+
+/** Uma posição entre as maiores altas ou baixas do pregão. */
+export type DayMover = {
+  ticker: string;
+  name: string | null;
+  logoUrl: string | null;
+  assetClass: AssetClass | null;
+  price: number | null;
+  /** Variação do pregão, em fração. */
+  changePercent: number;
+  /** O que a posição ganhou ou perdeu no pregão, em R$. */
+  amount: number;
+};
+
+export type DayMovers = { gainers: DayMover[]; losers: DayMover[] };
 
 export type EvolutionPoint = {
   month: string;
@@ -432,6 +450,7 @@ export type AssetOverview = {
   logoUrl: string | null;
   assetClass: AssetClass | null;
   price: number | null;
+  /** Variação do dia: `amount` em R$ por cota, `percent` em fração (0,008 = 0,8%). */
   dailyChange: { amount: number; percent: number } | null;
   market: {
     priceToBook: number | null;
@@ -441,6 +460,8 @@ export type AssetOverview = {
     lastDividend: { amount: number; exDate: Date } | null;
     segment: string | null;
     quoteFetchedAt: Date | null;
+    /** O mercado agora e o pregão da variação do dia. */
+    session: MarketSession;
   };
   /** Os períodos do gráfico de cotação que têm o que mostrar (ver `pricePeriods`). */
   pricePeriods: PricePeriod[];
@@ -463,7 +484,7 @@ export type WatchlistRow = {
   logoUrl: string | null;
   assetClass: AssetClass | null;
   price: number | null;
-  /** Variação do dia em %, como a cotação traz (0,8 = 0,8%). */
+  /** Variação do dia em fração, como a cotação é guardada (0,008 = 0,8%). */
   changePercent: number | null;
   /** Os fechamentos diários recentes, terminando no preço atual, para o minigráfico. */
   spark: number[];

@@ -1,4 +1,4 @@
-import { assetClassOf, isQuoteStale, type AssetClass } from "@/features/market-data";
+import { assetClassOf, isQuoteStale, marketSession, type AssetClass } from "@/features/market-data";
 import {
   aportePriorities,
   classifyRisk,
@@ -20,6 +20,7 @@ import { monthlyContributions, replayLedger, type DividendEntry } from "@/featur
 import { byClass, type ClassFilter } from "@/shared/lib/class-filter";
 import { addMonths, currentMonthKey, monthRange } from "@/shared/lib/time";
 import { buildAlerts } from "./alerts";
+import { dayMovers } from "./day-movers";
 import { allocationByAsset, allocationByCategory } from "./allocation";
 import { closedPositions, type ClosedLedgerEntry } from "./closed-positions";
 import { adjustedResult, dividendPace, dividendsByTicker } from "./dividends";
@@ -400,10 +401,12 @@ export function buildSnapshot({
   const fetchedTimes = quoteTickers
     .map((ticker) => prices.get(ticker)?.quoteFetchedAt?.getTime())
     .filter((time): time is number => time !== undefined);
+  const lastFetchedAt = fetchedTimes.length > 0 ? new Date(Math.max(...fetchedTimes)) : null;
 
   return {
     summary,
     positions: positionRows,
+    dayMovers: dayMovers(positionRows),
     closed,
     strategy: {
       rows: rowsByClass[viewClass],
@@ -440,7 +443,8 @@ export function buildSnapshot({
       staleCount: quoteTickers.filter((ticker) =>
         isQuoteStale(prices.get(ticker)?.quoteFetchedAt, now),
       ).length,
-      lastFetchedAt: fetchedTimes.length > 0 ? new Date(Math.max(...fetchedTimes)) : null,
+      lastFetchedAt,
+      market: marketSession(now, lastFetchedAt),
     },
   };
 }

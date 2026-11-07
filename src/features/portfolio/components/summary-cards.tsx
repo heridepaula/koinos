@@ -1,4 +1,5 @@
 import { HandCoinsIcon, PercentIcon, TrendingUpIcon } from "lucide-react";
+import { dayChangeLabel, type MarketSession } from "@/features/market-data";
 import { Delta, DeltaChip } from "@/shared/components/delta";
 import { MetricCard, Stat, StatList, StatRow } from "@/shared/components/metric";
 import { SnapCarousel } from "@/shared/components/snap-carousel";
@@ -17,14 +18,17 @@ import { Sensitive } from "@/shared/components/sensitive";
 export function SummaryCards({
   summary,
   byCategory,
+  market,
 }: {
   summary: PortfolioSummary;
   byCategory: AllocationSlice[];
+  /** O pregão da variação do dia: fora de hoje, o selo diz o dia em vez de "hoje". */
+  market: MarketSession;
 }) {
   const { year } = summary.dividendPace;
   return (
     <div className="grid gap-4 md:gap-6">
-      <PatrimonyCard summary={summary} byCategory={byCategory} />
+      <PatrimonyCard summary={summary} byCategory={byCategory} market={market} />
       {/* Três colunas só quando cada card tem uns 300 px: o valor de 28 px não pode quebrar. No
           iPhone, os três cards viram um carrossel com encaixe, para as posições subirem. */}
       <div className="@container">
@@ -125,9 +129,11 @@ export function SummaryCards({
 function PatrimonyCard({
   summary,
   byCategory,
+  market,
 }: {
   summary: PortfolioSummary;
   byCategory: AllocationSlice[];
+  market: MarketSession;
 }) {
   return (
     <Card className="metal-ring card-lift brushed">
@@ -138,7 +144,11 @@ function PatrimonyCard({
             <p className="text-large-title tabular-nums @min-[560px]:text-display">
               <Sensitive>{formatBRL(summary.patrimony)}</Sensitive>
             </p>
-            <DeltaChip value={summary.dayChange} pct={summary.dayChangePct} suffix="hoje" />
+            <DeltaChip
+              value={summary.dayChange}
+              pct={summary.dayChangePct}
+              suffix={dayChangeLabel(market)}
+            />
           </div>
           <dl className="grid grid-cols-2 gap-x-10 gap-y-4 @min-[960px]:order-last">
             <Stat label="Investido" value={<Sensitive>{formatBRL(summary.invested)}</Sensitive>} />

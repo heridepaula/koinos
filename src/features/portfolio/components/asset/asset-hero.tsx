@@ -1,3 +1,4 @@
+import { dayChangeLabel } from "@/features/market-data";
 import { DeltaChip } from "@/shared/components/delta";
 import { formatBRL, formatDateTime, formatPercent, formatTradeDate } from "@/shared/lib/format";
 import { cn } from "@/shared/lib/utils";
@@ -72,11 +73,14 @@ export function AssetHero({
         <div className="grid gap-1">
           <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
             <p className="text-large-title">{price === null ? "Sem cotação" : formatBRL(price)}</p>
-            {dailyChange ? <DeltaChip pct={dailyChange.percent / 100} suffix="hoje" /> : null}
+            {dailyChange ? (
+              <DeltaChip pct={dailyChange.percent} suffix={dayChangeLabel(market.session)} />
+            ) : null}
           </div>
           {market.quoteFetchedAt ? (
             <p className="text-footnote text-muted-foreground">
-              Cotação de {formatDateTime(market.quoteFetchedAt)}
+              {market.session.open ? "Mercado aberto" : "Mercado fechado"} · Cotação de{" "}
+              {formatDateTime(market.quoteFetchedAt)}
             </p>
           ) : null}
         </div>

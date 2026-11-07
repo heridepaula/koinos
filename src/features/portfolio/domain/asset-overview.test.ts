@@ -93,9 +93,9 @@ describe("dividendMonths", () => {
 });
 
 describe("dailyChange", () => {
-  it("deriva o valor em R$ do preço e do percentual", () => {
-    const result = dailyChange(110, 10);
-    expect(result?.percent).toBe(10);
+  it("deriva o valor em R$ do preço e da variação em fração, como a cotação é guardada", () => {
+    const result = dailyChange(110, 0.1);
+    expect(result?.percent).toBe(0.1);
     expect(result?.amount).toBeCloseTo(10);
   });
 

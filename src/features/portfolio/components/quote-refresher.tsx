@@ -13,9 +13,12 @@ import { refreshMyQuotesAction } from "../actions";
 export function QuoteRefresher({
   staleCount,
   lastFetchedAt,
+  marketOpen,
 }: {
   staleCount: number;
   lastFetchedAt: Date | null;
+  /** O pregão agora: o texto começa por "Mercado aberto" ou "Mercado fechado". */
+  marketOpen: boolean;
 }) {
   const { mutate, isPending } = useMutation({
     mutationFn: async () => {
@@ -45,6 +48,10 @@ export function QuoteRefresher({
         )}
       />
       <span className="tabular-nums" aria-live="polite">
+        <span className="font-medium text-foreground">
+          {marketOpen ? "Mercado aberto" : "Mercado fechado"}
+        </span>
+        {" · "}
         {isPending
           ? "Atualizando cotações…"
           : lastFetchedAt

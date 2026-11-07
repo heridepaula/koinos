@@ -32,7 +32,10 @@ export {
   splitAporte,
   summarizeReinvestment,
 } from "./domain/reinvestment";
+export { dayMovers, DAY_MOVERS_LIMIT } from "./domain/day-movers";
 export type {
+  DayMover,
+  DayMovers,
   AdjustedResult,
   AllocationSlice,
   ClosedPosition,

@@ -39,6 +39,7 @@ Koinos is a single-owner dashboard for a Brazilian portfolio of FIIs (REITs) and
   - the B3 lending pairing and the shares that come back from lending (`transactions/import/b3/lending.test.ts`), and the dividend kinds and the check by dividends (`transactions/import/b3/dividends.test.ts`);
   - the estimated tax of closed positions: FIIs at 20%, stocks at 15% with the R$ 20,000 monthly exemption, and that FIIs plus Ações add up to Geral (`portfolio/domain/closed-positions.test.ts`);
   - the asset page (`portfolio/domain/asset-overview.test.ts`): the yield on cost and `dividendMonths` on `dividendPace`'s window (the bars add up to its total), the daily change, `priceSeries` ending at the quote and `pricePeriods`; plus `shared/lib/nice-scale.test.ts` (round axis steps) and `shared/lib/sparkline.test.ts`;
+  - the market session (`market-data/domain/market-hours.test.ts`: open 10:00–18:00 on weekdays, the session of a quote on weekends and before the open, the "hoje"/"na sex., 06/11" label) and the day's movers (`portfolio/domain/day-movers.test.ts`: top 3 each side, flat ones out, ties by ticker);
   - the Geral/FIIs/Ações filter (`shared/lib/class-filter.test.ts`) and `scopeToClass` (`portfolio/domain/snapshot.test.ts`);
   - the Fundamentus page parser (`market-data/domain/fundamentus.test.ts`);
   - the Yahoo + Fundamentus dividend merge (`market-data/domain/dividend-merge.test.ts`);
@@ -68,7 +69,7 @@ Koinos is a single-owner dashboard for a Brazilian portfolio of FIIs (REITs) and
 
 **Pages** (`src/app/(app)`): each one renders a static header and streams a `<Suspense>` section that awaits a DAL view from `portfolio/server.ts` or `transactions/server.ts`.
 
-- `/dashboard`: `getPortfolioSnapshot` (summary, alerts, monthly aportes, allocation, positions and the closed card), plus `getEvolution` (Domain flow, item 7) and `getPeriodResults` (item 8), each in its own `<Suspense>`.
+- `/dashboard`: `getPortfolioSnapshot` (summary, alerts, monthly aportes, allocation, positions and the closed card), the day's movers (`DayMovers`: the top 3 gains and top 3 losses of the open positions by the session's %, `dayMovers` in `portfolio/domain/day-movers.ts`, with `MarketStatus`), plus `getEvolution` (Domain flow, item 7) and `getPeriodResults` (item 8), each in its own `<Suspense>`.
 - **Class filter:** the Dashboard, `/proventos` (and its reinvestment subpage), `/encerradas` (and its IR) and `/transacoes` take `?classe=` (Geral, FIIs or Ações, default Geral) through `AssetClassControl` and `shared/lib/class-filter.ts`. Every view takes the filter and splits the ledger and the dividends by class before calling the pure code. Carteira Alvo (its own `?classe=` tabs) and Recomendações (FIIs by default, see below) use the same control for other purposes.
 - `/transacoes`: `getMyTransactions`, with filters (the class one runs in the client, through `assetClass` in `TransactionRow`), pagination and the create, edit and delete actions.
 - `/encerradas`: `getClosedPositionsView` (item 6): cost, proceeds and result per closed FII. Its subpage `/encerradas/ir` shows the estimated tax from the same view, and the sidebar lists it as a sub-item. The Dashboard's closed card links here, and `/dashboard/encerradas` redirects here from `next.config.ts`.
@@ -233,6 +234,8 @@ Koinos is a single-owner dashboard for a Brazilian portfolio of FIIs (REITs) and
 **Market data** (`market-data`):
 
 - Quotes come from brapi first, with Yahoo as the fallback. Pages refresh stale quotes in the background: `QuoteRefresher` calls `refreshMyQuotesAction`, which also refreshes the held FIIs' dividends.
+  - **Market open or closed** (`market-hours.ts`): `isMarketOpen` is the real session, 10:00 to 18:00 on weekdays (no delay, no holidays). `quoteSessionDate` gives the session a quote's change belongs to (its day after 10:00 on a weekday, else the previous weekday), and `marketSession(now, fetchedAt)` joins both (`snapshot.quotes.market`, `AssetOverview.market.session`). `dayChangeLabel` is the day-change suffix: "hoje" for today's session, else "na sex., 06/11", so a Saturday doesn't look like a trading day. `QuoteRefresher` starts with "Mercado aberto"/"Mercado fechado".
+  - `changePercent` is stored as a fraction (0.0115 = 1.15%), by both adapters.
   - A quote goes stale after 30 min during the session (10:00 to 18:30 in São Paulo, counting brapi's delay). Outside it, the last close holds and no quota is spent. Holidays aren't handled (`market-data/domain/market-hours.ts`).
   - brapi requests are counted per month in Mongo (`server/usage.ts`). Above 90% of `BRAPI_MONTHLY_QUOTA`, only Yahoo is used until the month turns.
 - The daily Vercel cron (`/api/cron/daily`, bearer `CRON_SECRET`, see `vercel.json`) refreshes closes, dividends, monthly history, the recent daily closes (forced, so today's close enters the week's list) and the ticker catalog.

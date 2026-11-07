@@ -67,13 +67,16 @@ export function dividendMonths(dividends: readonly PaidDividend[], now: Date): D
   return { months, total, monthlyAverage: total / months.length };
 }
 
-/** Variação do dia em R$ por cota e em %, a partir do preço e do `changePercent` da cotação. */
+/**
+ * Variação do dia em R$ por cota e em fração, a partir do preço e do `changePercent` da cotação,
+ * que é guardado em fração (0,0115 = 1,15%), como os adaptadores da brapi e do Yahoo gravam.
+ */
 export function dailyChange(
   price: number | null,
   changePercent: number | null,
 ): { amount: number; percent: number } | null {
   if (price === null || changePercent === null) return null;
-  const previous = price / (1 + changePercent / 100);
+  const previous = price / (1 + changePercent);
   return { amount: price - previous, percent: changePercent };
 }
 

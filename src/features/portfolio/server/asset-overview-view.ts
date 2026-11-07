@@ -8,6 +8,7 @@ import {
   getCatalogEntry,
   getMonthlyCloses,
 } from "@/features/market-data/server";
+import { marketSession } from "@/features/market-data";
 import { getMyDividends, getMyTransactions } from "@/features/transactions/server";
 import { traced } from "@/shared/lib/tracing";
 import {
@@ -76,6 +77,7 @@ export const getAssetOverview = cache(
           lastDividend: asset?.lastDividend ?? null,
           segment: asset?.fii?.segment ?? null,
           quoteFetchedAt: quoteAt,
+          session: marketSession(now, quoteAt),
         },
         pricePeriods: pricePeriods(series, now),
         strategy:

@@ -41,7 +41,13 @@ export default function RecommendationsPage() {
 
 async function QuoteStatus() {
   const { quotes } = await getPortfolioSnapshot();
-  return <QuoteRefresher staleCount={quotes.staleCount} lastFetchedAt={quotes.lastFetchedAt} />;
+  return (
+    <QuoteRefresher
+      staleCount={quotes.staleCount}
+      lastFetchedAt={quotes.lastFetchedAt}
+      marketOpen={quotes.market.open}
+    />
+  );
 }
 
 async function RecommendationsContent() {

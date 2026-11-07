@@ -12,6 +12,7 @@ export { DividendsHistory } from "./components/dividends/dividends-history";
 export { EmptyDividends } from "./components/dividends/empty-dividends";
 export { DividendMonthCards } from "./components/dividends/month-cards";
 export { UpcomingDividends } from "./components/dividends/upcoming-list";
+export { DayMovers } from "./components/day-movers";
 export { EmptyPortfolio } from "./components/empty-portfolio";
 export { EvolutionChart } from "./components/evolution-chart";
 export { PeriodResults } from "./components/period-results";

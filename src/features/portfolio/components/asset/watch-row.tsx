@@ -46,7 +46,7 @@ export function WatchRow({ row }: { row: WatchlistRow }) {
         {row.changePercent === null ? (
           <span className="text-footnote text-muted-foreground">—</span>
         ) : (
-          <DeltaChip pct={row.changePercent / 100} className="h-6 px-2" />
+          <DeltaChip pct={row.changePercent} className="h-6 px-2" />
         )}
       </div>
     </RowLink>

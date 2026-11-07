@@ -6,6 +6,7 @@ import {
   AllocationCharts,
   ClosedPositions,
   ContributionsChart,
+  DayMovers,
   EmptyPortfolio,
   EvolutionChart,
   PeriodResults,
@@ -52,7 +53,13 @@ async function filterOf(searchParams: SearchParams): Promise<ClassFilter> {
 // Sempre a carteira toda: o atualizador renova todas as cotações, seja qual for a classe aberta.
 async function QuoteStatus() {
   const { quotes } = await getPortfolioSnapshot();
-  return <QuoteRefresher staleCount={quotes.staleCount} lastFetchedAt={quotes.lastFetchedAt} />;
+  return (
+    <QuoteRefresher
+      staleCount={quotes.staleCount}
+      lastFetchedAt={quotes.lastFetchedAt}
+      marketOpen={quotes.market.open}
+    />
+  );
 }
 
 async function DashboardContent({ searchParams }: { searchParams: SearchParams }) {
@@ -71,7 +78,9 @@ async function DashboardContent({ searchParams }: { searchParams: SearchParams }
       <SummaryCards
         summary={snapshot.summary}
         byCategory={filter === "ACAO" ? [] : snapshot.allocation.byCategory}
+        market={snapshot.quotes.market}
       />
+      <DayMovers movers={snapshot.dayMovers} market={snapshot.quotes.market} />
       <Suspense fallback={<CardSkeleton />}>
         <PeriodSection filter={filter} />
       </Suspense>
