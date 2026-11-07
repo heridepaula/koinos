@@ -15,6 +15,8 @@ export const NOMINAL_ANNUAL_RETURN = 0.095;
  */
 export const GENERAL_INFLATION =
   (1 + NOMINAL_ANNUAL_RETURN) / Math.pow(1 + REAL_MONTHLY_RATE, 12) - 1;
+/** Folga para imprevistos sobre o gasto essencial na expectativa do primeiro dia (pedido do dono). */
+export const CONTINGENCY_SHARE = 0.3;
 /**
  * A regra dos 24% (pedido do dono, 2026-11-07): do montante que a meta recebe por mês, 24% voltam
  * para a carteira, para repor a inflação, e o resto é para viver. Na acumulação todo o rendimento

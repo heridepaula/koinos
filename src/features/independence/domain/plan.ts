@@ -1,6 +1,7 @@
 import { addMonths } from "@/shared/lib/time";
 import {
   EDUCATION_INFLATION,
+  CONTINGENCY_SHARE,
   GENERAL_INFLATION,
   NOMINAL_ANNUAL_RETURN,
   REAL_MONTHLY_RATE,
@@ -244,7 +245,7 @@ export function independenceSummary(input: {
   const factor = Math.pow(1 + GENERAL_INFLATION, years);
   const educationFactor = Math.pow(1 + EDUCATION_INFLATION, years);
   const projectedCosts = {
-    essential: cents(costs.essential * factor),
+    essential: cents(costs.essential * factor * (1 + CONTINGENCY_SHARE)),
     seasonal: cents(costs.seasonal * factor),
     travel: cents(costs.travel * factor),
     health: cents(costs.health * factor),

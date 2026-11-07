@@ -2,7 +2,12 @@ import type { ReactNode } from "react";
 import { Sensitive } from "@/shared/components/sensitive";
 import { formatBRL, formatPercent } from "@/shared/lib/format";
 import { cn } from "@/shared/lib/utils";
-import { EDUCATION_INFLATION, GENERAL_INFLATION, REINVESTMENT_SHARE } from "../domain/constants";
+import {
+  CONTINGENCY_SHARE,
+  EDUCATION_INFLATION,
+  GENERAL_INFLATION,
+  REINVESTMENT_SHARE,
+} from "../domain/constants";
 import type { IndependenceSummary } from "../domain/types";
 import { CostHelp } from "./cost-help";
 import { yieldLabel, type VerdictTone } from "./format";
@@ -67,7 +72,7 @@ export function VerdictChip({ tone, children }: { tone: VerdictTone; children: R
 
 const COST_HELP: Record<string, string> = {
   essential:
-    "Gasto fixo de todo mês, pago com o dinheiro do dia a dia. Ex.: aluguel ou condomínio, luz, água, internet, mercado, transporte e cartões.",
+    "Gasto fixo de todo mês, corrigido pela inflação, com 30% a mais de folga para imprevistos. Ex.: aluguel ou condomínio, luz, água, internet, mercado, transporte e cartões.",
   seasonal:
     "Despesas que vêm uma ou poucas vezes por ano, divididas por 12 para virar um valor mensal. Ex.: IPVA, IPTU, seguro do carro e da casa, manutenção.",
   travel:
@@ -109,7 +114,11 @@ export function YieldSplit({
     },
   ];
   const costs = [
-    { key: "essential", label: "Gasto essencial", value: summary.projected.costs.essential },
+    {
+      key: "essential",
+      label: `Gasto essencial (+${formatPercent(CONTINGENCY_SHARE, 0)} imprevistos)`,
+      value: summary.projected.costs.essential,
+    },
     { key: "seasonal", label: "Sazonais (÷ 12)", value: summary.projected.costs.seasonal },
     { key: "travel", label: "Viagens (÷ 12)", value: summary.projected.costs.travel },
     { key: "health", label: "Plano de saúde", value: summary.projected.costs.health },
