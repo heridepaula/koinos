@@ -38,6 +38,7 @@ Koinos is a single-owner dashboard for a Brazilian portfolio of FIIs (REITs) and
   - the asset class (`market-data/domain/asset-class.test.ts`);
   - the B3 lending pairing and the shares that come back from lending (`transactions/import/b3/lending.test.ts`), and the dividend kinds and the check by dividends (`transactions/import/b3/dividends.test.ts`);
   - the estimated tax of closed positions: FIIs at 20%, stocks at 15% with the R$ 20,000 monthly exemption, and that FIIs plus Ações add up to Geral (`portfolio/domain/closed-positions.test.ts`);
+  - the asset page's yield on cost and daily change (`portfolio/domain/asset-overview.test.ts`);
   - the Geral/FIIs/Ações filter (`shared/lib/class-filter.test.ts`) and `scopeToClass` (`portfolio/domain/snapshot.test.ts`);
   - the Fundamentus page parser (`market-data/domain/fundamentus.test.ts`);
   - the Yahoo + Fundamentus dividend merge (`market-data/domain/dividend-merge.test.ts`);
@@ -72,6 +73,7 @@ Koinos is a single-owner dashboard for a Brazilian portfolio of FIIs (REITs) and
 - `/transacoes`: `getMyTransactions`, with filters (the class one runs in the client, through `assetClass` in `TransactionRow`), pagination and the create, edit and delete actions.
 - `/encerradas`: `getClosedPositionsView` (item 6): cost, proceeds and result per closed FII. Its subpage `/encerradas/ir` shows the estimated tax from the same view, and the sidebar lists it as a sub-item. The Dashboard's closed card links here, and `/dashboard/encerradas` redirects here from `next.config.ts`.
 - `/proventos`: `getDividendsView` (item 4). Its subpage `/proventos/reinvestimento?mes=AAAA-MM` uses `getReinvestmentView` (item 5), and the sidebar lists it as a sub-item, like the IR under `/encerradas`.
+- `/ativos` and `/ativos/[ticker]` (spec `2026-11-07-detalhes-do-ativo-design.md`): the search (`AssetSearch`, over `/api/tickers`, no new route) and one asset's page, from `getAssetOverview` (`portfolio/server`). It shows only what the app already stores (market card, the strategy row of the asset's class, the position with the yield on cost of `yieldOnCost12m`, the closed result, orders, dividends received and upcoming, monthly closes) and never fetches market data on demand. A ticker out of the catalog and the ledger is a 404. The tab is `?aba=`. Tickers in the positions table, the strategy table and the orders table link here through `AssetLabel`'s `href`.
 - `/atualizacao-b3`: the client `B3ImportWizard`, which calls the preview and confirm actions (see B3 update).
 - `/carteira-alvo`: the snapshot's strategy rows, one tab per class in `?classe=` (`fiis` by default, `acoes`), with `AssetClassControl includeAll={false}`. Both tabs have the same 12 columns: Ativo, Estratégia, Rank, Teto, % sugerida, Categoria, Viés, Preço atual, Margem, Peso/meta, Prioridade and remove.
   - Categoria is a select for FIIs and the read-only text "Ação" for stocks.
