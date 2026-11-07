@@ -106,4 +106,52 @@ describe("dividendAlerts", () => {
     expect(revised.id).toBe(first.id);
     expect(revised.fingerprint).not.toBe(first.fingerprint);
   });
+
+  it("dois anúncios do mesmo ativo, tipo e dia viram um alerta só, com um id só", () => {
+    const alerts = dividendAlerts({
+      now,
+      upcoming: [
+        upcoming({
+          ticker: "PETR4",
+          kind: "REEMBOLSO",
+          perShare: 0.2,
+          amount: 20,
+          payBy: d("2026-12-21"),
+        }),
+        upcoming({
+          ticker: "PETR4",
+          kind: "REEMBOLSO",
+          perShare: 0.47,
+          amount: 47,
+          payBy: d("2026-12-21"),
+        }),
+      ],
+      received: [],
+      classes: new Map([["PETR4", "ACAO"]]),
+    });
+    expect(alerts).toHaveLength(1);
+    expect(plain(alerts[0].title)).toBe(
+      "PETR4 anunciou pagamento de R$ 0,67 por ação no dia 21/12",
+    );
+    expect(alerts[0]).toMatchObject({
+      id: "provento-petr4-reembolso-2026-12-21",
+      detail: "Reembolso · 2 anúncios",
+      amount: 67,
+      fingerprint: "0.2+0.47|2026-12-21",
+    });
+  });
+
+  it("os ids dos alertas nunca se repetem", () => {
+    const alerts = dividendAlerts({
+      now,
+      upcoming: [
+        upcoming({ ticker: "EGIE3", kind: "DIVIDENDO", payBy: null, comDate: null }),
+        upcoming({ ticker: "EGIE3", kind: "DIVIDENDO", payBy: null, comDate: null, perShare: 0.3 }),
+        upcoming({}),
+      ],
+      received: [credit("HGLG11", "2026-11-06", 10), credit("HGLG11", "2026-11-06", 5)],
+    });
+    const ids = alerts.map((alert) => alert.id);
+    expect(new Set(ids).size).toBe(ids.length);
+  });
 });

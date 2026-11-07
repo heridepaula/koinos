@@ -66,33 +66,53 @@ export function dividendAlerts(input: {
       };
     });
 
-  const announced: PortfolioAlert[] = input.upcoming
-    .filter((item) => item.payBy === null || item.payBy.getTime() > today)
+  // Um alerta por ativo, tipo e dia: a B3 pode trazer dois anúncios do mesmo dia (a PETR4 tinha
+  // dois reembolsos em 21/12). Com dois alertas de mesmo id, excluir um apagava a exclusão do outro.
+  const groups = new Map<string, UpcomingDividend[]>();
+  for (const item of input.upcoming) {
+    if (item.payBy !== null && item.payBy.getTime() <= today) continue;
+    const reference = item.payBy ?? item.comDate ?? item.exDate;
+    const id = slug(
+      `provento-${item.ticker}-${item.kind}-${reference ? toIsoDate(reference) : "sem-data"}`,
+    );
+    groups.set(id, [...(groups.get(id) ?? []), item]);
+  }
+  const announced: PortfolioAlert[] = [...groups]
+    .map(([id, items]) => ({ id, items, first: items[0] }))
     .sort(
       (a, b) =>
-        (a.payBy?.getTime() ?? Infinity) - (b.payBy?.getTime() ?? Infinity) ||
-        a.ticker.localeCompare(b.ticker),
+        (a.first.payBy?.getTime() ?? Infinity) - (b.first.payBy?.getTime() ?? Infinity) ||
+        a.first.ticker.localeCompare(b.first.ticker),
     )
-    .map((item) => {
-      const reference = item.payBy ?? item.comDate ?? item.exDate;
-      const kind = DIVIDEND_KIND_LABELS[item.kind];
+    .map(({ id, items, first }) => {
+      const perShares = items.map((item) => item.perShare);
+      // Os anúncios do mesmo dia somam por cota; sem o valor de algum, o título fica sem valor.
+      const perShare = perShares.every((value) => value !== null)
+        ? perShares.reduce<number>((sum, value) => sum + (value ?? 0), 0)
+        : null;
+      const kind = DIVIDEND_KIND_LABELS[first.kind];
       // "SNCI11 anunciou pagamento de R$ 0,11 por cota no dia 13/11". A ação paga "por ação".
-      const unit = input.classes?.get(item.ticker) === "ACAO" ? "por ação" : "por cota";
-      const value = item.perShare === null ? "" : ` de ${formatBRL(item.perShare)} ${unit}`;
+      const unit = input.classes?.get(first.ticker) === "ACAO" ? "por ação" : "por cota";
+      const value = perShare === null ? "" : ` de ${formatBRL(perShare)} ${unit}`;
       const when =
-        item.payBy === null ? " (data ainda não divulgada)" : ` no dia ${dayMonth(item.payBy)}`;
+        first.payBy === null ? " (data ainda não divulgada)" : ` no dia ${dayMonth(first.payBy)}`;
       // O Yahoo não informa o pagamento: a data é a data ex mais o intervalo habitual do fundo.
-      const estimate = item.payBy !== null && item.source === "YAHOO" ? "Data estimada" : null;
+      const estimate =
+        first.payBy !== null && items.some((item) => item.source === "YAHOO")
+          ? "Data estimada"
+          : null;
+      const count = items.length > 1 ? `${items.length} anúncios` : null;
       return {
-        id: slug(
-          `provento-${item.ticker}-${item.kind}-${reference ? toIsoDate(reference) : "sem-data"}`,
-        ),
+        id,
         level: "dividend",
-        title: `${item.ticker} anunciou pagamento${value}${when}`,
-        detail: [kind, estimate].filter(Boolean).join(" · "),
-        amount: item.amount,
+        title: `${first.ticker} anunciou pagamento${value}${when}`,
+        detail: [kind, count, estimate].filter(Boolean).join(" · "),
+        amount: items.reduce((sum, item) => sum + item.amount, 0),
         // Um valor ou uma data nova (a B3 confirmando, por exemplo) reabre o alerta.
-        fingerprint: `${item.perShare ?? item.amount}|${item.payBy ? toIsoDate(item.payBy) : ""}`,
+        fingerprint: `${items
+          .map((item) => String(item.perShare ?? item.amount))
+          .sort()
+          .join("+")}|${first.payBy ? toIsoDate(first.payBy) : ""}`,
       };
     });
 
