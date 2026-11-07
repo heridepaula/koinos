@@ -38,6 +38,11 @@ export default function DashboardPage({ searchParams }: PageProps<"/dashboard">)
           </Suspense>
         }
       />
+      {/* A meta é sempre da carteira toda: uma linha discreta acima de tudo, em qualquer classe.
+          O fallback tem a altura da linha, para nada pular quando ela chega. */}
+      <Suspense fallback={<div className="mt-2 mb-3 h-5" />}>
+        <IndependenceSection />
+      </Suspense>
       <AssetClassControl className="mb-4 md:mb-6" />
       {/* searchParams é dado da requisição: fica dentro de <Suspense>. */}
       <Suspense fallback={<DashboardSkeleton />}>
@@ -81,12 +86,6 @@ async function DashboardContent({ searchParams }: { searchParams: SearchParams }
         byCategory={filter === "ACAO" ? [] : snapshot.allocation.byCategory}
         market={snapshot.quotes.market}
       />
-      {/* A meta é sempre da carteira toda: o card só aparece na visão Geral. */}
-      {filter === "TODOS" ? (
-        <Suspense fallback={<CardSkeleton height="h-20" />}>
-          <IndependenceSection />
-        </Suspense>
-      ) : null}
       <DayMovers movers={snapshot.dayMovers} market={snapshot.quotes.market} />
       <Suspense fallback={<CardSkeleton />}>
         <PeriodSection filter={filter} />
