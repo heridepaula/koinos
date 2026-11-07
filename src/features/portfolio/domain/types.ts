@@ -1,7 +1,12 @@
 import type { AssetClass } from "@/features/market-data";
 import type { AportePriority, CascadeAsset, StockBuyAsset } from "@/features/smart-buy";
 import type { Bias, Category, CeilingCheck } from "@/features/strategy";
-import type { DividendKind, MonthlyContribution } from "@/features/transactions";
+import type {
+  DividendKind,
+  MonthlyContribution,
+  TransactionKind,
+  TransactionType,
+} from "@/features/transactions";
 
 // DTOs entregues às telas. Nenhum carrega userId, portfolioId ou documento cru do banco.
 
@@ -407,4 +412,40 @@ export type ReinvestmentView = {
 export type ClosedPositionsView = {
   rows: (ClosedPosition & AssetMeta)[];
   totals: ClosedPositionsTotals;
+};
+
+/** Ordem do ledger como a página do ativo mostra (sem id interno). */
+export type AssetOrder = {
+  date: Date;
+  type: TransactionType;
+  quantity: number;
+  unitPrice: number;
+  fees: number;
+  kind: TransactionKind;
+};
+
+/** Visão de um ativo: mercado (só o que já está guardado) e, se houver, estratégia e posição do dono. */
+export type AssetOverview = {
+  ticker: string;
+  name: string | null;
+  logoUrl: string | null;
+  assetClass: AssetClass | null;
+  price: number | null;
+  dailyChange: { amount: number; percent: number } | null;
+  market: {
+    priceToBook: number | null;
+    dy12m: number | null;
+    lastDividend: { amount: number; exDate: Date } | null;
+    segment: string | null;
+    quoteFetchedAt: Date | null;
+  };
+  strategy: StrategyRow | null;
+  position: PositionRow | null;
+  /** Yield on cost dos 12 meses de calendário anteriores ao atual. Null sem posição. */
+  yoc: number | null;
+  closed: ClosedPositionRow | null;
+  orders: AssetOrder[];
+  received: { paidAt: Date; kind: DividendKind; amount: number; perShare: number | null }[];
+  upcoming: UpcomingDividend[];
+  closes: { month: string; close: number }[];
 };
