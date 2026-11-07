@@ -2,8 +2,9 @@ import type { ReactNode } from "react";
 import { Sensitive } from "@/shared/components/sensitive";
 import { formatBRL, formatPercent } from "@/shared/lib/format";
 import { cn } from "@/shared/lib/utils";
-import { REINVESTMENT_SHARE } from "../domain/constants";
+import { EDUCATION_INFLATION, GENERAL_INFLATION, REINVESTMENT_SHARE } from "../domain/constants";
 import type { IndependenceSummary } from "../domain/types";
+import { CostHelp } from "./cost-help";
 import { yieldLabel, type VerdictTone } from "./format";
 
 // Peças pequenas da página e da revisão do questionário: a barra dividida, o selo da previsão e a
@@ -64,6 +65,21 @@ export function VerdictChip({ tone, children }: { tone: VerdictTone; children: R
   );
 }
 
+const COST_HELP: Record<string, string> = {
+  essential:
+    "Gasto fixo de todo mês, pago com o dinheiro do dia a dia. Ex.: aluguel ou condomínio, luz, água, internet, mercado, transporte e cartões.",
+  seasonal:
+    "Despesas que vêm uma ou poucas vezes por ano, divididas por 12 para virar um valor mensal. Ex.: IPVA, IPTU, seguro do carro e da casa, manutenção.",
+  travel:
+    "Viagens e lazer extra, que não são do dia a dia, divididos por 12. Ex.: férias, passagens, hospedagem, passeios.",
+  health:
+    "Mensalidade do plano de saúde do titular e do cônjuge na idade alvo, pela faixa de idade e pelo nível escolhido. Sobe quando muda de faixa.",
+  education:
+    "Escola, cursos e van de todos os dependentes, por mês. Ex.: mensalidade escolar, inglês, natação, transporte escolar. Só conta enquanto forem custeados.",
+  childrenHealth:
+    "Plano de saúde dos dependentes: quantidade de dependentes × a mensalidade da faixa do mais novo. Só conta enquanto forem custeados.",
+};
+
 /** As duas partes do que a meta recebe: azul volta para a carteira (como um aporte), laranja é renda. */
 const YIELD_COLORS = { reinvest: "var(--chart-1)", income: "var(--chart-2)" } as const;
 
@@ -82,26 +98,26 @@ export function YieldSplit({
     {
       key: "reinvest",
       label: `Reinvestir (${formatPercent(REINVESTMENT_SHARE, 0)})`,
-      value: summary.reinvestment,
+      value: summary.projected.reinvestment,
       color: YIELD_COLORS.reinvest,
     },
     {
       key: "living",
       label: `Para viver (${formatPercent(1 - REINVESTMENT_SHARE, 0)})`,
-      value: summary.livingIncome,
+      value: summary.projected.livingIncome,
       color: YIELD_COLORS.income,
     },
   ];
   const costs = [
-    { key: "essential", label: "Gasto essencial", value: summary.costs.essential },
-    { key: "seasonal", label: "Sazonais (÷ 12)", value: summary.costs.seasonal },
-    { key: "travel", label: "Viagens (÷ 12)", value: summary.costs.travel },
-    { key: "health", label: "Plano de saúde", value: summary.costs.health },
-    { key: "education", label: "Escola dos dependentes", value: summary.costs.education },
+    { key: "essential", label: "Gasto essencial", value: summary.projected.costs.essential },
+    { key: "seasonal", label: "Sazonais (÷ 12)", value: summary.projected.costs.seasonal },
+    { key: "travel", label: "Viagens (÷ 12)", value: summary.projected.costs.travel },
+    { key: "health", label: "Plano de saúde", value: summary.projected.costs.health },
+    { key: "education", label: "Escola dos dependentes", value: summary.projected.costs.education },
     {
       key: "childrenHealth",
       label: "Saúde dos dependentes",
-      value: summary.costs.childrenHealth,
+      value: summary.projected.costs.childrenHealth,
     },
   ].filter((cost) => cost.value > 0);
   return (
@@ -109,7 +125,7 @@ export function YieldSplit({
       <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
         <Heading className="text-subheadline text-muted-foreground">Rentabilidade mensal</Heading>
         <p className="text-title-3 font-semibold tabular-nums">
-          <Sensitive>{formatBRL(summary.monthlyYield)}</Sensitive>
+          <Sensitive>{formatBRL(summary.projected.monthlyYield)}</Sensitive>
           <span className="ml-1.5 text-footnote font-normal text-muted-foreground">
             ≈ {formatPercent(summary.monthlyYieldRate, 2)} a.m.
           </span>
@@ -132,7 +148,10 @@ export function YieldSplit({
       <dl className="grid gap-1.5 border-t border-border pt-3">
         {costs.map((cost) => (
           <div key={cost.key} className="flex items-center justify-between gap-3 text-sm">
-            <dt className="text-muted-foreground">{cost.label}</dt>
+            <dt className="flex min-w-0 items-center gap-1.5 text-muted-foreground">
+              <CostHelp label={cost.label}>{COST_HELP[cost.key]}</CostHelp>
+              {cost.label}
+            </dt>
             <dd className="text-right font-medium text-loss tabular-nums">
               <Sensitive>{formatBRL(-cost.value)}</Sensitive>
             </dd>
@@ -143,13 +162,18 @@ export function YieldSplit({
           <dd
             className={cn(
               "text-right tabular-nums",
-              summary.netLiving < 0 ? "text-loss" : "text-gain",
+              summary.projected.netLiving < 0 ? "text-loss" : "text-gain",
             )}
           >
-            <Sensitive>{formatBRL(summary.netLiving)}</Sensitive>
+            <Sensitive>{formatBRL(summary.projected.netLiving)}</Sensitive>
           </dd>
         </div>
       </dl>
+      <p className="text-footnote text-muted-foreground">
+        {summary.projected.years > 0
+          ? `Valores esperados no primeiro dia da aposentadoria, daqui a ${summary.projected.years} ${summary.projected.years === 1 ? "ano" : "anos"}: os de hoje corrigidos pela inflação (${formatPercent(GENERAL_INFLATION, 1)} a.a.; escola a ${formatPercent(EDUCATION_INFLATION, 0)} a.a.).`
+          : "Valores de hoje: a aposentadoria é a partir de agora."}
+      </p>
       <p className="text-footnote text-muted-foreground">
         Com {yieldLabel(summary)}, a meta recebe esse valor por mês. Os{" "}
         {formatPercent(REINVESTMENT_SHARE, 0)} reinvestidos repõem a inflação (≈&nbsp;

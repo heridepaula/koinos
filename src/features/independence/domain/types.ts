@@ -77,6 +77,22 @@ export type IndependenceSummary = {
   costsTotal: number;
   /** O que sobra do "para viver" depois dos custos; negativo quando não cobre. */
   netLiving: number;
+  /**
+   * O mesmo bloco (o que a meta recebe, os custos e a sobra) corrigido pela inflação até o primeiro
+   * dia da aposentadoria: a expectativa em reais daquele dia, não em reais de hoje.
+   */
+  projected: {
+    years: number;
+    /** Fator geral (1 + inflação)^anos; a escola usa o da inflação da educação. */
+    factor: number;
+    educationFactor: number;
+    monthlyYield: number;
+    reinvestment: number;
+    livingIncome: number;
+    costs: IndependenceSummary["costs"];
+    costsTotal: number;
+    netLiving: number;
+  };
   koinosWealth: number;
   externalWealth: number;
   patrimony: number;

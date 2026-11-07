@@ -1,6 +1,7 @@
 import { addMonths } from "@/shared/lib/time";
 import {
   EDUCATION_INFLATION,
+  GENERAL_INFLATION,
   NOMINAL_ANNUAL_RETURN,
   REAL_MONTHLY_RATE,
   REINVESTMENT_SHARE,
@@ -238,6 +239,22 @@ export function independenceSummary(input: {
       : 0,
   };
   const costsTotal = cents(Object.values(costs).reduce((sum, value) => sum + value, 0));
+  // A expectativa no primeiro dia da aposentadoria: tudo que está em reais de hoje sobe pela
+  // inflação até a idade alvo, e a escola pela inflação da educação.
+  const factor = Math.pow(1 + GENERAL_INFLATION, years);
+  const educationFactor = Math.pow(1 + EDUCATION_INFLATION, years);
+  const projectedCosts = {
+    essential: cents(costs.essential * factor),
+    seasonal: cents(costs.seasonal * factor),
+    travel: cents(costs.travel * factor),
+    health: cents(costs.health * factor),
+    education: cents(costs.education * educationFactor),
+    childrenHealth: cents(costs.childrenHealth * factor),
+  };
+  const projectedCostsTotal = cents(
+    Object.values(projectedCosts).reduce((sum, value) => sum + value, 0),
+  );
+  const projectedLiving = cents(received.living * factor);
   const patrimony = koinosWealth + plan.externalWealth;
   const months = monthsToTarget({ pv: patrimony, fv: target, pmt: monthlyAporte, r: growth });
   const untilTarget = 12 * years;
@@ -265,6 +282,17 @@ export function independenceSummary(input: {
     costs,
     costsTotal,
     netLiving: cents(received.living - costsTotal),
+    projected: {
+      years,
+      factor,
+      educationFactor,
+      monthlyYield: cents(received.received * factor),
+      reinvestment: cents(received.reinvestment * factor),
+      livingIncome: projectedLiving,
+      costs: projectedCosts,
+      costsTotal: projectedCostsTotal,
+      netLiving: cents(projectedLiving - projectedCostsTotal),
+    },
     koinosWealth,
     externalWealth: plan.externalWealth,
     patrimony,

@@ -10,6 +10,12 @@ export const EDUCATION_INFLATION = 0.08;
  */
 export const NOMINAL_ANNUAL_RETURN = 0.095;
 /**
+ * Inflação geral ao ano que a meta supõe (≈ 4,37%): o que separa o retorno nominal de 9,5% do real
+ * de 0,4% a.m. Corrige os custos de hoje até o primeiro dia da aposentadoria.
+ */
+export const GENERAL_INFLATION =
+  (1 + NOMINAL_ANNUAL_RETURN) / Math.pow(1 + REAL_MONTHLY_RATE, 12) - 1;
+/**
  * A regra dos 24% (pedido do dono, 2026-11-07): do montante que a meta recebe por mês, 24% voltam
  * para a carteira, para repor a inflação, e o resto é para viver. Na acumulação todo o rendimento
  * é reinvestido, e esses 24% dele só mantêm o valor: o crescimento real é o que sobra.
