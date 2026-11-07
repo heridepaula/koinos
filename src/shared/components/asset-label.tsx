@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { Avatar, AvatarFallback, AvatarImage } from "@/shared/ui/avatar";
 import { cn } from "@/shared/lib/utils";
 
@@ -10,11 +11,14 @@ export function AssetLabel({
   name,
   logoUrl,
   size = "default",
+  href,
 }: {
   ticker: string;
   name?: string | null;
   logoUrl?: string | null;
   size?: "default" | "lg";
+  /** Faz do ticker um link (a página do ativo). Não use dentro de botões ou gatilhos de folha. */
+  href?: string;
 }) {
   const large = size === "lg";
   return (
@@ -31,7 +35,16 @@ export function AssetLabel({
         </AvatarFallback>
       </Avatar>
       <div className="grid min-w-0 leading-tight">
-        <span className={cn(large ? "text-headline" : "font-medium")}>{ticker}</span>
+        {href ? (
+          <Link
+            href={href}
+            className={cn("hover:underline", large ? "text-headline" : "font-medium")}
+          >
+            {ticker}
+          </Link>
+        ) : (
+          <span className={cn(large ? "text-headline" : "font-medium")}>{ticker}</span>
+        )}
         {name ? (
           <span
             className={cn("truncate text-muted-foreground", large ? "text-footnote" : "text-xs")}

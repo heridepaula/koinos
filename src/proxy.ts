@@ -19,5 +19,6 @@ export const config = {
     "/atualizacao-b3/:path*",
     "/carteira-alvo/:path*",
     "/recomendacoes/:path*",
+    "/ativos/:path*",
   ],
 };

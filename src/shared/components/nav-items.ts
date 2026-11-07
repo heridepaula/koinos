@@ -7,6 +7,7 @@ import {
   ReceiptTextIcon,
   RefreshCwIcon,
   RepeatIcon,
+  SearchIcon,
   TargetIcon,
   type LucideIcon,
 } from "lucide-react";
@@ -36,6 +37,12 @@ export const NAV_ITEMS: readonly NavItem[] = [
     icon: LayoutDashboardIcon,
     tile: "[--tile:var(--tile-blue)]",
     tab: "Dashboard",
+  },
+  {
+    href: "/ativos",
+    label: "Ativos",
+    icon: SearchIcon,
+    tile: "[--tile:var(--tile-purple)]",
   },
   {
     href: "/transacoes",

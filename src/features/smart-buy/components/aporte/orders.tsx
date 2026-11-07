@@ -99,7 +99,12 @@ export function OrdersTable({ rows, meta, showClass }: OrdersProps) {
                 {/* O selo à direita da célula: os de todas as linhas ficam numa coluna. */}
                 <div className="flex items-center justify-between gap-3">
                   <div className="flex min-w-0 items-center gap-2">
-                    <AssetLabel ticker={order.ticker} name={info?.name} logoUrl={info?.logoUrl} />
+                    <AssetLabel
+                      ticker={order.ticker}
+                      name={info?.name}
+                      logoUrl={info?.logoUrl}
+                      href={`/ativos/${order.ticker}`}
+                    />
                     {info?.ceilingWarning ? (
                       <CeilingCheckIcon
                         check={info.ceilingWarning.check}

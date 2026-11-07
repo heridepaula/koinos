@@ -27,7 +27,12 @@ export function StrategyRow({ row, stock = false }: { row: StrategyRowData; stoc
   return (
     <TableRow className={row.inStrategy ? undefined : "text-muted-foreground"}>
       <TableCell className="sticky left-0 z-10 bg-card pl-(--card-spacing)">
-        <AssetLabel ticker={row.ticker} name={row.name} logoUrl={row.logoUrl} />
+        <AssetLabel
+          ticker={row.ticker}
+          name={row.name}
+          logoUrl={row.logoUrl}
+          href={`/ativos/${row.ticker}`}
+        />
       </TableCell>
       <TableCell>
         <Switch
