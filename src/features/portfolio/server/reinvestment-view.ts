@@ -1,4 +1,5 @@
 import "server-only";
+import { cache } from "react";
 import { getTenant } from "@/features/auth/server";
 import { getAssetClasses, getAssetSnapshots } from "@/features/market-data/server";
 import { getMyDividends, getMyTransactions } from "@/features/transactions/server";
@@ -17,6 +18,11 @@ import type { ReinvestmentView } from "../domain/types";
 import { listReinvestmentPercents } from "./reinvestment-repo";
 
 const HISTORY_MONTHS = 24;
+
+/** A % reinvestida salva de cada mês (AAAA-MM → %) da carteira do usuário logado. */
+export const getMyReinvestmentPercents = cache(async () =>
+  listReinvestmentPercents((await getTenant()).portfolioId),
+);
 
 /**
  * Tela de reinvestimento do usuário logado. `requested` vem da URL (?mes=); inválido ou futuro
