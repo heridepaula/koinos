@@ -247,7 +247,7 @@ export function PositionsTable({ rows }: { rows: PositionRow[] }) {
           <TableBody>
             {sorted.map((row) => (
               <TableRow key={row.ticker}>
-                <TableCell className="sticky left-0 z-10 bg-card pl-(--card-spacing)">
+                <TableCell className="sticky left-0 z-10 bg-card pl-(--card-spacing) transition-colors [tr:hover>&]:bg-[linear-gradient(color-mix(in_oklab,var(--muted)_50%,transparent),color-mix(in_oklab,var(--muted)_50%,transparent))]">
                   <AssetLabel ticker={row.ticker} name={row.name} logoUrl={row.logoUrl} />
                 </TableCell>
                 <TableCell className="text-right tabular-nums">
