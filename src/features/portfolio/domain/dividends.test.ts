@@ -306,8 +306,74 @@ describe("upcomingDividends: datas de pagamento do Fundamentus", () => {
     });
     expect(upcoming.map((item) => `${item.source}:${item.ticker}`)).toEqual([
       "FUNDAMENTUS:AAAA11",
-      "B3:PETR4",
+      "FUNDAMENTUS:PETR4",
     ]);
     expect(upcoming[0].payBy).toEqual(at("2026-10-22"));
+  });
+});
+
+describe("upcomingDividends: item da B3 com anúncio do Fundamentus", () => {
+  const forecastItem = (
+    ticker: string,
+    kind: DividendEntry["kind"],
+    pay: string | null,
+    amount: number,
+  ) => ({ ticker, kind, payDate: pay ? at(pay) : null, quantity: 100, perShare: 1, amount });
+  const base = {
+    now: new Date("2026-11-07T15:00:00Z"),
+    transactions: [buy],
+    received: [] as DividendEntry[],
+    announcements: new Map(),
+    forecast: {
+      asOf: at("2026-11-05"),
+      items: [
+        forecastItem("AAAA11", "RENDIMENTO", "2026-11-16", 95),
+        forecastItem("PETR4", "REEMBOLSO", "2026-11-23", 55.61),
+        forecastItem("EGIE3", "DIVIDENDO", null, 75.64),
+      ],
+    },
+    schedules: new Map([
+      [
+        "AAAA11",
+        [
+          {
+            kind: "RENDIMENTO" as const,
+            comDate: at("2026-10-30"),
+            payDate: at("2026-11-16"),
+            perShare: 0.95,
+          },
+        ],
+      ],
+      [
+        "PETR4",
+        [
+          {
+            kind: "JCP" as const,
+            comDate: at("2026-08-21"),
+            payDate: at("2026-11-23"),
+            perShare: 0.67,
+          },
+        ],
+      ],
+    ]),
+  };
+
+  it("segue como anunciado, com a data com e o valor da B3; sem anúncio, fica B3", () => {
+    const upcoming = upcomingDividends(base);
+    expect(
+      upcoming.map((item) => [item.ticker, item.source, item.comDate, item.amount, item.kind]),
+    ).toEqual([
+      ["AAAA11", "FUNDAMENTUS", at("2026-10-30"), 95, "RENDIMENTO"],
+      ["PETR4", "FUNDAMENTUS", at("2026-08-21"), 55.61, "REEMBOLSO"],
+      ["EGIE3", "B3", null, 75.64, "DIVIDENDO"],
+    ]);
+  });
+
+  it("sai do a receber quando o crédito da B3 chega (pago)", () => {
+    const upcoming = upcomingDividends({
+      ...base,
+      received: [paid("AAAA11", "RENDIMENTO", 95, "2026-11-16")],
+    });
+    expect(upcoming.map((item) => item.ticker)).toEqual(["PETR4", "EGIE3"]);
   });
 });

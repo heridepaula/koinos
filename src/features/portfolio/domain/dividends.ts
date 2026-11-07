@@ -122,7 +122,10 @@ export function payLagDays(
 
 /**
  * Proventos a receber. Com a foto da B3 (extrato de Eventos), valem os itens dela, com a data
- * oficial; o Fundamentus e o Yahoo só completam com o que foi anunciado depois do envio.
+ * oficial; o Fundamentus e o Yahoo só completam com o que foi anunciado depois do envio. O item da
+ * foto que casa com um anúncio do Fundamentus (mesmo ativo, tipo ou Reembolso, e data de pagamento)
+ * sai como "anunciado", com a data com dele e o valor da B3, e some quando o crédito da B3 chega:
+ * só o provento pago aparece como B3 (nos recebidos).
  *
  * Do Fundamentus (`schedules`, FIIs e ações, com a data de pagamento anunciada): pagamento a
  * partir do 1º dia do mês atual, data com depois do `asOf` da foto e fora dela (mesmo ativo, tipo e
@@ -152,18 +155,52 @@ export function upcomingDividends(input: {
   const today = todayTradeDate(input.now);
   const monthStart = parseTradeDate(`${month}-01`);
   const { forecast } = input;
-  const result: UpcomingDividend[] = (forecast?.items ?? []).map((item) => ({
-    ticker: item.ticker,
-    kind: item.kind,
-    exDate: null,
-    quantity: item.quantity,
-    perShare: item.perShare,
-    amount: item.amount,
-    payBy: item.payDate,
-    comDate: null,
-    source: "B3",
-  }));
-  result.push(...scheduledUpcoming(input, monthStart));
+  const result: UpcomingDividend[] = [];
+  // Anúncios do Fundamentus que já estão na foto da B3: não entram de novo pelo Fundamentus.
+  const inSnapshot = new Set<ScheduledDividend>();
+  const tolerance = PAID_TOLERANCE_DAYS * DAY;
+  const usedCredits = new Set<DividendEntry>();
+  for (const item of forecast?.items ?? []) {
+    // O item da B3 que casa com um anúncio (mesmo ativo, tipo e data de pagamento) segue como
+    // "anunciado", com a data com, até o crédito da B3: só o pago vira B3 (nos recebidos). Valor e
+    // cotas ficam os da B3, que são os oficiais.
+    const schedule = item.payDate
+      ? input.schedules
+          ?.get(item.ticker)
+          ?.find(
+            (candidate) =>
+              !inSnapshot.has(candidate) &&
+              sameKind(item.kind, candidate.kind) &&
+              candidate.payDate.getTime() === item.payDate!.getTime(),
+          )
+      : undefined;
+    if (schedule) {
+      inSnapshot.add(schedule);
+      const credit = input.received.find(
+        (entry) =>
+          !usedCredits.has(entry) &&
+          entry.ticker === item.ticker &&
+          sameKind(entry.kind, schedule.kind) &&
+          Math.abs(entry.paidAt.getTime() - schedule.payDate.getTime()) <= tolerance,
+      );
+      if (credit) {
+        usedCredits.add(credit);
+        continue;
+      }
+    }
+    result.push({
+      ticker: item.ticker,
+      kind: item.kind,
+      exDate: null,
+      quantity: item.quantity,
+      perShare: item.perShare,
+      amount: item.amount,
+      payBy: item.payDate,
+      comDate: schedule?.comDate ?? null,
+      source: schedule ? "FUNDAMENTUS" : "B3",
+    });
+  }
+  result.push(...scheduledUpcoming(input, monthStart, inSnapshot));
   for (const [ticker, list] of input.announcements) {
     if (input.schedules?.has(ticker)) continue;
     for (const announcement of list) {
@@ -236,6 +273,8 @@ function scheduledUpcoming(
     schedules?: ReadonlyMap<string, readonly ScheduledDividend[]>;
   },
   monthStart: Date,
+  /** Anúncios que casaram com um item da foto da B3 (já estão no resultado por ela). */
+  inSnapshot: ReadonlySet<ScheduledDividend>,
 ): UpcomingDividend[] {
   const { forecast } = input;
   const tolerance = PAID_TOLERANCE_DAYS * DAY;
@@ -246,15 +285,9 @@ function scheduledUpcoming(
     const used = new Set<DividendEntry>();
     const ordered = [...list].sort((a, b) => a.payDate.getTime() - b.payDate.getTime());
     for (const item of ordered) {
+      if (inSnapshot.has(item)) continue;
       if (item.payDate.getTime() < monthStart.getTime()) continue;
       if (forecast && item.comDate.getTime() <= forecast.asOf.getTime()) continue;
-      const inSnapshot = forecast?.items.some(
-        (planned) =>
-          planned.ticker === ticker &&
-          planned.kind === item.kind &&
-          planned.payDate?.getTime() === item.payDate.getTime(),
-      );
-      if (inSnapshot) continue;
       const credit = credits.find(
         (entry) =>
           !used.has(entry) &&
