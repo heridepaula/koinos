@@ -1,6 +1,7 @@
 "use client";
 
-import { CartesianGrid, ComposedChart, Line, ReferenceLine, XAxis, YAxis } from "recharts";
+import { useId } from "react";
+import { Area, AreaChart, CartesianGrid, ReferenceLine, XAxis, YAxis } from "recharts";
 import { formatBRL, formatMonth } from "@/shared/lib/format";
 import {
   ChartContainer,
@@ -8,46 +9,75 @@ import {
   ChartTooltipContent,
   type ChartConfig,
 } from "@/shared/ui/chart";
+import type { PricePoint } from "../../domain/asset-overview";
 import { ChartTooltipRow } from "../chart-tooltip-row";
+import { formatAxisBRL, formatDayKey, formatDayKeyLong } from "./price-format";
 
-const config = { close: { label: "Fechamento", color: "var(--chart-1)" } } satisfies ChartConfig;
-
-/** Fechamentos mensais do ativo, com o preço médio como referência. Carregado sob demanda. */
+/**
+ * A linha da cotação em segmentos retos (não inventa valores entre os fechamentos), com uma
+ * lavagem da mesma cor que some para baixo. Carregado sob demanda pelo `PriceChart`.
+ */
 export function PricePlot({
-  closes,
+  points,
+  granularity,
+  tone,
+  domain,
+  ticks,
+  step,
   averagePrice,
   className,
 }: {
-  closes: { month: string; close: number }[];
+  points: PricePoint[];
+  granularity: "day" | "month";
+  tone: "gain" | "loss";
+  domain: [number, number];
+  ticks: number[];
+  step: number;
+  /** Só quando cabe no eixo: fora dele, a legenda avisa. */
   averagePrice: number | null;
   className: string;
 }) {
+  const fillId = `price-fill-${useId().replace(/[^a-zA-Z0-9-]/g, "")}`;
+  const config = {
+    close: { label: "Cotação", color: tone === "gain" ? "var(--gain)" : "var(--loss)" },
+  } satisfies ChartConfig;
+  const label = (key: string) => (granularity === "day" ? formatDayKeyLong(key) : formatMonth(key));
+
   return (
-    <ChartContainer data-sensitive-axis="" config={config} className={className}>
-      <ComposedChart data={closes} margin={{ left: 4, right: 12, top: 8 }}>
+    <ChartContainer config={config} className={className}>
+      <AreaChart data={points} margin={{ left: 4, right: 12, top: 8 }}>
+        <defs>
+          <linearGradient id={fillId} x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stopColor="var(--color-close)" stopOpacity={0.18} />
+            <stop offset="100%" stopColor="var(--color-close)" stopOpacity={0} />
+          </linearGradient>
+        </defs>
         <CartesianGrid vertical={false} />
         <XAxis
-          dataKey="month"
-          tickFormatter={formatMonth}
+          dataKey="key"
+          tickFormatter={granularity === "day" ? formatDayKey : formatMonth}
           tickLine={false}
           axisLine={false}
-          minTickGap={24}
+          interval="equidistantPreserveStart"
+          minTickGap={28}
         />
         <YAxis
-          domain={["auto", "auto"]}
-          tickFormatter={(value: number) => formatBRL(value)}
+          type="number"
+          domain={domain}
+          ticks={ticks}
+          tickFormatter={(value: number) => formatAxisBRL(value, step)}
           tickLine={false}
           axisLine={false}
-          width={72}
+          width={step < 1 ? 72 : 64}
         />
         <ChartTooltip
           content={
             <ChartTooltipContent
-              labelFormatter={(month) => formatMonth(String(month))}
+              labelFormatter={(key) => label(String(key))}
               formatter={(value) => (
                 <ChartTooltipRow
                   color="var(--color-close)"
-                  label="Fechamento"
+                  label="Cotação"
                   value={formatBRL(Number(value))}
                 />
               )}
@@ -57,20 +87,22 @@ export function PricePlot({
         {averagePrice !== null ? (
           <ReferenceLine
             y={averagePrice}
-            stroke="var(--chart-2)"
-            strokeDasharray="4 4"
-            label={{ value: "Preço médio", position: "insideTopRight", fontSize: 12 }}
+            stroke="var(--muted-foreground)"
+            strokeDasharray="4 3"
+            strokeWidth={1.5}
           />
         ) : null}
-        <Line
+        <Area
           dataKey="close"
-          type="monotone"
+          type="linear"
           stroke="var(--color-close)"
           strokeWidth={2}
+          fill={`url(#${fillId})`}
           dot={false}
           activeDot={{ r: 4, strokeWidth: 2, stroke: "var(--card)" }}
+          animationDuration={500}
         />
-      </ComposedChart>
+      </AreaChart>
     </ChartContainer>
   );
 }

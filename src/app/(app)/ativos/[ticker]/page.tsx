@@ -1,20 +1,22 @@
-import { ArrowLeftIcon } from "lucide-react";
+import { SearchIcon } from "lucide-react";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { Suspense } from "react";
 import { getAssetOverview } from "@/features/portfolio/server";
 import {
-  AssetHero,
-  AssetTabs,
-  MarketCard,
-  PositionCard,
-  StrategyCard,
+  AssetDetail,
+  AssetHeader,
+  AssetPageSkeleton,
+  AssetSearchAction,
 } from "@/features/portfolio/ui";
-import { PageHeader } from "@/shared/components/page-header";
-import { CardSkeleton } from "@/shared/components/skeletons";
 import { Button } from "@/shared/ui/button";
 
-export const metadata: Metadata = { title: "Ativo" };
+/** O ticker na aba do navegador ("HGLG11 · Koinos"): com várias abertas, cada uma diz qual é. */
+export async function generateMetadata({
+  params,
+}: PageProps<"/ativos/[ticker]">): Promise<Metadata> {
+  return { title: (await params).ticker.toUpperCase() };
+}
 
 /**
  * Sem ao menos um parâmetro conhecido, o `usePathname` do menu (no layout) fica sem o caminho no
@@ -25,21 +27,13 @@ export function generateStaticParams() {
   return [{ ticker: "HGLG11" }];
 }
 
-// O cabeçalho vai no shell estático; o ativo chega por streaming, porque depende da sessão.
+// O título é o ticker, que só se sabe na requisição: cabeçalho e conteúdo chegam juntos, por
+// streaming, no lugar de um esqueleto com a mesma geometria.
 export default function AssetPage({ params }: PageProps<"/ativos/[ticker]">) {
   return (
     <>
-      <PageHeader
-        title="Ativo"
-        actions={
-          <Button variant="outline" nativeButton={false} render={<Link href="/ativos" />}>
-            <ArrowLeftIcon />
-            Ativos
-          </Button>
-        }
-        mobileActions={false}
-      />
-      <Suspense fallback={<CardSkeleton height="h-96" />}>
+      <AssetSearchAction />
+      <Suspense fallback={<AssetPageSkeleton />}>
         <AssetContent params={params} />
       </Suspense>
     </>
@@ -49,14 +43,17 @@ export default function AssetPage({ params }: PageProps<"/ativos/[ticker]">) {
 async function AssetContent({ params }: Pick<PageProps<"/ativos/[ticker]">, "params">) {
   const overview = await getAssetOverview((await params).ticker);
   return (
-    <div className="grid gap-6">
-      <AssetHero overview={overview} />
-      <div className="grid gap-6 md:grid-cols-2">
-        <MarketCard overview={overview} />
-        {overview.strategy ? <StrategyCard overview={overview} /> : null}
-        {overview.position || overview.closed ? <PositionCard overview={overview} /> : null}
-      </div>
-      <AssetTabs overview={overview} />
-    </div>
+    <>
+      <AssetHeader
+        overview={overview}
+        actions={
+          <Button variant="outline" nativeButton={false} render={<Link href="/ativos" />}>
+            <SearchIcon />
+            Buscar ativo
+          </Button>
+        }
+      />
+      <AssetDetail overview={overview} />
+    </>
   );
 }

@@ -1,15 +1,8 @@
 import { Badge } from "@/shared/ui/badge";
-import type { TransactionKind } from "../../domain/types";
+import { TRANSACTION_KIND_LABELS } from "../../domain/types";
 import type { TransactionRow } from "../types";
 
-export const KIND_LABELS: Record<Exclude<TransactionKind, "NEGOCIO">, string> = {
-  SUBSCRICAO: "Subscrição",
-  DESDOBRO: "Desdobro",
-  BONIFICACAO: "Bonificação",
-  INCORPORACAO: "Incorporação",
-  FRACAO: "Leilão de fração",
-  POSICAO_ANTERIOR: "Posição anterior",
-};
+export const KIND_LABELS = TRANSACTION_KIND_LABELS;
 
 /**
  * Tipo do lançamento: compra em azul tingido e venda em cinza (cor só para separar, sem ganho ou

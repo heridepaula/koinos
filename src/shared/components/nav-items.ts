@@ -1,13 +1,13 @@
 import {
   ArchiveIcon,
   ArrowLeftRightIcon,
+  ChartLineIcon,
   HandCoinsIcon,
   LayoutDashboardIcon,
   LightbulbIcon,
   ReceiptTextIcon,
   RefreshCwIcon,
   RepeatIcon,
-  SearchIcon,
   TargetIcon,
   type LucideIcon,
 } from "lucide-react";
@@ -41,8 +41,8 @@ export const NAV_ITEMS: readonly NavItem[] = [
   {
     href: "/ativos",
     label: "Ativos",
-    icon: SearchIcon,
-    tile: "[--tile:var(--tile-purple)]",
+    icon: ChartLineIcon,
+    tile: "[--tile:var(--tile-indigo)]",
   },
   {
     href: "/transacoes",
@@ -90,9 +90,14 @@ export const NAV_ITEMS: readonly NavItem[] = [
 export const isWithin = (href: string, pathname: string) =>
   pathname === href || pathname.startsWith(`${href}/`);
 
-/** A página-mãe de uma subpágina listada no menu, para o botão voltar da barra do iPhone. */
+/**
+ * A página-mãe de uma subpágina, para o botão voltar da barra do iPhone: a do menu (os `children`)
+ * ou, numa página de detalhe fora dele (`/ativos/HGLG11`), a página de cima.
+ */
 export function parentOf(pathname: string): NavItem | null {
   return (
-    NAV_ITEMS.find((item) => item.children?.some((child) => isWithin(child.href, pathname))) ?? null
+    NAV_ITEMS.find((item) => item.children?.some((child) => isWithin(child.href, pathname))) ??
+    NAV_ITEMS.find((item) => pathname.startsWith(`${item.href}/`)) ??
+    null
   );
 }

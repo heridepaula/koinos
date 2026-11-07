@@ -12,7 +12,8 @@ import { AssetModel, PriceHistoryModel } from "./models";
 
 const HISTORY_RECHECK_MS = 12 * 60 * 60 * 1000;
 /** Fechamentos diários guardados: três semanas cobrem a sexta anterior mesmo com feriados. */
-const RECENT_CLOSES_DAYS = 21;
+/** Um mês de fechamentos diários: a semana do card de variação e o 1M do gráfico do ativo. */
+const RECENT_CLOSES_DAYS = 31;
 const DIVIDENDS_RECHECK_MS = 20 * 60 * 60 * 1000;
 /** Janela dos anúncios de proventos guardados no ativo. */
 const ANNOUNCEMENT_WINDOW_MS = 400 * 86_400_000;

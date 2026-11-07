@@ -14,31 +14,46 @@ const TOOLBAR_OFFSET = 60;
  */
 export function usePageTitleUnderBar(offset: number | RefObject<HTMLElement | null>) {
   const pathname = usePathname();
-  const [state, setState] = useState({ text: "", underBar: false });
+  // O estado guarda a página a que se refere: ao trocar de página, o título anterior não vaza.
+  const [state, setState] = useState({ pathname, text: "", underBar: false });
 
   useEffect(() => {
-    const heading = [...document.querySelectorAll<HTMLElement>("h1[data-page-title]")].find(
-      (element) =>
-        typeof element.checkVisibility === "function"
-          ? element.checkVisibility()
-          : element.offsetParent !== null,
-    );
-    if (!heading) return;
-    const top = typeof offset === "number" ? offset : (offset.current?.offsetHeight ?? 0);
-    // O observador avisa logo ao começar: numa página nova, o título grande está à vista.
-    const observer = new IntersectionObserver(
-      ([entry]) =>
-        setState((current) => ({
-          text: entry.isIntersecting ? current.text : (heading.textContent ?? ""),
-          underBar: !entry.isIntersecting,
-        })),
-      { rootMargin: `-${top}px 0px 0px 0px` },
-    );
-    observer.observe(heading);
-    return () => observer.disconnect();
+    let observer: IntersectionObserver | null = null;
+    const attach = () => {
+      const heading = [...document.querySelectorAll<HTMLElement>("h1[data-page-title]")].find(
+        (element) =>
+          typeof element.checkVisibility === "function"
+            ? element.checkVisibility()
+            : element.offsetParent !== null,
+      );
+      if (!heading) return false;
+      const top = typeof offset === "number" ? offset : (offset.current?.offsetHeight ?? 0);
+      // O observador avisa logo ao começar: numa página nova, o título grande está à vista.
+      observer = new IntersectionObserver(
+        ([entry]) =>
+          setState((current) => ({
+            pathname,
+            text: entry.isIntersecting ? current.text : (heading.textContent ?? ""),
+            underBar: !entry.isIntersecting,
+          })),
+        { rootMargin: `-${top}px 0px 0px 0px` },
+      );
+      observer.observe(heading);
+      return true;
+    };
+    if (attach()) return () => observer?.disconnect();
+    // O título pode chegar depois, por streaming (dentro de um <Suspense>, como o do ativo).
+    const watcher = new MutationObserver(() => {
+      if (attach()) watcher.disconnect();
+    });
+    watcher.observe(document.body, { childList: true, subtree: true });
+    return () => {
+      watcher.disconnect();
+      observer?.disconnect();
+    };
   }, [pathname, offset]);
 
-  return state;
+  return state.pathname === pathname ? state : { pathname, text: "", underBar: false };
 }
 
 /**

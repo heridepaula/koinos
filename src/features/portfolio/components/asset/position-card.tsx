@@ -1,26 +1,46 @@
-import Link from "next/link";
+import { ArchiveIcon, WalletIcon } from "lucide-react";
 import { Delta } from "@/shared/components/delta";
 import { MetricCard, StatList, StatRow } from "@/shared/components/metric";
-import { Sensitive } from "@/shared/components/sensitive";
+import { QUANTITY_MASK, Sensitive } from "@/shared/components/sensitive";
 import { formatBRL, formatPercent, formatQuantity, formatTradeDate } from "@/shared/lib/format";
-import { Button } from "@/shared/ui/button";
+import { cn } from "@/shared/lib/utils";
 import type { AssetOverview } from "../../domain/types";
+import { CardLink } from "./card-link";
 
 const EMPTY = "—";
 
-/** Minha posição: aberta (quantidade, resultado, YOC) ou encerrada (resultado das vendas). */
-export function PositionCard({ overview }: { overview: AssetOverview }) {
-  const { position, closed, yoc } = overview;
+/**
+ * Minha posição: o valor de hoje, o resultado e o que ela já pagou (com o yield on cost). Numa
+ * posição zerada, o resultado das vendas e o atalho para as encerradas.
+ */
+export function PositionCard({
+  overview,
+  className,
+}: {
+  overview: AssetOverview;
+  className?: string;
+}) {
+  const { position, closed, yoc, assetClass } = overview;
   if (position) {
+    const unit = assetClass === "ACAO" ? "ações" : "cotas";
     return (
       <MetricCard
+        icon={WalletIcon}
+        tile="[--tile:var(--tile-blue)]"
         label="Minha posição"
         value={<Sensitive>{formatBRL(position.currentValue)}</Sensitive>}
+        className={className}
       >
         <StatList>
+          <StatRow label="Resultado" value={<Delta value={position.pnl} pct={position.pnlPct} />} />
           <StatRow
             label="Quantidade"
-            value={<Sensitive mask="•••">{formatQuantity(position.quantity)}</Sensitive>}
+            value={
+              <>
+                <Sensitive mask={QUANTITY_MASK}>{formatQuantity(position.quantity)}</Sensitive>{" "}
+                <span className="font-normal text-muted-foreground">{unit}</span>
+              </>
+            }
           />
           <StatRow
             label="Preço médio"
@@ -30,14 +50,16 @@ export function PositionCard({ overview }: { overview: AssetOverview }) {
             label="Investido"
             value={<Sensitive>{formatBRL(position.totalCost)}</Sensitive>}
           />
-          <StatRow label="L/P" value={<Delta value={position.pnl} pct={position.pnlPct} />} />
           <StatRow
             label="Proventos recebidos"
             value={<Sensitive>{formatBRL(position.dividends)}</Sensitive>}
           />
-          <StatRow label="L/P com proventos" value={<Delta value={position.pnlWithDividends} />} />
           <StatRow
-            label="Yield on cost (12 meses)"
+            label="Resultado com proventos"
+            value={<Delta value={position.pnlWithDividends} />}
+          />
+          <StatRow
+            label="Yield on cost, 12 meses"
             value={yoc === null ? EMPTY : formatPercent(yoc)}
           />
         </StatList>
@@ -46,10 +68,16 @@ export function PositionCard({ overview }: { overview: AssetOverview }) {
   }
   if (!closed) return null;
   return (
-    <MetricCard label="Posição encerrada" value={<Delta value={closed.totalResult} />}>
+    <MetricCard
+      icon={ArchiveIcon}
+      tile="[--tile:var(--tile-pink)]"
+      label="Posição encerrada"
+      value={<Delta value={closed.totalResult} />}
+      className={cn("flex flex-col", className)}
+    >
       <StatList>
         <StatRow
-          label="Encerrada em"
+          label="Zerada em"
           value={closed.closedAt ? formatTradeDate(closed.closedAt) : EMPTY}
         />
         <StatRow label="Resultado das vendas" value={<Delta value={closed.realizedPnL} />} />
@@ -58,16 +86,7 @@ export function PositionCard({ overview }: { overview: AssetOverview }) {
           value={<Sensitive>{formatBRL(closed.dividends)}</Sensitive>}
         />
       </StatList>
-      <div className="mt-3">
-        <Button
-          variant="outline"
-          size="sm"
-          nativeButton={false}
-          render={<Link href="/encerradas" />}
-        >
-          Ver posições encerradas
-        </Button>
-      </div>
+      <CardLink href="/encerradas">Ver posições encerradas</CardLink>
     </MetricCard>
   );
 }

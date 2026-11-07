@@ -24,7 +24,7 @@ export async function GET(request: NextRequest) {
     },
   );
   return NextResponse.json(
-    results.map(({ ticker, name, subType }) => ({ ticker, name, subType })),
+    results.map(({ ticker, name, subType, logoUrl }) => ({ ticker, name, subType, logoUrl })),
     { headers: NO_STORE },
   );
 }

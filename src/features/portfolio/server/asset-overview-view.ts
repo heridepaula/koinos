@@ -10,7 +10,13 @@ import {
 } from "@/features/market-data/server";
 import { getMyDividends, getMyTransactions } from "@/features/transactions/server";
 import { traced } from "@/shared/lib/tracing";
-import { dailyChange, yieldOnCost12m } from "../domain/asset-overview";
+import {
+  dailyChange,
+  dividendMonths,
+  priceSeries,
+  pricePeriods,
+  yieldOnCost12m,
+} from "../domain/asset-overview";
 import type { AssetOverview } from "../domain/types";
 import { getDividendsView } from "./dividends-view";
 import { getPortfolioSnapshot } from "./snapshot";
@@ -50,6 +56,12 @@ export const getAssetOverview = cache(
       const position = all.positions.find((row) => row.ticker === ticker) ?? null;
       const mineReceived = received.filter((item) => item.ticker === ticker);
       const price = asset?.price ?? null;
+      const quoteAt = asset?.quoteFetchedAt ?? null;
+      const series = priceSeries({
+        monthlyCloses: closes.get(ticker) ?? new Map(),
+        recentCloses: asset?.recentCloses ?? [],
+        quote: price !== null && quoteAt ? { price, at: quoteAt } : null,
+      });
       return {
         ticker,
         name: entry?.name ?? asset?.name ?? null,
@@ -60,10 +72,12 @@ export const getAssetOverview = cache(
         market: {
           priceToBook: asset?.priceToBook ?? null,
           dy12m: asset?.dy12m ?? null,
+          dividends12m: asset?.dividends12m ?? null,
           lastDividend: asset?.lastDividend ?? null,
           segment: asset?.fii?.segment ?? null,
-          quoteFetchedAt: asset?.quoteFetchedAt ?? null,
+          quoteFetchedAt: quoteAt,
         },
+        pricePeriods: pricePeriods(series, now),
         strategy:
           ofClass.strategy.rows.find((row) => row.ticker === ticker && row.configured) ?? null,
         position,
@@ -82,10 +96,8 @@ export const getAssetOverview = cache(
         received: mineReceived
           .map(({ paidAt, kind, amount, perShare }) => ({ paidAt, kind, amount, perShare }))
           .sort((a, b) => b.paidAt.getTime() - a.paidAt.getTime()),
+        dividendMonths: dividendMonths(mineReceived, now),
         upcoming: dividends.upcoming.filter((item) => item.ticker === ticker),
-        closes: [...(closes.get(ticker) ?? [])]
-          .map(([month, close]) => ({ month, close }))
-          .sort((a, b) => a.month.localeCompare(b.month)),
       };
     },
     (overview) => ({

@@ -2,8 +2,9 @@
 
 import { ChevronLeftIcon } from "lucide-react";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
+import { hasInAppHistory, useTrackInAppNavigation } from "@/shared/lib/in-app-navigation";
 import { cn } from "@/shared/lib/utils";
 import { parentOf } from "./nav-items";
 import { usePageTitleUnderBar } from "./toolbar-title";
@@ -12,11 +13,14 @@ import { usePageTitleUnderBar } from "./toolbar-title";
  * Barra de navegação do iPhone (abaixo de 768 px), como a do iOS 26: no repouso é transparente e
  * o título grande da página fica no conteúdo; ao rolar, o conteúdo passa sob um desfoque que se
  * dissolve (o "scroll edge effect", sem fio duro) e o título compacto aparece no centro. Nas
- * subpáginas, um círculo de vidro volta para a página-mãe. Desconta a área segura de cima.
+ * subpáginas, um círculo de vidro volta: para a tela anterior, como no iOS, quando se chegou
+ * navegando pelo app; senão, para a página-mãe. Desconta a área segura de cima.
  */
 export function MobileNavBar() {
   const pathname = usePathname();
+  const router = useRouter();
   const parent = parentOf(pathname);
+  useTrackInAppNavigation(pathname);
   const bar = useRef<HTMLElement>(null);
   const { text, underBar } = usePageTitleUnderBar(bar);
   const [scrolled, setScrolled] = useState(false);
@@ -52,7 +56,12 @@ export function MobileNavBar() {
         {parent ? (
           <Link
             href={parent.href}
-            aria-label={`Voltar para ${parent.label}`}
+            onClick={(event) => {
+              if (!hasInAppHistory()) return;
+              event.preventDefault();
+              router.back();
+            }}
+            aria-label="Voltar"
             className="grid size-11 press-spring place-items-center rounded-full glass-strong select-none [-webkit-touch-callout:none]"
           >
             <ChevronLeftIcon className="size-6 -translate-x-px" aria-hidden="true" />

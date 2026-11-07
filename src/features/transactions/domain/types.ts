@@ -19,6 +19,16 @@ export const TRANSACTION_KINDS = [
 ] as const;
 export type TransactionKind = (typeof TRANSACTION_KINDS)[number];
 
+/** Nome de cada tipo especial de lançamento na tela; o negócio não leva rótulo. */
+export const TRANSACTION_KIND_LABELS: Record<Exclude<TransactionKind, "NEGOCIO">, string> = {
+  SUBSCRICAO: "Subscrição",
+  DESDOBRO: "Desdobro",
+  BONIFICACAO: "Bonificação",
+  INCORPORACAO: "Incorporação",
+  FRACAO: "Leilão de fração",
+  POSICAO_ANTERIOR: "Posição anterior",
+};
+
 /** De onde veio o preço de um lançamento importado. */
 export const PRICE_SOURCES = ["B3", "PLANILHA", "USUARIO", "ESTIMADO"] as const;
 export type PriceSource = (typeof PRICE_SOURCES)[number];

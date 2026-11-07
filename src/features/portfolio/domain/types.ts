@@ -1,4 +1,5 @@
 import type { AssetClass } from "@/features/market-data";
+import type { DividendMonths, PricePeriod } from "./asset-overview";
 import type { AportePriority, CascadeAsset, StockBuyAsset } from "@/features/smart-buy";
 import type { Bias, Category, CeilingCheck } from "@/features/strategy";
 import type {
@@ -435,17 +436,42 @@ export type AssetOverview = {
   market: {
     priceToBook: number | null;
     dy12m: number | null;
+    /** Proventos por cota nos 12 meses de calendário até o último pagamento (Yahoo). */
+    dividends12m: number | null;
     lastDividend: { amount: number; exDate: Date } | null;
     segment: string | null;
     quoteFetchedAt: Date | null;
   };
+  /** Os períodos do gráfico de cotação que têm o que mostrar (ver `pricePeriods`). */
+  pricePeriods: PricePeriod[];
   strategy: StrategyRow | null;
   position: PositionRow | null;
-  /** Yield on cost dos 12 meses de calendário anteriores ao atual. Null sem posição. */
+  /** Yield on cost dos 12 meses fechados antes do atual. Null sem posição. */
   yoc: number | null;
   closed: ClosedPositionRow | null;
   orders: AssetOrder[];
   received: { paidAt: Date; kind: DividendKind; amount: number; perShare: number | null }[];
+  /** Os recebidos por mês nos 12 meses fechados: a mesma janela do yield on cost. */
+  dividendMonths: DividendMonths;
   upcoming: UpcomingDividend[];
-  closes: { month: string; close: number }[];
+};
+
+/** Um ativo da lista de `/ativos`: o que o dono tem ou acompanha na Carteira Alvo. */
+export type WatchlistRow = {
+  ticker: string;
+  name: string | null;
+  logoUrl: string | null;
+  assetClass: AssetClass | null;
+  price: number | null;
+  /** Variação do dia em %, como a cotação traz (0,8 = 0,8%). */
+  changePercent: number | null;
+  /** Os fechamentos diários recentes, terminando no preço atual, para o minigráfico. */
+  spark: number[];
+};
+
+export type AssetWatchlist = {
+  /** As posições abertas, da maior para a menor. */
+  held: WatchlistRow[];
+  /** Os ativos da estratégia sem posição, na ordem do ranking. */
+  target: WatchlistRow[];
 };
