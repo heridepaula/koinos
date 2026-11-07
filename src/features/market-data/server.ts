@@ -17,6 +17,7 @@ export {
 } from "./server/history-service";
 export {
   getAssetClasses,
+  getCatalogEntry,
   getCatalogSubType,
   refreshCatalog,
   searchTickers,

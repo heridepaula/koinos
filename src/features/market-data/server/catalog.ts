@@ -66,6 +66,12 @@ export async function getCatalogSubType(ticker: string): Promise<string | null> 
   return entries.find((entry) => entry.ticker === ticker)?.subType ?? null;
 }
 
+/** A entrada do catálogo para o ticker exato (nome, tipo, logo); null fora dele. */
+export async function getCatalogEntry(ticker: string): Promise<CatalogEntry | null> {
+  const entries = await loadCatalog();
+  return entries.find((entry) => entry.ticker === ticker) ?? null;
+}
+
 /**
  * Classe de cada ticker (FII ou ação, spec ações etapa 1, §4) pelo catálogo em cache; fora dele,
  * pelo código. As telas passam o mapa para as regras puras.
