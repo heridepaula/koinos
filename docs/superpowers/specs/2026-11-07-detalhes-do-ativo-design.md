@@ -15,16 +15,16 @@ Uma página por ticker que junta, numa visão só, o que o app sabe do ativo (me
 
 ## Busca
 
-- `AssetSearch` (client, `market-data/components/`, exportado por `ui.ts`): um `Command` com debounce de 300 ms que consulta `/api/tickers?q=`. A rota já existe, exige sessão e devolve `{ ticker, name, subType }`. Ela não muda.
+- `AssetSearch` (client, `market-data/components/`, exportado por `ui.ts`): um `Input` com lista (`role="listbox"`, sem `cmdk`) e debounce de 300 ms que consulta `/api/tickers?q=`. A rota já existe, exige sessão e devolve `{ ticker, name, subType }`. Ela não muda.
 - Escolher um item, ou dar Enter com um ticker completo, chama `router.push("/ativos/TICKER")`.
-- Teclado: setas e Enter (do `Command`), Esc fecha. No celular, o campo usa 16 px para o Safari não dar zoom.
+- Teclado: setas e Enter (na lista), Esc fecha. No celular, o campo usa 16 px para o Safari não dar zoom.
 - Mesma busca no hero da página do ticker, para trocar de ativo rápido.
 
 ## Página do ticker
 
 O cabeçalho fica estático e cada seção dependente de sessão vai num `<Suspense>` próprio, todas lendo a mesma view (`cache` do React, uma consulta por request).
 
-1. **Hero:** ticker, nome do catálogo, badge FII ou Ação (`assetClassOf`), cotação atual e a variação do dia quando houver fechamento anterior. Sem cotação, mostra "Sem cotação".
+1. **Hero:** ticker, nome do catálogo, badge FII ou Ação (`assetClassOf`), cotação atual e a variação do dia quando houver `changePercent` guardado. Sem cotação, mostra "Sem cotação".
 2. **Mercado:** P/VP, DY 12m, último provento, segmento (FII) e a data dos dados. Mostra só o que estiver guardado no ativo. P/VP com mais de 60 dias aparece como ausente, a mesma regra do motor. Fica fora do escopo o que o app não coleta: liquidez diária e valor de mercado.
 3. **Estratégia** (só para ativos na Carteira Alvo da classe): teto, margem até o teto, viés, rank, % sugerida contra a % atual na classe, Prioridade (a mesma `StrategyRow` do snapshot) e o triângulo de divergência do teto (`CeilingCheckIcon`), quando existir. Um link leva para `/carteira-alvo?classe=…` para editar. A edição não é feita nesta página.
 4. **Minha posição** (só com quantidade acima de zero): quantidade, preço médio, investido, saldo, L/P em R$ e %, proventos recebidos, resultado "com proventos" e YOC 12m.
@@ -49,8 +49,8 @@ Um ativo sem posição, sem estratégia e sem histórico mostra o hero, o card d
 - O DTO não carrega ids internos.
 - A view abre o span `view.asset-overview`, com `koinos.view.asset_class` (`FII` ou `ACAO`) e contagens. O ticker é um campo permitido.
 - **Puro** (`portfolio/domain/asset-overview.ts`, com teste ao lado):
-  - `yieldOnCost12m(dividends, averagePrice, quantity, today)`: proventos recebidos nos 12 meses fechados até hoje ÷ (preço médio × quantidade). `null` sem posição ou com custo zero.
-  - `dailyChange(price, previousClose)`: em R$ e %, `null` sem um dos dois.
+  - `yieldOnCost12m(dividends, position, now)`: proventos pagos nos 12 meses de calendário anteriores ao mês atual ÷ (preço médio × quantidade). `null` sem posição ou com custo zero.
+  - `dailyChange(price, changePercent)`: R$ e %, derivados do `changePercent` já guardado no ativo; `null` sem um dos dois.
   - A montagem do DTO da página a partir das entradas já filtradas.
 
 ## Links de entrada
@@ -65,7 +65,7 @@ Um ativo sem posição, sem estratégia e sem histórico mostra o hero, o card d
 
 ## Testes
 
-- `portfolio/domain/asset-overview.test.ts`: YOC (sem posição, custo zero, janela de 12 meses e um provento fora dela), variação do dia (sem fechamento anterior) e a montagem do DTO (posição aberta, encerrada, só estratégia, só catálogo).
+- `portfolio/domain/asset-overview.test.ts`: YOC (sem posição, custo zero, janela de 12 meses e um provento fora dela), variação do dia (sem preço ou sem variação) e a montagem do DTO (posição aberta, encerrada, só estratégia, só catálogo).
 - Verificação com `format:check`, `lint`, `typecheck`, `test` e `build`, e uma checagem manual no dev de um FII da carteira, uma ação, um ativo encerrado e um ticker fora da carteira.
 
 ## Fora do escopo
