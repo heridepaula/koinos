@@ -406,12 +406,30 @@ export function monthSummary(
       item.source === "YAHOO" || (item.payBy !== null && monthKeyOfTradeDate(item.payBy) === month),
   );
   const upcomingTotal = monthUpcoming.reduce((sum, item) => sum + item.amount, 0);
+  const previous = addMonths(month, -1);
+  const lastCredit = monthReceived.reduce<DividendEntry | null>(
+    (latest, item) => (!latest || item.paidAt.getTime() > latest.paidAt.getTime() ? item : latest),
+    null,
+  );
+  const today = todayTradeDate(now).getTime();
+  const dated = monthUpcoming
+    .filter((item): item is UpcomingDividend & { payBy: Date } => item.payBy !== null)
+    .sort((a, b) => a.payBy.getTime() - b.payBy.getTime() || a.ticker.localeCompare(b.ticker));
+  const next = dated.find((item) => item.payBy.getTime() >= today);
   return {
     month,
     received: receivedTotal,
     upcoming: upcomingTotal,
     total: receivedTotal + upcomingTotal,
     byKind: sumByKind([...monthReceived, ...monthUpcoming]),
+    receivedAssets: new Set(monthReceived.map((item) => item.ticker)).size,
+    lastReceived: lastCredit ? { ticker: lastCredit.ticker, date: lastCredit.paidAt } : null,
+    previousMonth: received
+      .filter((item) => monthKeyOfTradeDate(item.paidAt) === previous)
+      .reduce((sum, item) => sum + item.amount, 0),
+    upcomingAssets: new Set(monthUpcoming.map((item) => item.ticker)).size,
+    nextUpcoming: next ? { ticker: next.ticker, date: next.payBy } : null,
+    lastUpcoming: dated.at(-1)?.payBy ?? null,
   };
 }
 

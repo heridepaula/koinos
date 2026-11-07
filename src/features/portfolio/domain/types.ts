@@ -296,6 +296,18 @@ export type DividendMonthSummary = {
   total: number;
   /** Soma por tipo, só os tipos com valor, na ordem de DIVIDEND_KINDS. */
   byKind: KindAmount[];
+  /** Ativos que já pagaram no mês. */
+  receivedAssets: number;
+  /** O crédito mais recente do mês; null sem crédito. */
+  lastReceived: { ticker: string; date: Date } | null;
+  /** O recebido no mês anterior (créditos da B3). */
+  previousMonth: number;
+  /** Ativos com provento a receber no mês. */
+  upcomingAssets: number;
+  /** O próximo pagamento, de hoje em diante; null quando não há (ou todos já passaram). */
+  nextUpcoming: { ticker: string; date: Date } | null;
+  /** A data do último pagamento previsto no mês; null sem item. */
+  lastUpcoming: Date | null;
 };
 
 export type DividendMonthGroup = {

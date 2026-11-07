@@ -1,7 +1,8 @@
 import { CircleCheckIcon, ClockIcon, HandCoinsIcon } from "lucide-react";
 import { DIVIDEND_KIND_LABELS } from "@/features/transactions";
 import { MetricCard, StatList, StatRow } from "@/shared/components/metric";
-import { formatBRL, formatMonth, formatPercent } from "@/shared/lib/format";
+import { addMonths } from "@/shared/lib/time";
+import { formatBRL, formatMonth, formatPercent, formatTradeDate } from "@/shared/lib/format";
 import type { DividendMonthSummary } from "../../domain/types";
 import { Sensitive } from "@/shared/components/sensitive";
 
@@ -31,7 +32,19 @@ export function DividendMonthCards({
           label={`Recebido em ${formatMonth(month.month)}`}
           value={<Sensitive>{formatBRL(month.received)}</Sensitive>}
           className="hidden @min-[720px]/month:flex"
-        />
+        >
+          <StatList>
+            <StatRow label="Ativos que pagaram" value={month.receivedAssets} />
+            <StatRow
+              label="Último crédito"
+              value={month.lastReceived ? <DatedTicker {...month.lastReceived} /> : "nenhum ainda"}
+            />
+            <StatRow
+              label={`Recebido em ${formatMonth(addMonths(month.month, -1))}`}
+              value={<Sensitive>{formatBRL(month.previousMonth)}</Sensitive>}
+            />
+          </StatList>
+        </MetricCard>
         <MetricCard
           icon={ClockIcon}
           tile="[--tile:var(--tile-orange)]"
@@ -39,6 +52,25 @@ export function DividendMonthCards({
           value={<Sensitive>{formatBRL(month.upcoming)}</Sensitive>}
           className="hidden @min-[720px]/month:flex"
         >
+          <StatList>
+            <StatRow label="Ativos a pagar" value={month.upcomingAssets} />
+            <StatRow
+              label="Próximo pagamento"
+              value={
+                month.nextUpcoming ? (
+                  <DatedTicker {...month.nextUpcoming} />
+                ) : month.upcomingAssets > 0 ? (
+                  "a confirmar"
+                ) : (
+                  "—"
+                )
+              }
+            />
+            <StatRow
+              label="Último pagamento"
+              value={month.lastUpcoming ? formatTradeDate(month.lastUpcoming) : "—"}
+            />
+          </StatList>
           {forecastAsOf ? null : (
             <p className="text-footnote text-muted-foreground">
               Previsão pelo Yahoo, confirmada quando o extrato da B3 for importado.
@@ -86,6 +118,15 @@ export function DividendMonthCards({
         </MetricCard>
       </div>
     </div>
+  );
+}
+
+/** "09/11/2026 · GARE11": a data e, mais apagado, o ativo. */
+function DatedTicker({ ticker, date }: { ticker: string; date: Date }) {
+  return (
+    <>
+      {formatTradeDate(date)} <span className="font-normal text-muted-foreground">· {ticker}</span>
+    </>
   );
 }
 

@@ -377,3 +377,55 @@ describe("upcomingDividends: item da B3 com anúncio do Fundamentus", () => {
     expect(upcoming.map((item) => item.ticker)).toEqual(["PETR4", "EGIE3"]);
   });
 });
+
+describe("monthSummary: detalhes dos cards do mês", () => {
+  const upcoming = (ticker: string, pay: string | null, amount = 10) => ({
+    ticker,
+    kind: "RENDIMENTO" as const,
+    exDate: null,
+    comDate: null,
+    quantity: 10,
+    perShare: 1,
+    amount,
+    payBy: pay ? at(pay) : null,
+    source: "B3" as const,
+  });
+
+  it("conta os ativos, o último crédito, o mês anterior e o próximo pagamento", () => {
+    const summary = monthSummary(
+      now, // 20/10/2026
+      [
+        paid("AAAA11", "RENDIMENTO", 10, "2026-10-07"),
+        paid("AAAA11", "REEMBOLSO", 2, "2026-10-14"),
+        paid("BBBB11", "RENDIMENTO", 5, "2026-10-09"),
+        paid("AAAA11", "RENDIMENTO", 9, "2026-09-14"),
+        paid("CCCC11", "RENDIMENTO", 4, "2026-09-15"),
+      ],
+      [
+        upcoming("DDDD11", "2026-10-16"), // passou: não é o próximo
+        upcoming("EEEE11", "2026-10-28"),
+        upcoming("FFFF11", "2026-10-23"),
+        upcoming("GGGG11", "2026-11-10"), // outro mês
+      ],
+    );
+    expect(summary).toMatchObject({
+      receivedAssets: 2,
+      lastReceived: { ticker: "AAAA11", date: at("2026-10-14") },
+      previousMonth: 13,
+      upcomingAssets: 3,
+      nextUpcoming: { ticker: "FFFF11", date: at("2026-10-23") },
+      lastUpcoming: at("2026-10-28"),
+    });
+  });
+
+  it("sem crédito nem a receber, tudo vazio", () => {
+    expect(monthSummary(now, [], [])).toMatchObject({
+      receivedAssets: 0,
+      lastReceived: null,
+      previousMonth: 0,
+      upcomingAssets: 0,
+      nextUpcoming: null,
+      lastUpcoming: null,
+    });
+  });
+});
