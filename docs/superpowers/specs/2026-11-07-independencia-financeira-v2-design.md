@@ -23,11 +23,11 @@ Data: 2026-11-07. Origem: a "Especificação v2.0" que o dono colou no mesmo dia
 | --- | --- | --- |
 | `REAL_MONTHLY_RATE` | 0,004 (≈ 4,91% a.a.) | Perpetuidade, saúde e prazo |
 | `EDUCATION_INFLATION` | 8% a.a. | Correção da mensalidade |
-| `NOMINAL_ANNUAL_RETURN` | 9,5% a.a. | Desconto da escola |
+| `NOMINAL_ANNUAL_RETURN` | 9,5% a.a. | Desconto da escola e rendimento de referência quando a carteira não tem DY (§2.5) |
 | `TUITIONS_PER_YEAR` | 13 | 12 meses + matrícula e material |
-| `IMPLIED_MONTHLY_INFLATION` | 1,095^(1/12) ÷ 1,004 − 1 ≈ 0,358% a.m. | Reinvestimento da rentabilidade mensal (§2.7) |
+| `REINVESTMENT_SHARE` | 0,24 | A regra dos 24% (§2.7): a parte do que a meta recebe que volta para a carteira, e a inflação que o crescimento da acumulação desconta (§2.5) |
 
-Juntas, 9,5% nominal e 0,4% a.m. real implicam um IPCA de ≈ 4,38% a.a. Não há tela para mudar as constantes.
+A taxa real de 0,4% a.m. dimensiona a meta (§2.3 e §2.4). O prazo, desde a revisão de 2026-11-07, usa o DY da carteira (§2.5). Não há tela para mudar as constantes.
 
 ### 2.2 Saúde por faixa etária (`health.ts`)
 
@@ -92,11 +92,18 @@ patrimônio = patrimônio do Koinos (snapshot Geral) + patrimônio externo infor
 progresso  = patrimônio ÷ meta total
 ```
 
-- **Aporte médio (PMT):** como na v1 (§2.4 dela). É o `fromPocket` dos 6 meses fechados menos as vendas em dinheiro, com piso 0 na média.
-- **Prazo:** `monthsToTarget({ pv, fv, pmt, r })` com `r = REAL_MONTHLY_RATE` e os mesmos casos da v1. Ele dá o mês estimado (mês atual + n) e a idade prevista, `idade atual + ⌊n ÷ 12⌋`, exibida como "aos ~55 anos".
+- **Aporte médio (PMT), o bolso:** é o `fromPocket` dos 12 meses fechados (`APORTE_MONTHS`, a média anual pedida pelo dono) menos as vendas em dinheiro, com piso 0 na média. Os proventos ficam de fora: o prazo os reinveste por inteiro, pelo DY.
+- **Rendimento (`monthlyYieldOf`):** o DY de 12 meses da carteira (`dy12m` do snapshot Geral, a média ponderada dos ativos) ÷ 12. O DY é a soma de 12 distribuições mensais, e não um juro composto, então a divisão é simples. Sem DY (nulo, zero ou negativo), vale o rendimento de referência, 9,5% a.a. ÷ 12, e a tela diz que é de referência (`yieldSource`).
+- **Crescimento na acumulação (`accumulationRate`):** na acumulação todo o DY é reinvestido, junto com o bolso. A parte que repõe a inflação, 24% do rendimento (a regra de §2.7), só mantém o valor da meta, que está em reais de hoje. O crescimento real do mês é, com `y` o rendimento mensal:
+
+  ```text
+  r_acumulação = (1 + y) ÷ (1 + 24% × y) − 1        (≈ 76% de y)
+  ```
+
+- **Prazo:** `monthsToTarget({ pv, fv, pmt, r })` com `r = r_acumulação` e os mesmos casos da v1. Ele dá o mês estimado (mês atual + n) e a idade prevista, `idade atual + ⌊n ÷ 12⌋`, exibida como "aos ~55 anos".
 - **Comparação com a idade alvo:** são `m = 12 × T` meses até ela.
   - Prazo ≤ m: a folga é `m − n` meses.
-  - Prazo > m, ou sem prazo: o aporte necessário é `PMT = (FV − PV·(1 + r)^m) × r ÷ ((1 + r)^m − 1)`, com piso 0.
+  - Prazo > m, ou sem prazo: o aporte necessário (do bolso) é `PMT = (FV − PV·(1 + r)^m) × r ÷ ((1 + r)^m − 1)`, com piso 0, no mesmo `r = r_acumulação`.
   - T ≤ 0 (a idade alvo é hoje ou já passou): só o prazo, sem folga nem aporte necessário.
 
 ### 2.6 Exemplo (usado nos testes)
@@ -119,21 +126,22 @@ O cenário:
 | **Fundo temporário** | **R$ 491.820,11** |
 | **Meta total** | **R$ 4.391.596,94** |
 
-Com patrimônio de R$ 1.000.000 e PMT de R$ 8.000, o prazo é de 190 meses (15 anos e 10 meses), aos ~55 anos. Para chegar aos 45 (60 meses), o aporte necessário seria de R$ 46.126,93/mês.
+Com patrimônio de R$ 1.000.000 e PMT de R$ 8.000, e um crescimento real de 0,4% a.m. (o DY de ≈ 6,32% a.a. que dá exatamente esse crescimento, `V2_YIELD` nos testes), o prazo é de 190 meses (15 anos e 10 meses), aos ~55 anos. Para chegar aos 45 (60 meses), o aporte necessário seria de R$ 46.126,93/mês. Com o DY real da carteira o prazo muda (§2.5): é ele que entra na produção.
 
-### 2.7 Rentabilidade mensal (pedido do dono na revisão de UX, 2026-11-07)
+### 2.7 O que a meta recebe por mês: a regra dos 24% (pedido do dono, 2026-11-07)
 
-O que a meta rende num mês, dividido em duas partes:
+No usufruto (depois de chegar na meta), a meta recebe por mês o rendimento da carteira sobre ela, e 24% do que recebe voltam para a carteira:
 
 ```text
-renda real            = meta × r                              (o que dá para gastar sem a meta perder valor)
-reinvestimento        = meta × IMPLIED_MONTHLY_INFLATION      (volta para a carteira e repõe a inflação)
-rentabilidade mensal  = renda real + reinvestimento           (≈ 0,76% a.m. da meta)
+recebe          = meta × y                       (y = o DY de 12 meses ÷ 12)
+reinvestimento  = 24% × recebe                   (para cima no centavo, como a retenção da fruição)
+para viver      = recebe − reinvestimento        (76%)
 ```
 
-- Cada parte arredonda no centavo, e o total é a soma delas.
-- A inflação é a que já está implícita nas constantes (§2.1), sem uma constante nova de IPCA.
-- No exemplo de §2.6: R$ 33.276,12 por mês, sendo R$ 17.566,39 de renda real e R$ 15.709,73 de reinvestimento.
+- É a mesma conta da retenção da fruição (`splitIncome`): as duas partes somam o recebido, e a retenção nunca fica abaixo dos 24%. A regra dos 24% é do dono e é independente do padrão de 25% da fruição.
+- Os 24% são, no raciocínio do dono, o reinvestimento "para corrigir a inflação". Com o DY de 13,2% a.a., eles repõem uma inflação de ≈ 3,2% a.a. (24% × o DY). A v2 usava ≈ 4,4% a.a. (9,5% nominal sobre 0,4% real); o dono preferiu a regra dos 24%.
+- Na acumulação a mesma regra aparece no crescimento (§2.5): o DY volta todo, e os 24% só mantêm o valor.
+- A meta continua dimensionada a 0,4% a.m. real (§2.3 e §2.4). Com o DY atual, o que a meta recebe (e o que sobra para viver) é bem maior que a renda que o plano pede. Redimensionar a meta pelo DY e pelos 24% ficou como decisão do dono, ainda não tomada.
 - `planTarget(plan)` é a meta total sem patrimônio nem prazo (as partes de §2.3 e §2.4). O questionário a usa para mostrar quanto cada resposta soma à meta (§3).
 
 ## 3. Questionário (7 passos + revisão)
@@ -185,17 +193,17 @@ Três cards na largura toda, cada um dividido em colunas por container query (re
 
 - **`TargetCard`:**
   - à esquerda, o montante necessário em Large Title, a barra de progresso, a % com o patrimônio, o que falta (ou "Acima da meta") e, com patrimônio externo, a soma Koinos + fora;
-  - à direita, a rentabilidade mensal (§2.7): o total, a barra dividida (reinvestimento em `--chart-1`, como os aportes; renda real em `--chart-2`, como os proventos), as duas partes com a taxa e a frase da inflação.
+  - à direita, o que a meta recebe por mês (§2.7), com a taxa mensal: a barra dividida (reinvestimento de 24% em `--chart-1`, como os aportes; "para viver", 76%, em `--chart-2`, como os proventos), as duas partes e a frase de onde vem o rendimento (o DY dos ativos ou o de referência) e do que os 24% repõem.
 - **`ForecastCard`:**
   - à esquerda, "Aos ~55 anos", o selo da diferença para a idade alvo (verde antes ou na idade, âmbar depois; `forecastVerdict`) e o mês;
-  - à direita, o aporte de hoje contra o necessário para parar na idade alvo, com um medidor, e a nota do aporte médio e da taxa real.
+  - à direita, o aporte do bolso de hoje contra o necessário para parar na idade alvo, com um medidor, e a nota: a média dos 12 meses fechados, o DY todo reinvestido junto e o crescimento real por mês (§2.5).
 - **`TargetBreakdown`:**
   - a barra perpétua × temporária (só com fundo temporário);
   - três grupos com subtotal: custo de vida, meta perpétua e fundo temporário;
   - o total.
   - A rosca e o Recharts saíram desta página.
 - **"Editar meta"** no cabeçalho na mesa e no botão ao lado da tab bar no iPhone (`EditPlanButton`). Só aparece com meta salva. Abre o questionário na revisão, e ao sair o foco volta para ele. Substitui o "Refazer questionário" do fim da página.
-- **Linha do Dashboard:** "22,8% de R$ 4,4 mi · aos ~55" (`formatCompactBRL`, `shortForecast`). No iPhone, só a barra e a %.
+- **Faixa do Dashboard** (escolha do dono, 2026-11-07, entre uma linha com os números, a faixa e um card): sem card, em tipo pequeno, acima do filtro de classe. No alto, "Independência financeira" e a %; embaixo da barra, em três colunas, **Montante** (a meta), **Rende/mês** (o que ela recebe) e **Reinveste** (os 24%), em `formatCompactBRL`. Cabe em três colunas no iPhone, tem 80 px de altura (o esqueleto do Dashboard tem a mesma) e a faixa inteira é o link. Sem meta, volta a uma linha com "Definir meta" ou "Atualizar meta". A previsão ("aos ~55") saiu da faixa: fica na página.
 - Todo R$ fica sob `Sensitive`, inclusive os da revisão do questionário.
 
 ## 6. Fora do escopo
@@ -221,11 +229,14 @@ Três cards na largura toda, cada um dividido em colunas por container query (re
   - a folga;
   - a idade prevista;
   - `planTarget` igual à meta do resumo;
-  - a rentabilidade mensal do exemplo (§2.7), a inflação implícita e a meta zero que não rende nada.
+  - o rendimento (`monthlyYieldOf`: o DY ÷ 12, e a referência sem DY, com nulo, zero, negativo e NaN) e de onde ele veio no resumo;
+  - `accumulationRate` (≈ 76% do rendimento) e o `V2_YIELD`, o DY que reproduz os 0,4% a.m. reais e, com ele, os números do exemplo (190 meses, R$ 46.126,93);
+  - o prazo com o DY igual à simulação mês a mês, DY maior com prazo menor e o aporte necessário que leva à meta;
+  - o que a meta recebe por mês (R$ 43.915,97 = 10.539,84 + 33.376,13 com DY de 12%), os 24% para cima no centavo, as partes somando o total e a meta zero sem -0.
 - **`migrate.test.ts`:** um plano v1 vira o rascunho com os três campos e os padrões.
-- **`aporte.test.ts`:** sem mudança.
+- **`aporte.test.ts`:** a janela passa a 12 meses fechados (`APORTE_MONTHS`); o resto, sem mudança.
 - **`catalog.test.ts`:** passa a cobrir os padrões do rascunho e os níveis de saúde.
-- **`components/format.test.ts`:** o selo da previsão (depois, antes, na idade alvo, meta alcançada, sem previsão, idade alvo hoje), o título do prazo, a previsão curta do Dashboard e `monthSlash`.
+- **`components/format.test.ts`:** o selo da previsão (depois, antes, na idade alvo, meta alcançada, sem previsão, idade alvo hoje), o título do prazo, `yieldLabel` (o DY dos ativos ou o de referência) e `monthSlash`.
 - **`components/wizard-steps.test.ts`:**
   - os passos com e sem educação e `nextStep`/`previousStep`, na ordem e vindo da revisão (direto para ela, ou pela educação quando a família ganhou dependentes);
   - `stepImpact` no exemplo (R$ 2.500.000 do custo de vida, a escola e a saúde de §2.6, zero sem plano, null sem um valor só);
@@ -244,3 +255,22 @@ Pedido do dono: revisar o layout e a usabilidade da página, do questionário e 
 | "Refazer questionário" no fim da página, e mudar um valor exigia os 7 passos | "Editar meta" no cabeçalho (e na tab bar), abrindo na revisão; cada resposta leva ao seu passo e volta |
 | O questionário era um card de ~1.100 px com campos pequenos, sem barra de progresso; os dois sim/não tinham formatos diferentes; o resumo não mostrava as respostas | Coluna de 672 px, barra de passos, valor grande com o impacto na meta, Enter avançando, os sim/não no mesmo grupo de linhas e a revisão com as respostas |
 | A linha do Dashboard dizia o prazo por extenso ("≈ 15 anos e 10 meses, aos ~55") | "22,8% de R$ 4,4 mi · aos ~55": o progresso, o tamanho da meta e a idade |
+
+## 9. Rendimento pelo DY e a regra dos 24% (2026-11-07)
+
+Depois de ver a página no ar, o dono perguntou se a rentabilidade usava o DY atual dos investimentos e se esse retorno era reinvestido junto com o aporte do bolso, e pediu a regra de 24% do montante recebido para o reinvestimento. A resposta era não: a v2 usava os 0,4% a.m. reais fixos, e o DY só entrava no aporte do bolso (os proventos reinvestidos saem dele). Ele definiu o modelo:
+
+| Pedido do dono | O que ficou |
+| --- | --- |
+| "No prazo de acumulação, todo DY é reinvestido" | O crescimento do prazo vem do DY de 12 meses da carteira, todo reinvestido (§2.5) |
+| "Considerar o aporte DY + bolso" | DY reinvestido + aporte do bolso, o prazo e o aporte necessário no mesmo crescimento |
+| "O bolso, com a média anual de aportes do bolso, ou os últimos 6 meses" | Média de 12 meses (`APORTE_MONTHS`). Com os dados do dono: R$ 4.553,90 contra R$ 4.043,99 em 6 meses, 141 contra 145 meses de prazo |
+| "A regra de 24% do montante recebido para o reinvestimento" | No usufruto, 24% do que a meta recebe voltam para a carteira e 76% são para viver (§2.7) |
+
+Decisões minhas, para o dono revisar:
+
+- Os 24% também fixam a inflação do crescimento da acumulação (24% do DY), para a conta seguir em reais de hoje; sem isso o prazo contaria a inflação como crescimento.
+- O DY ÷ 12 é o rendimento mensal (a soma de 12 distribuições mensais), e não o juro composto equivalente.
+- A meta não foi redimensionada: continua a 0,4% a.m. real.
+
+Efeito com os dados do dono (DY de 13,18% a.a.): o prazo foi de 244 meses (aos 57) para 141 (aos 48), e o aporte necessário para parar aos 45, de R$ 22.265 para R$ 13.725. É um cenário mais otimista: o DY é só a renda em dinheiro, e a carteira vale 12,5% menos do que foi paga.
