@@ -97,6 +97,12 @@ export function YieldSplit({
     { key: "seasonal", label: "Sazonais (÷ 12)", value: summary.costs.seasonal },
     { key: "travel", label: "Viagens (÷ 12)", value: summary.costs.travel },
     { key: "health", label: "Plano de saúde", value: summary.costs.health },
+    { key: "education", label: "Escola dos dependentes", value: summary.costs.education },
+    {
+      key: "childrenHealth",
+      label: "Saúde dos dependentes",
+      value: summary.costs.childrenHealth,
+    },
   ].filter((cost) => cost.value > 0);
   return (
     <section className="grid content-start gap-3">

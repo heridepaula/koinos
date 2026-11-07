@@ -65,7 +65,14 @@ export type IndependenceSummary = {
   /** O resto, para viver. */
   livingIncome: number;
   /** Os custos mensais da meta, em reais de hoje, que saem do "para viver". */
-  costs: { essential: number; seasonal: number; travel: number; health: number };
+  costs: {
+    essential: number;
+    seasonal: number;
+    travel: number;
+    health: number;
+    education: number;
+    childrenHealth: number;
+  };
   /** Soma dos custos mensais. */
   costsTotal: number;
   /** O que sobra do "para viver" depois dos custos; negativo quando não cobre. */
