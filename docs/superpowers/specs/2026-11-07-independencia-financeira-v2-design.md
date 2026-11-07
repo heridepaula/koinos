@@ -25,6 +25,7 @@ Data: 2026-11-07. Origem: a "Especificação v2.0" que o dono colou no mesmo dia
 | `EDUCATION_INFLATION` | 8% a.a. | Correção da mensalidade |
 | `NOMINAL_ANNUAL_RETURN` | 9,5% a.a. | Desconto da escola |
 | `TUITIONS_PER_YEAR` | 13 | 12 meses + matrícula e material |
+| `IMPLIED_MONTHLY_INFLATION` | 1,095^(1/12) ÷ 1,004 − 1 ≈ 0,358% a.m. | Reinvestimento da rentabilidade mensal (§2.7) |
 
 Juntas, 9,5% nominal e 0,4% a.m. real implicam um IPCA de ≈ 4,38% a.a. Não há tela para mudar as constantes.
 
@@ -120,7 +121,22 @@ O cenário:
 
 Com patrimônio de R$ 1.000.000 e PMT de R$ 8.000, o prazo é de 190 meses (15 anos e 10 meses), aos ~55 anos. Para chegar aos 45 (60 meses), o aporte necessário seria de R$ 46.126,93/mês.
 
-## 3. Questionário (7 passos + resumo)
+### 2.7 Rentabilidade mensal (pedido do dono na revisão de UX, 2026-11-07)
+
+O que a meta rende num mês, dividido em duas partes:
+
+```text
+renda real            = meta × r                              (o que dá para gastar sem a meta perder valor)
+reinvestimento        = meta × IMPLIED_MONTHLY_INFLATION      (volta para a carteira e repõe a inflação)
+rentabilidade mensal  = renda real + reinvestimento           (≈ 0,76% a.m. da meta)
+```
+
+- Cada parte arredonda no centavo, e o total é a soma delas.
+- A inflação é a que já está implícita nas constantes (§2.1), sem uma constante nova de IPCA.
+- No exemplo de §2.6: R$ 33.276,12 por mês, sendo R$ 17.566,39 de renda real e R$ 15.709,73 de reinvestimento.
+- `planTarget(plan)` é a meta total sem patrimônio nem prazo (as partes de §2.3 e §2.4). O questionário a usa para mostrar quanto cada resposta soma à meta (§3).
+
+## 3. Questionário (7 passos + revisão)
 
 | Passo | Campos | Validação |
 | --- | --- | --- |
@@ -131,9 +147,16 @@ Com patrimônio de R$ 1.000.000 e PMT de R$ 8.000, o prazo é de 190 meses (15 a
 | 5. Educação (só com dependentes) | Custo mensal (sugestão R$ 2.500,00); custeio até 18 ou 24 anos (padrão 24) | R$; {18, 24} |
 | 6. Plano de saúde | Sem plano, Básico, Conforto (padrão), Premium; cada opção mostra o valor da faixa do titular na idade alvo | Um dos quatro |
 | 7. Estilo de vida | Viagens e lazer extra por ano | R$ |
-| Resumo | Meta perpétua, fundo temporário, total e prazo, calculados no cliente pelas mesmas funções puras | |
+| Revisão | A meta, o progresso, o prazo contra a idade alvo, o aporte necessário e a rentabilidade, calculados no cliente pelas mesmas funções puras; depois, a lista das respostas | |
 
-- Os valores em R$ usam `MoneyInput`, as idades e a quantidade usam campos numéricos, os sim/não usam `SegmentedControl` e as escolhas usam `ChoiceList`.
+- **Forma** (revisão de UX, §8): uma pergunta por vez, numa coluna de até 672 px, como os assistentes do macOS.
+  - No topo, "Passo N de M · título" e a barra de passos em segmentos. A pergunta é o título do passo.
+  - Os valores em R$ usam o `MoneyInput` grande (`size="lg"`).
+  - As idades e a quantidade são linhas de número, e os sim/não são linhas com `SegmentedControl`, num grupo como os dos Ajustes do iOS. As escolhas usam `ChoiceList`, e a saúde mostra a mensalidade da faixa à direita.
+- **Impacto:** nos passos de um valor (custo de vida, gastos do ano, educação, saúde e viagens), um quadro "Soma à meta" mostra quanto a resposta pesa. É a meta com ela menos a meta sem ela (`stepImpact`, por `planTarget`), refeito a cada tecla, com uma frase sobre a conta.
+- **Teclado:** o Enter avança. Num campo que não é o último do passo, vai para o seguinte; numa opção, confirma o passo. A cada passo, o foco vai para o primeiro campo, ou para a opção marcada.
+- **Revisão:** cada resposta é uma linha que leva ao seu passo, e o botão do passo ("Revisar") volta direto para a revisão. A exceção é a família que ganhou dependentes: ela passa antes pela educação (`nextStep`).
+- **Editar uma meta salva:** o questionário abre na revisão, com "Cancelar". Os textos, a ordem, a navegação e as respostas são puros, em `components/wizard-steps.ts`.
 - Sem dependentes, o passo 5 é pulado nos dois sentidos. A contagem "Passo N de M" acompanha.
 - `PLAN_AMOUNT_MAX` continua R$ 1.000.000 para cada valor em R$. O patrimônio externo vai até R$ 100.000.000.
 
@@ -156,21 +179,22 @@ Com patrimônio de R$ 1.000.000 e PMT de R$ 8.000, o prazo é de 190 meses (15 a
 
 ## 5. Página
 
-- **Meta em destaque:** a meta total em Title 1, a barra, o patrimônio (Koinos + externo), a % e o que falta.
-- **Perpétua × temporária:** rosca com as duas partes, em Recharts via `next/dynamic` (`ssr: false`) e `ChartPlaceholder` da mesma altura. As séries usam `--chart-1` e `--chart-2`, com legenda. O fundo temporário zero mostra só a perpétua.
-- **Prazo:**
-  - a idade e o mês previstos;
-  - a folga ("12 meses antes da idade alvo") ou o aporte necessário ("Para chegar aos 45: R$ 46.126,93/mês");
-  - o aporte médio do bolso;
-  - a taxa real.
-- **Conta linha a linha:**
-  - renda perpétua (os três itens) e o ÷ r;
-  - saúde do titular e do cônjuge, com o valor de hoje da faixa e os degraus;
-  - escola e saúde dos filhos;
-  - patrimônio externo.
-- **"Refazer questionário"** como na v1.
-- **Linha do Dashboard:** a mesma, com o prazo "≈ 15 anos e 10 meses, aos ~55".
-- Todo R$ fica sob `Sensitive`.
+Três cards na largura toda, cada um dividido em colunas por container query (revisão de UX, §8):
+
+- **`TargetCard`:**
+  - à esquerda, o montante necessário em Large Title, a barra de progresso, a % com o patrimônio, o que falta (ou "Acima da meta") e, com patrimônio externo, a soma Koinos + fora;
+  - à direita, a rentabilidade mensal (§2.7): o total, a barra dividida (reinvestimento em `--chart-1`, como os aportes; renda real em `--chart-2`, como os proventos), as duas partes com a taxa e a frase da inflação.
+- **`ForecastCard`:**
+  - à esquerda, "Aos ~55 anos", o selo da diferença para a idade alvo (verde antes ou na idade, âmbar depois; `forecastVerdict`) e o mês;
+  - à direita, o aporte de hoje contra o necessário para parar na idade alvo, com um medidor, e a nota do aporte médio e da taxa real.
+- **`TargetBreakdown`:**
+  - a barra perpétua × temporária (só com fundo temporário);
+  - três grupos com subtotal: custo de vida, meta perpétua e fundo temporário;
+  - o total.
+  - A rosca e o Recharts saíram desta página.
+- **"Editar meta"** no cabeçalho na mesa e no botão ao lado da tab bar no iPhone (`EditPlanButton`). Só aparece com meta salva. Abre o questionário na revisão, e ao sair o foco volta para ele. Substitui o "Refazer questionário" do fim da página.
+- **Linha do Dashboard:** "22,8% de R$ 4,4 mi · aos ~55" (`formatCompactBRL`, `shortForecast`). No iPhone, só a barra e a %.
+- Todo R$ fica sob `Sensitive`, inclusive os da revisão do questionário.
 
 ## 6. Fora do escopo
 
@@ -193,7 +217,28 @@ Com patrimônio de R$ 1.000.000 e PMT de R$ 8.000, o prazo é de 190 meses (15 a
   - `monthsToTarget` (os casos da v1);
   - aporte necessário (exemplo, piso 0 quando PV já cresce até a meta, T ≤ 0 sem comparação);
   - a folga;
-  - a idade prevista.
+  - a idade prevista;
+  - `planTarget` igual à meta do resumo;
+  - a rentabilidade mensal do exemplo (§2.7), a inflação implícita e a meta zero que não rende nada.
 - **`migrate.test.ts`:** um plano v1 vira o rascunho com os três campos e os padrões.
 - **`aporte.test.ts`:** sem mudança.
 - **`catalog.test.ts`:** passa a cobrir os padrões do rascunho e os níveis de saúde.
+- **`components/format.test.ts`:** o selo da previsão (depois, antes, na idade alvo, meta alcançada, sem previsão, idade alvo hoje), o título do prazo, a previsão curta do Dashboard e `monthSlash`.
+- **`components/wizard-steps.test.ts`:**
+  - os passos com e sem educação e `nextStep`/`previousStep`, na ordem e vindo da revisão (direto para ela, ou pela educação quando a família ganhou dependentes);
+  - `stepImpact` no exemplo (R$ 2.500.000 do custo de vida, a escola e a saúde de §2.6, zero sem plano, null sem um valor só);
+  - as respostas da revisão, com o R$ separado do texto.
+
+## 8. Revisão de UX (2026-11-07)
+
+Pedido do dono: revisar o layout e a usabilidade da página, do questionário e da linha do Dashboard, com o olhar dos apps da Apple. No meio da revisão, ele pediu mais destaque para o montante, a rentabilidade mensal e o reinvestimento contra a inflação (§2.7).
+
+| O que a prévia mostrou | Decisão |
+| --- | --- |
+| A meta total aparecia duas vezes em letra grande (card de progresso e rosca) | Uma vez só, no `TargetCard`, ao lado da rentabilidade mensal |
+| A previsão (aos ~55) não se comparava com a idade alvo (45), e o aporte necessário ficava escondido numa linha | O selo "10 anos e 10 meses depois dos 45" e o aporte de hoje contra o necessário, com medidor |
+| A rosca tinha só duas partes, com nomes que mudavam ("caixa", "meta", "fundo") | Uma barra dividida e os mesmos nomes em toda a página: meta perpétua e fundo temporário |
+| A conta era uma lista de 10 linhas com rótulos longos; na mesa, rótulo e valor ficavam a ~1.100 px de distância | Três grupos com subtotal, lado a lado na mesa; os cards se dividem em colunas por container query |
+| "Refazer questionário" no fim da página, e mudar um valor exigia os 7 passos | "Editar meta" no cabeçalho (e na tab bar), abrindo na revisão; cada resposta leva ao seu passo e volta |
+| O questionário era um card de ~1.100 px com campos pequenos, sem barra de progresso; os dois sim/não tinham formatos diferentes; o resumo não mostrava as respostas | Coluna de 672 px, barra de passos, valor grande com o impacto na meta, Enter avançando, os sim/não no mesmo grupo de linhas e a revisão com as respostas |
+| A linha do Dashboard dizia o prazo por extenso ("≈ 15 anos e 10 meses, aos ~55") | "22,8% de R$ 4,4 mi · aos ~55": o progresso, o tamanho da meta e a idade |
