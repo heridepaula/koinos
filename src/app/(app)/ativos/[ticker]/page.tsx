@@ -16,6 +16,15 @@ import { Button } from "@/shared/ui/button";
 
 export const metadata: Metadata = { title: "Ativo" };
 
+/**
+ * Sem ao menos um parâmetro conhecido, o `usePathname` do menu (no layout) fica sem o caminho no
+ * prerender e o build falha. O ticker de exemplo só gera o shell estático: o resto da página
+ * depende da sessão e chega por streaming; os demais tickers renderizam sob demanda.
+ */
+export function generateStaticParams() {
+  return [{ ticker: "HGLG11" }];
+}
+
 // O cabeçalho vai no shell estático; o ativo chega por streaming, porque depende da sessão.
 export default function AssetPage({ params }: PageProps<"/ativos/[ticker]">) {
   return (
