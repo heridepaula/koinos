@@ -153,6 +153,12 @@ function UpcomingPhoneList({
               <Sensitive>{formatBRL(row.amount)}</Sensitive>
             </span>
             <span className="text-footnote whitespace-nowrap text-muted-foreground tabular-nums">
+              {row.quantity !== null && (
+                <>
+                  <Sensitive mask={QUANTITY_MASK}>{formatQuantity(row.quantity)}</Sensitive>
+                  {row.quantity === 1 ? " papel" : " papéis"} ·{" "}
+                </>
+              )}
               <PayBy row={row} />
             </span>
           </div>
@@ -221,8 +227,12 @@ export function UpcomingDividends({
                 <TableRow>
                   <TableHead className="pl-(--card-spacing)">Ativo</TableHead>
                   <TableHead className="hidden @min-[400px]:table-cell">Origem</TableHead>
-                  <TableHead className="hidden @min-[520px]:table-cell">Data com</TableHead>
-                  <TableHead className="hidden text-right @min-[640px]:table-cell">Qtd.</TableHead>
+                  <TableHead
+                    className="hidden text-right @min-[400px]:table-cell"
+                    title="Papéis que você tinha no fim da data com: os que recebem o provento."
+                  >
+                    Qtd. na data com
+                  </TableHead>
                   <TableHead className="hidden text-right @min-[640px]:table-cell">
                     Unitário
                   </TableHead>
@@ -248,14 +258,7 @@ export function UpcomingDividends({
                         <Badge variant="outline">estimado</Badge>
                       )}
                     </TableCell>
-                    <TableCell className="hidden tabular-nums @min-[520px]:table-cell">
-                      {row.comDate
-                        ? formatTradeDate(row.comDate)
-                        : row.exDate
-                          ? `${formatTradeDate(row.exDate)} (ex)`
-                          : "—"}
-                    </TableCell>
-                    <TableCell className="hidden text-right tabular-nums @min-[640px]:table-cell">
+                    <TableCell className="hidden text-right tabular-nums @min-[400px]:table-cell">
                       {row.quantity !== null ? (
                         <Sensitive mask={QUANTITY_MASK}>{formatQuantity(row.quantity)}</Sensitive>
                       ) : (
@@ -281,8 +284,7 @@ export function UpcomingDividends({
                     <TableCell className="hidden @min-[400px]:table-cell">
                       <NotDisclosedBadge />
                     </TableCell>
-                    <TableCell className="hidden @min-[520px]:table-cell">—</TableCell>
-                    <TableCell className="hidden text-right @min-[640px]:table-cell">—</TableCell>
+                    <TableCell className="hidden text-right @min-[400px]:table-cell">—</TableCell>
                     <TableCell className="hidden text-right @min-[640px]:table-cell">—</TableCell>
                     <TableCell
                       className="text-right text-muted-foreground tabular-nums"
