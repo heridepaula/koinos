@@ -78,8 +78,8 @@ export type IndependenceSummary = {
   /** O que sobra do "para viver" depois dos custos; negativo quando não cobre. */
   netLiving: number;
   /**
-   * O mesmo bloco (o que a meta recebe, os custos e a sobra) corrigido pela inflação até o primeiro
-   * dia da aposentadoria: a expectativa em reais daquele dia, não em reais de hoje.
+   * O que a meta recebe (sem correção) e os custos corrigidos pela inflação até o primeiro dia da
+   * aposentadoria, com a sobra entre os dois.
    */
   projected: {
     years: number;

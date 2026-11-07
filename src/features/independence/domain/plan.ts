@@ -259,7 +259,7 @@ export function independenceSummary(input: {
   const projectedCostsTotal = cents(
     Object.values(projectedCosts).reduce((sum, value) => sum + value, 0),
   );
-  const projectedLiving = cents(received.living * factor);
+  const projectedLiving = received.living;
   const patrimony = koinosWealth + plan.externalWealth;
   const months = monthsToTarget({ pv: patrimony, fv: target, pmt: monthlyAporte, r: growth });
   const untilTarget = 12 * years;
@@ -291,8 +291,8 @@ export function independenceSummary(input: {
       years,
       factor,
       educationFactor,
-      monthlyYield: cents(received.received * factor),
-      reinvestment: cents(received.reinvestment * factor),
+      monthlyYield: received.received,
+      reinvestment: received.reinvestment,
       livingIncome: projectedLiving,
       costs: projectedCosts,
       costsTotal: projectedCostsTotal,

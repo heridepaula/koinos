@@ -180,7 +180,7 @@ export function YieldSplit({
       </dl>
       <p className="text-footnote text-muted-foreground">
         {summary.projected.years > 0
-          ? `Valores esperados no primeiro dia da aposentadoria, daqui a ${summary.projected.years} ${summary.projected.years === 1 ? "ano" : "anos"}: os de hoje corrigidos pela inflação (${formatPercent(GENERAL_INFLATION, 1)} a.a.; escola a ${formatPercent(EDUCATION_INFLATION, 0)} a.a.).`
+          ? `O que a meta recebe não é corrigido. Os custos são os esperados no primeiro dia da aposentadoria, daqui a ${summary.projected.years} ${summary.projected.years === 1 ? "ano" : "anos"}: os de hoje corrigidos pela inflação (${formatPercent(GENERAL_INFLATION, 1)} a.a.; escola a ${formatPercent(EDUCATION_INFLATION, 0)} a.a.).`
           : "Valores de hoje: a aposentadoria é a partir de agora."}
       </p>
       <p className="text-footnote text-muted-foreground">
