@@ -218,6 +218,17 @@ export function independenceSummary(input: {
   const { rate: monthlyRate, source } = monthlyYieldOf(input.portfolioYield);
   const growth = accumulationRate(monthlyRate);
   const received = yieldSplit(target, monthlyRate);
+  // Custos mensais na idade alvo: o orçamento e a mensalidade de saúde do titular e do cônjuge.
+  const costs = {
+    essential: cents(plan.essentialMonthly),
+    seasonal: cents(plan.seasonalYearly / 12),
+    travel: cents(plan.travelYearly / 12),
+    health: cents(
+      healthCost(plan.healthLevel, plan.targetAge) +
+        (spouseAgeAtTarget === null ? 0 : healthCost(plan.healthLevel, spouseAgeAtTarget)),
+    ),
+  };
+  const costsTotal = cents(costs.essential + costs.seasonal + costs.travel + costs.health);
   const patrimony = koinosWealth + plan.externalWealth;
   const months = monthsToTarget({ pv: patrimony, fv: target, pmt: monthlyAporte, r: growth });
   const untilTarget = 12 * years;
@@ -242,6 +253,9 @@ export function independenceSummary(input: {
     monthlyYield: received.received,
     reinvestment: received.reinvestment,
     livingIncome: received.living,
+    costs,
+    costsTotal,
+    netLiving: cents(received.living - costsTotal),
     koinosWealth,
     externalWealth: plan.externalWealth,
     patrimony,

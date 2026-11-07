@@ -92,6 +92,12 @@ export function YieldSplit({
       color: YIELD_COLORS.income,
     },
   ];
+  const costs = [
+    { key: "essential", label: "Gasto essencial", value: summary.costs.essential },
+    { key: "seasonal", label: "Sazonais (÷ 12)", value: summary.costs.seasonal },
+    { key: "travel", label: "Viagens (÷ 12)", value: summary.costs.travel },
+    { key: "health", label: "Plano de saúde", value: summary.costs.health },
+  ].filter((cost) => cost.value > 0);
   return (
     <section className="grid content-start gap-3">
       <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
@@ -116,6 +122,27 @@ export function YieldSplit({
             </dd>
           </div>
         ))}
+      </dl>
+      <dl className="grid gap-1.5 border-t border-border pt-3">
+        {costs.map((cost) => (
+          <div key={cost.key} className="flex items-center justify-between gap-3 text-sm">
+            <dt className="text-muted-foreground">{cost.label}</dt>
+            <dd className="text-right font-medium text-loss tabular-nums">
+              <Sensitive>{formatBRL(-cost.value)}</Sensitive>
+            </dd>
+          </div>
+        ))}
+        <div className="flex items-center justify-between gap-3 border-t border-border pt-2 text-sm font-semibold">
+          <dt>Sobra líquida para viver</dt>
+          <dd
+            className={cn(
+              "text-right tabular-nums",
+              summary.netLiving < 0 ? "text-loss" : "text-gain",
+            )}
+          >
+            <Sensitive>{formatBRL(summary.netLiving)}</Sensitive>
+          </dd>
+        </div>
       </dl>
       <p className="text-footnote text-muted-foreground">
         Com {yieldLabel(summary)}, a meta recebe esse valor por mês. Os{" "}
