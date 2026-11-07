@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { buildAlerts } from "./alerts";
-import type { StrategyRow } from "./types";
+import { buildAlerts, withReadState } from "./alerts";
+import type { PortfolioAlert, PositionRow, StrategyRow } from "./types";
 
 const row = (ticker: string, patch: Partial<StrategyRow> = {}): StrategyRow => ({
   ticker,
@@ -67,5 +67,51 @@ describe("buildAlerts: estratégia por classe", () => {
     });
     const incomplete = alerts.find((alert) => alert.id === "configuracao-incompleta");
     expect(incomplete?.detail).toBe("PETR4: sem ranking ou sem preço teto.");
+  });
+});
+
+const position = (ticker: string, portfolioWeight: number): PositionRow =>
+  ({ ticker, portfolioWeight, price: 10 }) as PositionRow;
+
+describe("buildAlerts: impressão da concentração", () => {
+  const concentration = (positions: PositionRow[]) =>
+    buildAlerts({ positions, strategies: [] }).find((alert) => alert.id === "concentracao");
+
+  it("é a lista dos ativos, sem a fatia: o % mudar não reabre o alerta", () => {
+    const today = concentration([position("BBBB11", 0.12), position("AAAA11", 0.15)]);
+    const tomorrow = concentration([position("BBBB11", 0.13), position("AAAA11", 0.11)]);
+    expect(today?.fingerprint).toBe("AAAA11,BBBB11");
+    expect(tomorrow?.fingerprint).toBe(today?.fingerprint);
+  });
+
+  it("um ativo novo acima do limite muda a impressão", () => {
+    const before = concentration([position("AAAA11", 0.15)]);
+    const after = concentration([position("AAAA11", 0.15), position("CCCC11", 0.11)]);
+    expect(after?.fingerprint).not.toBe(before?.fingerprint);
+  });
+});
+
+describe("withReadState", () => {
+  const alert = (id: string, fingerprint: string): PortfolioAlert => ({
+    id,
+    level: "info",
+    title: id,
+    detail: "",
+    fingerprint,
+  });
+
+  it("lido só com a mesma impressão; os não lidos vêm primeiro", () => {
+    const items = withReadState(
+      [alert("concentracao", "A,B"), alert("pesos", "x"), alert("sem-cotacao", "C")],
+      new Map([
+        ["concentracao", "A,B"],
+        ["sem-cotacao", "D"],
+      ]),
+    );
+    expect(items.map((item) => [item.id, item.read])).toEqual([
+      ["pesos", false],
+      ["sem-cotacao", false],
+      ["concentracao", true],
+    ]);
   });
 });

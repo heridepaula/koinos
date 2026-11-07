@@ -7,6 +7,8 @@ import {
   UserMenuSkeleton,
 } from "@/features/auth/ui";
 import { getCurrentUser } from "@/features/auth/server";
+import { getMyAlertNotifications } from "@/features/portfolio/server";
+import { AlertsBell } from "@/features/portfolio/ui";
 import { AppSidebar } from "@/shared/components/app-sidebar";
 import { AutoHideHeader } from "@/shared/components/auto-hide-header";
 import { MobileNavBar } from "@/shared/components/mobile-nav-bar";
@@ -33,6 +35,12 @@ async function CurrentUserMenu() {
   return <UserMenu user={{ name: user.name, email: user.email, image: user.image }} />;
 }
 
+// Os alertas da carteira no sino do canto de cima à direita: na barra do topo e, no iPhone, na
+// barra de navegação, em folha de baixo.
+async function CurrentAlerts({ sheet = false }: { sheet?: boolean }) {
+  return <AlertsBell alerts={await getMyAlertNotifications()} sheet={sheet} />;
+}
+
 async function CurrentAccount() {
   const user = await getCurrentUser();
   return <AccountSection user={{ name: user.name, email: user.email, image: user.image }} />;
@@ -56,7 +64,13 @@ export default function AppLayout({ children }: { children: ReactNode }) {
           {/* min-w-0: tabelas largas rolam dentro do card, sem empurrar a página. */}
           <SidebarInset className="min-w-0 bg-transparent">
             {/* iPhone: barra de navegação do iOS em cima e tab bar embaixo (fora deste bloco). */}
-            <MobileNavBar />
+            <MobileNavBar
+              trailing={
+                <Suspense fallback={null}>
+                  <CurrentAlerts sheet />
+                </Suspense>
+              }
+            />
             {/*
              * Barra do topo no Liquid Glass (a partir de 768 px): sem faixa de ponta a ponta, só
              * cápsulas de vidro flutuando sobre o conteúdo. A da esquerda abre o menu e ganha o
@@ -71,6 +85,9 @@ export default function AppLayout({ children }: { children: ReactNode }) {
               <div className={TOOLBAR_CAPSULE}>
                 <PrivacyToggle />
                 <ThemeToggle />
+                <Suspense fallback={null}>
+                  <CurrentAlerts />
+                </Suspense>
               </div>
             </AutoHideHeader>
             {/* No iPhone, o fim da página reserva o espaço da tab bar, e as laterais, as áreas seguras. */}

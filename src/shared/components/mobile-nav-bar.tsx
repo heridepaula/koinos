@@ -3,7 +3,7 @@
 import { ChevronLeftIcon } from "lucide-react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import { hasInAppHistory, useTrackInAppNavigation } from "@/shared/lib/in-app-navigation";
 import { cn } from "@/shared/lib/utils";
 import { parentOf } from "./nav-items";
@@ -16,7 +16,7 @@ import { usePageTitleUnderBar } from "./toolbar-title";
  * subpáginas, um círculo de vidro volta: para a tela anterior, como no iOS, quando se chegou
  * navegando pelo app; senão, para a página-mãe. Desconta a área segura de cima.
  */
-export function MobileNavBar() {
+export function MobileNavBar({ trailing }: { trailing?: ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
   const parent = parentOf(pathname);
@@ -77,6 +77,12 @@ export function MobileNavBar() {
       >
         {text}
       </p>
+      {/* À direita, as ações da barra (o sino dos alertas), num círculo de vidro como o voltar. */}
+      {trailing ? (
+        <div className="grid size-11 place-items-center justify-self-end rounded-full glass-strong">
+          {trailing}
+        </div>
+      ) : null}
     </header>
   );
 }

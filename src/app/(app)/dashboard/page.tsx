@@ -2,7 +2,6 @@ import type { Metadata } from "next";
 import { Suspense } from "react";
 import { getEvolution, getPeriodResults, getPortfolioSnapshot } from "@/features/portfolio/server";
 import {
-  AlertsPanel,
   AllocationCharts,
   ClosedPositions,
   ContributionsChart,
@@ -84,7 +83,6 @@ async function DashboardContent({ searchParams }: { searchParams: SearchParams }
       <Suspense fallback={<CardSkeleton />}>
         <PeriodSection filter={filter} />
       </Suspense>
-      <AlertsPanel alerts={snapshot.alerts} />
       <div className="grid gap-4 md:gap-6 xl:grid-cols-2">
         <Suspense fallback={<CardSkeleton />}>
           <EvolutionSection filter={filter} />

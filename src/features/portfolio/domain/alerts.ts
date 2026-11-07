@@ -1,5 +1,5 @@
 import { formatPercent } from "@/shared/lib/format";
-import type { PortfolioAlert, PositionRow, StrategyRow } from "./types";
+import type { AlertNotification, PortfolioAlert, PositionRow, StrategyRow } from "./types";
 
 /** Um único ativo acima desta fatia do patrimônio gera alerta de concentração. */
 export const CONCENTRATION_ALERT = 0.1;
@@ -17,6 +17,13 @@ export type StrategyAlertInput = {
    */
   receivesAporte: boolean;
 };
+
+/** Os tickers em ordem alfabética: a impressão não muda quando só a ordem muda. */
+const tickersOf = (rows: readonly { ticker: string }[]) =>
+  rows
+    .map((row) => row.ticker)
+    .sort()
+    .join(",");
 
 export function buildAlerts(input: {
   positions: readonly PositionRow[];
@@ -37,6 +44,7 @@ export function buildAlerts(input: {
       detail: concentrated
         .map((row) => `${row.ticker} ${formatPercent(row.portfolioWeight, 1)}`)
         .join(" · "),
+      fingerprint: tickersOf(concentrated),
     });
   }
 
@@ -47,6 +55,7 @@ export function buildAlerts(input: {
       level: "warning",
       title: "Ativos sem cotação",
       detail: `${noQuote.map((row) => row.ticker).join(", ")}: o valor usa o preço médio até a cotação chegar.`,
+      fingerprint: tickersOf(noQuote),
     });
   }
 
@@ -74,6 +83,7 @@ function strategyAlerts({
       level: "warning",
       title: title("Preço teto suspeito"),
       detail: `${suspicious.map((row) => row.ticker).join(", ")}: teto menor que metade ou maior que o dobro do preço. Pode ser erro de digitação ou teto desatualizado.`,
+      fingerprint: tickersOf(suspicious),
     });
   }
 
@@ -87,6 +97,7 @@ function strategyAlerts({
       detail: receivesAporte
         ? `${list}: sem ranking ou sem preço teto não recebem aporte.`
         : `${list}: sem ranking ou sem preço teto.`,
+      fingerprint: tickersOf(incomplete),
     });
   }
 
@@ -97,11 +108,15 @@ function strategyAlerts({
   }
   const duplicated = [...ranks].filter(([, tickers]) => tickers.length > 1);
   if (duplicated.length > 0) {
+    const detail = duplicated
+      .map(([rank, tickers]) => `${rank}º: ${tickers.join(", ")}`)
+      .join(" · ");
     alerts.push({
       id: id("ranking-repetido"),
       level: "info",
       title: title("Ranking repetido"),
-      detail: duplicated.map(([rank, tickers]) => `${rank}º: ${tickers.join(", ")}`).join(" · "),
+      detail,
+      fingerprint: detail,
     });
   }
 
@@ -111,6 +126,8 @@ function strategyAlerts({
       level: "info",
       title: title("% sugeridas"),
       detail: weightsWarning,
+      // O texto só muda quando o dono edita as %: serve de impressão.
+      fingerprint: weightsWarning,
     });
   }
 
@@ -121,8 +138,24 @@ function strategyAlerts({
       level: "info",
       title: title("Ativos fora da Carteira Alvo"),
       detail: `${unconfigured.map((row) => row.ticker).join(", ")} estão na carteira, mas não na estratégia.`,
+      fingerprint: tickersOf(unconfigured),
     });
   }
 
   return alerts;
+}
+
+/**
+ * Os alertas do sino: lido quando a impressão marcada é a de agora. Os não lidos vêm primeiro,
+ * cada grupo na ordem de `buildAlerts`.
+ */
+export function withReadState(
+  alerts: readonly PortfolioAlert[],
+  reads: ReadonlyMap<string, string>,
+): AlertNotification[] {
+  const items = alerts.map((alert) => ({
+    ...alert,
+    read: reads.get(alert.id) === alert.fingerprint,
+  }));
+  return [...items.filter((item) => !item.read), ...items.filter((item) => item.read)];
 }

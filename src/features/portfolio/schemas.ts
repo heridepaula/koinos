@@ -3,6 +3,19 @@ import { MONTH_KEY_PATTERN } from "./domain/reinvestment";
 
 export const monthKeySchema = z.string().regex(MONTH_KEY_PATTERN, "Mês inválido");
 
+/** Os alertas a marcar como lidos, com a impressão que a tela mostrou. */
+export const markAlertsReadSchema = z.object({
+  alerts: z
+    .array(
+      z.object({
+        id: z.string().regex(/^[a-z-]{1,60}$/, "Alerta inválido"),
+        fingerprint: z.string().min(1).max(2000),
+      }),
+    )
+    .min(1)
+    .max(50),
+});
+
 export const reinvestmentPercentSchema = z.object({
   month: monthKeySchema,
   percent: z

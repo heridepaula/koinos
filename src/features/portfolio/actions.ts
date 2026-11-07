@@ -13,7 +13,8 @@ import { computePositions } from "@/features/transactions";
 import { listTransactionsOf } from "@/features/transactions/server";
 import { currentMonthKey } from "@/shared/lib/time";
 import { isReportMonth, roundPercent } from "./domain/reinvestment";
-import { reinvestmentPercentSchema } from "./schemas";
+import { markAlertsReadSchema, reinvestmentPercentSchema } from "./schemas";
+import { markAlertsRead } from "./server/alert-read-repo";
 import { clearReinvestmentPercent, setReinvestmentPercent } from "./server/reinvestment-repo";
 
 /**
@@ -47,6 +48,19 @@ export const refreshMyQuotesAction = authActionClient
       refresh();
     }
     return result;
+  });
+
+/**
+ * Marca alertas do sino como lidos. Guarda a impressão que a tela mostrou: se o alerta mudou
+ * entre a tela e o clique, a nova impressão segue não lida.
+ */
+export const markAlertsReadAction = authActionClient
+  .metadata({ actionName: "markAlertsRead" })
+  .inputSchema(markAlertsReadSchema)
+  .action(async ({ parsedInput, ctx }) => {
+    await markAlertsRead(ctx.tenant.portfolioId, parsedInput.alerts, new Date());
+    refresh();
+    return { ok: true as const };
   });
 
 /** Salva a % reinvestida de um mês; `null` volta o mês ao padrão (100%). */

@@ -227,7 +227,15 @@ export type PortfolioAlert = {
   level: "warning" | "info";
   title: string;
   detail: string;
+  /**
+   * O que faz o alerta ser outro: os ativos envolvidos, sem os números que mudam todo dia (a
+   * fatia da concentração). Um alerta lido volta a não lido quando a impressão muda.
+   */
+  fingerprint: string;
 };
+
+/** Um alerta no sino: lido quando o dono marcou esta mesma impressão. */
+export type AlertNotification = PortfolioAlert & { read: boolean };
 
 export type PortfolioSnapshot = {
   summary: PortfolioSummary;
