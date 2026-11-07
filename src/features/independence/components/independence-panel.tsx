@@ -12,15 +12,13 @@ import { IndependenceWizard } from "./independence-wizard";
  */
 export function IndependencePanel({
   plan,
-  patrimony,
-  monthlyDividends,
+  koinosWealth,
   monthlyAporte,
   currentMonth,
   children,
 }: {
   plan: IndependencePlan;
-  patrimony: number;
-  monthlyDividends: number;
+  koinosWealth: number;
   monthlyAporte: number;
   currentMonth: string;
   children: ReactNode;
@@ -30,8 +28,7 @@ export function IndependencePanel({
     return (
       <IndependenceWizard
         initial={plan}
-        patrimony={patrimony}
-        monthlyDividends={monthlyDividends}
+        koinosWealth={koinosWealth}
         monthlyAporte={monthlyAporte}
         currentMonth={currentMonth}
         onCancel={() => setEditing(false)}

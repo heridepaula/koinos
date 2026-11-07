@@ -1,10 +1,14 @@
 import "server-only";
 import mongoose, { Schema, type Model, type Types } from "mongoose";
+import { EDUCATION_UNTIL_OPTIONS } from "../domain/constants";
+import { HEALTH_LEVELS } from "../domain/health";
 import type { IndependencePlan } from "../domain/types";
 
+/** O documento salvo pela v2 (`version: 2`). Um da v1 não tem `version` (ver o repo). */
 export interface IndependencePlanDoc extends IndependencePlan {
   _id: Types.ObjectId;
   portfolioId: Types.ObjectId;
+  version: 2;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -12,23 +16,19 @@ export interface IndependencePlanDoc extends IndependencePlan {
 const independencePlanSchema = new Schema<IndependencePlanDoc>(
   {
     portfolioId: { type: Schema.Types.ObjectId, required: true },
-    answers: {
-      type: new Schema(
-        {
-          living: { type: String, required: true },
-          people: { type: String, required: true },
-          health: { type: String, required: true },
-          travel: { type: String, required: true },
-        },
-        { _id: false },
-      ),
-      required: true,
-    },
-    livingCost: { type: Number, required: true, min: 0 },
-    people: { type: Number, required: true, min: 1 },
-    healthPerPerson: { type: Number, required: true, min: 0 },
-    travelPerYear: { type: Number, required: true, min: 0 },
-    retention: { type: Number, required: true, min: 0.2, max: 1 },
+    version: { type: Number, required: true, enum: [2] },
+    currentAge: { type: Number, required: true, min: 0 },
+    targetAge: { type: Number, required: true, min: 0 },
+    externalWealth: { type: Number, required: true, min: 0 },
+    essentialMonthly: { type: Number, required: true, min: 0 },
+    seasonalYearly: { type: Number, required: true, min: 0 },
+    travelYearly: { type: Number, required: true, min: 0 },
+    spouseAge: { type: Number, default: null },
+    dependents: { type: Number, required: true, min: 0 },
+    youngestAge: { type: Number, default: null },
+    educationMonthly: { type: Number, required: true, min: 0 },
+    educationUntil: { type: Number, required: true, enum: [...EDUCATION_UNTIL_OPTIONS] },
+    healthLevel: { type: String, required: true, enum: [...HEALTH_LEVELS] },
   },
   { timestamps: true },
 );

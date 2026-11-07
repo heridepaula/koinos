@@ -1,37 +1,44 @@
-// API pública pura da feature independence (a meta de independência financeira).
+// API pública pura da feature independence (a meta de independência financeira, spec v2).
 export {
-  DEFAULT_ANSWERS,
+  DEFAULT_HEALTH_LEVEL,
   defaultPlan,
-  HEALTH_OPTIONS,
-  LIVING_OPTIONS,
-  PEOPLE_MAX,
-  PEOPLE_OPTIONS,
-  PLAN_AMOUNT_MAX,
-  RETENTION_LABELS,
-  RETENTION_OPTIONS,
-  TRAVEL_OPTIONS,
-  type HealthKey,
-  type LivingKey,
-  type Option,
-  type PeopleKey,
-  type TravelKey,
+  HEALTH_LEVEL_LABELS,
+  isHealthLevel,
 } from "./domain/catalog";
 export {
-  DEFAULT_MONTHLY_YIELD,
+  CURRENT_AGE_RANGE,
+  DEFAULT_TUITION,
+  DEPENDENTS_MAX,
+  EDUCATION_INFLATION,
+  EDUCATION_UNTIL_OPTIONS,
+  EXTERNAL_WEALTH_MAX,
+  NOMINAL_ANNUAL_RETURN,
+  PLAN_AMOUNT_MAX,
+  REAL_MONTHLY_RATE,
+  SPOUSE_AGE_RANGE,
+  TARGET_AGE_MAX,
+  TUITIONS_PER_YEAR,
+  YOUNGEST_AGE_MAX,
+  type EducationUntil,
+} from "./domain/constants";
+export {
+  HEALTH_BRACKETS,
+  HEALTH_LEVELS,
+  healthCost,
+  healthPerpetuity,
+  healthSteps,
+  type HealthLevel,
+} from "./domain/health";
+export {
+  childrenHealthFund,
   durationLabel,
-  grossIncome,
+  educationFund,
   independenceSummary,
-  monthlyNeed,
   monthsToTarget,
-  portfolioYield,
+  perpetualIncome,
+  requiredAporte,
   targetMonthKey,
-  YIELD_BOUNDS,
 } from "./domain/plan";
+export { draftFromV1, type PlanV1Fields } from "./domain/migrate";
 export { APORTE_MONTHS, averageMonthlyAporte, cashSales, closedMonths } from "./domain/aporte";
-export type {
-  IndependencePlan,
-  IndependenceSummary,
-  IndependenceView,
-  PlanAnswers,
-  YieldSource,
-} from "./domain/types";
+export type { IndependencePlan, IndependenceSummary, IndependenceView } from "./domain/types";

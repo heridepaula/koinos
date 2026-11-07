@@ -127,7 +127,8 @@ async function EvolutionSection({ filter }: { filter: ClassFilter }) {
 }
 
 async function IndependenceSection() {
-  return <IndependenceCard summary={(await getIndependenceView()).summary} />;
+  const view = await getIndependenceView();
+  return <IndependenceCard summary={view.summary} needsUpdate={view.draft !== null} />;
 }
 
 // Pode buscar fechamentos no Yahoo (no máximo a cada 12 h): também fica no próprio Suspense.

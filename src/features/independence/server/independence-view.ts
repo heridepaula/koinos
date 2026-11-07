@@ -12,8 +12,8 @@ import type { IndependenceView } from "../domain/types";
 import { findIndependencePlan } from "./plan-repo";
 
 /**
- * A meta de independência do usuário logado: o plano, o snapshot Geral (patrimônio e proventos dos
- * 12 meses fechados) e o aporte médio do bolso. DTO sem ids internos.
+ * A meta de independência do usuário logado: o plano (ou o rascunho de um plano da v1), o
+ * patrimônio do snapshot Geral e o aporte médio do bolso. DTO sem ids internos.
  */
 export const getIndependenceView = cache(
   traced(
@@ -22,7 +22,7 @@ export const getIndependenceView = cache(
       const tenant = await getTenant(); // chama connection(): só em tempo de requisição
       const currentMonth = currentMonthKey(new Date());
       const months = closedMonths(currentMonth);
-      const [plan, snapshot, transactions, received, percents] = await Promise.all([
+      const [{ plan, draft }, snapshot, transactions, received, percents] = await Promise.all([
         findIndependencePlan(tenant.portfolioId),
         getPortfolioSnapshot("TODOS"),
         getMyTransactions(),
@@ -36,19 +36,21 @@ export const getIndependenceView = cache(
           sales: cashSales(transactions, month.month),
         })),
       );
-      const patrimony = snapshot.summary.patrimony;
-      const monthlyDividends = snapshot.summary.dividendPace.monthlyAverage12m;
+      const koinosWealth = snapshot.summary.patrimony;
       return {
         plan,
+        draft,
         summary: plan
-          ? independenceSummary({ plan, patrimony, monthlyDividends, monthlyAporte, currentMonth })
+          ? independenceSummary({ plan, koinosWealth, monthlyAporte, currentMonth })
           : null,
-        patrimony,
-        monthlyDividends,
+        koinosWealth,
         monthlyAporte,
         currentMonth,
       };
     },
-    (view) => ({ "koinos.independence.has_plan": view.plan !== null }),
+    (view) => ({
+      "koinos.independence.has_plan": view.plan !== null,
+      "koinos.independence.has_draft": view.draft !== null,
+    }),
   ),
 );

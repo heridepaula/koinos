@@ -9,7 +9,14 @@ import { ProgressBar } from "./progress-bar";
  * A meta no topo do Dashboard: uma linha discreta (rótulo, barra fina, % e prazo), sem card. Os
  * detalhes ficam em /independencia. A linha inteira é o link; no toque, a área tem 44 px.
  */
-export function IndependenceCard({ summary }: { summary: IndependenceSummary | null }) {
+export function IndependenceCard({
+  summary,
+  needsUpdate = false,
+}: {
+  summary: IndependenceSummary | null;
+  /** Um plano da v1 salvo: a meta ganhou perguntas novas. */
+  needsUpdate?: boolean;
+}) {
   return (
     <Link
       href="/independencia"
@@ -29,7 +36,9 @@ export function IndependenceCard({ summary }: { summary: IndependenceSummary | n
           <span className="truncate max-sm:hidden">{forecastLine(summary)}</span>
         </>
       ) : (
-        <span className="font-medium text-foreground">Definir meta</span>
+        <span className="font-medium text-foreground">
+          {needsUpdate ? "Atualizar meta" : "Definir meta"}
+        </span>
       )}
       <ChevronRightIcon aria-hidden="true" className="size-3.5 shrink-0" />
     </Link>

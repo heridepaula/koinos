@@ -1,43 +1,57 @@
 import "server-only";
 import { Types } from "mongoose";
 import { connectMongo } from "@/shared/db/mongo";
+import { draftFromV1, type PlanV1Fields } from "../domain/migrate";
 import type { IndependencePlan } from "../domain/types";
-import { IndependencePlanModel, type IndependencePlanDoc } from "./plan.model";
+import { IndependencePlanModel } from "./plan.model";
 
 // Toda função recebe o portfolioId explícito e o usa no filtro.
 
 const toObjectId = (id: string) => new Types.ObjectId(id);
 
-/** O plano desta carteira, sem ids, ou null antes do questionário. */
-export async function findIndependencePlan(portfolioId: string): Promise<IndependencePlan | null> {
+/**
+ * O plano desta carteira, sem ids. Um documento da v1 (sem `version`) não vale como plano: vira o
+ * rascunho que preenche o questionário (spec v2 §4).
+ */
+export async function findIndependencePlan(
+  portfolioId: string,
+): Promise<{ plan: IndependencePlan | null; draft: IndependencePlan | null }> {
   await connectMongo();
+  // lean devolve o documento como está no banco, com os campos da v1 que o schema não tem mais.
   const doc = await IndependencePlanModel.findOne({
     portfolioId: toObjectId(portfolioId),
-  }).lean<IndependencePlanDoc | null>();
-  if (!doc) return null;
+  }).lean<Record<string, unknown> | null>();
+  if (!doc) return { plan: null, draft: null };
+  if (doc.version !== 2) return { plan: null, draft: draftFromV1(doc as PlanV1Fields) };
+  const plan = doc as unknown as IndependencePlan;
   return {
-    answers: {
-      living: doc.answers.living,
-      people: doc.answers.people,
-      health: doc.answers.health,
-      travel: doc.answers.travel,
+    plan: {
+      currentAge: plan.currentAge,
+      targetAge: plan.targetAge,
+      externalWealth: plan.externalWealth,
+      essentialMonthly: plan.essentialMonthly,
+      seasonalYearly: plan.seasonalYearly,
+      travelYearly: plan.travelYearly,
+      spouseAge: plan.spouseAge ?? null,
+      dependents: plan.dependents,
+      youngestAge: plan.youngestAge ?? null,
+      educationMonthly: plan.educationMonthly,
+      educationUntil: plan.educationUntil,
+      healthLevel: plan.healthLevel,
     },
-    livingCost: doc.livingCost,
-    people: doc.people,
-    healthPerPerson: doc.healthPerPerson,
-    travelPerYear: doc.travelPerYear,
-    retention: doc.retention,
+    draft: null,
   };
 }
 
+/** Substitui o documento inteiro (os campos da v1 somem), com `version: 2`. */
 export async function saveIndependencePlan(
   portfolioId: string,
   plan: IndependencePlan,
 ): Promise<void> {
   await connectMongo();
-  await IndependencePlanModel.updateOne(
+  await IndependencePlanModel.replaceOne(
     { portfolioId: toObjectId(portfolioId) },
-    { $set: plan, $setOnInsert: { portfolioId: toObjectId(portfolioId) } },
+    { ...plan, portfolioId: toObjectId(portfolioId), version: 2 },
     { upsert: true, runValidators: true },
   );
 }
