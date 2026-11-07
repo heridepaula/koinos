@@ -1,5 +1,7 @@
 import type { Metadata } from "next";
 import { Suspense } from "react";
+import { getIndependenceView } from "@/features/independence/server";
+import { IndependenceCard } from "@/features/independence/ui";
 import { getEvolution, getPeriodResults, getPortfolioSnapshot } from "@/features/portfolio/server";
 import {
   AllocationCharts,
@@ -79,6 +81,12 @@ async function DashboardContent({ searchParams }: { searchParams: SearchParams }
         byCategory={filter === "ACAO" ? [] : snapshot.allocation.byCategory}
         market={snapshot.quotes.market}
       />
+      {/* A meta é sempre da carteira toda: o card só aparece na visão Geral. */}
+      {filter === "TODOS" ? (
+        <Suspense fallback={<CardSkeleton height="h-20" />}>
+          <IndependenceSection />
+        </Suspense>
+      ) : null}
       <DayMovers movers={snapshot.dayMovers} market={snapshot.quotes.market} />
       <Suspense fallback={<CardSkeleton />}>
         <PeriodSection filter={filter} />
@@ -117,6 +125,10 @@ function EmptyClass({ filter }: { filter: Exclude<ClassFilter, "TODOS"> }) {
 // Pode buscar histórico no Yahoo na primeira vez: fica no próprio Suspense para não segurar o resto.
 async function EvolutionSection({ filter }: { filter: ClassFilter }) {
   return <EvolutionChart points={await getEvolution(filter)} />;
+}
+
+async function IndependenceSection() {
+  return <IndependenceCard summary={(await getIndependenceView()).summary} />;
 }
 
 // Pode buscar fechamentos no Yahoo (no máximo a cada 12 h): também fica no próprio Suspense.

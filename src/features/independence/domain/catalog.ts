@@ -28,16 +28,18 @@ export const PEOPLE_OPTIONS = [
 ] as const satisfies readonly Option<string>[];
 export type PeopleKey = (typeof PEOPLE_OPTIONS)[number]["key"];
 
+// Médias de 2026 por pessoa, plano individual (PF) em São Paulo, para as faixas de 30 a 45 anos
+// (levantamento do dono de 2026-11-07). PF porque, parando de trabalhar, o plano da empresa acaba.
 export const HEALTH_OPTIONS = [
   { key: "nenhum", label: "Não preciso", detail: "SUS ou consultas avulsas", value: 0 },
-  { key: "basico", label: "Plano Básico", detail: "Enfermaria, cobertura regional", value: 400 },
+  { key: "basico", label: "Plano Básico", detail: "Enfermaria, cobertura regional", value: 350 },
   {
     key: "conforto",
     label: "Plano Conforto",
     detail: "Apartamento, cobertura nacional",
-    value: 800,
+    value: 550,
   },
-  { key: "premium", label: "Plano Premium", detail: "Hospitais de ponta", value: 2_000 },
+  { key: "premium", label: "Plano Premium", detail: "Hospitais de ponta", value: 950 },
 ] as const satisfies readonly Option<string>[];
 export type HealthKey = (typeof HEALTH_OPTIONS)[number]["key"];
 

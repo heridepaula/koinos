@@ -2,6 +2,7 @@ import {
   ArchiveIcon,
   ArrowLeftRightIcon,
   ChartLineIcon,
+  FlagIcon,
   HandCoinsIcon,
   LayoutDashboardIcon,
   LightbulbIcon,
@@ -83,6 +84,12 @@ export const NAV_ITEMS: readonly NavItem[] = [
     icon: LightbulbIcon,
     tile: "[--tile:var(--tile-purple)]",
     tab: "Aporte",
+  },
+  {
+    href: "/independencia",
+    label: "Independência",
+    icon: FlagIcon,
+    tile: "[--tile:var(--tile-green)]",
   },
 ];
 

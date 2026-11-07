@@ -29,7 +29,7 @@ describe("catálogo do questionário", () => {
       answers: DEFAULT_ANSWERS,
       livingCost: 7_500,
       people: 1,
-      healthPerPerson: 800,
+      healthPerPerson: 550,
       travelPerYear: 15_000,
       retention: DEFAULT_RETENTION,
     });

@@ -24,10 +24,11 @@ Cada pergunta tem opções de escolha única, cada uma com um valor sugerido. O 
 | --- | --- | --- | --- |
 | 1 | Custo de vida mensal da casa (moradia, alimentação, contas, lazer, cartão) | Vida frugal, R$ 3.000–5.000 (4.000); Conforto básico, R$ 5.000–10.000 (7.500); Padrão elevado, R$ 10.000–15.000 (12.500); Alto padrão, acima de R$ 15.000 (20.000) | Conforto básico |
 | 2 | Quantas pessoas no orçamento | Só eu (1); Eu e cônjuge (2); Casal + 1 filho (3); Casal + 2 ou mais filhos (4) | Só eu |
-| 3 | Plano de saúde, por pessoa e por mês | Não preciso (0); Básico, enfermaria regional (400); Conforto, apartamento nacional (800); Premium, hospitais de ponta (2.000) | Conforto |
+| 3 | Plano de saúde, por pessoa e por mês | Não preciso (0); Básico, enfermaria regional (350); Conforto, apartamento nacional (550); Premium, hospitais de ponta (950) | Conforto |
 | 4 | Viagens de lazer por ano (valor anual da casa) | 1 nacional (6.000); 2 nacionais ou 1 internacional modesta (15.000); 1 a 2 internacionais de alto padrão (36.000) | 2 nacionais ou 1 internacional |
 | 5 | Quanto dos proventos reinvestir todo mês | 20%; 25%; 30% | 25% |
 
+- **Saúde:** os valores são as médias de 2026 por pessoa num plano individual (PF) em São Paulo, para as faixas de 30 a 45 anos, do levantamento que o dono trouxe em 2026-11-07. PF porque, ao parar de trabalhar, o plano da empresa acaba. A tabela por faixa etária não entrou: pedir a idade de cada pessoa atrapalharia o questionário, e o valor continua editável. O levantamento registra também o salto aos 44 anos (~41%) e aos 59 (~42%; a ANS permite até 6× a primeira faixa).
 - O passo 1 já é o custo da casa toda. O número de pessoas (passo 2) só multiplica a saúde.
 - O passo 2 não tem R$: a quantidade de pessoas é editável de 1 a 10.
 - O passo 5 não tem R$. As opções saem de `MIN_RETENTION` e `DEFAULT_RETENTION` (importados de `smart-buy`), e não existe opção abaixo de 20%.

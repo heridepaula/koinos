@@ -20,5 +20,6 @@ export const config = {
     "/carteira-alvo/:path*",
     "/recomendacoes/:path*",
     "/ativos/:path*",
+    "/independencia/:path*",
   ],
 };
