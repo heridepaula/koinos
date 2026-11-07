@@ -9,6 +9,8 @@ export interface AlertReadDoc {
   alertId: string;
   /** A impressão lida: quando a de agora for outra, o alerta volta a não lido. */
   fingerprint: string;
+  /** Excluído do sino: some da lista até a impressão mudar. */
+  dismissed: boolean;
   readAt: Date;
 }
 
@@ -16,6 +18,7 @@ const alertReadSchema = new Schema<AlertReadDoc>({
   portfolioId: { type: Schema.Types.ObjectId, required: true },
   alertId: { type: String, required: true },
   fingerprint: { type: String, required: true },
+  dismissed: { type: Boolean, default: false },
   readAt: { type: Date, required: true },
 });
 

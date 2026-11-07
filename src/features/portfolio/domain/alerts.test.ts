@@ -104,14 +104,22 @@ describe("withReadState", () => {
     const items = withReadState(
       [alert("concentracao", "A,B"), alert("pesos", "x"), alert("sem-cotacao", "C")],
       new Map([
-        ["concentracao", "A,B"],
-        ["sem-cotacao", "D"],
+        ["concentracao", { fingerprint: "A,B", dismissed: false }],
+        ["sem-cotacao", { fingerprint: "D", dismissed: false }],
       ]),
     );
     expect(items.map((item) => [item.id, item.read])).toEqual([
       ["pesos", false],
       ["sem-cotacao", false],
       ["concentracao", true],
+    ]);
+  });
+
+  it("excluído some do sino até a impressão mudar", () => {
+    const reads = new Map([["concentracao", { fingerprint: "A,B", dismissed: true }]]);
+    expect(withReadState([alert("concentracao", "A,B")], reads)).toEqual([]);
+    expect(withReadState([alert("concentracao", "A,B,C")], reads)).toMatchObject([
+      { id: "concentracao", read: false },
     ]);
   });
 });

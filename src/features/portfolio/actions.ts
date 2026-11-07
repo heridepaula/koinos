@@ -63,6 +63,16 @@ export const markAlertsReadAction = authActionClient
     return { ok: true as const };
   });
 
+/** Exclui alertas do sino: somem até mudarem (um ativo novo, um valor ou uma data nova). */
+export const dismissAlertsAction = authActionClient
+  .metadata({ actionName: "dismissAlerts" })
+  .inputSchema(markAlertsReadSchema)
+  .action(async ({ parsedInput, ctx }) => {
+    await markAlertsRead(ctx.tenant.portfolioId, parsedInput.alerts, new Date(), true);
+    refresh();
+    return { ok: true as const };
+  });
+
 /** Salva a % reinvestida de um mês; `null` volta o mês ao padrão (100%). */
 export const setReinvestmentPercentAction = authActionClient
   .metadata({ actionName: "setReinvestmentPercent", traceInput: ["month"] })

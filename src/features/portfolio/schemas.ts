@@ -8,7 +8,7 @@ export const markAlertsReadSchema = z.object({
   alerts: z
     .array(
       z.object({
-        id: z.string().regex(/^[a-z-]{1,60}$/, "Alerta inválido"),
+        id: z.string().regex(/^[a-z0-9-]{1,100}$/, "Alerta inválido"),
         fingerprint: z.string().min(1).max(2000),
       }),
     )

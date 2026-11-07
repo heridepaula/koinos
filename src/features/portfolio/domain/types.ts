@@ -224,9 +224,12 @@ export type AllocationSlice = { key: string; label: string; value: number; share
 
 export type PortfolioAlert = {
   id: string;
-  level: "warning" | "info";
+  /** "dividend": um provento anunciado ou pago (azulejo verde-azulado, com moedas). */
+  level: "warning" | "info" | "dividend";
   title: string;
   detail: string;
+  /** Um valor em R$ da carteira (o provento a receber ou o pago no dia), mostrado sob o modo privado. */
+  amount?: number;
   /**
    * O que faz o alerta ser outro: os ativos envolvidos, sem os números que mudam todo dia (a
    * fatia da concentração). Um alerta lido volta a não lido quando a impressão muda.

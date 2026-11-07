@@ -145,17 +145,23 @@ function strategyAlerts({
   return alerts;
 }
 
+/** O que o dono fez com um alerta: a impressão que ele viu e se o excluiu do sino. */
+export type AlertReadState = { fingerprint: string; dismissed: boolean };
+
 /**
- * Os alertas do sino: lido quando a impressão marcada é a de agora. Os não lidos vêm primeiro,
- * cada grupo na ordem de `buildAlerts`.
+ * Os alertas do sino: lido quando a impressão marcada é a de agora; excluído (fora da lista)
+ * quando a impressão excluída é a de agora. Um alerta que muda volta não lido, mesmo excluído. Os
+ * não lidos vêm primeiro, cada grupo na ordem em que chegou.
  */
 export function withReadState(
   alerts: readonly PortfolioAlert[],
-  reads: ReadonlyMap<string, string>,
+  reads: ReadonlyMap<string, AlertReadState>,
 ): AlertNotification[] {
-  const items = alerts.map((alert) => ({
-    ...alert,
-    read: reads.get(alert.id) === alert.fingerprint,
-  }));
+  const items = alerts.flatMap((alert) => {
+    const state = reads.get(alert.id);
+    const seen = state?.fingerprint === alert.fingerprint;
+    if (seen && state.dismissed) return [];
+    return [{ ...alert, read: seen }];
+  });
   return [...items.filter((item) => !item.read), ...items.filter((item) => item.read)];
 }
