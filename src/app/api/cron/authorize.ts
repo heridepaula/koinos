@@ -1,10 +1,13 @@
-import { timingSafeEqual } from "node:crypto";
 import { env } from "@/shared/env";
+import { matchesCronAuth } from "@/shared/lib/cron-auth";
 
-/** Confere o `Authorization: Bearer <CRON_SECRET>` da Vercel Cron em tempo constante. */
+/**
+ * Confere o `Authorization` do cron: `Bearer <CRON_SECRET>` (Vercel Cron) ou Basic com o usuário
+ * `cron` e `CRON_BASIC_PASSWORD` (cron-job.org).
+ */
 export function isCronAuthorized(header: string | null): boolean {
-  if (!env.CRON_SECRET || !header) return false;
-  const expected = Buffer.from(`Bearer ${env.CRON_SECRET}`);
-  const received = Buffer.from(header);
-  return received.length === expected.length && timingSafeEqual(received, expected);
+  return matchesCronAuth(header, {
+    secret: env.CRON_SECRET,
+    basicPassword: env.CRON_BASIC_PASSWORD,
+  });
 }

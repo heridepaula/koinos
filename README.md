@@ -36,7 +36,8 @@ npm run dev                  # http://localhost:3000
 | `ALLOWED_EMAILS`                            | Só para desenvolvimento local: e-mails que podem entrar, separados por vírgula. Em produção fica sem valor, e quem entra é definido pelos usuários de teste do app OAuth no console do Google. |
 | `BRAPI_TOKEN`                               | Opcional. Sem token, as cotações vêm da listagem em lote da brapi, e o que faltar vem do Yahoo.                                                                                                |
 | `BRAPI_MONTHLY_QUOTA`                       | Cota mensal do seu plano da brapi (padrão 15000). Ao passar de 90%, o app usa só o Yahoo até o mês virar.                                                                                      |
-| `CRON_SECRET`                               | 16+ caracteres. Protege `/api/cron/daily`; obrigatório em produção.                                                                                                                            |
+| `CRON_SECRET`                               | 16+ caracteres. Protege `/api/cron/*` (Bearer, Vercel Cron); obrigatório em produção.                                                                                                          |
+| `CRON_BASIC_PASSWORD`                       | Opcional, 24+ caracteres. Senha do HTTP Basic (usuário `cron`) de `/api/cron/*`, para o cron-job.org. Na Vercel, marque como Sensitive.                                                        |
 | `OTEL_EXPORTER_OTLP_ENDPOINT`               | Opcional. Para onde vão os traces do APM (em produção, a New Relic: `https://otlp.nr-data.net:4318`). Sem ele, nada sai do servidor.                                                           |
 | `OTEL_EXPORTER_OTLP_HEADERS`                | Opcional. Cabeçalho do envio, no formato `api-key=<chave de ingestão>`. É segredo: na Vercel, marque como Sensitive.                                                                           |
 | `OTEL_EXPORTER_OTLP_LOGS_HEADERS`           | Opcional. Uma chave só para os logs, no mesmo formato. Sem ela, os logs usam a de cima.                                                                                                        |
@@ -160,7 +161,7 @@ O app manda traces e logs OpenTelemetry (`@vercel/otel`) para a New Relic: os We
 - Server Actions validam a entrada com Zod e só devolvem mensagens seguras.
 - As sessões ficam cifradas no Redis, e o login tem rate limit de 100 requisições por minuto.
 - Há cabeçalhos de segurança: HSTS, X-Frame-Options, nosniff, Referrer-Policy e Permissions-Policy.
-- `/api/cron/daily` exige o `CRON_SECRET` (comparado em tempo constante) e responde só contagens.
+- `/api/cron/*` exige o `CRON_SECRET` (Bearer) ou a `CRON_BASIC_PASSWORD` (Basic), comparados em tempo constante, e responde só contagens.
 - Os segredos ficam no `.env.local` e nas variáveis da Vercel, nunca no Git.
 
 ## Deploy na Vercel
