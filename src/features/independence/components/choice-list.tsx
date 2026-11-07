@@ -4,7 +4,13 @@ import { CheckIcon } from "lucide-react";
 import { useRef, type KeyboardEvent, type ReactNode } from "react";
 import { cn } from "@/shared/lib/utils";
 
-export type Choice<K extends string> = { key: K; label: string; detail?: ReactNode };
+export type Choice<K extends string> = {
+  key: K;
+  label: string;
+  detail?: ReactNode;
+  /** Valor à direita, como o preço de cada plano. */
+  trailing?: ReactNode;
+};
 
 /**
  * Cartões de escolha única, um embaixo do outro. Para leitor de tela e teclado é um grupo de
@@ -69,6 +75,9 @@ export function ChoiceList<K extends string>({
                 <span className="text-footnote text-muted-foreground">{option.detail}</span>
               ) : null}
             </span>
+            {option.trailing ? (
+              <span className="shrink-0 text-right text-sm tabular-nums">{option.trailing}</span>
+            ) : null}
             <CheckIcon
               aria-hidden="true"
               className={cn("size-4 text-primary", selected ? "opacity-100" : "opacity-0")}

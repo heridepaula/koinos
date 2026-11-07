@@ -12,6 +12,7 @@ export {
   EDUCATION_INFLATION,
   EDUCATION_UNTIL_OPTIONS,
   EXTERNAL_WEALTH_MAX,
+  IMPLIED_MONTHLY_INFLATION,
   NOMINAL_ANNUAL_RETURN,
   PLAN_AMOUNT_MAX,
   REAL_MONTHLY_RATE,
@@ -36,6 +37,7 @@ export {
   independenceSummary,
   monthsToTarget,
   perpetualIncome,
+  planTarget,
   requiredAporte,
   targetMonthKey,
 } from "./domain/plan";

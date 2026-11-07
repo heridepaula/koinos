@@ -44,6 +44,17 @@ export type IndependenceSummary = {
   childrenHealthFund: number;
   temporary: number;
   target: number;
+  /**
+   * O que a meta rende num mês (spec v2 §2.7): a renda real mais o reinvestimento que repõe a
+   * inflação. Soma exata das duas partes abaixo.
+   */
+  monthlyYield: number;
+  /** Meta × inflação mensal implícita: o que volta para a carteira todo mês. */
+  inflationReinvestment: number;
+  /** Meta × taxa real: o que dá para gastar todo mês sem a meta perder valor. */
+  realIncome: number;
+  /** A inflação mensal implícita (`IMPLIED_MONTHLY_INFLATION`). */
+  inflationRate: number;
   koinosWealth: number;
   externalWealth: number;
   patrimony: number;

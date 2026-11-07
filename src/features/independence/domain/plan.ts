@@ -1,6 +1,7 @@
 import { addMonths } from "@/shared/lib/time";
 import {
   EDUCATION_INFLATION,
+  IMPLIED_MONTHLY_INFLATION,
   NOMINAL_ANNUAL_RETURN,
   REAL_MONTHLY_RATE,
   TUITIONS_PER_YEAR,
@@ -117,6 +118,37 @@ export function durationLabel(months: number): string {
   return rest === 0 ? yearsText : `${yearsText} e ${monthsText}`;
 }
 
+/** As partes da meta (§2.3 e §2.4), sem arredondar, e o total no centavo. */
+function targetParts(plan: IndependencePlan, r: number) {
+  const income = perpetualIncome(plan);
+  const incomeCapital = income / r;
+  const titularHealth = healthPerpetuity(plan.healthLevel, plan.targetAge, r);
+  const spouseAgeAtTarget = plan.spouseAge === null ? null : plan.spouseAge + yearsToTarget(plan);
+  const spouseHealth =
+    spouseAgeAtTarget === null ? 0 : healthPerpetuity(plan.healthLevel, spouseAgeAtTarget, r);
+  const education = educationFund(plan, r);
+  const childrenHealth = childrenHealthFund(plan, r);
+  const perpetual = incomeCapital + titularHealth + spouseHealth;
+  const temporary = education + childrenHealth;
+  return {
+    income,
+    incomeCapital,
+    titularHealth,
+    spouseAgeAtTarget,
+    spouseHealth,
+    education,
+    childrenHealth,
+    perpetual,
+    temporary,
+    target: cents(perpetual + temporary),
+  };
+}
+
+/** A meta total do plano, sem patrimônio nem prazo: o questionário a refaz a cada resposta. */
+export function planTarget(plan: IndependencePlan): number {
+  return targetParts(plan, REAL_MONTHLY_RATE).target;
+}
+
 /** A conta inteira da página: meta perpétua, fundo temporário, progresso e prazo. */
 export function independenceSummary(input: {
   plan: IndependencePlan;
@@ -129,17 +161,21 @@ export function independenceSummary(input: {
   const { plan, koinosWealth, monthlyAporte, currentMonth } = input;
   const r = REAL_MONTHLY_RATE;
   const years = yearsToTarget(plan);
-  const income = perpetualIncome(plan);
-  const incomeCapital = income / r;
-  const titularHealth = healthPerpetuity(plan.healthLevel, plan.targetAge, r);
-  const spouseAgeAtTarget = plan.spouseAge === null ? null : plan.spouseAge + years;
-  const spouseHealth =
-    spouseAgeAtTarget === null ? 0 : healthPerpetuity(plan.healthLevel, spouseAgeAtTarget, r);
-  const education = educationFund(plan, r);
-  const childrenHealth = childrenHealthFund(plan, r);
-  const perpetual = incomeCapital + titularHealth + spouseHealth;
-  const temporary = education + childrenHealth;
-  const target = cents(perpetual + temporary);
+  const {
+    income,
+    incomeCapital,
+    titularHealth,
+    spouseAgeAtTarget,
+    spouseHealth,
+    education,
+    childrenHealth,
+    perpetual,
+    temporary,
+    target,
+  } = targetParts(plan, r);
+  // A rentabilidade do mês (§2.7): cada parte arredonda no centavo, e o total é a soma delas.
+  const realIncome = cents(target * r);
+  const inflationReinvestment = cents(target * IMPLIED_MONTHLY_INFLATION);
   const patrimony = koinosWealth + plan.externalWealth;
   const months = monthsToTarget({ pv: patrimony, fv: target, pmt: monthlyAporte, r });
   const untilTarget = 12 * years;
@@ -157,6 +193,10 @@ export function independenceSummary(input: {
     childrenHealthFund: cents(childrenHealth),
     temporary: cents(temporary),
     target,
+    monthlyYield: cents(realIncome + inflationReinvestment),
+    inflationReinvestment,
+    realIncome,
+    inflationRate: IMPLIED_MONTHLY_INFLATION,
     koinosWealth,
     externalWealth: plan.externalWealth,
     patrimony,

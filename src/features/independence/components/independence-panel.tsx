@@ -1,14 +1,13 @@
 "use client";
 
-import { RotateCcwIcon } from "lucide-react";
-import { useState, type ReactNode } from "react";
-import { Button } from "@/shared/ui/button";
+import { useEffect, type ReactNode } from "react";
 import type { IndependencePlan } from "../domain/types";
+import { useIndependenceEditing } from "./independence-editing";
 import { IndependenceWizard } from "./independence-wizard";
 
 /**
- * Com o plano salvo: os cards (vindos do servidor) e o "Refazer questionário", que troca os cards
- * pelo questionário já preenchido.
+ * Com o plano salvo: os cards (vindos do servidor) ou, depois do "Editar meta", o questionário
+ * aberto na revisão, de onde cada resposta leva ao passo dela.
  */
 export function IndependencePanel({
   plan,
@@ -23,28 +22,22 @@ export function IndependencePanel({
   currentMonth: string;
   children: ReactNode;
 }) {
-  const [editing, setEditing] = useState(false);
-  if (editing) {
-    return (
-      <IndependenceWizard
-        initial={plan}
-        koinosWealth={koinosWealth}
-        monthlyAporte={monthlyAporte}
-        currentMonth={currentMonth}
-        onCancel={() => setEditing(false)}
-        onSaved={() => setEditing(false)}
-      />
-    );
-  }
+  const { editing, setEditing, setAvailable } = useIndependenceEditing();
+  // O "Editar meta" do cabeçalho só aparece com o painel na tela.
+  useEffect(() => {
+    setAvailable(true);
+    return () => setAvailable(false);
+  }, [setAvailable]);
+  if (!editing) return children;
   return (
-    <div className="grid gap-4 md:gap-6">
-      {children}
-      <div>
-        <Button variant="outline" onClick={() => setEditing(true)}>
-          <RotateCcwIcon />
-          Refazer questionário
-        </Button>
-      </div>
-    </div>
+    <IndependenceWizard
+      initial={plan}
+      start="revisao"
+      koinosWealth={koinosWealth}
+      monthlyAporte={monthlyAporte}
+      currentMonth={currentMonth}
+      onCancel={() => setEditing(false)}
+      onSaved={() => setEditing(false)}
+    />
   );
 }

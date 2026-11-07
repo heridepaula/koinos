@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { defaultPlan } from "./catalog";
+import { IMPLIED_MONTHLY_INFLATION, NOMINAL_ANNUAL_RETURN, REAL_MONTHLY_RATE } from "./constants";
 import {
   childrenHealthFund,
   durationLabel,
@@ -7,6 +8,7 @@ import {
   independenceSummary,
   monthsToTarget,
   perpetualIncome,
+  planTarget,
   requiredAporte,
   targetMonthKey,
 } from "./plan";
@@ -64,6 +66,44 @@ describe("o exemplo da spec v2", () => {
     expect(summary.predictedAge).toBe(55);
     expect(summary.slackMonths).toBeNull();
     expect(summary.requiredAporte).toBe(46_126.93);
+  });
+
+  it("planTarget é a meta do resumo, sem patrimônio nem prazo", () => {
+    expect(planTarget(example)).toBe(summary.target);
+    expect(planTarget(plan({ dependents: 0, youngestAge: null }))).toBe(
+      summaryOf(plan({ dependents: 0, youngestAge: null }), 0, 0).target,
+    );
+  });
+
+  it("rentabilidade mensal: renda real + reinvestimento da inflação (§2.7)", () => {
+    expect(summary.realIncome).toBe(17_566.39);
+    expect(summary.inflationReinvestment).toBe(15_709.73);
+    expect(summary.monthlyYield).toBe(33_276.12);
+    expect(summary.monthlyYield).toBe(
+      Math.round((summary.realIncome + summary.inflationReinvestment) * 100) / 100,
+    );
+  });
+});
+
+describe("inflação implícita", () => {
+  it("9,5% a.a. nominal sobre 0,4% a.m. real: ≈ 0,358% a.m. e ≈ 4,38% a.a.", () => {
+    expect(IMPLIED_MONTHLY_INFLATION).toBeCloseTo(0.003577, 6);
+    expect((1 + IMPLIED_MONTHLY_INFLATION) ** 12 - 1).toBeCloseTo(0.0438, 4);
+    // Real e inflação juntos dão o rendimento nominal da carteira.
+    expect(((1 + REAL_MONTHLY_RATE) * (1 + IMPLIED_MONTHLY_INFLATION)) ** 12 - 1).toBeCloseTo(
+      NOMINAL_ANNUAL_RETURN,
+      10,
+    );
+  });
+
+  it("meta zero não rende nada", () => {
+    const summary = summaryOf(defaultPlan(), 0, 0);
+    expect(summary.target).toBeGreaterThan(0); // a saúde Conforto do padrão já pede patrimônio
+    const empty = summaryOf({ ...defaultPlan(), healthLevel: "nenhum" }, 0, 0);
+    expect(empty.target).toBe(0);
+    expect(empty.monthlyYield).toBe(0);
+    expect(empty.inflationReinvestment).toBe(0);
+    expect(empty.realIncome).toBe(0);
   });
 });
 

@@ -1,0 +1,136 @@
+import type { ReactNode } from "react";
+import { Sensitive } from "@/shared/components/sensitive";
+import { formatBRL, formatPercent } from "@/shared/lib/format";
+import { cn } from "@/shared/lib/utils";
+import { NOMINAL_ANNUAL_RETURN } from "../domain/constants";
+import type { IndependenceSummary } from "../domain/types";
+import type { VerdictTone } from "./format";
+
+// Peças pequenas da página e da revisão do questionário: a barra dividida, o selo da previsão e a
+// rentabilidade mensal da meta.
+
+export type SplitPart = { key: string; label: string; value: number; color: string };
+
+/**
+ * Barra dividida em trechos proporcionais, como a composição do patrimônio no Dashboard. É
+ * decorativa: a legenda ao lado diz os valores (a identidade nunca depende só da cor).
+ */
+export function SplitBar({ parts, className }: { parts: SplitPart[]; className?: string }) {
+  const total = parts.reduce((sum, part) => sum + part.value, 0);
+  if (total <= 0) return null;
+  return (
+    <div
+      aria-hidden="true"
+      className={cn("flex h-2.5 gap-0.5 overflow-hidden rounded-full", className)}
+    >
+      {parts
+        .filter((part) => part.value > 0)
+        .map((part) => (
+          <span
+            key={part.key}
+            className="h-full min-w-1"
+            style={{ flex: `${part.value / total} 1 0`, background: part.color }}
+          />
+        ))}
+    </div>
+  );
+}
+
+/** Bolinha da cor de um trecho, para a legenda. */
+export function Swatch({ color }: { color: string }) {
+  return (
+    <span
+      aria-hidden="true"
+      className="size-2 shrink-0 rounded-full"
+      style={{ background: color }}
+    />
+  );
+}
+
+/** Selo da previsão contra a idade alvo, com o tom do veredito (verde, âmbar ou neutro). */
+export function VerdictChip({ tone, children }: { tone: VerdictTone; children: ReactNode }) {
+  return (
+    <span
+      className={cn(
+        "inline-flex w-fit items-center gap-1.5 rounded-full px-2.5 py-1 text-footnote font-semibold",
+        tone === "gain" && "bg-gain/6 text-gain dark:bg-gain/8",
+        tone === "warn" && "bg-warn/8 text-warn dark:bg-warn/10",
+        tone === "neutral" && "bg-muted text-muted-foreground",
+      )}
+    >
+      <span aria-hidden="true" className="size-1.5 shrink-0 rounded-full bg-current" />
+      {children}
+    </span>
+  );
+}
+
+/** As duas partes da rentabilidade: azul volta para a carteira (como um aporte), laranja é renda. */
+const YIELD_COLORS = { reinvest: "var(--chart-1)", income: "var(--chart-2)" } as const;
+
+/**
+ * A rentabilidade mensal da meta (spec v2 §2.7): quanto ela rende num mês, dividido entre o
+ * reinvestimento que repõe a inflação e a renda real que dá para gastar.
+ */
+export function YieldSplit({
+  summary,
+  headingLevel: Heading = "h3",
+}: {
+  summary: IndependenceSummary;
+  headingLevel?: "h2" | "h3";
+}) {
+  const rate = summary.realRate + summary.inflationRate;
+  const inflationYear = (1 + summary.inflationRate) ** 12 - 1;
+  const parts = [
+    {
+      key: "reinvest",
+      label: "Reinvestir contra a inflação",
+      value: summary.inflationReinvestment,
+      rate: summary.inflationRate,
+      color: YIELD_COLORS.reinvest,
+    },
+    {
+      key: "income",
+      label: "Renda real para viver",
+      value: summary.realIncome,
+      rate: summary.realRate,
+      color: YIELD_COLORS.income,
+    },
+  ];
+  return (
+    <section className="grid content-start gap-3">
+      <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
+        <Heading className="text-subheadline text-muted-foreground">Rentabilidade mensal</Heading>
+        <p className="text-title-3 font-semibold tabular-nums">
+          <Sensitive>{formatBRL(summary.monthlyYield)}</Sensitive>
+          <span className="ml-1.5 text-footnote font-normal text-muted-foreground">
+            ≈ {formatPercent(rate, 2)} a.m.
+          </span>
+        </p>
+      </div>
+      <SplitBar parts={parts} />
+      <dl className="grid gap-1.5">
+        {parts.map((part) => (
+          <div key={part.key} className="flex items-center justify-between gap-3 text-sm">
+            <dt className="flex min-w-0 items-center gap-2">
+              <Swatch color={part.color} />
+              {part.label}
+            </dt>
+            <dd className="text-right tabular-nums">
+              <span className="font-medium">
+                <Sensitive>{formatBRL(part.value)}</Sensitive>
+              </span>
+              <span className="ml-2 text-footnote text-muted-foreground">
+                {formatPercent(part.rate, 2)}
+              </span>
+            </dd>
+          </div>
+        ))}
+      </dl>
+      <p className="text-footnote text-muted-foreground">
+        Com rendimento de {formatPercent(NOMINAL_ANNUAL_RETURN, 1)} ao ano, a parte da inflação (≈{" "}
+        {formatPercent(inflationYear, 2)} ao ano) volta para a carteira todo mês, e a meta mantém o
+        poder de compra.
+      </p>
+    </section>
+  );
+}

@@ -1,12 +1,14 @@
 import { ChevronRightIcon } from "lucide-react";
 import Link from "next/link";
-import { formatPercent } from "@/shared/lib/format";
+import { Sensitive } from "@/shared/components/sensitive";
+import { formatCompactBRL, formatPercent } from "@/shared/lib/format";
 import type { IndependenceSummary } from "../domain/types";
-import { forecastLine } from "./format";
+import { shortForecast } from "./format";
 import { ProgressBar } from "./progress-bar";
 
 /**
- * A meta no topo do Dashboard: uma linha discreta (rótulo, barra fina, % e prazo), sem card. Os
+ * A meta no topo do Dashboard: uma linha discreta, sem card. No iPhone, o rótulo, a barra fina e a
+ * %; a partir do `sm`, também o montante e a idade prevista: "22,8% de R$ 4,4 mi · aos ~55". Os
  * detalhes ficam em /independencia. A linha inteira é o link; no toque, a área tem 44 px.
  */
 export function IndependenceCard({
@@ -33,7 +35,9 @@ export function IndependenceCard({
           <span className="shrink-0 font-medium text-foreground tabular-nums">
             {formatPercent(summary.progress, 1)}
           </span>
-          <span className="truncate max-sm:hidden">{forecastLine(summary)}</span>
+          <span className="truncate tabular-nums max-sm:hidden">
+            de <Sensitive>{formatCompactBRL(summary.target)}</Sensitive> · {shortForecast(summary)}
+          </span>
         </>
       ) : (
         <span className="font-medium text-foreground">
