@@ -40,7 +40,7 @@ const plan = (patch: Partial<IndependencePlan> = {}): IndependencePlan => ({
 
 /**
  * O DY (ao ano) que faz o patrimônio crescer os 0,4% a.m. reais da v2: com ele valem os números do
- * exemplo da spec (190 meses, R$ 46.126,93). É a inversa de `accumulationRate`.
+ * exemplo da spec (218 meses, R$ 57.211,73). É a inversa de `accumulationRate`.
  */
 const V2_YIELD = (12 * REAL_MONTHLY_RATE) / (1 - REINVESTMENT_SHARE * (1 + REAL_MONTHLY_RATE));
 
@@ -62,14 +62,14 @@ describe("o exemplo da spec v2", () => {
   const summary = summaryOf(example);
 
   it("meta perpétua: renda ÷ r, titular e cônjuge em degraus", () => {
-    expect(summary.perpetualIncome).toBe(13_000);
-    expect(summary.incomeCapital).toBe(3_250_000);
+    expect(summary.perpetualIncome).toBe(16_000);
+    expect(summary.incomeCapital).toBe(4_000_000);
     expect(summary.titularHealthNow).toBe(735);
     expect(summary.healthStepAges).toEqual([49, 54, 59]);
     expect(summary.titularHealth).toBe(332_777.82);
     expect(summary.spouseAgeAtTarget).toBe(43);
     expect(summary.spouseHealth).toBe(316_999);
-    expect(summary.perpetual).toBe(3_899_776.83);
+    expect(summary.perpetual).toBe(4_649_776.83);
   });
 
   it("fundo temporário: escola e saúde dos filhos depois da idade alvo", () => {
@@ -79,13 +79,13 @@ describe("o exemplo da spec v2", () => {
   });
 
   it("meta total, prazo, idade prevista e aporte necessário", () => {
-    expect(summary.target).toBe(4_391_596.94);
-    expect(summary.months).toBe(190);
-    expect(durationLabel(summary.months!)).toBe("15 anos e 10 meses");
-    expect(summary.targetMonth).toBe("2042-09");
-    expect(summary.predictedAge).toBe(55);
+    expect(summary.target).toBe(5_141_596.94);
+    expect(summary.months).toBe(218);
+    expect(durationLabel(summary.months!)).toBe("18 anos e 2 meses");
+    expect(summary.targetMonth).toBe("2045-01");
+    expect(summary.predictedAge).toBe(58);
     expect(summary.slackMonths).toBeNull();
-    expect(summary.requiredAporte).toBe(46_126.93);
+    expect(summary.requiredAporte).toBe(57_211.73);
   });
 
   it("planTarget é a meta do resumo, sem patrimônio nem prazo", () => {
@@ -147,7 +147,7 @@ describe("crescimento na acumulação", () => {
     }
     expect(summary.accumulationRate).toBeCloseTo(growth, 12);
     expect(summary.months).toBe(months);
-    expect(months).toBe(130);
+    expect(months).toBe(147);
   });
 
   it("DY maior, prazo menor; e menor que com os 0,4% reais de antes", () => {
@@ -168,9 +168,9 @@ describe("crescimento na acumulação", () => {
 describe("o que a meta recebe por mês (§2.7)", () => {
   it("meta × rendimento do mês, 24% reinvestidos e o resto para viver", () => {
     const summary = summaryOf(example, 1_000_000, 8_000, 0.12); // 1% a.m.
-    expect(summary.monthlyYield).toBe(43_915.97);
-    expect(summary.reinvestment).toBe(10_539.84);
-    expect(summary.livingIncome).toBe(33_376.13);
+    expect(summary.monthlyYield).toBe(51_415.97);
+    expect(summary.reinvestment).toBe(12_339.84);
+    expect(summary.livingIncome).toBe(39_076.13);
   });
 
   it("as duas partes somam o total, e os 24% arredondam para cima no centavo", () => {
@@ -232,11 +232,11 @@ describe("patrimônio e progresso", () => {
   it("soma o patrimônio externo ao do Koinos", () => {
     const summary = summaryOf(plan({ externalWealth: 500_000 }));
     expect(summary.patrimony).toBe(1_500_000);
-    expect(summary.progress).toBeCloseTo(1_500_000 / 4_391_596.94, 10);
+    expect(summary.progress).toBeCloseTo(1_500_000 / 5_141_596.94, 10);
   });
 
   it("acima da meta: prazo 0, progresso inteiro e folga até a idade alvo", () => {
-    const summary = summaryOf(example, 5_000_000);
+    const summary = summaryOf(example, 6_000_000);
     expect(summary.months).toBe(0);
     expect(summary.progress).toBeGreaterThan(1);
     expect(summary.slackMonths).toBe(60);
@@ -266,9 +266,9 @@ describe("patrimônio e progresso", () => {
 });
 
 describe("perpetualIncome", () => {
-  it("essencial + sazonais ÷ 12 + viagens ÷ 12", () => {
+  it("essencial + 30% + sazonais ÷ 12 + viagens ÷ 12", () => {
     expect(perpetualIncome(defaultPlan())).toBe(0);
-    expect(perpetualIncome(example)).toBe(13_000);
+    expect(perpetualIncome(example)).toBe(16_000);
   });
 });
 
@@ -295,9 +295,9 @@ describe("monthsToTarget", () => {
 });
 
 describe("requiredAporte", () => {
-  it("com os 0,4% reais da spec v2 §2.6: R$ 46.126,93 em 60 meses", () => {
-    expect(requiredAporte({ pv: 1_000_000, fv: 4_391_596.94, r: 0.004, m: 60 })).toBeCloseTo(
-      46_126.93,
+  it("com os 0,4% reais da spec v2 §2.6: R$ 57.211,73 em 60 meses", () => {
+    expect(requiredAporte({ pv: 1_000_000, fv: 5_141_596.94, r: 0.004, m: 60 })).toBeCloseTo(
+      57_211.73,
       1,
     );
   });

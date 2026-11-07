@@ -158,8 +158,8 @@ export function YieldSplit({
         {costs.map((cost) => (
           <div key={cost.key} className="flex items-center justify-between gap-3 text-sm">
             <dt className="flex min-w-0 items-center gap-1.5 text-muted-foreground">
-              <CostHelp label={cost.label}>{COST_HELP[cost.key]}</CostHelp>
               {cost.label}
+              <CostHelp label={cost.label}>{COST_HELP[cost.key]}</CostHelp>
             </dt>
             <dd className="text-right font-medium text-loss tabular-nums">
               <Sensitive>{formatBRL(-cost.value)}</Sensitive>

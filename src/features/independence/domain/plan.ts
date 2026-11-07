@@ -18,9 +18,13 @@ const cents = (value: number) => Math.round(value * 100) / 100;
 /** Anos até a idade alvo. */
 const yearsToTarget = (plan: IndependencePlan) => Math.max(0, plan.targetAge - plan.currentAge);
 
-/** Renda perpétua por mês: essencial + sazonais ÷ 12 + viagens ÷ 12. */
+/** Renda perpétua por mês: essencial + 30% de imprevistos + sazonais ÷ 12 + viagens ÷ 12. */
 export function perpetualIncome(plan: IndependencePlan): number {
-  return plan.essentialMonthly + plan.seasonalYearly / 12 + plan.travelYearly / 12;
+  return (
+    plan.essentialMonthly * (1 + CONTINGENCY_SHARE) +
+    plan.seasonalYearly / 12 +
+    plan.travelYearly / 12
+  );
 }
 
 /**
@@ -222,7 +226,7 @@ export function independenceSummary(input: {
   const received = yieldSplit(target, monthlyRate);
   // Custos mensais na idade alvo: o orçamento e a mensalidade de saúde do titular e do cônjuge.
   const base = {
-    essential: cents(plan.essentialMonthly),
+    essential: cents(plan.essentialMonthly * (1 + CONTINGENCY_SHARE)),
     seasonal: cents(plan.seasonalYearly / 12),
     travel: cents(plan.travelYearly / 12),
     health: cents(
@@ -245,7 +249,7 @@ export function independenceSummary(input: {
   const factor = Math.pow(1 + GENERAL_INFLATION, years);
   const educationFactor = Math.pow(1 + EDUCATION_INFLATION, years);
   const projectedCosts = {
-    essential: cents(costs.essential * factor * (1 + CONTINGENCY_SHARE)),
+    essential: cents(costs.essential * factor),
     seasonal: cents(costs.seasonal * factor),
     travel: cents(costs.travel * factor),
     health: cents(costs.health * factor),

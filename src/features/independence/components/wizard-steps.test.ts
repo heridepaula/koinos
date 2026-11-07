@@ -83,7 +83,7 @@ describe("nextStep e previousStep", () => {
 
 describe("stepImpact", () => {
   it("o custo de vida, os gastos do ano e as viagens: o valor do mês ÷ 0,4%", () => {
-    expect(stepImpact("essencial", family)).toBe(2_500_000);
+    expect(stepImpact("essencial", family)).toBe(3_250_000);
     expect(stepImpact("sazonal", family)).toBe(250_000);
     expect(stepImpact("viagens", family)).toBe(500_000);
   });
