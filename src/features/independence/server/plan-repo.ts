@@ -55,3 +55,9 @@ export async function saveIndependencePlan(
     { upsert: true, runValidators: true },
   );
 }
+
+/** Apaga o plano desta carteira: a página volta ao questionário do zero. */
+export async function deleteIndependencePlan(portfolioId: string): Promise<void> {
+  await connectMongo();
+  await IndependencePlanModel.deleteOne({ portfolioId: toObjectId(portfolioId) });
+}

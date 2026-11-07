@@ -3,7 +3,7 @@
 import { refresh } from "next/cache";
 import { authActionClient } from "@/features/auth/server";
 import { independencePlanSchema } from "./schemas";
-import { saveIndependencePlan } from "./server/plan-repo";
+import { deleteIndependencePlan, saveIndependencePlan } from "./server/plan-repo";
 
 /** Salva o plano do questionário (as respostas e os R$ finais de cada item). */
 export const saveIndependencePlanAction = authActionClient
@@ -11,6 +11,15 @@ export const saveIndependencePlanAction = authActionClient
   .inputSchema(independencePlanSchema)
   .action(async ({ parsedInput, ctx }) => {
     await saveIndependencePlan(ctx.tenant.portfolioId, parsedInput);
+    refresh();
+    return { ok: true as const };
+  });
+
+/** Exclui o plano, para refazer o questionário por completo. Não mexe na carteira. */
+export const deleteIndependencePlanAction = authActionClient
+  .metadata({ actionName: "deleteIndependencePlan" })
+  .action(async ({ ctx }) => {
+    await deleteIndependencePlan(ctx.tenant.portfolioId);
     refresh();
     return { ok: true as const };
   });

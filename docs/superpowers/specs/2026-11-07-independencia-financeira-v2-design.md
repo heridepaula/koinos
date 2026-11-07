@@ -157,6 +157,7 @@ rentabilidade mensal  = renda real + reinvestimento           (≈ 0,76% a.m. da
 - **Teclado:** o Enter avança. Num campo que não é o último do passo, vai para o seguinte; numa opção, confirma o passo. A cada passo, o foco vai para o primeiro campo, ou para a opção marcada.
 - **Revisão:** cada resposta é uma linha que leva ao seu passo, e o botão do passo ("Revisar") volta direto para a revisão. A exceção é a família que ganhou dependentes: ela passa antes pela educação (`nextStep`).
 - **Editar uma meta salva:** o questionário abre na revisão, com "Cancelar". Os textos, a ordem, a navegação e as respostas são puros, em `components/wizard-steps.ts`.
+- **Excluir a meta** (pedido do dono, 2026-11-07, para refazê-la por completo): a revisão de uma meta salva termina num botão vermelho "Excluir meta", com a confirmação em alerta (o foco cai em "Cancelar"). Apaga o plano e a página volta ao questionário do zero, com os padrões; a carteira, as transações e os proventos não mudam. A linha do Dashboard volta a "Definir meta".
 - Sem dependentes, o passo 5 é pulado nos dois sentidos. A contagem "Passo N de M" acompanha.
 - `PLAN_AMOUNT_MAX` continua R$ 1.000.000 para cada valor em R$. O patrimônio externo vai até R$ 100.000.000.
 
@@ -176,6 +177,7 @@ rentabilidade mensal  = renda real + reinvestimento           (≈ 0,76% a.m. da
   - o resto com os padrões.
   A página avisa "A meta ganhou novas perguntas: confira e salve." e a linha do Dashboard diz "Atualizar meta".
 - A action `saveIndependencePlanAction` valida com o novo Zod e grava `version: 2` substituindo o documento inteiro (`replaceOne` com upsert). Assim, os campos da v1 somem.
+- A action `deleteIndependencePlanAction` apaga o documento da carteira (`deleteOne` pelo `portfolioId`) e não recebe entrada. Sem plano e sem documento da v1, a página abre o questionário em branco.
 
 ## 5. Página
 

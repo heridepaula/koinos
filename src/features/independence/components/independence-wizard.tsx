@@ -77,6 +77,7 @@ export function IndependenceWizard({
   monthlyAporte,
   currentMonth,
   notice,
+  reviewFooter,
   onCancel,
   onSaved,
 }: {
@@ -88,6 +89,8 @@ export function IndependenceWizard({
   currentMonth: string;
   /** Aviso no primeiro passo (o plano da v1 que ganhou perguntas novas). */
   notice?: string;
+  /** Embaixo das respostas, só na revisão: o "Excluir meta" de quem edita uma meta salva. */
+  reviewFooter?: ReactNode;
   onCancel?: () => void;
   onSaved?: () => void;
 }) {
@@ -262,6 +265,7 @@ export function IndependenceWizard({
                 onEdit={edit}
               />
             ) : null}
+            {reviewing ? reviewFooter : null}
           </div>
         </CardContent>
         <div className="flex flex-col-reverse gap-2 px-(--card-spacing) pt-1 sm:flex-row sm:items-center">
