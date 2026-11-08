@@ -1,7 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { healthCost, healthPerpetuity, healthSteps } from "./health";
-
-const r = 0.004;
+import { healthCost, healthSteps } from "./health";
 
 describe("healthCost", () => {
   it.each([
@@ -40,26 +38,5 @@ describe("healthSteps", () => {
   it("aos 59 ou depois, e sem plano, não há degraus", () => {
     expect(healthSteps("conforto", 59)).toEqual([]);
     expect(healthSteps("nenhum", 30)).toEqual([]);
-  });
-});
-
-describe("healthPerpetuity", () => {
-  it("sem degraus pela frente é a mensalidade ÷ r", () => {
-    expect(healthPerpetuity("conforto", 60, r)).toBeCloseTo(1_725 / r, 6);
-  });
-
-  it("o titular do exemplo da spec (45 anos, Conforto): R$ 332.777,82", () => {
-    expect(healthPerpetuity("conforto", 45, r)).toBeCloseTo(332_777.82, 2);
-  });
-
-  it("cada degrau custa mais quanto mais perto ele está", () => {
-    expect(healthPerpetuity("conforto", 50, r)).toBeGreaterThan(
-      healthPerpetuity("conforto", 45, r),
-    );
-    expect(healthPerpetuity("conforto", 45, r)).toBeLessThan(1_725 / r);
-  });
-
-  it("sem plano é zero", () => {
-    expect(healthPerpetuity("nenhum", 45, r)).toBe(0);
   });
 });

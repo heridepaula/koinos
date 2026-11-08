@@ -2,6 +2,8 @@
 
 Data: 2026-11-07. Origem: a "Especificação v2.0" que o dono colou no mesmo dia, depois da v1 (`2026-11-07-independencia-financeira-design.md`) já estar em produção, ajustada no brainstorming. Esta spec substitui as regras da v1 (§2 e §3 dela). O que não muda: o aporte médio (§2.4 da v1), a página `/independencia`, a linha discreta no topo do Dashboard e a coleção `independence_plans`.
 
+> **Regra em vigor desde a noite de 2026-11-07: §10.** A meta passou a ser calculada pelo DY da carteira, com os custos do primeiro dia da aposentadoria, e o prazo cresce pelo DY inteiro reinvestido. A §10 substitui §2.3, §2.4 e §2.6, o crescimento da acumulação de §2.5 e o dimensionamento de §2.7; essas seções ficam como registro da v2.
+
 ## 1. O que a v2 pedia e o que mudou
 
 | v2 colada | Decisão | Por quê |
@@ -19,15 +21,17 @@ Data: 2026-11-07. Origem: a "Especificação v2.0" que o dono colou no mesmo dia
 
 ### 2.1 Constantes (`constants.ts`)
 
+As constantes em vigor (§10):
+
 | Constante | Valor | Uso |
 | --- | --- | --- |
-| `REAL_MONTHLY_RATE` | 0,004 (≈ 4,91% a.a.) | Perpetuidade, saúde e prazo |
-| `EDUCATION_INFLATION` | 8% a.a. | Correção da mensalidade |
-| `NOMINAL_ANNUAL_RETURN` | 9,5% a.a. | Desconto da escola e rendimento de referência quando a carteira não tem DY (§2.5) |
-| `TUITIONS_PER_YEAR` | 13 | 12 meses + matrícula e material |
-| `REINVESTMENT_SHARE` | 0,24 | A regra dos 24% (§2.7): a parte do que a meta recebe que volta para a carteira, e a inflação que o crescimento da acumulação desconta (§2.5) |
+| `EDUCATION_INFLATION` | 8% a.a. | Leva a escola de hoje até a idade alvo |
+| `NOMINAL_ANNUAL_RETURN` | 9,5% a.a. | Rendimento de referência quando a carteira não tem DY (§2.5) e base da inflação geral |
+| `GENERAL_INFLATION` | 1,095 ÷ 1,004¹² − 1 ≈ 4,378% a.a. | Leva os outros custos de hoje até a idade alvo: a inflação que a v2 supunha (9,5% nominal sobre 0,4% a.m. real) |
+| `CONTINGENCY_SHARE` | 0,30 | Folga para imprevistos sobre o gasto essencial |
+| `REINVESTMENT_SHARE` | 0,24 | A regra dos 24% (§2.7): a parte do que a meta recebe que volta para a carteira |
 
-A taxa real de 0,4% a.m. dimensiona a meta (§2.3 e §2.4). O prazo, desde a revisão de 2026-11-07, usa o DY da carteira (§2.5). Não há tela para mudar as constantes.
+Na v2, `REAL_MONTHLY_RATE` (0,004) dimensionava a meta e `TUITIONS_PER_YEAR` (13) contava as mensalidades do fundo de escola; as duas saíram com a §10. Não há tela para mudar as constantes.
 
 ### 2.2 Saúde por faixa etária (`health.ts`)
 
@@ -49,7 +53,8 @@ Mensalidade por pessoa, plano individual (PF), São Paulo, 2026: o ponto médio 
 "Sem plano (SUS)" vale 0 em todas as faixas.
 
 - `healthCost(level, age)`: a mensalidade da faixa da idade.
-- **`healthPerpetuity(level, age, r)`**: o capital, numa certa idade, que paga a tabela para sempre:
+- `healthSteps(level, age)`: os aumentos de faixa depois da idade. Desde a §10 eles só aparecem na conta da página ("sobe aos 49, 54 e 59"); a meta não os paga.
+- **`healthPerpetuity(level, age, r)`** (v2, saiu com a §10): o capital, numa certa idade, que paga a tabela para sempre:
 
   ```text
   c(idade)/r + Σ (c(início da faixa) − c(faixa anterior)) / r × (1 + r)^(−12 × (início − idade))
@@ -58,6 +63,8 @@ Mensalidade por pessoa, plano individual (PF), São Paulo, 2026: o ponto médio 
   A soma passa pelas faixas que começam depois da idade. É o valor da faixa atual mais cada degrau como uma perpetuidade adiada.
 
 ### 2.3 Meta perpétua
+
+> Substituída pela §10.
 
 ```text
 renda perpétua    = essencial + sazonais ÷ 12 + viagens ÷ 12
@@ -69,6 +76,8 @@ meta perpétua     = renda perpétua ÷ r
 A idade do cônjuge na idade alvo é a idade dele hoje + (idade alvo − idade atual).
 
 ### 2.4 Fundo temporário
+
+> Substituído pela §10: a escola e a saúde dos dependentes entram como custos do mês.
 
 São considerados os anos `k = 1, 2, …` contados a partir de hoje: no ano k, o mais novo tem `idade do mais novo + k − 1` anos. Um ano entra no fundo quando `k > T`, sendo `T = idade alvo − idade atual`, e enquanto o mais novo tiver menos que a idade de custeio (18 ou 24).
 
@@ -85,6 +94,8 @@ fundo temporário   = fundo escola + fundo saúde filhos
 - Sem dependentes, ou com a idade alvo depois do fim do custeio, o fundo é 0.
 
 ### 2.5 Total, progresso e prazo
+
+> A meta total vem da §10.2, e o crescimento da acumulação passou a ser o DY inteiro (§10.3). O resto desta seção vale: o patrimônio, o aporte médio, o rendimento, os casos do prazo e a comparação com a idade alvo.
 
 ```text
 meta total = meta perpétua + fundo temporário
@@ -107,6 +118,8 @@ progresso  = patrimônio ÷ meta total
   - T ≤ 0 (a idade alvo é hoje ou já passou): só o prazo, sem folga nem aporte necessário.
 
 ### 2.6 Exemplo (usado nos testes)
+
+> Os números desta seção são os da v2. Os testes usam o mesmo cenário com a conta da §10 (§10.5).
 
 O cenário:
 
@@ -141,8 +154,8 @@ para viver      = recebe − reinvestimento        (76%)
 - É a mesma conta da retenção da fruição (`splitIncome`): as duas partes somam o recebido, e a retenção nunca fica abaixo dos 24%. A regra dos 24% é do dono e é independente do padrão de 25% da fruição.
 - Os 24% são, no raciocínio do dono, o reinvestimento "para corrigir a inflação". Com o DY de 13,2% a.a., eles repõem uma inflação de ≈ 3,2% a.a. (24% × o DY). A v2 usava ≈ 4,4% a.a. (9,5% nominal sobre 0,4% real); o dono preferiu a regra dos 24%.
 - Na acumulação a mesma regra aparece no crescimento (§2.5): o DY volta todo, e os 24% só mantêm o valor.
-- A meta continua dimensionada a 0,4% a.m. real (§2.3 e §2.4). Com o DY atual, o que a meta recebe (e o que sobra para viver) é bem maior que a renda que o plano pede. Redimensionar a meta pelo DY e pelos 24% ficou como decisão do dono, ainda não tomada.
-- `planTarget(plan)` é a meta total sem patrimônio nem prazo (as partes de §2.3 e §2.4). O questionário a usa para mostrar quanto cada resposta soma à meta (§3).
+- Na v2 a meta continuava dimensionada a 0,4% a.m. real, e o que ela recebia era bem maior que a renda que o plano pedia. O dono decidiu redimensioná-la pelo DY e pelos 24% na mesma noite (§10.2).
+- `planTarget(plan, portfolioYield)` é a meta total sem patrimônio nem prazo (§10.2). O questionário a usa para mostrar quanto cada resposta soma à meta (§3).
 
 ## 3. Questionário (7 passos + revisão)
 
@@ -189,6 +202,8 @@ para viver      = recebe − reinvestimento        (76%)
 
 ## 5. Página
 
+> O que a §10 mudou na rentabilidade do `TargetCard`, no `ForecastCard` e no `TargetBreakdown` está em §10.4.
+
 Três cards na largura toda, cada um dividido em colunas por container query (revisão de UX, §8):
 
 - **`TargetCard`:**
@@ -214,6 +229,8 @@ Três cards na largura toda, cada um dividido em colunas por container query (re
 - A fruição continua nos motores, mas não entra mais nesta feature.
 
 ## 7. Testes
+
+> Os testes de `plan.test.ts`, `health.test.ts`, `format.test.ts` e `wizard-steps.test.ts` seguem a §10.6. Esta lista é a da v2.
 
 - **`health.test.ts`:**
   - cada faixa nos limites (18/19, 43/44, 58/59) e 0 sem plano;
@@ -274,3 +291,100 @@ Decisões minhas, para o dono revisar:
 - A meta não foi redimensionada: continua a 0,4% a.m. real.
 
 Efeito com os dados do dono (DY de 13,18% a.a.): o prazo foi de 244 meses (aos 57) para 141 (aos 48), e o aporte necessário para parar aos 45, de R$ 22.265 para R$ 13.725. É um cenário mais otimista: o DY é só a renda em dinheiro, e a carteira vale 12,5% menos do que foi paga.
+
+## 10. A meta pelo DY e o essencial livre (2026-11-07, noite)
+
+Depois da §9, o dono pediu os custos embaixo do "para viver" e foi ajustando a conta pela tela. As decisões, na ordem:
+
+| Pedido do dono | O que ficou |
+| --- | --- |
+| "Coloque os custos que teremos, abaixo do Para viver, vermelho com negativo, e no final o quanto líquido sobraria" | Os custos do mês em vermelho, negativos, e a sobra no fim (§10.4) |
+| A escola e a saúde dos dependentes também | Entram quando o mais novo ainda é custeado na idade alvo (§10.1) |
+| Um "?" depois de cada gasto, explicando e exemplificando | `CostHelp`: tooltip no mouse e no foco, e o toque abre e fecha no celular |
+| "Todo valor gasto hoje precisa ser atualizado, como expectativa" do primeiro dia da aposentadoria | Os custos de hoje com a inflação até a idade alvo (§10.1) |
+| O gasto essencial com 30% acima para imprevistos, na tela e na meta | `CONTINGENCY_SHARE` |
+| "Não corrija pela inflação o target" | A meta não é multiplicada pela inflação: ela sai dos custos do primeiro dia (§10.2) |
+| "Gasto essencial é a meta que quero ter, não entra como subtração. Tirando todo o resto, o valor líquido para viver deveria ser o valor do gasto essencial" | Respondendo à minha pergunta, "Sim, recalcular a meta": ela é dimensionada pelo DY para sobrar exatamente o essencial (§10.2) |
+| A previsão com a meta em reais do primeiro dia | Respondendo à minha pergunta, "DY inteiro reinvestido" (§10.3) |
+| "Quanto a mais do bolso precisamos para bater a meta, além do reinvestimento do DY", e com que idade a média dos últimos 12 meses aposentaria | O aporte necessário, o a mais por mês e a idade com o aporte de hoje (§10.3 e §10.4) |
+| "O cálculo deve ser feito com juros compostos" e "a cada mês os dividendos vão aumentando" | O prazo e o aporte necessário são juros compostos mês a mês: os proventos voltam para a carteira e os do mês seguinte saem maiores (§10.3) |
+
+### 10.1 Os custos de um mês no primeiro dia
+
+Em reais de hoje, na idade alvo (`monthlyCostsToday`):
+
+```text
+essencial         = gasto essencial × (1 + 30%)
+sazonais          = gastos do ano ÷ 12
+viagens           = viagens e lazer do ano ÷ 12
+saúde             = healthCost(padrão, idade alvo) + healthCost(padrão, idade do cônjuge na idade alvo)
+escola            = mensalidade                                  (só com o mais novo custeado)
+saúde dependentes = dependentes × healthCost(padrão, idade do mais novo na idade alvo)   (idem)
+```
+
+- O mais novo é custeado quando `idade do mais novo + T < 18 ou 24`, com `T = idade alvo − idade atual`.
+- No primeiro dia da aposentadoria (`firstDayCosts`), em reais daquele dia: cada custo × `(1 + GENERAL_INFLATION)^T`, e a escola × `1,08^T`. Cada parte é arredondada no centavo. Com a idade alvo hoje, os valores são os de hoje.
+
+### 10.2 A meta
+
+```text
+para viver = a soma dos custos do primeiro dia            (o essencial + os outros custos)
+recebe     = o N com N − ⌈24% × N⌉ = para viver, no centavo
+meta       = recebe ÷ y                                    (y = o DY de 12 meses ÷ 12)
+sobra      = para viver − os outros custos = o essencial do primeiro dia, exato
+```
+
+- `targetForLiving(living, y)` é a inversa de `yieldSplit`: a parte de viver de N centavos recebidos sobe 0 ou 1 centavo a cada centavo a mais, então o primeiro N que alcança a necessidade a atinge em cheio, e a meta é N ÷ y no meio do intervalo que o arredondamento aceita.
+- Saíram da meta: o dimensionamento a 0,4% a.m. real, a perpetuidade da saúde com os degraus (os aumentos de faixa depois da idade alvo aparecem na conta, mas a meta não os paga) e o fundo temporário (a escola e a saúde dos dependentes entram como custos do mês do primeiro dia, como se fossem para sempre: conservador, porque acabam quando o mais novo sai do custeio).
+- A meta depende do DY: com DY maior, ela é menor. Se o DY cair, a renda não cobre o mês; a tela diz isso na conta.
+
+### 10.3 Prazo e aporte: juros compostos
+
+- A meta já está em reais do primeiro dia, então o patrimônio cresce pelo rendimento inteiro: `r = y`, sem descontar a inflação de novo. O `accumulationRate` da §2.5 saiu.
+- Todo mês, os proventos (patrimônio × y) voltam para a carteira junto com o aporte do bolso: `P(n+1) = P(n) × (1 + y) + PMT`. Os proventos do mês seguinte saem maiores. O DY ÷ 12 é o rendimento de cada mês (a soma de 12 distribuições mensais), e a composição mês a mês dá ≈ 14,0% ao ano com o DY de 13,18%.
+- `monthsToTarget` e `requiredAporte` rodam com esse `r`, com os mesmos casos da §2.5. `extraAporte` = o aporte necessário − o de hoje (piso 0), só quando o de hoje não chega na idade alvo. `monthlyDividendsToday` = patrimônio × y, os proventos de um mês hoje.
+
+### 10.4 Tela
+
+- **Rentabilidade mensal** (`YieldSplit`, no `TargetCard`): o que a meta recebe por mês, os 24% reinvestidos e os 76% "para viver"; embaixo, os outros custos do primeiro dia em vermelho, negativos, cada um com o "?" depois do nome; no fim, "Sobra líquida para viver" (o gasto essencial + 30% de imprevistos, com o "?"), em verde. As notas dizem que os valores são do primeiro dia, com as inflações, e o que os 24% repõem.
+- **`ForecastCard`:** "Prazo com o aporte de hoje": a idade, o selo contra a idade alvo, o mês com o aporte do bolso de hoje e o DY reinvestido, e os proventos de hoje crescendo até o que a meta recebe. Ao lado, "Aporte do bolso por mês": hoje (média de 12 meses), o necessário para parar na idade alvo e o a mais por mês, com o medidor; a nota diz quanto falta além do DY reinvestido (ou a folga) e que a conta é de juros compostos.
+- **`TargetBreakdown`:** dois grupos com subtotal, "O mês da aposentadoria" (o livre para viver e cada custo, com o valor de hoje e o do primeiro dia) e "Rendimento do mês" (76% + 24%), e o montante, que é o rendimento ÷ y.
+- **Questionário:** o "Soma à meta" de cada passo usa a meta pelo DY da carteira (`stepImpact(step, plan, portfolioYield)`), e os textos falam da inflação até a idade alvo e dos 30%. A revisão mostra o aporte a mais e a sobra livre.
+
+### 10.5 Exemplo (testes)
+
+O cenário de §2.6 com DY de 12% a.a. (1% a.m.), `T` = 5 anos:
+
+| Custo | Hoje | Primeiro dia |
+| --- | --- | --- |
+| Essencial (10.000 + 30%) | R$ 13.000,00 | R$ 16.106,13 |
+| Sazonais (12.000 ÷ 12) | R$ 1.000,00 | R$ 1.238,93 |
+| Viagens (24.000 ÷ 12) | R$ 2.000,00 | R$ 2.477,87 |
+| Saúde (735 aos 45 + 550 do cônjuge aos 43) | R$ 1.285,00 | R$ 1.592,03 |
+| Escola (o mais novo terá 11) | R$ 2.500,00 | R$ 3.673,32 |
+| Saúde dos 2 dependentes (2 × 290) | R$ 580,00 | R$ 718,58 |
+
+- Para viver: R$ 25.806,86 (os outros custos somam R$ 9.700,73). A meta recebe R$ 33.956,40 = 8.149,54 + 25.806,86, e a meta é **R$ 3.395.640,00**. Sobra exatamente R$ 16.106,13, o essencial.
+- Com patrimônio de R$ 1.000.000 e R$ 8.000 por mês: 86 meses (7 anos e 2 meses, 01/2034), aos ~47. Para parar aos 45, R$ 19.333,29 por mês, R$ 11.333,29 a mais.
+
+### 10.6 Com os dados do dono (2026-11-07)
+
+DY de 13,18% a.a. (1,10% a.m.), patrimônio de R$ 791.654, aporte do bolso de R$ 4.553,90 (média de 12 meses), 38 anos e idade alvo 45:
+
+| | Antes (§9 e os 30%) | Agora |
+| --- | --- | --- |
+| Meta | R$ 4.566.869,40 | R$ 2.877.225,28 |
+| Progresso | 17,3% | 27,5% |
+| Rentabilidade mensal | R$ 50.176,00 | R$ 31.611,95 |
+| Sobra para viver | R$ 14.108,68 (com o essencial subtraído) | R$ 19.302,03, o essencial |
+| Prazo | 162 meses, aos ~51 | 92 meses (07/2034), aos ~45, 8 meses depois dos 45 |
+| Aporte para parar aos 45 | R$ 24.627,40 | R$ 6.538,03, R$ 1.984,13 a mais por mês |
+
+Os proventos de um mês vão de ≈ R$ 8.697,86 hoje a R$ 31.611,95 na meta.
+
+### 10.7 Testes
+
+- **`plan.test.ts`:** o exemplo de §10.5 parte a parte (custos de hoje e do primeiro dia, a meta, o que ela recebe, a sobra igual ao essencial, o prazo, a idade, o aporte necessário e o a mais); a sobra exata em 500 planos e DYs sorteados; `targetForLiving` contra `yieldSplit`; a escola e a saúde dos dependentes só com o mais novo custeado (18 contra 24 na borda); a saúde de cada um na faixa da idade alvo; sem inflação com a idade alvo hoje; DY maior com meta menor e o rendimento de referência; a meta sem depender do patrimônio; o prazo contra a simulação mês a mês, com os proventos crescendo todo mês; o aporte necessário chegando à meta; a folga sem aporte a mais; e os casos de `monthsToTarget`, `requiredAporte`, `yieldSplit` e `durationLabel` da v2.
+- **`health.test.ts`:** as faixas e os degraus (a perpetuidade saiu).
+- **`components/format.test.ts`:** o selo e o título do prazo com o exemplo de §10.5.
+- **`components/wizard-steps.test.ts`:** `stepImpact` com o DY (cada custo do primeiro dia ÷ 76% ÷ 1%, a escola, a saúde, zero sem plano, DY maior com impacto menor).

@@ -1,10 +1,9 @@
 import { describe, expect, it } from "vitest";
 import { independenceSummary } from "../domain/plan";
 import type { IndependencePlan } from "../domain/types";
-import { REAL_MONTHLY_RATE, REINVESTMENT_SHARE } from "../domain/constants";
 import { forecastTitle, forecastVerdict, monthSlash, yieldLabel } from "./format";
 
-/** O exemplo da spec v2 §2.6: aos ~58, alvo 45. */
+/** O exemplo da spec v2 §2.6, com a conta de §10: aos ~47, alvo 45. */
 const example: IndependencePlan = {
   currentAge: 40,
   targetAge: 45,
@@ -20,14 +19,14 @@ const example: IndependencePlan = {
   healthLevel: "conforto",
 };
 
-/** O DY (ao ano) que dá os 0,4% a.m. reais da v2: com ele valem os 218 meses do exemplo. */
-const V2_YIELD = (12 * REAL_MONTHLY_RATE) / (1 - REINVESTMENT_SHARE * (1 + REAL_MONTHLY_RATE));
+/** O DY do exemplo: 12% ao ano, 1% ao mês (86 meses com R$ 1 milhão e R$ 8.000 por mês). */
+const DY = 0.12;
 
 const summaryOf = (
   plan: IndependencePlan,
   koinosWealth: number,
   monthlyAporte: number,
-  portfolioYield: number | null = V2_YIELD,
+  portfolioYield: number | null = DY,
 ) =>
   independenceSummary({
     plan,
@@ -39,20 +38,20 @@ const summaryOf = (
 
 describe("forecastVerdict", () => {
   it("depois da idade alvo: âmbar, com a diferença em anos e meses", () => {
-    const summary = summaryOf(example, 1_000_000, 8_000); // 218 meses; a idade alvo está a 60
+    const summary = summaryOf(example, 1_000_000, 8_000); // 86 meses; a idade alvo está a 60
     expect(forecastVerdict(example, summary)).toEqual({
       tone: "warn",
-      text: "13 anos e 2 meses depois dos 45",
+      text: "2 anos e 2 meses depois dos 45",
     });
   });
 
   it("antes da idade alvo: verde, com a folga do domínio", () => {
     const plan = { ...example, targetAge: 60 };
-    const summary = summaryOf(plan, 1_000_000, 8_000); // 208 meses de 240
-    expect(summary.slackMonths).toBe(32);
+    const summary = summaryOf(plan, 1_000_000, 8_000); // 132 meses de 240
+    expect(summary.slackMonths).toBe(108);
     expect(forecastVerdict(plan, summary)).toEqual({
       tone: "gain",
-      text: "2 anos e 8 meses antes dos 60",
+      text: "9 anos antes dos 60",
     });
   });
 
@@ -69,17 +68,17 @@ describe("forecastVerdict", () => {
 
   it("idade alvo hoje: todo o prazo conta como atraso", () => {
     const plan = { ...example, targetAge: 40 };
-    const summary = summaryOf(plan, 1_000_000, 8_000); // 217 meses
+    const summary = summaryOf(plan, 1_000_000, 8_000); // 66 meses
     expect(forecastVerdict(plan, summary)).toEqual({
       tone: "warn",
-      text: "18 anos e 1 mês depois dos 40",
+      text: "5 anos e 6 meses depois dos 40",
     });
   });
 });
 
 describe("forecastTitle", () => {
   it("a idade prevista, a meta alcançada ou sem previsão", () => {
-    expect(forecastTitle(summaryOf(example, 1_000_000, 8_000))).toBe("Aos ~58 anos");
+    expect(forecastTitle(summaryOf(example, 1_000_000, 8_000))).toBe("Aos ~47 anos");
     expect(forecastTitle(summaryOf(example, 9_000_000, 0))).toBe("Meta alcançada");
     expect(forecastTitle(summaryOf(example, 0, 0))).toBe("Sem previsão");
   });

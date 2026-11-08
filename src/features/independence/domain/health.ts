@@ -37,17 +37,3 @@ export function healthSteps(level: HealthLevel, age: number): { age: number; cos
     cost: costOf(bracket, level),
   }));
 }
-
-/**
- * O capital, nesta idade, que paga a tabela para sempre: a faixa atual ÷ r, mais cada aumento de
- * faixa como uma perpetuidade adiada até a idade em que começa.
- */
-export function healthPerpetuity(level: HealthLevel, age: number, r: number): number {
-  let previous = healthCost(level, age);
-  let value = previous / r;
-  for (const step of healthSteps(level, age)) {
-    value += ((step.cost - previous) / r) * Math.pow(1 + r, -12 * (step.age - age));
-    previous = step.cost;
-  }
-  return value;
-}

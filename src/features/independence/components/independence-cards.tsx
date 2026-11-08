@@ -7,10 +7,15 @@ import { cn } from "@/shared/lib/utils";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/shared/ui/card";
 import { APORTE_MONTHS } from "../domain/aporte";
 import { HEALTH_LEVEL_LABELS } from "../domain/catalog";
-import { REINVESTMENT_SHARE } from "../domain/constants";
+import {
+  CONTINGENCY_SHARE,
+  EDUCATION_INFLATION,
+  GENERAL_INFLATION,
+  REINVESTMENT_SHARE,
+} from "../domain/constants";
 import { durationLabel } from "../domain/plan";
 import type { IndependencePlan, IndependenceSummary } from "../domain/types";
-import { SplitBar, Swatch, VerdictChip, YieldSplit } from "./figures";
+import { VerdictChip, YieldSplit } from "./figures";
 import { forecastTitle, forecastVerdict, monthSlash, yieldLabel } from "./format";
 import { ProgressBar } from "./progress-bar";
 
@@ -18,9 +23,6 @@ const money = (value: number) => <Sensitive>{formatBRL(value)}</Sensitive>;
 
 const listAges = (ages: number[]) =>
   ages.length <= 1 ? ages.join("") : `${ages.slice(0, -1).join(", ")} e ${ages[ages.length - 1]}`;
-
-/** As cores das duas partes da meta (diferentes das da rentabilidade, na mesma página). */
-const PART_COLORS = { perpetual: "var(--chart-7)", temporary: "var(--chart-4)" } as const;
 
 /**
  * O topo da página: o montante que a independência pede, em destaque, o patrimônio contra ele e
@@ -103,8 +105,9 @@ function AporteMeter({ current, required }: { current: number; required: number 
 }
 
 /**
- * O prazo: a idade prevista no ritmo de hoje contra a idade alvo e, ao lado, o aporte de hoje
- * contra o que chegaria nela. Lado a lado na mesa, um embaixo do outro no iPhone.
+ * O prazo: a idade em que a meta chega com o aporte de hoje (a média do bolso) contra a idade alvo
+ * e, ao lado, o aporte de hoje contra o que chegaria nela e quanto falta pôr a mais. Lado a lado
+ * na mesa, um embaixo do outro no iPhone.
  */
 export function ForecastCard({
   plan,
@@ -116,6 +119,7 @@ export function ForecastCard({
   const verdict = forecastVerdict(plan, summary);
   const months = summary.months;
   const pending = months !== null && months > 0;
+  const yearlyGrowth = Math.pow(1 + summary.monthlyYieldRate, 12) - 1;
   return (
     <Card className="card-lift">
       <CardContent className="@container/forecast">
@@ -125,7 +129,7 @@ export function ForecastCard({
               <span className="tile size-6 rounded-sm [--tile:var(--tile-orange)]">
                 <CalendarClockIcon className="size-3.5" aria-hidden="true" />
               </span>
-              Prazo no ritmo de hoje
+              Prazo com o aporte de hoje
             </h2>
             <p className="text-title-1 tabular-nums">{forecastTitle(summary)}</p>
             {pending ? (
@@ -139,18 +143,35 @@ export function ForecastCard({
             )}
             {pending && summary.targetMonth ? (
               <p className="text-footnote text-muted-foreground tabular-nums">
-                Em {monthSlash(summary.targetMonth)}, daqui a {durationLabel(months)}.
+                Em {monthSlash(summary.targetMonth)}, daqui a {durationLabel(months)}, com{" "}
+                {money(summary.monthlyAporte)} por mês do bolso e o DY reinvestido.
+              </p>
+            ) : null}
+            {pending ? (
+              <p className="text-footnote text-muted-foreground tabular-nums">
+                Os proventos crescem todo mês, com o reinvestimento e o aporte: de ≈&nbsp;
+                {money(summary.monthlyDividendsToday)} hoje a {money(summary.monthlyYield)} por mês
+                na meta.
               </p>
             ) : null}
           </section>
           <section className="grid content-start gap-3 border-t border-border/70 pt-5 @min-[640px]/forecast:border-t-0 @min-[640px]/forecast:border-l @min-[640px]/forecast:pt-0 @min-[640px]/forecast:pl-8">
-            <h3 className="text-subheadline text-muted-foreground">Aporte por mês</h3>
+            <h3 className="text-subheadline text-muted-foreground">Aporte do bolso por mês</h3>
             <StatList className="border-t-0 pt-0">
-              <StatRow label="Hoje" value={money(summary.monthlyAporte)} />
+              <StatRow
+                label={`Hoje (média de ${APORTE_MONTHS} meses)`}
+                value={money(summary.monthlyAporte)}
+              />
               {summary.requiredAporte !== null ? (
                 <StatRow
                   label={`Para parar aos ${plan.targetAge}`}
                   value={money(summary.requiredAporte)}
+                />
+              ) : null}
+              {summary.extraAporte !== null ? (
+                <StatRow
+                  label="A mais por mês"
+                  value={<span className="font-semibold">+{money(summary.extraAporte)}</span>}
                 />
               ) : null}
             </StatList>
@@ -158,10 +179,23 @@ export function ForecastCard({
               <AporteMeter current={summary.monthlyAporte} required={summary.requiredAporte} />
             ) : null}
             <MetricNote>
-              O aporte de hoje é a média do dinheiro do bolso nos {APORTE_MONTHS} meses fechados,
-              menos as vendas. Até a meta, todo o rendimento volta para a carteira junto com ele (
-              {yieldLabel(summary)}): {formatPercent(REINVESTMENT_SHARE, 0)} dele repõem a inflação,
-              e o patrimônio cresce {formatPercent(summary.accumulationRate, 2)} ao mês acima dela.
+              {summary.extraAporte !== null ? (
+                <>
+                  Para parar aos {plan.targetAge}, o bolso precisa pôr {money(summary.extraAporte)}{" "}
+                  a mais por mês, além do DY reinvestido.{" "}
+                </>
+              ) : summary.slackMonths !== null && summary.slackMonths > 0 ? (
+                <>
+                  O aporte de hoje já basta: a meta chega {durationLabel(summary.slackMonths)} antes
+                  dos {plan.targetAge}.{" "}
+                </>
+              ) : null}
+              A conta é de juros compostos: todo mês, o patrimônio rende{" "}
+              {formatPercent(summary.monthlyYieldRate, 2)} sobre o do mês anterior, com{" "}
+              {yieldLabel(summary)} reinvestido (≈&nbsp;{formatPercent(yearlyGrowth, 1)} ao ano), e
+              recebe o aporte do bolso, a média dos {APORTE_MONTHS} meses fechados menos as vendas.
+              A meta já está em reais do primeiro dia da aposentadoria, então a inflação não é
+              descontada de novo.
             </MetricNote>
           </section>
         </div>
@@ -202,21 +236,16 @@ function BreakdownRow({
 function BreakdownGroup({
   title,
   description,
-  color,
   children,
 }: {
   title: string;
   description: string;
-  color?: string;
   children: ReactNode;
 }) {
   return (
     <section className="grid content-start gap-2">
       <div className="grid gap-0.5">
-        <h3 className="flex items-center gap-2 text-subheadline font-semibold">
-          {color ? <Swatch color={color} /> : null}
-          {title}
-        </h3>
+        <h3 className="text-subheadline font-semibold">{title}</h3>
         <p className="text-footnote text-muted-foreground">{description}</p>
       </div>
       <dl className="grid border-t border-border/70">{children}</dl>
@@ -225,8 +254,9 @@ function BreakdownGroup({
 }
 
 /**
- * A conta da meta, em grupos com subtotal: a renda do mês, a meta perpétua (que rende para
- * sempre) e o fundo temporário (gasto até o mais novo sair do orçamento). Lado a lado na mesa.
+ * A conta da meta em dois grupos com subtotal, lado a lado na mesa (spec v2 §10): o mês do
+ * primeiro dia da aposentadoria (o essencial livre e os outros custos, com a inflação até lá) e o
+ * rendimento que o paga com os 24% reinvestidos. O montante é esse rendimento ÷ o DY do mês.
  */
 export function TargetBreakdown({
   plan,
@@ -235,138 +265,106 @@ export function TargetBreakdown({
   plan: IndependencePlan;
   summary: IndependenceSummary;
 }) {
+  const { costs, years } = summary;
   const level = HEALTH_LEVEL_LABELS[plan.healthLevel].label;
-  const withHealth = plan.healthLevel !== "nenhum";
-  const withFund = plan.dependents > 0;
+  const spouseAge = summary.spouseAgeAtTarget;
   const steps =
     summary.healthStepAges.length > 0 ? `; sobe aos ${listAges(summary.healthStepAges)}` : "";
-  const rate = formatPercent(summary.realRate, 1);
-  const parts = [
-    {
-      key: "perpetual",
-      label: "Meta perpétua",
-      value: summary.perpetual,
-      color: PART_COLORS.perpetual,
-    },
-    {
-      key: "temporary",
-      label: "Fundo temporário",
-      value: summary.temporary,
-      color: PART_COLORS.temporary,
-    },
-  ];
+  const youngestAtTarget = plan.youngestAge === null ? null : plan.youngestAge + years;
   return (
     <Card className="card-lift">
       <CardHeader>
         <CardTitle>Como a meta é calculada</CardTitle>
         <CardDescription>
-          Tudo em reais de hoje, com o valor na idade alvo ({plan.targetAge} anos).
+          {years > 0
+            ? `Um mês aos ${plan.targetAge}, daqui a ${years} ${years === 1 ? "ano" : "anos"}: os custos de hoje com a inflação de ${formatPercent(GENERAL_INFLATION, 1)} ao ano até lá.`
+            : "Um mês a partir de hoje, com os custos de hoje."}
         </CardDescription>
       </CardHeader>
       <CardContent className="@container/breakdown grid gap-6">
-        {withFund && summary.temporary > 0 ? (
-          <div className="grid gap-2">
-            <SplitBar parts={parts} />
-            <ul
-              aria-label="Divisão da meta"
-              className="flex flex-wrap gap-x-4 gap-y-1 text-footnote"
-            >
-              {parts.map((part) => (
-                <li key={part.key} className="flex items-center gap-1.5">
-                  <Swatch color={part.color} />
-                  <span className="text-muted-foreground">{part.label}</span>
-                  <span className="font-medium tabular-nums">
-                    {formatPercent(summary.target > 0 ? part.value / summary.target : 0, 0)}
-                  </span>
-                </li>
-              ))}
-            </ul>
-          </div>
-        ) : null}
-        <div
-          className={cn(
-            "grid gap-6 @min-[720px]/breakdown:gap-8",
-            withFund
-              ? "@min-[720px]/breakdown:grid-cols-2 @min-[1000px]/breakdown:grid-cols-3"
-              : "@min-[720px]/breakdown:grid-cols-2",
-          )}
-        >
-          <BreakdownGroup title="Custo de vida" description="O que a vida pede por mês.">
-            <BreakdownRow label="Gasto fixo" value={money(plan.essentialMonthly)} />
-            <BreakdownRow
-              label="Gastos do ano"
-              detail={<>{money(plan.seasonalYearly)} por ano ÷ 12</>}
-              value={money(plan.seasonalYearly / 12)}
-            />
-            <BreakdownRow
-              label="Viagens e lazer"
-              detail={<>{money(plan.travelYearly)} por ano ÷ 12</>}
-              value={money(plan.travelYearly / 12)}
-            />
-            <BreakdownRow total label="Por mês" value={money(summary.perpetualIncome)} />
-          </BreakdownGroup>
+        <div className="grid gap-6 @min-[720px]/breakdown:grid-cols-2 @min-[720px]/breakdown:gap-8">
           <BreakdownGroup
-            title="Meta perpétua"
-            description={`Rende ${rate} ao mês acima da inflação, para sempre.`}
-            color={withFund ? PART_COLORS.perpetual : undefined}
+            title="O mês da aposentadoria"
+            description="O que os 76% do rendimento pagam: o essencial livre e os outros custos."
           >
             <BreakdownRow
-              label="Custo de vida"
+              label="Livre para viver"
               detail={
                 <>
-                  {money(summary.perpetualIncome)} ÷ {rate}
+                  Essencial de {money(plan.essentialMonthly)} +{" "}
+                  {formatPercent(CONTINGENCY_SHARE, 0)} de imprevistos
                 </>
               }
-              value={money(summary.incomeCapital)}
+              value={money(costs.essential)}
             />
-            {withHealth ? (
+            {costs.seasonal > 0 ? (
               <BreakdownRow
-                label="Saúde do titular"
+                label="Gastos do ano"
+                detail={<>{money(plan.seasonalYearly)} por ano ÷ 12</>}
+                value={money(costs.seasonal)}
+              />
+            ) : null}
+            {costs.travel > 0 ? (
+              <BreakdownRow
+                label="Viagens e lazer"
+                detail={<>{money(plan.travelYearly)} por ano ÷ 12</>}
+                value={money(costs.travel)}
+              />
+            ) : null}
+            {costs.health > 0 ? (
+              <BreakdownRow
+                label="Plano de saúde"
                 detail={
                   <>
-                    {level}: {money(summary.titularHealthNow)}/mês aos {plan.targetAge}
-                    {steps}
+                    {level}: titular aos {plan.targetAge}
+                    {spouseAge !== null ? ` e cônjuge aos ${spouseAge}` : ""},{" "}
+                    {money(summary.costsToday.health)} hoje{steps}
                   </>
                 }
-                value={money(summary.titularHealth)}
+                value={money(costs.health)}
               />
             ) : null}
-            {withHealth && summary.spouseAgeAtTarget !== null ? (
-              <BreakdownRow
-                label="Saúde do cônjuge"
-                detail={`${summary.spouseAgeAtTarget} anos na idade alvo`}
-                value={money(summary.spouseHealth)}
-              />
-            ) : null}
-            <BreakdownRow total label="Meta perpétua" value={money(summary.perpetual)} />
-          </BreakdownGroup>
-          {withFund ? (
-            <BreakdownGroup
-              title="Fundo temporário"
-              description={`Gasto até o mais novo fazer ${plan.educationUntil} anos.`}
-              color={PART_COLORS.temporary}
-            >
+            {costs.education > 0 ? (
               <BreakdownRow
                 label="Escola"
                 detail={
-                  summary.educationFund > 0
-                    ? `Depois dos ${plan.targetAge}, +8% ao ano, 13 por ano`
-                    : `O mais novo faz ${plan.educationUntil} antes dos ${plan.targetAge}`
+                  <>
+                    {money(plan.educationMonthly)} por mês hoje, +
+                    {formatPercent(EDUCATION_INFLATION, 0)} ao ano; o mais novo terá{" "}
+                    {youngestAtTarget}
+                  </>
                 }
-                value={money(summary.educationFund)}
+                value={money(costs.education)}
               />
+            ) : null}
+            {costs.childrenHealth > 0 ? (
               <BreakdownRow
                 label={
                   plan.dependents === 1
                     ? "Saúde do dependente"
                     : `Saúde dos ${plan.dependents} dependentes`
                 }
-                detail={withHealth ? `${level}, pela faixa do mais novo` : "Sem plano particular"}
-                value={money(summary.childrenHealthFund)}
+                detail={`${level}, pela faixa do mais novo`}
+                value={money(costs.childrenHealth)}
               />
-              <BreakdownRow total label="Fundo temporário" value={money(summary.temporary)} />
-            </BreakdownGroup>
-          ) : null}
+            ) : null}
+            <BreakdownRow total label="Por mês" value={money(summary.livingIncome)} />
+          </BreakdownGroup>
+          <BreakdownGroup
+            title="Rendimento do mês"
+            description={`Com ${yieldLabel(summary)}: ${formatPercent(summary.monthlyYieldRate, 2)} ao mês.`}
+          >
+            <BreakdownRow
+              label={`Para o mês (${formatPercent(1 - REINVESTMENT_SHARE, 0)})`}
+              value={money(summary.livingIncome)}
+            />
+            <BreakdownRow
+              label={`Reinvestir (${formatPercent(REINVESTMENT_SHARE, 0)})`}
+              detail="Volta para a carteira, para repor a inflação"
+              value={money(summary.reinvestment)}
+            />
+            <BreakdownRow total label="Rendimento" value={money(summary.monthlyYield)} />
+          </BreakdownGroup>
         </div>
         <dl className="border-t border-border/70 pt-1">
           <div className="flex items-baseline justify-between gap-4 py-2">
@@ -375,8 +373,10 @@ export function TargetBreakdown({
           </div>
         </dl>
         <p className="-mt-3 text-footnote text-muted-foreground">
-          A escola corrige 8% ao ano e é trazida a hoje por 9,5% ao ano; a saúde segue a tabela de
-          2026 por faixa etária (plano individual, São Paulo).
+          O rendimento do mês ÷ {formatPercent(summary.monthlyYieldRate, 2)}: com um DY menor, a
+          meta sobe. A saúde segue a tabela de 2026 por faixa etária (plano individual, São Paulo),
+          na faixa da idade alvo
+          {summary.healthStepAges.length > 0 ? "; as faixas seguintes não entram na meta" : ""}.
         </p>
       </CardContent>
     </Card>

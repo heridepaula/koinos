@@ -86,13 +86,19 @@ const WITHOUT: Partial<Record<StepKey, Partial<IndependencePlan>>> = {
 };
 
 /**
- * Quanto a resposta do passo soma à meta: a meta com ela menos a meta sem ela. null nos passos
- * sem um valor só (o perfil muda todas as contas; a família depende da saúde e da escola).
+ * Quanto a resposta do passo soma à meta, pelo rendimento da carteira (`portfolioYield`, o DY de
+ * 12 meses; nulo usa o de referência): a meta com ela menos a meta sem ela. null nos passos sem um
+ * valor só (o perfil muda todas as contas; a família depende da saúde e da escola).
  */
-export function stepImpact(step: StepKey, plan: IndependencePlan): number | null {
+export function stepImpact(
+  step: StepKey,
+  plan: IndependencePlan,
+  portfolioYield?: number | null,
+): number | null {
   const without = WITHOUT[step];
   if (!without) return null;
-  return Math.round((planTarget(plan) - planTarget({ ...plan, ...without })) * 100) / 100;
+  const target = (value: IndependencePlan) => planTarget(value, portfolioYield);
+  return Math.round((target(plan) - target({ ...plan, ...without })) * 100) / 100;
 }
 
 /** Uma resposta da revisão: tocar nela leva ao passo dela. */

@@ -25,11 +25,12 @@ import { SegmentedControl } from "@/shared/ui/segmented-control";
 import { saveIndependencePlanAction } from "../actions";
 import { HEALTH_LEVEL_LABELS } from "../domain/catalog";
 import {
+  CONTINGENCY_SHARE,
   CURRENT_AGE_RANGE,
   DEPENDENTS_MAX,
+  EDUCATION_INFLATION,
   EXTERNAL_WEALTH_MAX,
   PLAN_AMOUNT_MAX,
-  REAL_MONTHLY_RATE,
   REINVESTMENT_SHARE,
   SPOUSE_AGE_RANGE,
   TARGET_AGE_MAX,
@@ -57,7 +58,6 @@ import {
 const clamp = (value: number, min: number, max: number) => Math.min(max, Math.max(min, value));
 const money = (value: number) => <Sensitive>{formatBRL(value)}</Sensitive>;
 const plural = (count: number, one: string, many: string) => `${count} ${count === 1 ? one : many}`;
-const RATE = formatPercent(REAL_MONTHLY_RATE, 1);
 const YES_NO = [
   { value: "nao", label: "Não" },
   { value: "sim", label: "Sim" },
@@ -224,9 +224,11 @@ export function IndependenceWizard({
                   value={plan.essentialMonthly}
                   onChange={(essentialMonthly) => set({ essentialMonthly })}
                 />
-                <Impact value={stepImpact("essencial", plan)}>
-                  É o gasto ÷ {RATE}: o patrimônio que rende esse valor todo mês, para sempre, acima
-                  da inflação.
+                <Impact value={stepImpact("essencial", plan, portfolioYield)}>
+                  Com {formatPercent(CONTINGENCY_SHARE, 0)} de imprevistos e a inflação até os{" "}
+                  {plan.targetAge}: o patrimônio que, pelo DY da carteira e com os{" "}
+                  {formatPercent(REINVESTMENT_SHARE, 0)} reinvestidos, deixa esse valor livre todo
+                  mês.
                 </Impact>
               </>
             ) : null}
@@ -237,15 +239,19 @@ export function IndependenceWizard({
                   value={plan.seasonalYearly}
                   onChange={(seasonalYearly) => set({ seasonalYearly })}
                 />
-                <Impact value={stepImpact("sazonal", plan)}>
-                  Entra como {money(plan.seasonalYearly / 12)} por mês (o ano ÷ 12), e a meta guarda
-                  esse valor ÷ {RATE}.
+                <Impact value={stepImpact("sazonal", plan, portfolioYield)}>
+                  Entra como {money(plan.seasonalYearly / 12)} por mês (o ano ÷ 12), com a inflação
+                  até os {plan.targetAge}.
                 </Impact>
               </>
             ) : null}
             {step === "familia" ? <FamilyStep plan={plan} set={set} /> : null}
-            {step === "educacao" ? <EducationStep plan={plan} set={set} /> : null}
-            {step === "saude" ? <HealthStep plan={plan} set={set} /> : null}
+            {step === "educacao" ? (
+              <EducationStep plan={plan} set={set} portfolioYield={portfolioYield} />
+            ) : null}
+            {step === "saude" ? (
+              <HealthStep plan={plan} set={set} portfolioYield={portfolioYield} />
+            ) : null}
             {step === "viagens" ? (
               <>
                 <MoneyField
@@ -253,9 +259,9 @@ export function IndependenceWizard({
                   value={plan.travelYearly}
                   onChange={(travelYearly) => set({ travelYearly })}
                 />
-                <Impact value={stepImpact("viagens", plan)}>
-                  Entra como {money(plan.travelYearly / 12)} por mês (o ano ÷ 12), e a meta guarda
-                  esse valor ÷ {RATE}.
+                <Impact value={stepImpact("viagens", plan, portfolioYield)}>
+                  Entra como {money(plan.travelYearly / 12)} por mês (o ano ÷ 12), com a inflação
+                  até os {plan.targetAge}.
                 </Impact>
               </>
             ) : null}
@@ -417,8 +423,10 @@ function FamilyStep({ plan, set }: { plan: IndependencePlan; set: SetPlan }) {
   );
 }
 
-function EducationStep({ plan, set }: { plan: IndependencePlan; set: SetPlan }) {
-  const impact = stepImpact("educacao", plan);
+type StepProps = { plan: IndependencePlan; set: SetPlan; portfolioYield: number | null };
+
+function EducationStep({ plan, set, portfolioYield }: StepProps) {
+  const impact = stepImpact("educacao", plan, portfolioYield);
   const youngestAtTarget = (plan.youngestAge ?? 0) + Math.max(0, plan.targetAge - plan.currentAge);
   return (
     <>
@@ -445,17 +453,21 @@ function EducationStep({ plan, set }: { plan: IndependencePlan; set: SetPlan }) 
       <Impact value={impact}>
         {youngestAtTarget >= plan.educationUntil
           ? `Aos ${plan.targetAge}, o mais novo já terá ${youngestAtTarget} anos: a escola acaba antes e não entra na meta.`
-          : `Paga a escola dos ${plan.targetAge} até o mais novo fazer ${plan.educationUntil}: 13 mensalidades por ano, corrigidas 8% ao ano.`}
+          : `Entra o valor do mês, corrigido ${formatPercent(EDUCATION_INFLATION, 0)} ao ano até os ${plan.targetAge}: o mais novo terá ${youngestAtTarget} e é custeado até os ${plan.educationUntil}.`}
       </Impact>
     </>
   );
 }
 
-function HealthStep({ plan, set }: { plan: IndependencePlan; set: SetPlan }) {
+function HealthStep({ plan, set, portfolioYield }: StepProps) {
+  // Os dependentes só entram se o mais novo ainda for custeado na idade alvo.
+  const covered =
+    plan.dependents > 0 &&
+    (plan.youngestAge ?? 0) + Math.max(0, plan.targetAge - plan.currentAge) < plan.educationUntil;
   const who = [
     "você",
     ...(plan.spouseAge !== null ? ["o cônjuge"] : []),
-    ...(plan.dependents > 0
+    ...(covered
       ? [plan.dependents === 1 ? "o dependente" : `os ${plan.dependents} dependentes`]
       : []),
   ];
@@ -479,10 +491,10 @@ function HealthStep({ plan, set }: { plan: IndependencePlan; set: SetPlan }) {
         }))}
         onChange={(healthLevel) => set({ healthLevel: healthLevel as HealthLevel })}
       />
-      <Impact value={stepImpact("saude", plan)}>
+      <Impact value={stepImpact("saude", plan, portfolioYield)}>
         {plan.healthLevel === "nenhum"
           ? "Sem plano particular, a saúde fica de fora da meta."
-          : `Por pessoa, na faixa dos ${plan.targetAge} anos e subindo nas seguintes (tabela de 2026, plano individual, São Paulo). Entram ${whoText}.`}
+          : `Por pessoa, na faixa de cada um na idade alvo (tabela de 2026, plano individual, São Paulo), com a inflação até lá. Entram ${whoText}.`}
       </Impact>
     </>
   );
@@ -530,17 +542,19 @@ function WizardReview({
           {reached ? "acima da meta" : <>faltam {money(summary.target - summary.patrimony)}</>}
         </p>
         <VerdictChip tone={verdict.tone}>{verdict.text}</VerdictChip>
-        {summary.requiredAporte !== null ? (
+        {summary.requiredAporte !== null && summary.extraAporte !== null ? (
           <p className="text-footnote text-muted-foreground">
             Para parar aos {plan.targetAge}:{" "}
             <span className="font-semibold text-foreground">{money(summary.requiredAporte)}</span>{" "}
-            por mês (hoje, {money(summary.monthlyAporte)}).
+            por mês do bolso, {money(summary.extraAporte)} a mais que a média de hoje (
+            {money(summary.monthlyAporte)}), além do DY reinvestido.
           </p>
         ) : null}
         <p className="text-footnote text-muted-foreground">
-          A meta recebe {money(summary.monthlyYield)} por mês: {money(summary.livingIncome)} para
-          viver e {money(summary.reinvestment)} ({formatPercent(REINVESTMENT_SHARE, 0)})
-          reinvestidos para repor a inflação.
+          A meta recebe {money(summary.monthlyYield)} por mês: {money(summary.reinvestment)} (
+          {formatPercent(REINVESTMENT_SHARE, 0)}) voltam para a carteira e{" "}
+          {money(summary.livingIncome)} pagam o mês, com {money(summary.netLiving)} livres para
+          viver.
         </p>
       </section>
       <section aria-labelledby={answersId} className="grid gap-1.5">

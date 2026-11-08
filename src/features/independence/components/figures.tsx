@@ -8,7 +8,7 @@ import {
   GENERAL_INFLATION,
   REINVESTMENT_SHARE,
 } from "../domain/constants";
-import type { IndependenceSummary } from "../domain/types";
+import type { IndependenceSummary, MonthlyCosts } from "../domain/types";
 import { CostHelp } from "./cost-help";
 import { yieldLabel, type VerdictTone } from "./format";
 
@@ -70,9 +70,8 @@ export function VerdictChip({ tone, children }: { tone: VerdictTone; children: R
   );
 }
 
-const COST_HELP: Record<string, string> = {
-  essential:
-    "Gasto fixo de todo mês, corrigido pela inflação, com 30% a mais de folga para imprevistos. Ex.: aluguel ou condomínio, luz, água, internet, mercado, transporte e cartões.",
+/** O que cada custo cobre, com exemplos, para o "?" ao lado do nome. */
+const COST_HELP: Record<Exclude<keyof MonthlyCosts, "essential">, string> = {
   seasonal:
     "Despesas que vêm uma ou poucas vezes por ano, divididas por 12 para virar um valor mensal. Ex.: IPVA, IPTU, seguro do carro e da casa, manutenção.",
   travel:
@@ -80,17 +79,30 @@ const COST_HELP: Record<string, string> = {
   health:
     "Mensalidade do plano de saúde do titular e do cônjuge na idade alvo, pela faixa de idade e pelo nível escolhido. Sobe quando muda de faixa.",
   education:
-    "Escola, cursos e van de todos os dependentes, por mês. Ex.: mensalidade escolar, inglês, natação, transporte escolar. Só conta enquanto forem custeados.",
+    "Escola, cursos e van de todos os dependentes, por mês. Ex.: mensalidade escolar, inglês, natação, transporte escolar. Entra quando o mais novo ainda é custeado na idade alvo.",
   childrenHealth:
-    "Plano de saúde dos dependentes: quantidade de dependentes × a mensalidade da faixa do mais novo. Só conta enquanto forem custeados.",
+    "Plano de saúde dos dependentes: quantidade de dependentes × a mensalidade da faixa do mais novo. Entra quando o mais novo ainda é custeado na idade alvo.",
 };
+
+/** Os custos que saem do "para viver" antes da sobra, na ordem da lista. */
+const OTHER_COSTS: { key: keyof typeof COST_HELP; label: string }[] = [
+  { key: "seasonal", label: "Sazonais (÷ 12)" },
+  { key: "travel", label: "Viagens (÷ 12)" },
+  { key: "health", label: "Plano de saúde" },
+  { key: "education", label: "Escola dos dependentes" },
+  { key: "childrenHealth", label: "Saúde dos dependentes" },
+];
+
+const NET_LIVING_HELP =
+  "O gasto fixo de todo mês (aluguel ou condomínio, luz, água, internet, mercado, transporte e cartões), com a inflação até a aposentadoria e 30% a mais de folga para imprevistos. A meta é calculada para sobrar exatamente esse valor, depois dos 24% reinvestidos e dos outros custos.";
 
 /** As duas partes do que a meta recebe: azul volta para a carteira (como um aporte), laranja é renda. */
 const YIELD_COLORS = { reinvest: "var(--chart-1)", income: "var(--chart-2)" } as const;
 
 /**
- * O que a meta recebe por mês no usufruto (spec v2 §2.7), dividido pela regra dos 24%: 24%
- * reinvestidos para repor a inflação e o resto para viver.
+ * O que a meta recebe por mês no primeiro dia da aposentadoria (spec v2 §10), dividido pela regra
+ * dos 24%: 24% reinvestidos para repor a inflação e 76% para o mês, de onde saem os outros custos.
+ * Sobra livre o gasto essencial, porque a meta é calculada para isso.
  */
 export function YieldSplit({
   summary,
@@ -103,38 +115,26 @@ export function YieldSplit({
     {
       key: "reinvest",
       label: `Reinvestir (${formatPercent(REINVESTMENT_SHARE, 0)})`,
-      value: summary.projected.reinvestment,
+      value: summary.reinvestment,
       color: YIELD_COLORS.reinvest,
     },
     {
       key: "living",
       label: `Para viver (${formatPercent(1 - REINVESTMENT_SHARE, 0)})`,
-      value: summary.projected.livingIncome,
+      value: summary.livingIncome,
       color: YIELD_COLORS.income,
     },
   ];
-  const costs = [
-    {
-      key: "essential",
-      label: `Gasto essencial (+${formatPercent(CONTINGENCY_SHARE, 0)} imprevistos)`,
-      value: summary.projected.costs.essential,
-    },
-    { key: "seasonal", label: "Sazonais (÷ 12)", value: summary.projected.costs.seasonal },
-    { key: "travel", label: "Viagens (÷ 12)", value: summary.projected.costs.travel },
-    { key: "health", label: "Plano de saúde", value: summary.projected.costs.health },
-    { key: "education", label: "Escola dos dependentes", value: summary.projected.costs.education },
-    {
-      key: "childrenHealth",
-      label: "Saúde dos dependentes",
-      value: summary.projected.costs.childrenHealth,
-    },
-  ].filter((cost) => cost.value > 0);
+  const costs = OTHER_COSTS.map((cost) => ({ ...cost, value: summary.costs[cost.key] })).filter(
+    (cost) => cost.value > 0,
+  );
+  const years = summary.years;
   return (
     <section className="grid content-start gap-3">
       <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
         <Heading className="text-subheadline text-muted-foreground">Rentabilidade mensal</Heading>
         <p className="text-title-3 font-semibold tabular-nums">
-          <Sensitive>{formatBRL(summary.projected.monthlyYield)}</Sensitive>
+          <Sensitive>{formatBRL(summary.monthlyYield)}</Sensitive>
           <span className="ml-1.5 text-footnote font-normal text-muted-foreground">
             ≈ {formatPercent(summary.monthlyYieldRate, 2)} a.m.
           </span>
@@ -166,27 +166,31 @@ export function YieldSplit({
             </dd>
           </div>
         ))}
-        <div className="flex items-center justify-between gap-3 border-t border-border pt-2 text-sm font-semibold">
-          <dt>Sobra líquida para viver</dt>
-          <dd
-            className={cn(
-              "text-right tabular-nums",
-              summary.projected.netLiving < 0 ? "text-loss" : "text-gain",
-            )}
-          >
-            <Sensitive>{formatBRL(summary.projected.netLiving)}</Sensitive>
+        <div className="flex items-start justify-between gap-3 border-t border-border pt-2 text-sm">
+          <dt className="grid min-w-0 gap-0.5">
+            <span className="flex items-center gap-1.5 font-semibold">
+              Sobra líquida para viver
+              <CostHelp label="Sobra líquida para viver">{NET_LIVING_HELP}</CostHelp>
+            </span>
+            <span className="text-footnote text-muted-foreground">
+              Gasto essencial + {formatPercent(CONTINGENCY_SHARE, 0)} de imprevistos
+            </span>
+          </dt>
+          <dd className="text-right font-semibold text-gain tabular-nums">
+            <Sensitive>{formatBRL(summary.netLiving)}</Sensitive>
           </dd>
         </div>
       </dl>
       <p className="text-footnote text-muted-foreground">
-        {summary.projected.years > 0
-          ? `O que a meta recebe não é corrigido. Os custos são os esperados no primeiro dia da aposentadoria, daqui a ${summary.projected.years} ${summary.projected.years === 1 ? "ano" : "anos"}: os de hoje corrigidos pela inflação (${formatPercent(GENERAL_INFLATION, 1)} a.a.; escola a ${formatPercent(EDUCATION_INFLATION, 0)} a.a.).`
+        {years > 0
+          ? `Valores do primeiro dia da aposentadoria, daqui a ${years} ${years === 1 ? "ano" : "anos"}: os custos de hoje com a inflação até lá (${formatPercent(GENERAL_INFLATION, 1)} a.a.; escola, ${formatPercent(EDUCATION_INFLATION, 0)} a.a.).`
           : "Valores de hoje: a aposentadoria é a partir de agora."}
       </p>
       <p className="text-footnote text-muted-foreground">
         Com {yieldLabel(summary)}, a meta recebe esse valor por mês. Os{" "}
         {formatPercent(REINVESTMENT_SHARE, 0)} reinvestidos repõem a inflação (≈&nbsp;
-        {formatPercent(REINVESTMENT_SHARE * summary.annualYield, 1)} ao ano) e o resto é para viver.
+        {formatPercent(REINVESTMENT_SHARE * summary.annualYield, 1)} ao ano), os outros custos saem
+        do resto, e sobra livre o gasto essencial.
       </p>
     </section>
   );

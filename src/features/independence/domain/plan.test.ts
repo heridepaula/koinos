@@ -1,23 +1,29 @@
 import { describe, expect, it } from "vitest";
 import { defaultPlan } from "./catalog";
-import { NOMINAL_ANNUAL_RETURN, REAL_MONTHLY_RATE, REINVESTMENT_SHARE } from "./constants";
 import {
-  accumulationRate,
-  childrenHealthFund,
+  CONTINGENCY_SHARE,
+  EDUCATION_INFLATION,
+  GENERAL_INFLATION,
+  NOMINAL_ANNUAL_RETURN,
+} from "./constants";
+import { HEALTH_LEVELS } from "./health";
+import {
+  costsTotal,
   durationLabel,
-  educationFund,
+  firstDayCosts,
   independenceSummary,
+  monthlyCostsToday,
   monthlyYieldOf,
   monthsToTarget,
-  perpetualIncome,
   planTarget,
   requiredAporte,
+  targetForLiving,
   targetMonthKey,
   yieldSplit,
 } from "./plan";
 import type { IndependencePlan } from "./types";
 
-/** O exemplo da spec v2 §2.6. */
+/** O exemplo da spec v2 §2.6, com a conta de §10. */
 const example: IndependencePlan = {
   currentAge: 40,
   targetAge: 45,
@@ -38,17 +44,14 @@ const plan = (patch: Partial<IndependencePlan> = {}): IndependencePlan => ({
   ...patch,
 });
 
-/**
- * O DY (ao ano) que faz o patrimônio crescer os 0,4% a.m. reais da v2: com ele valem os números do
- * exemplo da spec (218 meses, R$ 57.211,73). É a inversa de `accumulationRate`.
- */
-const V2_YIELD = (12 * REAL_MONTHLY_RATE) / (1 - REINVESTMENT_SHARE * (1 + REAL_MONTHLY_RATE));
+/** O DY do exemplo: 12% ao ano, 1% ao mês. */
+const DY = 0.12;
 
 const summaryOf = (
   p: IndependencePlan,
   koinosWealth = 1_000_000,
   monthlyAporte = 8_000,
-  portfolioYield: number | null = V2_YIELD,
+  portfolioYield: number | null = DY,
 ) =>
   independenceSummary({
     plan: p,
@@ -58,46 +61,170 @@ const summaryOf = (
     currentMonth: "2026-11",
   });
 
-describe("o exemplo da spec v2", () => {
+/** Sorteio repetível (mulberry32), para os planos aleatórios. */
+function seeded(seed: number): () => number {
+  let state = seed >>> 0;
+  return () => {
+    state = (state + 0x6d2b79f5) >>> 0;
+    let t = state;
+    t = Math.imul(t ^ (t >>> 15), t | 1);
+    t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+    return ((t ^ (t >>> 14)) >>> 0) / 4_294_967_296;
+  };
+}
+
+function randomPlan(random: () => number): IndependencePlan {
+  const int = (min: number, max: number) => min + Math.floor(random() * (max - min + 1));
+  const money = (max: number) => Math.round(random() * max * 100) / 100;
+  const currentAge = int(18, 70);
+  const dependents = random() < 0.5 ? 0 : int(1, 4);
+  return {
+    currentAge,
+    targetAge: int(currentAge, 80),
+    externalWealth: 0,
+    essentialMonthly: money(40_000),
+    seasonalYearly: money(60_000),
+    travelYearly: money(100_000),
+    spouseAge: random() < 0.5 ? null : int(18, 80),
+    dependents,
+    youngestAge: dependents > 0 ? int(0, 25) : null,
+    educationMonthly: money(10_000),
+    educationUntil: random() < 0.5 ? 18 : 24,
+    healthLevel: HEALTH_LEVELS[int(0, HEALTH_LEVELS.length - 1)]!,
+  };
+}
+
+describe("o exemplo (§10)", () => {
   const summary = summaryOf(example);
 
-  it("meta perpétua: renda ÷ r, titular e cônjuge em degraus", () => {
-    expect(summary.perpetualIncome).toBe(16_000);
-    expect(summary.incomeCapital).toBe(4_000_000);
+  it("os custos de um mês aos 45, em reais de hoje", () => {
+    expect(summary.costsToday).toEqual({
+      essential: 13_000, // 10.000 + 30% de imprevistos
+      seasonal: 1_000,
+      travel: 2_000,
+      health: 1_285, // 735 do titular aos 45 + 550 do cônjuge aos 43
+      education: 2_500, // o mais novo terá 11
+      childrenHealth: 580, // 2 × 290, a faixa do mais novo
+    });
     expect(summary.titularHealthNow).toBe(735);
-    expect(summary.healthStepAges).toEqual([49, 54, 59]);
-    expect(summary.titularHealth).toBe(332_777.82);
     expect(summary.spouseAgeAtTarget).toBe(43);
-    expect(summary.spouseHealth).toBe(316_999);
-    expect(summary.perpetual).toBe(4_649_776.83);
+    expect(summary.healthStepAges).toEqual([49, 54, 59]);
   });
 
-  it("fundo temporário: escola e saúde dos filhos depois da idade alvo", () => {
-    expect(summary.educationFund).toBe(421_812.65);
-    expect(summary.childrenHealthFund).toBe(70_007.47);
-    expect(summary.temporary).toBe(491_820.11);
+  it("no primeiro dia: 5 anos de inflação, e a escola pela da educação", () => {
+    expect(GENERAL_INFLATION).toBeCloseTo(0.04378, 5);
+    expect(summary.years).toBe(5);
+    expect(summary.inflationFactor).toBeCloseTo(Math.pow(1 + GENERAL_INFLATION, 5), 12);
+    expect(summary.educationInflationFactor).toBeCloseTo(Math.pow(1 + EDUCATION_INFLATION, 5), 12);
+    expect(summary.costs).toEqual({
+      essential: 16_106.13,
+      seasonal: 1_238.93,
+      travel: 2_477.87,
+      health: 1_592.03,
+      education: 3_673.32,
+      childrenHealth: 718.58,
+    });
+    expect(summary.otherCosts).toBe(9_700.73);
   });
 
-  it("meta total, prazo, idade prevista e aporte necessário", () => {
-    expect(summary.target).toBe(5_141_596.94);
-    expect(summary.months).toBe(218);
-    expect(durationLabel(summary.months!)).toBe("18 anos e 2 meses");
-    expect(summary.targetMonth).toBe("2045-01");
-    expect(summary.predictedAge).toBe(58);
+  it("a meta recebe os custos do primeiro dia e os 24%, e sobra exatamente o essencial", () => {
+    expect(summary.target).toBe(3_395_640);
+    expect(summary.monthlyYield).toBe(33_956.4);
+    expect(summary.reinvestment).toBe(8_149.54);
+    expect(summary.livingIncome).toBe(25_806.86);
+    expect(summary.livingIncome).toBe(costsTotal(summary.costs));
+    expect(summary.netLiving).toBe(16_106.13);
+    expect(summary.netLiving).toBe(summary.costs.essential);
+  });
+
+  it("o prazo com o aporte de hoje, a idade e o aporte a mais para parar aos 45", () => {
+    expect(summary.months).toBe(86);
+    expect(durationLabel(summary.months!)).toBe("7 anos e 2 meses");
+    expect(summary.targetMonth).toBe("2034-01");
+    expect(summary.predictedAge).toBe(47);
     expect(summary.slackMonths).toBeNull();
-    expect(summary.requiredAporte).toBe(57_211.73);
+    expect(summary.requiredAporte).toBe(19_333.29);
+    expect(summary.extraAporte).toBe(11_333.29);
   });
 
   it("planTarget é a meta do resumo, sem patrimônio nem prazo", () => {
-    expect(planTarget(example)).toBe(summary.target);
-    expect(planTarget(plan({ dependents: 0, youngestAge: null }))).toBe(
-      summaryOf(plan({ dependents: 0, youngestAge: null }), 0, 0).target,
-    );
+    expect(planTarget(example, DY)).toBe(summary.target);
+    const solo = plan({ spouseAge: null, dependents: 0, youngestAge: null });
+    expect(planTarget(solo, DY)).toBe(summaryOf(solo, 0, 0).target);
+  });
+});
+
+describe("os custos do mês", () => {
+  it("escola e saúde dos dependentes só com o mais novo custeado na idade alvo", () => {
+    const none = { education: 0, childrenHealth: 0 };
+    // Aos 60, o mais novo terá 26: passou dos 24.
+    expect(monthlyCostsToday(plan({ targetAge: 60 }))).toMatchObject(none);
+    expect(monthlyCostsToday(plan({ dependents: 0, youngestAge: null }))).toMatchObject(none);
+    // Com 13 hoje, terá 18 aos 45: fora do custeio até os 18, dentro do até os 24.
+    expect(monthlyCostsToday(plan({ youngestAge: 13, educationUntil: 18 }))).toMatchObject(none);
+    expect(monthlyCostsToday(plan({ youngestAge: 13 }))).toMatchObject({
+      education: 2_500,
+      childrenHealth: 580,
+    });
   });
 
-  it("o V2_YIELD dá mesmo os 0,4% a.m. reais da v2", () => {
-    expect(accumulationRate(V2_YIELD / 12)).toBeCloseTo(REAL_MONTHLY_RATE, 12);
-    expect(summary.accumulationRate).toBeCloseTo(REAL_MONTHLY_RATE, 12);
+  it("cada um na faixa da sua idade na idade alvo; sem plano, zero", () => {
+    // Titular aos 60 (1.725) e cônjuge aos 58 (1.200).
+    expect(monthlyCostsToday(plan({ targetAge: 60 })).health).toBe(2_925);
+    expect(monthlyCostsToday(plan({ spouseAge: null })).health).toBe(735);
+    expect(monthlyCostsToday(plan({ healthLevel: "nenhum" }))).toMatchObject({
+      health: 0,
+      childrenHealth: 0,
+    });
+  });
+
+  it("o essencial leva os 30% de imprevistos", () => {
+    expect(CONTINGENCY_SHARE).toBe(0.3);
+    expect(monthlyCostsToday(plan({ essentialMonthly: 11_000 })).essential).toBe(14_300);
+  });
+
+  it("na idade alvo hoje, o primeiro dia é hoje: sem inflação", () => {
+    const now = plan({ currentAge: 45, targetAge: 45 });
+    expect(firstDayCosts(now)).toEqual(monthlyCostsToday(now));
+  });
+
+  it("a escola corrige pela inflação da educação, e o resto pela geral", () => {
+    const costs = firstDayCosts(example);
+    expect(costs.education).toBeCloseTo(2_500 * Math.pow(1 + EDUCATION_INFLATION, 5), 2);
+    expect(costs.travel).toBeCloseTo(2_000 * Math.pow(1 + GENERAL_INFLATION, 5), 2);
+  });
+});
+
+describe("a meta pelo rendimento", () => {
+  it("targetForLiving é a inversa de yieldSplit, no centavo", () => {
+    expect(targetForLiving(7_600, 0.01)).toBe(1_000_000);
+    expect(yieldSplit(1_000_000, 0.01).living).toBe(7_600);
+    expect(targetForLiving(0.76, 0.01)).toBe(100);
+    expect(targetForLiving(0, 0.01)).toBe(0);
+    expect(targetForLiving(100, 0)).toBe(0);
+  });
+
+  it("sobra exatamente o essencial em 500 planos e DYs sorteados", () => {
+    const random = seeded(20_261_107);
+    for (let i = 0; i < 500; i++) {
+      const summary = summaryOf(randomPlan(random), 0, 0, 0.04 + random() * 0.16);
+      expect(summary.livingIncome).toBe(costsTotal(summary.costs));
+      expect(summary.netLiving).toBe(summary.costs.essential);
+      expect(summary.reinvestment + summary.livingIncome).toBeCloseTo(summary.monthlyYield, 6);
+    }
+  });
+
+  it("DY maior, meta menor; sem DY, o rendimento de referência de 9,5% a.a.", () => {
+    expect(summaryOf(example, 1_000_000, 8_000, 0.14).target).toBe(2_910_548.57);
+    expect(summaryOf(example, 1_000_000, 8_000, 0.1).target).toBe(4_074_768);
+    const reference = summaryOf(example, 1_000_000, 8_000, null);
+    expect(reference.target).toBe(4_289_229.47);
+    expect(reference.target).toBe(planTarget(example, null));
+  });
+
+  it("a meta não depende do patrimônio nem do aporte", () => {
+    expect(summaryOf(example, 0, 0).target).toBe(summaryOf(example).target);
+    expect(summaryOf(example, 9_000_000, 50_000).target).toBe(summaryOf(example).target);
   });
 });
 
@@ -121,58 +248,55 @@ describe("rendimento: o DY da carteira", () => {
     expect(reference.yieldSource).toBe("reference");
     expect(reference.annualYield).toBeCloseTo(NOMINAL_ANNUAL_RETURN, 12);
   });
-
-  it("a meta e as partes dela não dependem do rendimento", () => {
-    expect(summaryOf(example, 1_000_000, 8_000, 0.2).target).toBe(
-      summaryOf(example, 1_000_000, 8_000, null).target,
-    );
-  });
 });
 
-describe("crescimento na acumulação", () => {
-  it("(1 + y) ÷ (1 + 24% × y) − 1: perto de 76% do rendimento", () => {
-    expect(accumulationRate(0.01)).toBeCloseTo(1.01 / 1.0024 - 1, 12);
-    expect(accumulationRate(0.01)).toBeCloseTo(0.0076, 4);
-    expect(accumulationRate(0)).toBe(0);
-  });
-
-  it("o prazo bate com a simulação mês a mês: o DY todo reinvestido mais o aporte do bolso", () => {
-    const summary = summaryOf(example, 1_000_000, 8_000, 0.12);
-    const growth = accumulationRate(0.12 / 12);
+describe("o prazo: juros compostos com o DY reinvestido", () => {
+  it("bate com a simulação mês a mês, e os proventos crescem todo mês", () => {
+    const summary = summaryOf(example);
+    expect(summary.monthlyDividendsToday).toBe(10_000);
     let patrimony = 1_000_000;
+    let previous = 0;
     let months = 0;
     while (patrimony < summary.target) {
-      patrimony = patrimony * (1 + growth) + 8_000;
+      const dividends = patrimony * summary.monthlyYieldRate;
+      expect(dividends).toBeGreaterThan(previous);
+      previous = dividends;
+      // Os proventos voltam para a carteira junto com o aporte do bolso.
+      patrimony += dividends + 8_000;
       months += 1;
     }
-    expect(summary.accumulationRate).toBeCloseTo(growth, 12);
     expect(summary.months).toBe(months);
-    expect(months).toBe(147);
+    expect(months).toBe(86);
+    // No mês da meta, os proventos já passam do que ela recebe.
+    expect(patrimony * summary.monthlyYieldRate).toBeGreaterThanOrEqual(summary.monthlyYield);
   });
 
-  it("DY maior, prazo menor; e menor que com os 0,4% reais de antes", () => {
+  it("DY maior, prazo menor", () => {
     const months = (dy: number) => summaryOf(example, 1_000_000, 8_000, dy).months!;
-    expect(months(0.14)).toBeLessThan(months(0.1));
-    expect(months(0.12)).toBeLessThan(summaryOf(example).months!);
+    expect(months(0.14)).toBeLessThan(months(0.12));
+    expect(months(0.12)).toBeLessThan(months(0.1));
   });
 
-  it("o aporte necessário leva o patrimônio à meta na idade alvo, com o mesmo crescimento", () => {
-    const summary = summaryOf(example, 1_000_000, 8_000, 0.12);
-    const growth = Math.pow(1 + summary.accumulationRate, 60);
-    const reached =
-      1_000_000 * growth + (summary.requiredAporte! * (growth - 1)) / summary.accumulationRate;
-    expect(reached).toBeCloseTo(summary.target, -1);
+  it("o aporte necessário leva o patrimônio à meta na idade alvo, mês a mês", () => {
+    const summary = summaryOf(example);
+    let patrimony = 1_000_000;
+    for (let month = 0; month < 60; month++) {
+      patrimony += patrimony * summary.monthlyYieldRate + summary.requiredAporte!;
+    }
+    expect(patrimony).toBeCloseTo(summary.target, -1);
+    expect(summary.extraAporte).toBeCloseTo(summary.requiredAporte! - 8_000, 2);
+  });
+
+  it("com o aporte de hoje bastando, nada a mais: a folga até a idade alvo", () => {
+    const summary = summaryOf(plan({ targetAge: 60 }));
+    expect(summary.months).toBe(132);
+    expect(summary.slackMonths).toBe(108);
+    expect(summary.requiredAporte).toBeNull();
+    expect(summary.extraAporte).toBeNull();
   });
 });
 
 describe("o que a meta recebe por mês (§2.7)", () => {
-  it("meta × rendimento do mês, 24% reinvestidos e o resto para viver", () => {
-    const summary = summaryOf(example, 1_000_000, 8_000, 0.12); // 1% a.m.
-    expect(summary.monthlyYield).toBe(51_415.97);
-    expect(summary.reinvestment).toBe(12_339.84);
-    expect(summary.livingIncome).toBe(39_076.13);
-  });
-
   it("as duas partes somam o total, e os 24% arredondam para cima no centavo", () => {
     expect(yieldSplit(1_000_000, 0.01)).toEqual({
       received: 10_000,
@@ -189,42 +313,14 @@ describe("o que a meta recebe por mês (§2.7)", () => {
 
   it("meta zero não recebe nada, e sem o -0", () => {
     expect(yieldSplit(0, 0.01)).toEqual({ received: 0, reinvestment: 0, living: 0 });
-    const empty = summaryOf({ ...defaultPlan(), healthLevel: "nenhum" }, 0, 0, 0.12);
+    const empty = summaryOf({ ...defaultPlan(), healthLevel: "nenhum" }, 0, 0);
     expect(empty.target).toBe(0);
     expect(empty.monthlyYield).toBe(0);
     expect(empty.reinvestment).toBe(0);
     expect(empty.livingIncome).toBe(0);
+    expect(empty.netLiving).toBe(0);
     // A saúde Conforto do padrão já pede patrimônio.
     expect(summaryOf(defaultPlan(), 0, 0).target).toBeGreaterThan(0);
-  });
-});
-
-describe("fundo temporário", () => {
-  it("é zero sem dependentes", () => {
-    const p = plan({ dependents: 0, youngestAge: null });
-    expect(educationFund(p)).toBe(0);
-    expect(childrenHealthFund(p)).toBe(0);
-  });
-
-  it("é zero quando a idade alvo vem depois do fim do custeio", () => {
-    // O mais novo tem 6; com 20 anos até a idade alvo, ele já passou dos 24.
-    const p = plan({ targetAge: 60 });
-    expect(educationFund(p)).toBe(0);
-    expect(childrenHealthFund(p)).toBe(0);
-  });
-
-  it("custear até 18 custa menos que até 24", () => {
-    expect(educationFund(plan({ educationUntil: 18 }))).toBeLessThan(educationFund(example));
-    expect(childrenHealthFund(plan({ educationUntil: 18 }))).toBeLessThan(
-      childrenHealthFund(example),
-    );
-  });
-
-  it("na idade alvo hoje, cobre todos os anos restantes", () => {
-    // 1 ano de custeio: o mais novo tem 23, até os 24.
-    const p = plan({ currentAge: 45, targetAge: 45, youngestAge: 23, dependents: 1 });
-    expect(educationFund(p)).toBeCloseTo((13 * 2_500) / 1.095, 6);
-    expect(childrenHealthFund(p)).toBeCloseTo((12 * 350) / Math.pow(1.004, 12), 6);
   });
 });
 
@@ -232,15 +328,17 @@ describe("patrimônio e progresso", () => {
   it("soma o patrimônio externo ao do Koinos", () => {
     const summary = summaryOf(plan({ externalWealth: 500_000 }));
     expect(summary.patrimony).toBe(1_500_000);
-    expect(summary.progress).toBeCloseTo(1_500_000 / 5_141_596.94, 10);
+    expect(summary.progress).toBeCloseTo(1_500_000 / 3_395_640, 10);
+    expect(summary.monthlyDividendsToday).toBe(15_000);
   });
 
   it("acima da meta: prazo 0, progresso inteiro e folga até a idade alvo", () => {
-    const summary = summaryOf(example, 6_000_000);
+    const summary = summaryOf(example, 4_000_000);
     expect(summary.months).toBe(0);
     expect(summary.progress).toBeGreaterThan(1);
     expect(summary.slackMonths).toBe(60);
     expect(summary.requiredAporte).toBeNull();
+    expect(summary.extraAporte).toBeNull();
   });
 
   it("com o prazo antes da idade alvo, mostra a folga", () => {
@@ -256,19 +354,14 @@ describe("patrimônio e progresso", () => {
     expect(summary.targetMonth).toBeNull();
     expect(summary.predictedAge).toBeNull();
     expect(summary.requiredAporte).toBeGreaterThan(0);
+    expect(summary.extraAporte).toBe(summary.requiredAporte);
   });
 
   it("idade alvo hoje: sem folga nem aporte necessário", () => {
     const summary = summaryOf(plan({ currentAge: 45, targetAge: 45 }));
     expect(summary.slackMonths).toBeNull();
     expect(summary.requiredAporte).toBeNull();
-  });
-});
-
-describe("perpetualIncome", () => {
-  it("essencial + 30% + sazonais ÷ 12 + viagens ÷ 12", () => {
-    expect(perpetualIncome(defaultPlan())).toBe(0);
-    expect(perpetualIncome(example)).toBe(16_000);
+    expect(summary.extraAporte).toBeNull();
   });
 });
 
@@ -295,9 +388,9 @@ describe("monthsToTarget", () => {
 });
 
 describe("requiredAporte", () => {
-  it("com os 0,4% reais da spec v2 §2.6: R$ 57.211,73 em 60 meses", () => {
-    expect(requiredAporte({ pv: 1_000_000, fv: 5_141_596.94, r: 0.004, m: 60 })).toBeCloseTo(
-      57_211.73,
+  it("o exemplo: R$ 19.333,29 por mês em 60 meses a 1% ao mês", () => {
+    expect(requiredAporte({ pv: 1_000_000, fv: 3_395_640, r: 0.01, m: 60 })).toBeCloseTo(
+      19_333.29,
       1,
     );
   });

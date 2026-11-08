@@ -82,23 +82,31 @@ describe("nextStep e previousStep", () => {
 });
 
 describe("stepImpact", () => {
-  it("o custo de vida, os gastos do ano e as viagens: o valor do mês ÷ 0,4%", () => {
-    expect(stepImpact("essencial", family)).toBe(3_250_000);
-    expect(stepImpact("sazonal", family)).toBe(250_000);
-    expect(stepImpact("viagens", family)).toBe(500_000);
+  // DY de 12% a.a. (1% ao mês): cada custo do primeiro dia pede custo ÷ 76% ÷ 1% de meta.
+  const DY = 0.12;
+
+  it("o essencial, os gastos do ano e as viagens: o custo do primeiro dia ÷ 76% ÷ o DY do mês", () => {
+    expect(stepImpact("essencial", family, DY)).toBe(2_119_228); // 16.106,13 (13.000 com inflação)
+    expect(stepImpact("sazonal", family, DY)).toBe(163_017); // 1.238,93
+    expect(stepImpact("viagens", family, DY)).toBe(326_036); // 2.477,87
   });
 
-  it("a escola é o fundo dela; a saúde soma titular, cônjuge e filhos", () => {
-    expect(stepImpact("educacao", family)).toBeCloseTo(421_812.65, 1);
-    // 332.777,82 + 316.999,00 + 70.007,47 (spec v2 §2.6)
-    expect(stepImpact("saude", family)).toBeCloseTo(719_784.29, 1);
-    expect(stepImpact("saude", { ...family, healthLevel: "nenhum" })).toBe(0);
+  it("a escola pela inflação da educação; a saúde soma titular, cônjuge e filhos", () => {
+    expect(stepImpact("educacao", family, DY)).toBe(483_332); // 3.673,32
+    expect(stepImpact("saude", family, DY)).toBe(304_028); // 1.592,03 + 718,58
+    expect(stepImpact("saude", { ...family, healthLevel: "nenhum" }, DY)).toBe(0);
+  });
+
+  it("DY maior, impacto menor", () => {
+    expect(stepImpact("essencial", family, 0.14)!).toBeLessThan(
+      stepImpact("essencial", family, DY)!,
+    );
   });
 
   it("sem um valor só, não tem impacto", () => {
-    expect(stepImpact("perfil", family)).toBeNull();
-    expect(stepImpact("familia", family)).toBeNull();
-    expect(stepImpact("revisao", family)).toBeNull();
+    expect(stepImpact("perfil", family, DY)).toBeNull();
+    expect(stepImpact("familia", family, DY)).toBeNull();
+    expect(stepImpact("revisao", family, DY)).toBeNull();
   });
 });
 
