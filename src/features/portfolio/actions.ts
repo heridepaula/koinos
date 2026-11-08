@@ -11,6 +11,7 @@ import {
 import { listTargetAssetsOf } from "@/features/strategy/server";
 import { computePositions } from "@/features/transactions";
 import { listTransactionsOf } from "@/features/transactions/server";
+import { settleAll } from "@/shared/lib/concurrency";
 import { currentMonthKey } from "@/shared/lib/time";
 import { isReportMonth, roundPercent } from "./domain/reinvestment";
 import { markAlertsReadSchema, reinvestmentPercentSchema } from "./schemas";
@@ -31,14 +32,20 @@ export const refreshMyQuotesAction = authActionClient
     const held = computePositions(transactions)
       .filter((position) => position.quantity > 0)
       .map((position) => position.ticker);
-    const result = await refreshQuotes([...held, ...targets.map((target) => target.ticker)]);
-    // DY e último rendimento também sob demanda (antes só no cron): quem acabou de importar
-    // já vê o DY. refreshDividends pula o que foi buscado nas últimas 20 h.
-    const dividends = await refreshDividends(held);
-    // Datas de pagamento do "a receber" (Fundamentus): também pula o buscado nas últimas 20 h.
-    const payDates = await refreshPayDates(held);
-    // VP/P/VP (usebolsai): o cron das 2h é o normal; aqui só entra o que estiver faltando.
-    const fundamentals = await refreshMissingFundamentals(targets.map((target) => target.ticker));
+    const quotes = refreshQuotes([...held, ...targets.map((target) => target.ticker)]);
+    // Tudo em paralelo; o limite de requisições fica em cada fonte. Só o DY espera: os proventos
+    // buscam junto com as cotações e gravam depois delas, com o preço novo.
+    const [result, dividends, payDates, fundamentals] = await settleAll([
+      quotes,
+      // DY e último rendimento também sob demanda (antes só no cron): quem acabou de importar
+      // já vê o DY. refreshDividends pula o que foi buscado nas últimas 20 h.
+      refreshDividends(held, new Date(), { pricesReady: quotes }),
+      // Datas de pagamento do "a receber" (Fundamentus): também pula o buscado nas últimas 20 h.
+      refreshPayDates(held),
+      // VP/P/VP (usebolsai, que traz o próprio preço): o cron das 2h é o normal; aqui só entra o
+      // que estiver faltando.
+      refreshMissingFundamentals(targets.map((target) => target.ticker)),
+    ] as const);
     if (
       (result.status === "done" && result.updated > 0) ||
       dividends.updated > 0 ||
