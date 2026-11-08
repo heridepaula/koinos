@@ -16,7 +16,7 @@ import {
 import { durationLabel } from "../domain/plan";
 import type { IndependencePlan, IndependenceSummary } from "../domain/types";
 import { VerdictChip, YieldSplit } from "./figures";
-import { forecastTitle, forecastVerdict, monthSlash, yieldLabel } from "./format";
+import { forecastTitle, forecastVerdict, monthSlash, retirementLabel, yieldLabel } from "./format";
 import { ProgressBar } from "./progress-bar";
 
 const money = (value: number) => <Sensitive>{formatBRL(value)}</Sensitive>;
@@ -24,14 +24,25 @@ const money = (value: number) => <Sensitive>{formatBRL(value)}</Sensitive>;
 const listAges = (ages: number[]) =>
   ages.length <= 1 ? ages.join("") : `${ages.slice(0, -1).join(", ")} e ${ages[ages.length - 1]}`;
 
+/** Uma parte do patrimônio, recuada e mais leve que o total acima dela. */
+const subRow = (label: string, value: number) => (
+  <StatRow
+    label={<span className="pl-3">{label}</span>}
+    value={<span className="font-normal text-muted-foreground">{money(value)}</span>}
+  />
+);
+
 /**
- * O topo da página: o montante que a independência pede, em destaque, o patrimônio contra ele e
- * o que a meta rende por mês, com o reinvestimento que repõe a inflação.
+ * O topo da página, em duas colunas do mesmo peso. À esquerda, onde você está: o montante, o
+ * progresso, o patrimônio, quanto ele rende por mês hoje, o DY de que a meta depende e para quando
+ * ela é. À direita, o que a meta rende por mês e para onde vai (`YieldSplit`).
  */
 export function TargetCard({
+  plan,
   summary,
   className,
 }: {
+  plan: IndependencePlan;
   summary: IndependenceSummary;
   className?: string;
 }) {
@@ -40,7 +51,7 @@ export function TargetCard({
     <Card className={cn("card-lift", className)}>
       <CardContent className="@container/target">
         <div className="grid gap-6 @min-[640px]/target:grid-cols-2 @min-[640px]/target:gap-8">
-          <div className="grid content-start gap-4">
+          <section className="grid content-start gap-4">
             <div className="grid gap-2">
               <h2 className="flex items-center gap-2 text-subheadline text-muted-foreground">
                 <span className="tile size-6 rounded-sm [--tile:var(--tile-green)]">
@@ -52,28 +63,46 @@ export function TargetCard({
             </div>
             <div className="grid gap-2">
               <ProgressBar value={summary.progress} label="Progresso da meta" />
-              <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1 text-footnote">
-                <span className="text-muted-foreground">
-                  <span className="font-semibold text-foreground tabular-nums">
+              <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1 text-footnote text-muted-foreground tabular-nums">
+                <span>
+                  <span className="font-semibold text-foreground">
                     {formatPercent(summary.progress, 1)}
                   </span>{" "}
-                  · {money(summary.patrimony)} de patrimônio
+                  da meta
                 </span>
-                <span className="text-muted-foreground tabular-nums">
+                <span>
                   {reached ? "Acima da meta" : "Faltam"}{" "}
                   <span className="font-semibold text-foreground">
                     {money(Math.abs(summary.target - summary.patrimony))}
                   </span>
                 </span>
               </div>
-              {summary.externalWealth > 0 ? (
-                <p className="text-footnote text-muted-foreground tabular-nums">
-                  {money(summary.koinosWealth)} no Koinos + {money(summary.externalWealth)} fora
-                  dele
-                </p>
-              ) : null}
             </div>
-          </div>
+            <StatList>
+              <StatRow label="Patrimônio hoje" value={money(summary.patrimony)} />
+              {summary.externalWealth > 0 ? (
+                <>
+                  {subRow("No Koinos", summary.koinosWealth)}
+                  {subRow("Fora do Koinos", summary.externalWealth)}
+                </>
+              ) : null}
+              <StatRow
+                label="Rende por mês hoje"
+                value={<>≈&nbsp;{money(summary.monthlyDividendsToday)}</>}
+              />
+              <StatRow
+                label={
+                  summary.yieldSource === "dy" ? "DY dos seus ativos" : "Rendimento de referência"
+                }
+                value={`${formatPercent(summary.annualYield, 1)} ao ano`}
+              />
+              <StatRow label="Aposentadoria" value={retirementLabel(plan, summary)} />
+            </StatList>
+            <MetricNote>
+              A meta é a rentabilidade mensal ÷ {formatPercent(summary.monthlyYieldRate, 2)} ao mês:
+              com um DY menor, ela sobe.
+            </MetricNote>
+          </section>
           <div className="border-t border-border/70 pt-5 @min-[640px]/target:border-t-0 @min-[640px]/target:border-l @min-[640px]/target:pt-0 @min-[640px]/target:pl-8">
             <YieldSplit summary={summary} />
           </div>

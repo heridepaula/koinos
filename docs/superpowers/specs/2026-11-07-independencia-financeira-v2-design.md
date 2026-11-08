@@ -388,3 +388,16 @@ Os proventos de um mês vão de ≈ R$ 8.697,86 hoje a R$ 31.611,95 na meta.
 - **`health.test.ts`:** as faixas e os degraus (a perpetuidade saiu).
 - **`components/format.test.ts`:** o selo e o título do prazo com o exemplo de §10.5.
 - **`components/wizard-steps.test.ts`:** `stepImpact` com o DY (cada custo do primeiro dia ÷ 76% ÷ 1%, a escola, a saúde, zero sem plano, DY maior com impacto menor).
+
+### 10.8 O topo da página em duas colunas do mesmo peso (2026-11-08)
+
+Pedido do dono, olhando o `TargetCard` no ar: "um está com informação demais e outro de menos". A coluna do montante tinha só o valor, a barra e uma legenda, e a da rentabilidade tinha a divisão, os custos, a sobra e dois parágrafos que repetiam o card "Como a meta é calculada".
+
+| Coluna | O que ficou |
+| --- | --- |
+| Esquerda (onde você está) | O montante, a barra com a % e o que falta; embaixo, as linhas "Patrimônio hoje" (com "No Koinos" e "Fora do Koinos" recuados quando há patrimônio externo), "Rende por mês hoje" (o patrimônio × o rendimento mensal), o DY dos ativos (ou o rendimento de referência) e "Aposentadoria" (`retirementLabel`: "aos 45, daqui a 8 anos"); a nota diz que a meta é a rentabilidade mensal ÷ o DY do mês, então sobe com um DY menor |
+| Direita (`YieldSplit`) | "Rentabilidade mensal na meta", para não se confundir com o "Rende por mês hoje". Ficam a divisão 24/76, os custos em vermelho com o "?" e a sobra (pedidos da §10). O que os 24% repõem foi para o "?" do Reinvestir, e as notas viraram uma só, a dos reais do primeiro dia; o prazo em anos foi para a esquerda |
+
+No iPhone, os valores da lista não quebram mais no meio ("-R$" numa linha e o número na outra).
+
+- **`components/format.test.ts`:** `retirementLabel` com 5 anos, 1 ano (singular) e a idade alvo hoje.

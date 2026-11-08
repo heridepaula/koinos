@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { independenceSummary } from "../domain/plan";
 import type { IndependencePlan } from "../domain/types";
-import { forecastTitle, forecastVerdict, monthSlash, yieldLabel } from "./format";
+import { forecastTitle, forecastVerdict, monthSlash, retirementLabel, yieldLabel } from "./format";
 
 /** O exemplo da spec v2 §2.6, com a conta de §10: aos ~47, alvo 45. */
 const example: IndependencePlan = {
@@ -91,6 +91,22 @@ describe("yieldLabel", () => {
     );
     expect(yieldLabel(summaryOf(example, 1_000_000, 8_000, null))).toBe(
       "o rendimento de referência de 9,5% ao ano",
+    );
+  });
+});
+
+describe("retirementLabel", () => {
+  it("a idade alvo e os anos até ela, no singular com 1 e a partir de hoje com 0", () => {
+    expect(retirementLabel(example, summaryOf(example, 1_000_000, 8_000))).toBe(
+      "aos 45, daqui a 5 anos",
+    );
+    const nextYear = { ...example, currentAge: 44 };
+    expect(retirementLabel(nextYear, summaryOf(nextYear, 1_000_000, 8_000))).toBe(
+      "aos 45, daqui a 1 ano",
+    );
+    const today = { ...example, currentAge: 45 };
+    expect(retirementLabel(today, summaryOf(today, 1_000_000, 8_000))).toBe(
+      "aos 45, a partir de hoje",
     );
   });
 });

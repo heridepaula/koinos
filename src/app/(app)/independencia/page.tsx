@@ -55,7 +55,7 @@ async function IndependenceContent() {
   return (
     <IndependencePanel plan={view.plan} {...data}>
       <div className="grid gap-4 md:gap-6">
-        <TargetCard summary={view.summary} />
+        <TargetCard plan={view.plan} summary={view.summary} />
         <ForecastCard plan={view.plan} summary={view.summary} />
         <TargetBreakdown plan={view.plan} summary={view.summary} />
       </div>

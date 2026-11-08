@@ -37,6 +37,16 @@ export function forecastTitle(summary: IndependenceSummary): string {
 }
 
 /**
+ * Para quando é a meta: "aos 45, daqui a 8 anos", "aos 45, daqui a 1 ano" ou, com a idade alvo
+ * hoje, "aos 45, a partir de hoje".
+ */
+export function retirementLabel(plan: IndependencePlan, summary: IndependenceSummary): string {
+  const { years } = summary;
+  if (years <= 0) return `aos ${plan.targetAge}, a partir de hoje`;
+  return `aos ${plan.targetAge}, daqui a ${years} ${years === 1 ? "ano" : "anos"}`;
+}
+
+/**
  * De onde vem o rendimento da conta, numa expressão: "o DY de 13,2% ao ano dos seus ativos" ou, sem
  * DY ainda, "o rendimento de referência de 9,5% ao ano".
  */
