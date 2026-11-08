@@ -567,7 +567,7 @@
             "nrqlQueries": [
               {
                 "accountIds": [6563675],
-                "query": "SELECT latest(koinos.api.ratelimit.limit) AS 'Limite', latest(koinos.api.ratelimit.remaining) AS 'Restante', latest(koinos.api.ratelimit.reset) AS 'Reset', latest(koinos.api.retry_after) AS 'Retry-After' FROM Span WHERE service.name = 'koinos' AND http.client.name = 'fetch' AND net.peer.name = 'brapi.dev' AND koinos.api.ratelimit.remaining IS NOT NULL SINCE 7 days ago"
+                "query": "SELECT latest(`koinos.api.ratelimit.limit`) AS 'Limite', latest(`koinos.api.ratelimit.remaining`) AS 'Restante', latest(`koinos.api.ratelimit.reset`) AS 'Reset', latest(`koinos.api.retry_after`) AS 'Retry-After' FROM Span WHERE service.name = 'koinos' AND http.client.name = 'fetch' AND net.peer.name = 'brapi.dev' AND `koinos.api.ratelimit.remaining` IS NOT NULL SINCE 7 days ago"
               }
             ],
             "platformOptions": {
@@ -836,7 +836,7 @@
             "nrqlQueries": [
               {
                 "accountIds": [6563675],
-                "query": "SELECT latest(koinos.api.ratelimit.limit) AS 'Limite', latest(koinos.api.ratelimit.remaining) AS 'Restante', latest(koinos.api.ratelimit.reset) AS 'Reset', latest(koinos.api.retry_after) AS 'Retry-After' FROM Span WHERE service.name = 'koinos' AND http.client.name = 'fetch' AND net.peer.name = 'api.usebolsai.com' AND koinos.api.ratelimit.remaining IS NOT NULL SINCE 7 days ago"
+                "query": "SELECT latest(`koinos.api.ratelimit.limit`) AS 'Limite', latest(`koinos.api.ratelimit.remaining`) AS 'Restante', latest(`koinos.api.ratelimit.reset`) AS 'Reset', latest(`koinos.api.retry_after`) AS 'Retry-After' FROM Span WHERE service.name = 'koinos' AND http.client.name = 'fetch' AND net.peer.name = 'api.usebolsai.com' AND `koinos.api.ratelimit.remaining` IS NOT NULL SINCE 7 days ago"
               }
             ],
             "platformOptions": {
@@ -1078,7 +1078,7 @@
             "nrqlQueries": [
               {
                 "accountIds": [6563675],
-                "query": "SELECT count(*) AS 'Chamadas', percentile(duration.ms, 95) AS 'p95 (ms)', filter(count(*), WHERE (http.status_code >= 400 OR otel.status_code = 'ERROR')) AS 'Falhas', latest(koinos.api.retry_after) AS 'Retry-After' FROM Span WHERE service.name = 'koinos' AND http.client.name = 'fetch' AND net.peer.name LIKE '%yahoo.com' FACET net.peer.name, CASES(WHERE http.url LIKE '%/finance/chart/%' AS 'chart (histórico e proventos)', WHERE http.url LIKE '%/finance/quote%' AS 'quote (reserva)', WHERE http.url LIKE '%getcrumb%' AS 'crumb', WHERE net.peer.name NOT LIKE 'query%' AS 'cookie e consentimento')"
+                "query": "SELECT count(*) AS 'Chamadas', percentile(duration.ms, 95) AS 'p95 (ms)', filter(count(*), WHERE (http.status_code >= 400 OR otel.status_code = 'ERROR')) AS 'Falhas', latest(`koinos.api.retry_after`) AS 'Retry-After' FROM Span WHERE service.name = 'koinos' AND http.client.name = 'fetch' AND net.peer.name LIKE '%yahoo.com' FACET net.peer.name, CASES(WHERE http.url LIKE '%/finance/chart/%' AS 'chart (histórico e proventos)', WHERE http.url LIKE '%/finance/quote%' AS 'quote (reserva)', WHERE http.url LIKE '%getcrumb%' AS 'crumb', WHERE net.peer.name NOT LIKE 'query%' AS 'cookie e consentimento')"
               }
             ],
             "platformOptions": {
