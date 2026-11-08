@@ -14,8 +14,12 @@ import { AssetModel } from "./models";
 const RECHECK_MS = 20 * 60 * 60 * 1000;
 /** Guarda o que paga desde ~2 meses atrás: cobre o mês atual inteiro, mesmo o que já passou. */
 const KEEP_FROM_DAYS = 62;
-/** Poucas requisições ao mesmo tempo: o site é de terceiros. */
-const CONCURRENCY = 2;
+/**
+ * Ativos processados ao mesmo tempo. O limite de requisições ao site (de terceiros) fica no
+ * adaptador, somando esta etapa e a dos proventos; aqui só evita esperar a vez de quem já tem a
+ * página baixada pelos proventos.
+ */
+const CONCURRENCY = 8;
 
 const errorMessage = (error: unknown) => (error instanceof Error ? error.message : String(error));
 

@@ -1,7 +1,7 @@
 import "server-only";
 import mongoose from "mongoose";
 import { connectMongo } from "@/shared/db/mongo";
-import { ioConcurrency, mapWithConcurrency } from "@/shared/lib/concurrency";
+import { mapWithConcurrency } from "@/shared/lib/concurrency";
 import { addMonths, currentMonthKey, monthRange, todayTradeDate } from "@/shared/lib/time";
 import { fetchFundamentusDividendsPage } from "../adapters/fundamentus";
 import { yahooProvider } from "../adapters/yahoo";
@@ -22,7 +22,12 @@ const ANNOUNCEMENT_WINDOW_MS = 400 * 86_400_000;
  * de um FII parado há até 12 meses (o último provento fica a até 365 dias de hoje).
  */
 const DIVIDENDS_LOOKBACK_DAYS = 760;
-const YAHOO_CONCURRENCY_CAP = 6;
+/**
+ * Ativos processados ao mesmo tempo em cada etapa. O limite de requisições fica na fila do Yahoo
+ * (e no semáforo do Fundamentus); aqui só sobra folga para a fila não ficar ociosa enquanto um
+ * ativo lê a resposta ou grava no banco.
+ */
+const STEP_WORKERS = 16;
 
 /**
  * Os rendimentos do FII no Fundamentus, para completar o Yahoo. Só XXXX11 (a página de FII não
@@ -49,7 +54,7 @@ export type HistoryRequest = { ticker: string; fromMonth: string };
 /**
  * Garante os fechamentos mensais (meses já encerrados) desde `fromMonth`, buscando no Yahoo
  * só o que falta. Meses passados não mudam, então cada um é buscado uma vez.
- * As buscas rodam em paralelo, com limite pelos núcleos disponíveis.
+ * As buscas rodam em paralelo, até o limite da fila do Yahoo.
  */
 export async function ensureMonthlyCloses(
   requests: readonly HistoryRequest[],
@@ -99,7 +104,7 @@ export async function ensureMonthlyCloses(
 
   const fetched = await mapWithConcurrency(
     todo,
-    ioConcurrency(YAHOO_CONCURRENCY_CAP),
+    STEP_WORKERS,
     async ({ ticker, from, requestedFrom }) => {
       try {
         const closes = await yahooProvider.getMonthlyCloses(ticker, monthStart(from));
@@ -157,45 +162,45 @@ export async function ensureRecentCloses(
       options.force || (fetchedAt.get(ticker)?.getTime() ?? 0) < now.getTime() - HISTORY_RECHECK_MS,
   );
   const from = new Date(now.getTime() - RECENT_CLOSES_DAYS * 86_400_000);
-  const results = await mapWithConcurrency(
-    due,
-    ioConcurrency(YAHOO_CONCURRENCY_CAP),
-    async (ticker): Promise<number> => {
-      try {
-        const closes = await yahooProvider.getDailyCloses(ticker, from);
-        await AssetModel.updateOne(
-          { _id: ticker },
-          { $set: { recentCloses: closes, recentClosesFetchedAt: now } },
-          { upsert: true },
-        );
-        return 1;
-      } catch (error) {
-        console.warn(`[fechamentos diários] ${ticker}:`, errorMessage(error));
-        return 0;
-      }
-    },
-  );
+  const results = await mapWithConcurrency(due, STEP_WORKERS, async (ticker): Promise<number> => {
+    try {
+      const closes = await yahooProvider.getDailyCloses(ticker, from);
+      await AssetModel.updateOne(
+        { _id: ticker },
+        { $set: { recentCloses: closes, recentClosesFetchedAt: now } },
+        { upsert: true },
+      );
+      return 1;
+    } catch (error) {
+      console.warn(`[fechamentos diários] ${ticker}:`, errorMessage(error));
+      return 0;
+    }
+  });
   return { updated: results.reduce((sum, count) => sum + count, 0) };
 }
 
 /**
  * Atualiza o DY e a soma dos últimos 12 meses de calendário (com o número de pagamentos), o
  * último rendimento e os anúncios dos últimos 400 dias de cada ativo (Yahoo; nos FIIs, completado
- * pelo Fundamentus com `mergeDividendHistory`), em paralelo com
- * limite pelos núcleos disponíveis. Uma busca sem proventos não apaga o último rendimento guardado.
- * Pula o ativo buscado nas últimas 20 h; `force` ignora essa checagem (conferência manual).
+ * pelo Fundamentus com `mergeDividendHistory`), em paralelo até o limite de cada fonte. Uma busca
+ * sem proventos não apaga o último rendimento guardado. Pula o ativo buscado nas últimas 20 h;
+ * `force` ignora essa checagem (conferência manual).
+ *
+ * Busca tudo primeiro e grava de uma vez no fim. `pricesReady` (o cron passa a atualização das
+ * cotações) faz a gravação esperar os preços novos, sem atrasar as buscas: o DY é calculado com o
+ * preço lido do banco depois dela.
  */
 export async function refreshDividends(
   tickers: readonly string[],
   now = new Date(),
-  options: { force?: boolean } = {},
+  options: { force?: boolean; pricesReady?: Promise<unknown> } = {},
 ): Promise<{ updated: number }> {
   const unique = [...new Set(tickers)];
   if (unique.length === 0) return { updated: 0 };
   await connectMongo();
   const assets = await AssetModel.find(
     { _id: mongoose.trusted({ $in: unique }) },
-    { price: 1, lastDividend: 1, dividendsFetchedAt: 1 },
+    { lastDividend: 1, dividendsFetchedAt: 1 },
   ).lean();
   const byTicker = new Map(assets.map((asset) => [asset._id, asset]));
   const due = unique.filter(
@@ -208,30 +213,46 @@ export async function refreshDividends(
   const from = new Date(now.getTime() - DIVIDENDS_LOOKBACK_DAYS * 86_400_000);
   // As datas ex guardadas são datas de negócio: o corte dos 400 dias também.
   const announcementsFrom = todayTradeDate(new Date(now.getTime() - ANNOUNCEMENT_WINDOW_MS));
-  const results = await mapWithConcurrency(
-    due,
-    ioConcurrency(YAHOO_CONCURRENCY_CAP),
-    async (ticker): Promise<number> => {
-      try {
-        // O Yahoo é a base; o Fundamentus completa os meses que faltam e corrige valor errado.
-        const [yahoo, fundamentus] = await Promise.all([
-          yahooProvider.getDividends(ticker, from),
-          fundamentusRendimentos(ticker),
-        ]);
-        const dividends = mergeDividendHistory(
-          toDividendEntries(yahoo),
-          fundamentus,
-          todayTradeDate(from),
-        );
-        const { total, trailingTotal, payments, last } = dividendWindow(dividends, now);
-        const stored = byTicker.get(ticker);
-        const price = stored?.price ?? null;
-        const storedLast = stored?.lastDividend
-          ? { amount: stored.lastDividend.amount, exDate: stored.lastDividend.exDate }
-          : null;
-        await AssetModel.updateOne(
-          { _id: ticker },
-          {
+  const fetched = await mapWithConcurrency(due, STEP_WORKERS, async (ticker) => {
+    try {
+      // O Yahoo é a base; o Fundamentus completa os meses que faltam e corrige valor errado.
+      const [yahoo, fundamentus] = await Promise.all([
+        yahooProvider.getDividends(ticker, from),
+        fundamentusRendimentos(ticker),
+      ]);
+      const dividends = mergeDividendHistory(
+        toDividendEntries(yahoo),
+        fundamentus,
+        todayTradeDate(from),
+      );
+      return { ticker, dividends };
+    } catch (error) {
+      console.warn(`[proventos] ${ticker}:`, errorMessage(error));
+      return null;
+    }
+  });
+  const ok = fetched.filter((item) => item !== null);
+  if (ok.length === 0) return { updated: 0 };
+
+  // Uma falha nas cotações não impede gravar os proventos: o DY usa o último preço guardado.
+  await options.pricesReady?.catch(() => undefined);
+  const prices = await AssetModel.find(
+    { _id: mongoose.trusted({ $in: ok.map((item) => item.ticker) }) },
+    { price: 1 },
+  ).lean();
+  const priceOf = new Map(prices.map((asset) => [asset._id, asset.price ?? null]));
+  await AssetModel.bulkWrite(
+    ok.map(({ ticker, dividends }) => {
+      const { total, trailingTotal, payments, last } = dividendWindow(dividends, now);
+      const stored = byTicker.get(ticker);
+      const price = priceOf.get(ticker) ?? null;
+      const storedLast = stored?.lastDividend
+        ? { amount: stored.lastDividend.amount, exDate: stored.lastDividend.exDate }
+        : null;
+      return {
+        updateOne: {
+          filter: { _id: ticker },
+          update: {
             $set: {
               dy12m: price && price > 0 ? trailingTotal / price : null,
               dividends12m: total,
@@ -243,14 +264,11 @@ export async function refreshDividends(
               dividendsFetchedAt: now,
             },
           },
-          { upsert: true },
-        );
-        return 1;
-      } catch (error) {
-        console.warn(`[proventos] ${ticker}:`, errorMessage(error));
-        return 0;
-      }
-    },
+          upsert: true,
+        },
+      };
+    }),
+    { ordered: false },
   );
-  return { updated: results.reduce((sum, count) => sum + count, 0) };
+  return { updated: ok.length };
 }

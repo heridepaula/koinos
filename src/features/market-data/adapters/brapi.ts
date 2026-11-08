@@ -52,12 +52,16 @@ function fromListItem(item: ListItem): Quote {
 
 export function createBrapiClient(deps: BrapiDeps) {
   async function request<T>(path: string): Promise<T> {
-    await deps.onRequest?.();
-    const response = await fetch(`${BASE_URL}${path}`, {
-      headers: deps.token ? { Authorization: `Bearer ${deps.token}` } : {},
-      signal: AbortSignal.timeout(TIMEOUT_MS),
-      cache: "no-store",
-    });
+    // O contador (Mongo) grava junto com a requisição, sem atrasá-la; uma falha de qualquer um
+    // dos dois continua falhando a chamada.
+    const [, response] = await Promise.all([
+      deps.onRequest?.(),
+      fetch(`${BASE_URL}${path}`, {
+        headers: deps.token ? { Authorization: `Bearer ${deps.token}` } : {},
+        signal: AbortSignal.timeout(TIMEOUT_MS),
+        cache: "no-store",
+      }),
+    ]);
     if (!response.ok) throw new Error(`brapi respondeu ${response.status}`);
     return (await response.json()) as T;
   }

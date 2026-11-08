@@ -14,8 +14,17 @@ import type {
 type YahooClient = InstanceType<typeof YahooFinance>;
 const globalForYahoo = globalThis as typeof globalThis & { __koinosYahoo?: YahooClient };
 
+/**
+ * Requisições simultâneas ao Yahoo, somando todas as etapas: a fila do cliente é uma só por
+ * instância (o padrão da biblioteca é 4), e as etapas do cron dividem essas vagas.
+ */
+export const YAHOO_CONCURRENCY = 8;
+
 function client(): YahooClient {
-  return (globalForYahoo.__koinosYahoo ??= new YahooFinance({ suppressNotices: ["yahooSurvey"] }));
+  return (globalForYahoo.__koinosYahoo ??= new YahooFinance({
+    suppressNotices: ["yahooSurvey"],
+    queue: { concurrency: YAHOO_CONCURRENCY },
+  }));
 }
 
 // Ativos da B3 no Yahoo levam o sufixo .SA.
