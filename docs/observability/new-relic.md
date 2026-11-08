@@ -84,6 +84,23 @@ As páginas:
 
 O tráfego do Koinos é pequeno. Com o seletor de tempo em 60 minutos, a maioria dos gráficos fica vazia: use 1 dia ou 7 dias. Os widgets do cron, da cota da brapi e do consumo já têm período próprio e não seguem o seletor.
 
+## Dashboard das APIs de terceiros (cotas)
+
+O [`new-relic-apis-dashboard.json`](new-relic-apis-dashboard.json) é um segundo dashboard, **Koinos · APIs de terceiros**, importado do mesmo jeito. Conta as chamadas de cada integração e as compara com o limite dela. Ele é gerado por um script; para mudar um widget, edite o JSON direto.
+
+| Integração           | Limite                                                                  | O que conta                                                                                                          |
+| -------------------- | ----------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------- |
+| brapi                | 15.000 requisições por mês (`BRAPI_MONTHLY_QUOTA`), uma por vez         | contador `brapi:AAAA-MM` no Mongo (`api_usage`); acima de 90% o app usa só o Yahoo. `koinos.brapi.requests` por lote |
+| usebolsai            | 200 chamadas por dia, zerando às 0h UTC (`BOLSAI_DAILY_QUOTA`)          | contador `bolsai:AAAA-MM-DD` (dia UTC) no Mongo. Um 404 também conta. Nada bloqueia ao chegar no limite              |
+| Yahoo Finance        | sem cota publicada; o sinal de excesso é o 429                          | spans de fetch (`*.yahoo.com`), por endpoint (chart, quote, crumb, cookie), e o pico por hora                        |
+| Fundamentus          | sem API nem cota; o Koinos se limita a 2 por vez e 1 página a cada 20 h | spans de fetch e o span `fundamentus.reuse` (página reusada, sem requisição); 403/429 indicam bloqueio               |
+| Tesouro Transparente | dados abertos, sem cota                                                 | spans de fetch: o catálogo e o CSV (304 quando nada mudou, 200 quando baixou)                                        |
+| Google (login)       | cotas do projeto OAuth, muito acima do uso                              | spans de fetch (`*.google.com`, `*.googleapis.com`) e os logins                                                      |
+
+- **Span `api.usage`:** sai no fim do cron diário, do cron da usebolsai e do `refreshMyQuotes` (quando algo pode ter gastado cota), com `koinos.api.brapi.month_requests`, `koinos.api.brapi.month_quota`, `koinos.api.bolsai.day_requests` e `koinos.api.bolsai.day_quota`, lidos do Mongo. Os % de cota usam este span, e não a contagem de spans de fetch, porque a New Relic guarda spans por poucos dias (o mês da brapi não cabe) e um envio perdido sumiria da conta.
+- **Cabeçalhos de limite:** se uma API mandar `X-RateLimit-Limit`, `X-RateLimit-Remaining`, `X-RateLimit-Reset` ou `Retry-After`, eles viram `koinos.api.ratelimit.limit`, `.remaining`, `.reset` e `koinos.api.retry_after` no span de fetch (`instrumentationConfig` em `src/instrumentation.node.ts`; chegam como texto, use `numeric()` para conta). Os widgets ficam vazios enquanto a API não manda nenhum.
+- **Quem gastou a brapi:** `quotes.brapi` leva `koinos.quotes.forced` (true no cron, que força todas; false ao abrir o app, só as vencidas).
+
 ## Alertas sugeridos
 
 Em **Alerts** → **Alert conditions** → **New alert condition** → **NRQL**. Com pouco tráfego, use a agregação **Event timer**, deixe as lacunas sem preenchimento e desligue o "loss of signal", salvo no do cron.
@@ -100,6 +117,10 @@ Em **Alerts** → **Alert conditions** → **New alert condition** → **NRQL**.
 | Página lenta para quem usa | `SELECT percentile(koinos.vitals.value, 75) FROM Span WHERE service.name = 'koinos' AND name = 'web-vitals' AND koinos.vitals.name = 'LCP'`                                                       | acima de 4000 por 30 minutos                |
 | Atualização B3 falhando    | `SELECT count(*) FROM Span WHERE service.name = 'koinos' AND koinos.action.name IN ('previewB3Import', 'confirmB3Import') AND koinos.action.error_kind = 'unexpected'`                            | acima de 0 pelo menos uma vez em 5 minutos  |
 | Erros no log               | `SELECT count(*) FROM Log WHERE service.name = 'koinos' AND severity.text = 'ERROR'`                                                                                                              | acima de 0 pelo menos uma vez em 5 minutos  |
+| brapi perto da cota        | `SELECT latest(koinos.api.brapi.month_requests) * 100 / latest(koinos.api.brapi.month_quota) FROM Span WHERE service.name = 'koinos' AND name = 'api.usage'`                                      | acima de 80 pelo menos uma vez em 5 minutos |
+| usebolsai perto da cota    | `SELECT latest(koinos.api.bolsai.day_requests) * 100 / latest(koinos.api.bolsai.day_quota) FROM Span WHERE service.name = 'koinos' AND name = 'api.usage'`                                        | acima de 80 pelo menos uma vez em 5 minutos |
+| API de terceiro com 429    | `SELECT count(*) FROM Span WHERE service.name = 'koinos' AND http.client.name = 'fetch' AND http.status_code = 429 FACET net.peer.name`                                                           | acima de 0 pelo menos uma vez em 5 minutos  |
+| Fundamentus bloqueando     | `SELECT count(*) FROM Span WHERE service.name = 'koinos' AND http.client.name = 'fetch' AND net.peer.name = 'www.fundamentus.com.br' AND http.status_code IN (403, 429)`                          | acima de 0 pelo menos uma vez em 5 minutos  |
 | Franquia da New Relic      | `SELECT sum(GigabytesIngested) FROM NrConsumption WHERE productLine = 'DataPlatform' SINCE 30 days ago`                                                                                           | acima de 80 (GB; a franquia grátis é 100)   |
 
 O aviso por e-mail fica em **Alerts** → **Workflows**, com um destino de e-mail.
@@ -108,6 +129,6 @@ O aviso por e-mail fica em **Alerts** → **Workflows**, com um destino de e-mai
 
 Trocar um destes nomes no código quebra os widgets e os alertas que o usam:
 
-- spans: `action <nome>`, `view.*`, `b3.*`, `lock <nome>`, `web-vitals`, `request.error`, `cron.daily`, `cron.load-tickers`, `cron.refresh-quotes`, `cron.refresh-dividends`, `cron.ensure-monthly-closes`, `cron.ensure-recent-closes`, `cron.refresh-catalog`, `cron.treasury`, `quotes.brapi`, `quotes.yahoo-fallback`, `tickers.search`;
+- spans: `action <nome>`, `view.*`, `b3.*`, `lock <nome>`, `web-vitals`, `request.error`, `cron.daily`, `cron.load-tickers`, `cron.refresh-quotes`, `cron.refresh-dividends`, `cron.ensure-monthly-closes`, `cron.ensure-recent-closes`, `cron.refresh-catalog`, `cron.treasury`, `quotes.brapi`, `quotes.yahoo-fallback`, `tickers.search`, `api.usage`, `fundamentus.reuse`;
 - logs: o evento `Log` com `service.name`, `severity.text`, `message`, `trace.id` e `log.source`;
-- atributos: `koinos.action.*`, `koinos.view.*`, `koinos.control_flow`, `koinos.b3.*`, `koinos.lock.name`, `koinos.lock.acquired`, `koinos.vitals.*`, `next.error.*`, `error.type`, `koinos.quotes.*`, `koinos.brapi.*`, `koinos.dividends.updated`, `koinos.history.months_fetched`, `koinos.catalog.entries`, `koinos.treasury.*`, `koinos.tickers*`.
+- atributos: `koinos.action.*`, `koinos.view.*`, `koinos.control_flow`, `koinos.b3.*`, `koinos.lock.name`, `koinos.lock.acquired`, `koinos.vitals.*`, `next.error.*`, `error.type`, `koinos.quotes.*`, `koinos.brapi.*`, `koinos.api.*` (cotas e cabeçalhos de limite), `koinos.fundamentus.page`, `koinos.fundamentals.*`, `net.peer.name` e `http.url` dos spans de fetch (o host separa as integrações), `koinos.dividends.updated`, `koinos.history.months_fetched`, `koinos.catalog.entries`, `koinos.treasury.*`, `koinos.tickers*`.

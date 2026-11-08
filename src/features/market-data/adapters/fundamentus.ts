@@ -1,5 +1,6 @@
 import "server-only";
 import { createLimiter } from "@/shared/lib/concurrency";
+import { recordSpan } from "@/shared/lib/tracing";
 import type { FundamentusPage } from "../domain/fundamentus";
 
 // Fundamentus: páginas públicas de proventos, lidas uma vez por dia por ativo da carteira. O
@@ -42,7 +43,11 @@ export function fetchFundamentusDividendsPage(
   const now = Date.now();
   for (const [key, entry] of recent) if (now - entry.at > REUSE_MS) recent.delete(key);
   const cached = recent.get(url);
-  if (cached) return cached.html;
+  if (cached) {
+    // Sem requisição, sem span de fetch: este span mostra no APM quantas o reuso poupou.
+    recordSpan("fundamentus.reuse", { "koinos.fundamentus.page": page });
+    return cached.html;
+  }
   const html = limit(() => download(url, ticker));
   recent.set(url, { at: now, html });
   // Falha não fica guardada: a próxima chamada tenta de novo.

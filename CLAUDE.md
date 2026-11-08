@@ -308,6 +308,7 @@ Koinos is a single-owner dashboard for a Brazilian portfolio of FIIs (REITs) and
   - `FlushLogsWithSpans` empties the log queue in the same `waitUntil` that `@vercel/otel` uses for spans. Without it, a serverless instance could freeze before the batch timer fires.
   - OTel's own diagnostics (`OTEL_LOG_LEVEL`) are routed to the original console, so a failed export ("connect ECONNREFUSED…") never comes back through the bridge as a log and loops.
   - Vercel's edge and build logs need Log Drains, a Pro feature; they don't reach New Relic.
+- **Third-party API quotas:** a second dashboard, `docs/observability/new-relic-apis-dashboard.json` (section in `new-relic.md`), counts the calls per integration (the fetch spans' `net.peer.name`) against each limit. The quota % come from the `api.usage` span (`market-data/server/usage.ts`: the Mongo counters `brapi:AAAA-MM` and `bolsai:AAAA-MM-DD`, UTC day, `BOLSAI_DAILY_QUOTA` default 200, informative only), emitted after the daily cron, the fundamentals cron and `refreshMyQuotesAction`, because spans are kept only a few days. Rate-limit response headers become `koinos.api.ratelimit.*` on the fetch spans (`instrumentationConfig`); `fundamentus.reuse` marks a page served from the 5-min reuse.
 - **The dashboard depends on these names:** renaming a span or a `koinos.*` attribute breaks its widgets and alerts (list in `docs/observability/new-relic.md`).
 - **Local check:** point the endpoint at a throwaway receiver with `OTEL_EXPORTER_OTLP_PROTOCOL=http/json` and read the spans as JSON.
 

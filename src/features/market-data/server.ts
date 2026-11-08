@@ -23,6 +23,7 @@ export {
   searchTickers,
 } from "./server/catalog";
 export { refreshPayDates } from "./server/pay-dates-service";
+export { reportApiUsage } from "./server/usage";
 export { runDailyMarketJob, type DailyJobSummary } from "./server/daily-job";
 export {
   refreshFundamentals,

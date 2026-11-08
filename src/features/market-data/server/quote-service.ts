@@ -67,17 +67,30 @@ export async function refreshQuotes(
         "koinos.brapi.month_requests": brapiUsed,
         "koinos.brapi.month_quota": env.BRAPI_MONTHLY_QUOTA,
         "koinos.brapi.skipped": !brapiAllowed,
+        // true no cron (força todas); false ao abrir o app (só as vencidas): quem gastou a cota.
+        "koinos.quotes.forced": options.force === true,
       },
       async (span) => {
         if (!brapiAllowed) return;
+        // Quantas requisições este lote gastou da cota (listagem + cotações individuais).
+        let requests = 0;
         const brapi = createBrapiClient({
           token: env.BRAPI_TOKEN,
-          onRequest: () => recordBrapiRequest(now),
+          onRequest: () => {
+            requests++;
+            return recordBrapiRequest(now);
+          },
         });
-        const batch = await brapi.getQuotes(pending);
-        batch.quotes.forEach((quote, ticker) => collected.set(ticker, { quote, source: "brapi" }));
-        pending = pending.filter((ticker) => !collected.has(ticker));
-        span.setAttribute("koinos.quotes.resolved", batch.quotes.size);
+        try {
+          const batch = await brapi.getQuotes(pending);
+          batch.quotes.forEach((quote, ticker) =>
+            collected.set(ticker, { quote, source: "brapi" }),
+          );
+          pending = pending.filter((ticker) => !collected.has(ticker));
+          span.setAttribute("koinos.quotes.resolved", batch.quotes.size);
+        } finally {
+          span.setAttribute("koinos.brapi.requests", requests);
+        }
       },
     );
 

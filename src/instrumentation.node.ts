@@ -34,6 +34,18 @@ registerOTel({
     // Sessões, rate limit e travas: só o nome do comando, sem chaves nem valores.
     new IORedisInstrumentation({ dbStatementSerializer: (command) => command }),
   ],
+  // Cabeçalhos de limite que uma API de terceiros mande na resposta viram atributos do span de
+  // fetch, para o dashboard de cotas. Nenhum cabeçalho do pedido (tokens, cookies) é lido.
+  instrumentationConfig: {
+    fetch: {
+      attributesFromResponseHeaders: {
+        "koinos.api.ratelimit.limit": "x-ratelimit-limit",
+        "koinos.api.ratelimit.remaining": "x-ratelimit-remaining",
+        "koinos.api.ratelimit.reset": "x-ratelimit-reset",
+        "koinos.api.retry_after": "retry-after",
+      },
+    },
+  },
   // A limpeza vem antes do exportador padrão ("auto", montado pelas variáveis de ambiente). Os
   // logs saem no mesmo waitUntil dos spans.
   spanProcessors: [

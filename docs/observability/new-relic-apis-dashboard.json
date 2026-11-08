@@ -1,0 +1,1668 @@
+{
+  "name": "Koinos · APIs de terceiros",
+  "description": "Chamadas e cotas de cada integração externa: brapi, usebolsai, Yahoo Finance, Fundamentus, Tesouro Transparente e Google.",
+  "permissions": "PUBLIC_READ_WRITE",
+  "pages": [
+    {
+      "name": "Visão geral",
+      "description": "Todas as integrações: chamadas, falhas, 429 e o uso das cotas.",
+      "widgets": [
+        {
+          "title": "Limites de cada integração",
+          "layout": {
+            "column": 1,
+            "row": 1,
+            "width": 5,
+            "height": 5
+          },
+          "linkedEntityGuids": null,
+          "visualization": {
+            "id": "viz.markdown"
+          },
+          "rawConfiguration": {
+            "text": "### Limites\n| Integração | Limite | Como o Koinos conta |\n| --- | --- | --- |\n| **brapi** | 15.000 req/mês (`BRAPI_MONTHLY_QUOTA`), 1 por vez | Mongo `api_usage` (`brapi:AAAA-MM`); acima de 90% só o Yahoo |\n| **usebolsai** | 200 chamadas/dia, zera 0h UTC (`BOLSAI_DAILY_QUOTA`) | Mongo `bolsai:AAAA-MM-DD` (UTC) |\n| **Yahoo Finance** | sem cota publicada; responde 429 quando acha demais | spans de fetch; fila de 8 |\n| **Fundamentus** | sem API nem cota; cortesia: 2 por vez, 1 página por ativo a cada 20 h | spans de fetch + `fundamentus.reuse` |\n| **Tesouro Transparente** | dados abertos, sem cota | 1 catálogo + 1 CSV condicional por dia |\n| **Google (login)** | cotas do projeto OAuth, muito acima do uso | spans de fetch |\n\nOs % de cota vêm do span `api.usage` (contadores do Mongo) e não seguem o seletor de tempo. Spans ficam poucos dias na New Relic: para o mês inteiro, vale o contador."
+          }
+        },
+        {
+          "title": "brapi: cota do mês (%)",
+          "layout": {
+            "column": 6,
+            "row": 1,
+            "width": 2,
+            "height": 3
+          },
+          "linkedEntityGuids": null,
+          "visualization": {
+            "id": "viz.billboard"
+          },
+          "rawConfiguration": {
+            "facet": {
+              "showOtherSeries": false
+            },
+            "nrqlQueries": [
+              {
+                "accountIds": [6563675],
+                "query": "SELECT latest(koinos.api.brapi.month_requests) * 100 / latest(koinos.api.brapi.month_quota) AS '% da cota' FROM Span WHERE service.name = 'koinos' AND name = 'api.usage' SINCE 3 days ago"
+              }
+            ],
+            "platformOptions": {
+              "ignoreTimeRange": true
+            },
+            "thresholds": [
+              {
+                "alertSeverity": "WARNING",
+                "value": 70
+              },
+              {
+                "alertSeverity": "CRITICAL",
+                "value": 90
+              }
+            ]
+          }
+        },
+        {
+          "title": "usebolsai: cota de hoje (%)",
+          "layout": {
+            "column": 8,
+            "row": 1,
+            "width": 2,
+            "height": 3
+          },
+          "linkedEntityGuids": null,
+          "visualization": {
+            "id": "viz.billboard"
+          },
+          "rawConfiguration": {
+            "facet": {
+              "showOtherSeries": false
+            },
+            "nrqlQueries": [
+              {
+                "accountIds": [6563675],
+                "query": "SELECT latest(koinos.api.bolsai.day_requests) * 100 / latest(koinos.api.bolsai.day_quota) AS '% da cota' FROM Span WHERE service.name = 'koinos' AND name = 'api.usage' SINCE today WITH TIMEZONE 'UTC'"
+              }
+            ],
+            "platformOptions": {
+              "ignoreTimeRange": true
+            },
+            "thresholds": [
+              {
+                "alertSeverity": "WARNING",
+                "value": 70
+              },
+              {
+                "alertSeverity": "CRITICAL",
+                "value": 90
+              }
+            ]
+          }
+        },
+        {
+          "title": "Respostas 429 (24 h)",
+          "layout": {
+            "column": 10,
+            "row": 1,
+            "width": 3,
+            "height": 3
+          },
+          "linkedEntityGuids": null,
+          "visualization": {
+            "id": "viz.billboard"
+          },
+          "rawConfiguration": {
+            "facet": {
+              "showOtherSeries": false
+            },
+            "nrqlQueries": [
+              {
+                "accountIds": [6563675],
+                "query": "SELECT count(*) AS '429' FROM Span WHERE service.name = 'koinos' AND http.client.name = 'fetch' AND http.status_code = 429 SINCE 1 day ago"
+              }
+            ],
+            "platformOptions": {
+              "ignoreTimeRange": true
+            },
+            "thresholds": [
+              {
+                "alertSeverity": "WARNING",
+                "value": 1
+              },
+              {
+                "alertSeverity": "CRITICAL",
+                "value": 5
+              }
+            ]
+          }
+        },
+        {
+          "title": "Chamadas hoje por integração",
+          "layout": {
+            "column": 6,
+            "row": 4,
+            "width": 7,
+            "height": 2
+          },
+          "linkedEntityGuids": null,
+          "visualization": {
+            "id": "viz.billboard"
+          },
+          "rawConfiguration": {
+            "facet": {
+              "showOtherSeries": false
+            },
+            "nrqlQueries": [
+              {
+                "accountIds": [6563675],
+                "query": "SELECT count(*) FROM Span WHERE service.name = 'koinos' AND http.client.name = 'fetch' FACET CASES(WHERE net.peer.name = 'brapi.dev' AS 'brapi', WHERE net.peer.name = 'api.usebolsai.com' AS 'usebolsai', WHERE net.peer.name LIKE '%yahoo.com' AS 'Yahoo Finance', WHERE net.peer.name = 'www.fundamentus.com.br' AS 'Fundamentus', WHERE net.peer.name LIKE '%tesourotransparente.gov.br' AS 'Tesouro Transparente', WHERE (net.peer.name LIKE '%google.com' OR net.peer.name LIKE '%googleapis.com') AS 'Google (login)') SINCE today WITH TIMEZONE 'America/Sao_Paulo'"
+              }
+            ],
+            "platformOptions": {
+              "ignoreTimeRange": true
+            }
+          }
+        },
+        {
+          "title": "Chamadas por dia (7 dias)",
+          "layout": {
+            "column": 1,
+            "row": 6,
+            "width": 7,
+            "height": 4
+          },
+          "linkedEntityGuids": null,
+          "visualization": {
+            "id": "viz.stacked-bar"
+          },
+          "rawConfiguration": {
+            "facet": {
+              "showOtherSeries": false
+            },
+            "nrqlQueries": [
+              {
+                "accountIds": [6563675],
+                "query": "SELECT count(*) FROM Span WHERE service.name = 'koinos' AND http.client.name = 'fetch' FACET CASES(WHERE net.peer.name = 'brapi.dev' AS 'brapi', WHERE net.peer.name = 'api.usebolsai.com' AS 'usebolsai', WHERE net.peer.name LIKE '%yahoo.com' AS 'Yahoo Finance', WHERE net.peer.name = 'www.fundamentus.com.br' AS 'Fundamentus', WHERE net.peer.name LIKE '%tesourotransparente.gov.br' AS 'Tesouro Transparente', WHERE (net.peer.name LIKE '%google.com' OR net.peer.name LIKE '%googleapis.com') AS 'Google (login)') TIMESERIES 1 day SINCE 7 days ago WITH TIMEZONE 'America/Sao_Paulo'"
+              }
+            ],
+            "platformOptions": {
+              "ignoreTimeRange": true
+            }
+          }
+        },
+        {
+          "title": "% com falha por integração",
+          "layout": {
+            "column": 8,
+            "row": 6,
+            "width": 5,
+            "height": 4
+          },
+          "linkedEntityGuids": null,
+          "visualization": {
+            "id": "viz.line"
+          },
+          "rawConfiguration": {
+            "facet": {
+              "showOtherSeries": false
+            },
+            "nrqlQueries": [
+              {
+                "accountIds": [6563675],
+                "query": "SELECT percentage(count(*), WHERE (http.status_code >= 400 OR otel.status_code = 'ERROR')) FROM Span WHERE service.name = 'koinos' AND http.client.name = 'fetch' FACET CASES(WHERE net.peer.name = 'brapi.dev' AS 'brapi', WHERE net.peer.name = 'api.usebolsai.com' AS 'usebolsai', WHERE net.peer.name LIKE '%yahoo.com' AS 'Yahoo Finance', WHERE net.peer.name = 'www.fundamentus.com.br' AS 'Fundamentus', WHERE net.peer.name LIKE '%tesourotransparente.gov.br' AS 'Tesouro Transparente', WHERE (net.peer.name LIKE '%google.com' OR net.peer.name LIKE '%googleapis.com') AS 'Google (login)') TIMESERIES AUTO"
+              }
+            ],
+            "platformOptions": {
+              "ignoreTimeRange": false
+            }
+          }
+        },
+        {
+          "title": "Resumo por integração",
+          "layout": {
+            "column": 1,
+            "row": 10,
+            "width": 12,
+            "height": 4
+          },
+          "linkedEntityGuids": null,
+          "visualization": {
+            "id": "viz.table"
+          },
+          "rawConfiguration": {
+            "facet": {
+              "showOtherSeries": false
+            },
+            "nrqlQueries": [
+              {
+                "accountIds": [6563675],
+                "query": "SELECT count(*) AS 'Chamadas', filter(count(*), WHERE (http.status_code >= 400 OR otel.status_code = 'ERROR')) AS 'Falhas', filter(count(*), WHERE http.status_code = 429) AS '429', percentile(duration.ms, 95) AS 'p95 (ms)', latest(timestamp) AS 'Última' FROM Span WHERE service.name = 'koinos' AND http.client.name = 'fetch' FACET CASES(WHERE net.peer.name = 'brapi.dev' AS 'brapi', WHERE net.peer.name = 'api.usebolsai.com' AS 'usebolsai', WHERE net.peer.name LIKE '%yahoo.com' AS 'Yahoo Finance', WHERE net.peer.name = 'www.fundamentus.com.br' AS 'Fundamentus', WHERE net.peer.name LIKE '%tesourotransparente.gov.br' AS 'Tesouro Transparente', WHERE (net.peer.name LIKE '%google.com' OR net.peer.name LIKE '%googleapis.com') AS 'Google (login)')"
+              }
+            ],
+            "platformOptions": {
+              "ignoreTimeRange": false
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "brapi",
+      "description": "Cotações (listagem e individual) e catálogo. Plano gratuito: cota mensal e uma requisição por vez.",
+      "widgets": [
+        {
+          "title": "Cota do mês (%)",
+          "layout": {
+            "column": 1,
+            "row": 1,
+            "width": 3,
+            "height": 3
+          },
+          "linkedEntityGuids": null,
+          "visualization": {
+            "id": "viz.billboard"
+          },
+          "rawConfiguration": {
+            "facet": {
+              "showOtherSeries": false
+            },
+            "nrqlQueries": [
+              {
+                "accountIds": [6563675],
+                "query": "SELECT latest(koinos.api.brapi.month_requests) * 100 / latest(koinos.api.brapi.month_quota) AS '% da cota' FROM Span WHERE service.name = 'koinos' AND name = 'api.usage' SINCE 3 days ago"
+              }
+            ],
+            "platformOptions": {
+              "ignoreTimeRange": true
+            },
+            "thresholds": [
+              {
+                "alertSeverity": "WARNING",
+                "value": 70
+              },
+              {
+                "alertSeverity": "CRITICAL",
+                "value": 90
+              }
+            ]
+          }
+        },
+        {
+          "title": "Requisições no mês (contador)",
+          "layout": {
+            "column": 4,
+            "row": 1,
+            "width": 3,
+            "height": 3
+          },
+          "linkedEntityGuids": null,
+          "visualization": {
+            "id": "viz.billboard"
+          },
+          "rawConfiguration": {
+            "facet": {
+              "showOtherSeries": false
+            },
+            "nrqlQueries": [
+              {
+                "accountIds": [6563675],
+                "query": "SELECT latest(koinos.api.brapi.month_requests) AS 'Usadas', latest(koinos.api.brapi.month_quota) AS 'Cota' FROM Span WHERE service.name = 'koinos' AND name = 'api.usage' SINCE 3 days ago"
+              }
+            ],
+            "platformOptions": {
+              "ignoreTimeRange": true
+            }
+          }
+        },
+        {
+          "title": "Projeção para 30 dias (ritmo de 7 dias)",
+          "layout": {
+            "column": 7,
+            "row": 1,
+            "width": 3,
+            "height": 3
+          },
+          "linkedEntityGuids": null,
+          "visualization": {
+            "id": "viz.billboard"
+          },
+          "rawConfiguration": {
+            "facet": {
+              "showOtherSeries": false
+            },
+            "nrqlQueries": [
+              {
+                "accountIds": [6563675],
+                "query": "SELECT count(*) / 7 * 30 AS 'Projeção' FROM Span WHERE service.name = 'koinos' AND http.client.name = 'fetch' AND net.peer.name = 'brapi.dev' SINCE 7 days ago"
+              }
+            ],
+            "platformOptions": {
+              "ignoreTimeRange": true
+            },
+            "thresholds": [
+              {
+                "alertSeverity": "WARNING",
+                "value": 10500
+              },
+              {
+                "alertSeverity": "CRITICAL",
+                "value": 13500
+              }
+            ]
+          }
+        },
+        {
+          "title": "Pulada pela cota (90%)",
+          "layout": {
+            "column": 10,
+            "row": 1,
+            "width": 3,
+            "height": 3
+          },
+          "linkedEntityGuids": null,
+          "visualization": {
+            "id": "viz.billboard"
+          },
+          "rawConfiguration": {
+            "facet": {
+              "showOtherSeries": false
+            },
+            "nrqlQueries": [
+              {
+                "accountIds": [6563675],
+                "query": "SELECT filter(count(*), WHERE koinos.brapi.skipped IS TRUE) AS 'Lotes pulados' FROM Span WHERE service.name = 'koinos' AND name = 'quotes.brapi' SINCE 7 days ago"
+              }
+            ],
+            "platformOptions": {
+              "ignoreTimeRange": true
+            },
+            "thresholds": [
+              {
+                "alertSeverity": "WARNING",
+                "value": 1
+              },
+              {
+                "alertSeverity": "CRITICAL",
+                "value": 1
+              }
+            ]
+          }
+        },
+        {
+          "title": "Uso da cota ao longo do mês",
+          "layout": {
+            "column": 1,
+            "row": 4,
+            "width": 6,
+            "height": 3
+          },
+          "linkedEntityGuids": null,
+          "visualization": {
+            "id": "viz.line"
+          },
+          "rawConfiguration": {
+            "facet": {
+              "showOtherSeries": false
+            },
+            "nrqlQueries": [
+              {
+                "accountIds": [6563675],
+                "query": "SELECT latest(koinos.api.brapi.month_requests) AS 'Usadas', latest(koinos.api.brapi.month_quota) AS 'Cota' FROM Span WHERE service.name = 'koinos' AND name = 'api.usage' TIMESERIES 1 day SINCE 30 days ago WITH TIMEZONE 'America/Sao_Paulo'"
+              }
+            ],
+            "platformOptions": {
+              "ignoreTimeRange": true
+            }
+          }
+        },
+        {
+          "title": "Requisições por dia e endpoint",
+          "layout": {
+            "column": 7,
+            "row": 4,
+            "width": 6,
+            "height": 3
+          },
+          "linkedEntityGuids": null,
+          "visualization": {
+            "id": "viz.stacked-bar"
+          },
+          "rawConfiguration": {
+            "facet": {
+              "showOtherSeries": false
+            },
+            "nrqlQueries": [
+              {
+                "accountIds": [6563675],
+                "query": "SELECT count(*) FROM Span WHERE service.name = 'koinos' AND http.client.name = 'fetch' AND net.peer.name = 'brapi.dev' FACET CASES(WHERE http.url LIKE '%/quote/list%' AS 'listagem (lote)', WHERE http.url LIKE '%/v2/stocks/quote%' AS 'cotação individual') TIMESERIES 1 day SINCE 7 days ago WITH TIMEZONE 'America/Sao_Paulo'"
+              }
+            ],
+            "platformOptions": {
+              "ignoreTimeRange": true
+            }
+          }
+        },
+        {
+          "title": "Quem gastou: cron x app",
+          "layout": {
+            "column": 1,
+            "row": 7,
+            "width": 6,
+            "height": 3
+          },
+          "linkedEntityGuids": null,
+          "visualization": {
+            "id": "viz.stacked-bar"
+          },
+          "rawConfiguration": {
+            "facet": {
+              "showOtherSeries": false
+            },
+            "nrqlQueries": [
+              {
+                "accountIds": [6563675],
+                "query": "SELECT sum(koinos.brapi.requests) FROM Span WHERE service.name = 'koinos' AND name = 'quotes.brapi' FACET CASES(WHERE koinos.quotes.forced IS TRUE AS 'cron (todas)', WHERE koinos.quotes.forced IS FALSE AS 'app (vencidas)') TIMESERIES 1 day SINCE 7 days ago WITH TIMEZONE 'America/Sao_Paulo'"
+              }
+            ],
+            "platformOptions": {
+              "ignoreTimeRange": true
+            }
+          }
+        },
+        {
+          "title": "Requisições por lote de cotações",
+          "layout": {
+            "column": 7,
+            "row": 7,
+            "width": 6,
+            "height": 3
+          },
+          "linkedEntityGuids": null,
+          "visualization": {
+            "id": "viz.table"
+          },
+          "rawConfiguration": {
+            "facet": {
+              "showOtherSeries": false
+            },
+            "nrqlQueries": [
+              {
+                "accountIds": [6563675],
+                "query": "SELECT count(*) AS 'Lotes', average(koinos.brapi.requests) AS 'Req. por lote', max(koinos.brapi.requests) AS 'Máx.', sum(koinos.quotes.resolved) AS 'Cotações' FROM Span WHERE service.name = 'koinos' AND name = 'quotes.brapi' AND koinos.brapi.skipped IS FALSE FACET koinos.quotes.forced"
+              }
+            ],
+            "platformOptions": {
+              "ignoreTimeRange": false
+            }
+          }
+        },
+        {
+          "title": "Status HTTP",
+          "layout": {
+            "column": 1,
+            "row": 10,
+            "width": 4,
+            "height": 3
+          },
+          "linkedEntityGuids": null,
+          "visualization": {
+            "id": "viz.pie"
+          },
+          "rawConfiguration": {
+            "facet": {
+              "showOtherSeries": false
+            },
+            "nrqlQueries": [
+              {
+                "accountIds": [6563675],
+                "query": "SELECT count(*) FROM Span WHERE service.name = 'koinos' AND http.client.name = 'fetch' AND net.peer.name = 'brapi.dev' FACET http.status_code"
+              }
+            ],
+            "platformOptions": {
+              "ignoreTimeRange": false
+            }
+          }
+        },
+        {
+          "title": "Latência p95 (ms)",
+          "layout": {
+            "column": 5,
+            "row": 10,
+            "width": 4,
+            "height": 3
+          },
+          "linkedEntityGuids": null,
+          "visualization": {
+            "id": "viz.line"
+          },
+          "rawConfiguration": {
+            "facet": {
+              "showOtherSeries": false
+            },
+            "nrqlQueries": [
+              {
+                "accountIds": [6563675],
+                "query": "SELECT percentile(duration.ms, 95) FROM Span WHERE service.name = 'koinos' AND http.client.name = 'fetch' AND net.peer.name = 'brapi.dev' TIMESERIES AUTO"
+              }
+            ],
+            "platformOptions": {
+              "ignoreTimeRange": false
+            }
+          }
+        },
+        {
+          "title": "Cabeçalhos de limite (se a API mandar)",
+          "layout": {
+            "column": 9,
+            "row": 10,
+            "width": 4,
+            "height": 3
+          },
+          "linkedEntityGuids": null,
+          "visualization": {
+            "id": "viz.table"
+          },
+          "rawConfiguration": {
+            "facet": {
+              "showOtherSeries": false
+            },
+            "nrqlQueries": [
+              {
+                "accountIds": [6563675],
+                "query": "SELECT latest(koinos.api.ratelimit.limit) AS 'Limite', latest(koinos.api.ratelimit.remaining) AS 'Restante', latest(koinos.api.ratelimit.reset) AS 'Reset', latest(koinos.api.retry_after) AS 'Retry-After' FROM Span WHERE service.name = 'koinos' AND http.client.name = 'fetch' AND net.peer.name = 'brapi.dev' AND koinos.api.ratelimit.remaining IS NOT NULL SINCE 7 days ago"
+              }
+            ],
+            "platformOptions": {
+              "ignoreTimeRange": true
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "usebolsai",
+      "description": "VP, P/VP e perfil dos FIIs. Plano gratuito: 200 chamadas por dia, zerando às 0h UTC (21h em Brasília).",
+      "widgets": [
+        {
+          "title": "Cota de hoje, UTC (%)",
+          "layout": {
+            "column": 1,
+            "row": 1,
+            "width": 3,
+            "height": 3
+          },
+          "linkedEntityGuids": null,
+          "visualization": {
+            "id": "viz.billboard"
+          },
+          "rawConfiguration": {
+            "facet": {
+              "showOtherSeries": false
+            },
+            "nrqlQueries": [
+              {
+                "accountIds": [6563675],
+                "query": "SELECT latest(koinos.api.bolsai.day_requests) * 100 / latest(koinos.api.bolsai.day_quota) AS '% da cota' FROM Span WHERE service.name = 'koinos' AND name = 'api.usage' SINCE today WITH TIMEZONE 'UTC'"
+              }
+            ],
+            "platformOptions": {
+              "ignoreTimeRange": true
+            },
+            "thresholds": [
+              {
+                "alertSeverity": "WARNING",
+                "value": 70
+              },
+              {
+                "alertSeverity": "CRITICAL",
+                "value": 90
+              }
+            ]
+          }
+        },
+        {
+          "title": "Chamadas hoje, UTC (contador)",
+          "layout": {
+            "column": 4,
+            "row": 1,
+            "width": 3,
+            "height": 3
+          },
+          "linkedEntityGuids": null,
+          "visualization": {
+            "id": "viz.billboard"
+          },
+          "rawConfiguration": {
+            "facet": {
+              "showOtherSeries": false
+            },
+            "nrqlQueries": [
+              {
+                "accountIds": [6563675],
+                "query": "SELECT latest(koinos.api.bolsai.day_requests) AS 'Usadas', latest(koinos.api.bolsai.day_quota) AS 'Cota' FROM Span WHERE service.name = 'koinos' AND name = 'api.usage' SINCE today WITH TIMEZONE 'UTC'"
+              }
+            ],
+            "platformOptions": {
+              "ignoreTimeRange": true
+            }
+          }
+        },
+        {
+          "title": "Chamadas hoje, UTC (spans)",
+          "layout": {
+            "column": 7,
+            "row": 1,
+            "width": 3,
+            "height": 3
+          },
+          "linkedEntityGuids": null,
+          "visualization": {
+            "id": "viz.billboard"
+          },
+          "rawConfiguration": {
+            "facet": {
+              "showOtherSeries": false
+            },
+            "nrqlQueries": [
+              {
+                "accountIds": [6563675],
+                "query": "SELECT count(*) AS 'Chamadas' FROM Span WHERE service.name = 'koinos' AND http.client.name = 'fetch' AND net.peer.name = 'api.usebolsai.com' SINCE today WITH TIMEZONE 'UTC'"
+              }
+            ],
+            "platformOptions": {
+              "ignoreTimeRange": true
+            },
+            "thresholds": [
+              {
+                "alertSeverity": "WARNING",
+                "value": 140
+              },
+              {
+                "alertSeverity": "CRITICAL",
+                "value": 180
+              }
+            ]
+          }
+        },
+        {
+          "title": "Sem VP na API (404)",
+          "layout": {
+            "column": 10,
+            "row": 1,
+            "width": 3,
+            "height": 3
+          },
+          "linkedEntityGuids": null,
+          "visualization": {
+            "id": "viz.billboard"
+          },
+          "rawConfiguration": {
+            "facet": {
+              "showOtherSeries": false
+            },
+            "nrqlQueries": [
+              {
+                "accountIds": [6563675],
+                "query": "SELECT filter(count(*), WHERE http.status_code = 404) AS '404 (gastam cota)' FROM Span WHERE service.name = 'koinos' AND http.client.name = 'fetch' AND net.peer.name = 'api.usebolsai.com' SINCE 7 days ago"
+              }
+            ],
+            "platformOptions": {
+              "ignoreTimeRange": true
+            }
+          }
+        },
+        {
+          "title": "Chamadas por dia UTC (7 dias)",
+          "layout": {
+            "column": 1,
+            "row": 4,
+            "width": 6,
+            "height": 3
+          },
+          "linkedEntityGuids": null,
+          "visualization": {
+            "id": "viz.stacked-bar"
+          },
+          "rawConfiguration": {
+            "facet": {
+              "showOtherSeries": false
+            },
+            "nrqlQueries": [
+              {
+                "accountIds": [6563675],
+                "query": "SELECT count(*) FROM Span WHERE service.name = 'koinos' AND http.client.name = 'fetch' AND net.peer.name = 'api.usebolsai.com' FACET http.status_code TIMESERIES 1 day SINCE 7 days ago WITH TIMEZONE 'UTC'"
+              }
+            ],
+            "platformOptions": {
+              "ignoreTimeRange": true
+            }
+          }
+        },
+        {
+          "title": "Cron das 2h x abertura do app",
+          "layout": {
+            "column": 7,
+            "row": 4,
+            "width": 6,
+            "height": 3
+          },
+          "linkedEntityGuids": null,
+          "visualization": {
+            "id": "viz.table"
+          },
+          "rawConfiguration": {
+            "facet": {
+              "showOtherSeries": false
+            },
+            "nrqlQueries": [
+              {
+                "accountIds": [6563675],
+                "query": "SELECT count(*) AS 'Execuções', sum(koinos.fundamentals.requested) AS 'Chamadas', sum(koinos.fundamentals.updated) AS 'Atualizados', sum(koinos.fundamentals.missing) AS 'Sem VP', sum(koinos.fundamentals.failed) AS 'Falhas' FROM Span WHERE service.name = 'koinos' AND name = 'cron.fundamentals' SINCE 7 days ago"
+              }
+            ],
+            "platformOptions": {
+              "ignoreTimeRange": true
+            }
+          }
+        },
+        {
+          "title": "Status HTTP",
+          "layout": {
+            "column": 1,
+            "row": 7,
+            "width": 4,
+            "height": 3
+          },
+          "linkedEntityGuids": null,
+          "visualization": {
+            "id": "viz.pie"
+          },
+          "rawConfiguration": {
+            "facet": {
+              "showOtherSeries": false
+            },
+            "nrqlQueries": [
+              {
+                "accountIds": [6563675],
+                "query": "SELECT count(*) FROM Span WHERE service.name = 'koinos' AND http.client.name = 'fetch' AND net.peer.name = 'api.usebolsai.com' FACET http.status_code"
+              }
+            ],
+            "platformOptions": {
+              "ignoreTimeRange": false
+            }
+          }
+        },
+        {
+          "title": "Latência p95 (ms)",
+          "layout": {
+            "column": 5,
+            "row": 7,
+            "width": 4,
+            "height": 3
+          },
+          "linkedEntityGuids": null,
+          "visualization": {
+            "id": "viz.line"
+          },
+          "rawConfiguration": {
+            "facet": {
+              "showOtherSeries": false
+            },
+            "nrqlQueries": [
+              {
+                "accountIds": [6563675],
+                "query": "SELECT percentile(duration.ms, 95) FROM Span WHERE service.name = 'koinos' AND http.client.name = 'fetch' AND net.peer.name = 'api.usebolsai.com' TIMESERIES AUTO"
+              }
+            ],
+            "platformOptions": {
+              "ignoreTimeRange": false
+            }
+          }
+        },
+        {
+          "title": "Cabeçalhos de limite (se a API mandar)",
+          "layout": {
+            "column": 9,
+            "row": 7,
+            "width": 4,
+            "height": 3
+          },
+          "linkedEntityGuids": null,
+          "visualization": {
+            "id": "viz.table"
+          },
+          "rawConfiguration": {
+            "facet": {
+              "showOtherSeries": false
+            },
+            "nrqlQueries": [
+              {
+                "accountIds": [6563675],
+                "query": "SELECT latest(koinos.api.ratelimit.limit) AS 'Limite', latest(koinos.api.ratelimit.remaining) AS 'Restante', latest(koinos.api.ratelimit.reset) AS 'Reset', latest(koinos.api.retry_after) AS 'Retry-After' FROM Span WHERE service.name = 'koinos' AND http.client.name = 'fetch' AND net.peer.name = 'api.usebolsai.com' AND koinos.api.ratelimit.remaining IS NOT NULL SINCE 7 days ago"
+              }
+            ],
+            "platformOptions": {
+              "ignoreTimeRange": true
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Yahoo Finance",
+      "description": "Proventos, fechamentos e reserva das cotações (yahoo-finance2, fila de 8). Sem cota publicada: o sinal é o 429.",
+      "widgets": [
+        {
+          "title": "Chamadas (período)",
+          "layout": {
+            "column": 1,
+            "row": 1,
+            "width": 3,
+            "height": 3
+          },
+          "linkedEntityGuids": null,
+          "visualization": {
+            "id": "viz.billboard"
+          },
+          "rawConfiguration": {
+            "facet": {
+              "showOtherSeries": false
+            },
+            "nrqlQueries": [
+              {
+                "accountIds": [6563675],
+                "query": "SELECT count(*) AS 'Chamadas' FROM Span WHERE service.name = 'koinos' AND http.client.name = 'fetch' AND net.peer.name LIKE '%yahoo.com'"
+              }
+            ],
+            "platformOptions": {
+              "ignoreTimeRange": false
+            }
+          }
+        },
+        {
+          "title": "Pico por hora (7 dias)",
+          "layout": {
+            "column": 4,
+            "row": 1,
+            "width": 3,
+            "height": 3
+          },
+          "linkedEntityGuids": null,
+          "visualization": {
+            "id": "viz.billboard"
+          },
+          "rawConfiguration": {
+            "facet": {
+              "showOtherSeries": false
+            },
+            "nrqlQueries": [
+              {
+                "accountIds": [6563675],
+                "query": "SELECT max(c) AS 'Máx. por hora' FROM (SELECT count(*) AS c FROM Span WHERE service.name = 'koinos' AND http.client.name = 'fetch' AND net.peer.name LIKE '%yahoo.com' TIMESERIES 1 hour) SINCE 7 days ago"
+              }
+            ],
+            "platformOptions": {
+              "ignoreTimeRange": true
+            }
+          }
+        },
+        {
+          "title": "429 (7 dias)",
+          "layout": {
+            "column": 7,
+            "row": 1,
+            "width": 3,
+            "height": 3
+          },
+          "linkedEntityGuids": null,
+          "visualization": {
+            "id": "viz.billboard"
+          },
+          "rawConfiguration": {
+            "facet": {
+              "showOtherSeries": false
+            },
+            "nrqlQueries": [
+              {
+                "accountIds": [6563675],
+                "query": "SELECT filter(count(*), WHERE http.status_code = 429) AS '429' FROM Span WHERE service.name = 'koinos' AND http.client.name = 'fetch' AND net.peer.name LIKE '%yahoo.com' SINCE 7 days ago"
+              }
+            ],
+            "platformOptions": {
+              "ignoreTimeRange": true
+            },
+            "thresholds": [
+              {
+                "alertSeverity": "WARNING",
+                "value": 1
+              },
+              {
+                "alertSeverity": "CRITICAL",
+                "value": 5
+              }
+            ]
+          }
+        },
+        {
+          "title": "% com falha",
+          "layout": {
+            "column": 10,
+            "row": 1,
+            "width": 3,
+            "height": 3
+          },
+          "linkedEntityGuids": null,
+          "visualization": {
+            "id": "viz.billboard"
+          },
+          "rawConfiguration": {
+            "facet": {
+              "showOtherSeries": false
+            },
+            "nrqlQueries": [
+              {
+                "accountIds": [6563675],
+                "query": "SELECT percentage(count(*), WHERE (http.status_code >= 400 OR otel.status_code = 'ERROR')) AS '% falha' FROM Span WHERE service.name = 'koinos' AND http.client.name = 'fetch' AND net.peer.name LIKE '%yahoo.com'"
+              }
+            ],
+            "platformOptions": {
+              "ignoreTimeRange": false
+            },
+            "thresholds": [
+              {
+                "alertSeverity": "WARNING",
+                "value": 5
+              },
+              {
+                "alertSeverity": "CRITICAL",
+                "value": 20
+              }
+            ]
+          }
+        },
+        {
+          "title": "Chamadas por hora e endpoint",
+          "layout": {
+            "column": 1,
+            "row": 4,
+            "width": 8,
+            "height": 3
+          },
+          "linkedEntityGuids": null,
+          "visualization": {
+            "id": "viz.stacked-bar"
+          },
+          "rawConfiguration": {
+            "facet": {
+              "showOtherSeries": false
+            },
+            "nrqlQueries": [
+              {
+                "accountIds": [6563675],
+                "query": "SELECT count(*) FROM Span WHERE service.name = 'koinos' AND http.client.name = 'fetch' AND net.peer.name LIKE '%yahoo.com' FACET CASES(WHERE http.url LIKE '%/finance/chart/%' AS 'chart (histórico e proventos)', WHERE http.url LIKE '%/finance/quote%' AS 'quote (reserva)', WHERE http.url LIKE '%getcrumb%' AS 'crumb', WHERE net.peer.name NOT LIKE 'query%' AS 'cookie e consentimento') TIMESERIES 1 hour"
+              }
+            ],
+            "platformOptions": {
+              "ignoreTimeRange": false
+            }
+          }
+        },
+        {
+          "title": "Status HTTP",
+          "layout": {
+            "column": 9,
+            "row": 4,
+            "width": 4,
+            "height": 3
+          },
+          "linkedEntityGuids": null,
+          "visualization": {
+            "id": "viz.pie"
+          },
+          "rawConfiguration": {
+            "facet": {
+              "showOtherSeries": false
+            },
+            "nrqlQueries": [
+              {
+                "accountIds": [6563675],
+                "query": "SELECT count(*) FROM Span WHERE service.name = 'koinos' AND http.client.name = 'fetch' AND net.peer.name LIKE '%yahoo.com' FACET http.status_code"
+              }
+            ],
+            "platformOptions": {
+              "ignoreTimeRange": false
+            }
+          }
+        },
+        {
+          "title": "Reserva das cotações (quando a brapi não resolve)",
+          "layout": {
+            "column": 1,
+            "row": 7,
+            "width": 6,
+            "height": 3
+          },
+          "linkedEntityGuids": null,
+          "visualization": {
+            "id": "viz.stacked-bar"
+          },
+          "rawConfiguration": {
+            "facet": {
+              "showOtherSeries": false
+            },
+            "nrqlQueries": [
+              {
+                "accountIds": [6563675],
+                "query": "SELECT sum(koinos.quotes.requested) AS 'Pedidas', sum(koinos.quotes.resolved) AS 'Resolvidas' FROM Span WHERE service.name = 'koinos' AND name = 'quotes.yahoo-fallback' TIMESERIES 1 day SINCE 7 days ago WITH TIMEZONE 'America/Sao_Paulo'"
+              }
+            ],
+            "platformOptions": {
+              "ignoreTimeRange": true
+            }
+          }
+        },
+        {
+          "title": "Por host e endpoint",
+          "layout": {
+            "column": 7,
+            "row": 7,
+            "width": 6,
+            "height": 3
+          },
+          "linkedEntityGuids": null,
+          "visualization": {
+            "id": "viz.table"
+          },
+          "rawConfiguration": {
+            "facet": {
+              "showOtherSeries": false
+            },
+            "nrqlQueries": [
+              {
+                "accountIds": [6563675],
+                "query": "SELECT count(*) AS 'Chamadas', percentile(duration.ms, 95) AS 'p95 (ms)', filter(count(*), WHERE (http.status_code >= 400 OR otel.status_code = 'ERROR')) AS 'Falhas', latest(koinos.api.retry_after) AS 'Retry-After' FROM Span WHERE service.name = 'koinos' AND http.client.name = 'fetch' AND net.peer.name LIKE '%yahoo.com' FACET net.peer.name, CASES(WHERE http.url LIKE '%/finance/chart/%' AS 'chart (histórico e proventos)', WHERE http.url LIKE '%/finance/quote%' AS 'quote (reserva)', WHERE http.url LIKE '%getcrumb%' AS 'crumb', WHERE net.peer.name NOT LIKE 'query%' AS 'cookie e consentimento')"
+              }
+            ],
+            "platformOptions": {
+              "ignoreTimeRange": false
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Fundamentus",
+      "description": "Páginas públicas de proventos (datas de pagamento e histórico dos FIIs). Sem cota: o Koinos se limita a 2 por vez e reusa a página por 5 min.",
+      "widgets": [
+        {
+          "title": "Páginas baixadas hoje",
+          "layout": {
+            "column": 1,
+            "row": 1,
+            "width": 3,
+            "height": 3
+          },
+          "linkedEntityGuids": null,
+          "visualization": {
+            "id": "viz.billboard"
+          },
+          "rawConfiguration": {
+            "facet": {
+              "showOtherSeries": false
+            },
+            "nrqlQueries": [
+              {
+                "accountIds": [6563675],
+                "query": "SELECT count(*) AS 'Baixadas' FROM Span WHERE service.name = 'koinos' AND http.client.name = 'fetch' AND net.peer.name = 'www.fundamentus.com.br' SINCE today WITH TIMEZONE 'America/Sao_Paulo'"
+              }
+            ],
+            "platformOptions": {
+              "ignoreTimeRange": true
+            }
+          }
+        },
+        {
+          "title": "Reusadas (sem requisição)",
+          "layout": {
+            "column": 4,
+            "row": 1,
+            "width": 3,
+            "height": 3
+          },
+          "linkedEntityGuids": null,
+          "visualization": {
+            "id": "viz.billboard"
+          },
+          "rawConfiguration": {
+            "facet": {
+              "showOtherSeries": false
+            },
+            "nrqlQueries": [
+              {
+                "accountIds": [6563675],
+                "query": "SELECT count(*) AS 'Reusadas' FROM Span WHERE service.name = 'koinos' AND name = 'fundamentus.reuse' SINCE today WITH TIMEZONE 'America/Sao_Paulo'"
+              }
+            ],
+            "platformOptions": {
+              "ignoreTimeRange": true
+            }
+          }
+        },
+        {
+          "title": "% com falha",
+          "layout": {
+            "column": 7,
+            "row": 1,
+            "width": 3,
+            "height": 3
+          },
+          "linkedEntityGuids": null,
+          "visualization": {
+            "id": "viz.billboard"
+          },
+          "rawConfiguration": {
+            "facet": {
+              "showOtherSeries": false
+            },
+            "nrqlQueries": [
+              {
+                "accountIds": [6563675],
+                "query": "SELECT percentage(count(*), WHERE (http.status_code >= 400 OR otel.status_code = 'ERROR')) AS '% falha' FROM Span WHERE service.name = 'koinos' AND http.client.name = 'fetch' AND net.peer.name = 'www.fundamentus.com.br'"
+              }
+            ],
+            "platformOptions": {
+              "ignoreTimeRange": false
+            },
+            "thresholds": [
+              {
+                "alertSeverity": "WARNING",
+                "value": 10
+              },
+              {
+                "alertSeverity": "CRITICAL",
+                "value": 30
+              }
+            ]
+          }
+        },
+        {
+          "title": "403/429 (bloqueio)",
+          "layout": {
+            "column": 10,
+            "row": 1,
+            "width": 3,
+            "height": 3
+          },
+          "linkedEntityGuids": null,
+          "visualization": {
+            "id": "viz.billboard"
+          },
+          "rawConfiguration": {
+            "facet": {
+              "showOtherSeries": false
+            },
+            "nrqlQueries": [
+              {
+                "accountIds": [6563675],
+                "query": "SELECT filter(count(*), WHERE http.status_code IN (403, 429)) AS 'Bloqueios' FROM Span WHERE service.name = 'koinos' AND http.client.name = 'fetch' AND net.peer.name = 'www.fundamentus.com.br' SINCE 7 days ago"
+              }
+            ],
+            "platformOptions": {
+              "ignoreTimeRange": true
+            },
+            "thresholds": [
+              {
+                "alertSeverity": "WARNING",
+                "value": 1
+              },
+              {
+                "alertSeverity": "CRITICAL",
+                "value": 3
+              }
+            ]
+          }
+        },
+        {
+          "title": "Baixadas x reusadas por dia",
+          "layout": {
+            "column": 1,
+            "row": 4,
+            "width": 6,
+            "height": 3
+          },
+          "linkedEntityGuids": null,
+          "visualization": {
+            "id": "viz.stacked-bar"
+          },
+          "rawConfiguration": {
+            "facet": {
+              "showOtherSeries": false
+            },
+            "nrqlQueries": [
+              {
+                "accountIds": [6563675],
+                "query": "SELECT count(*) AS 'Baixadas' FROM Span WHERE service.name = 'koinos' AND http.client.name = 'fetch' AND net.peer.name = 'www.fundamentus.com.br' TIMESERIES 1 day SINCE 7 days ago WITH TIMEZONE 'America/Sao_Paulo'"
+              },
+              {
+                "accountIds": [6563675],
+                "query": "SELECT count(*) AS 'Reusadas' FROM Span WHERE service.name = 'koinos' AND name = 'fundamentus.reuse' TIMESERIES 1 day SINCE 7 days ago WITH TIMEZONE 'America/Sao_Paulo'"
+              }
+            ],
+            "platformOptions": {
+              "ignoreTimeRange": true
+            }
+          }
+        },
+        {
+          "title": "Por página e status",
+          "layout": {
+            "column": 7,
+            "row": 4,
+            "width": 6,
+            "height": 3
+          },
+          "linkedEntityGuids": null,
+          "visualization": {
+            "id": "viz.bar"
+          },
+          "rawConfiguration": {
+            "facet": {
+              "showOtherSeries": false
+            },
+            "nrqlQueries": [
+              {
+                "accountIds": [6563675],
+                "query": "SELECT count(*) FROM Span WHERE service.name = 'koinos' AND http.client.name = 'fetch' AND net.peer.name = 'www.fundamentus.com.br' FACET CASES(WHERE http.url LIKE '%fii_proventos.php%' AS 'FII', WHERE http.url LIKE '%/proventos.php%' AS 'ação/unit'), http.status_code"
+              }
+            ],
+            "platformOptions": {
+              "ignoreTimeRange": false
+            }
+          }
+        },
+        {
+          "title": "Concorrência: chamadas por minuto (pico)",
+          "layout": {
+            "column": 1,
+            "row": 7,
+            "width": 6,
+            "height": 3
+          },
+          "linkedEntityGuids": null,
+          "visualization": {
+            "id": "viz.line"
+          },
+          "rawConfiguration": {
+            "facet": {
+              "showOtherSeries": false
+            },
+            "nrqlQueries": [
+              {
+                "accountIds": [6563675],
+                "query": "SELECT count(*) FROM Span WHERE service.name = 'koinos' AND http.client.name = 'fetch' AND net.peer.name = 'www.fundamentus.com.br' TIMESERIES 1 minute"
+              }
+            ],
+            "platformOptions": {
+              "ignoreTimeRange": false
+            }
+          }
+        },
+        {
+          "title": "Latência p95 (ms)",
+          "layout": {
+            "column": 7,
+            "row": 7,
+            "width": 6,
+            "height": 3
+          },
+          "linkedEntityGuids": null,
+          "visualization": {
+            "id": "viz.line"
+          },
+          "rawConfiguration": {
+            "facet": {
+              "showOtherSeries": false
+            },
+            "nrqlQueries": [
+              {
+                "accountIds": [6563675],
+                "query": "SELECT percentile(duration.ms, 95) FROM Span WHERE service.name = 'koinos' AND http.client.name = 'fetch' AND net.peer.name = 'www.fundamentus.com.br' FACET CASES(WHERE http.url LIKE '%fii_proventos.php%' AS 'FII', WHERE http.url LIKE '%/proventos.php%' AS 'ação/unit') TIMESERIES AUTO"
+              }
+            ],
+            "platformOptions": {
+              "ignoreTimeRange": false
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Tesouro Transparente",
+      "description": "Taxa real da NTN-B 2035: o catálogo CKAN e o CSV com ETag (304 quando nada mudou), uma vez por dia no cron.",
+      "widgets": [
+        {
+          "title": "Chamadas (7 dias)",
+          "layout": {
+            "column": 1,
+            "row": 1,
+            "width": 3,
+            "height": 3
+          },
+          "linkedEntityGuids": null,
+          "visualization": {
+            "id": "viz.billboard"
+          },
+          "rawConfiguration": {
+            "facet": {
+              "showOtherSeries": false
+            },
+            "nrqlQueries": [
+              {
+                "accountIds": [6563675],
+                "query": "SELECT count(*) AS 'Chamadas' FROM Span WHERE service.name = 'koinos' AND http.client.name = 'fetch' AND net.peer.name LIKE '%tesourotransparente.gov.br' SINCE 7 days ago"
+              }
+            ],
+            "platformOptions": {
+              "ignoreTimeRange": true
+            }
+          }
+        },
+        {
+          "title": "CSV baixado inteiro (200)",
+          "layout": {
+            "column": 4,
+            "row": 1,
+            "width": 3,
+            "height": 3
+          },
+          "linkedEntityGuids": null,
+          "visualization": {
+            "id": "viz.billboard"
+          },
+          "rawConfiguration": {
+            "facet": {
+              "showOtherSeries": false
+            },
+            "nrqlQueries": [
+              {
+                "accountIds": [6563675],
+                "query": "SELECT filter(count(*), WHERE http.url NOT LIKE '%package_show%' AND http.status_code = 200) AS 'Downloads' FROM Span WHERE service.name = 'koinos' AND http.client.name = 'fetch' AND net.peer.name LIKE '%tesourotransparente.gov.br' SINCE 7 days ago"
+              }
+            ],
+            "platformOptions": {
+              "ignoreTimeRange": true
+            }
+          }
+        },
+        {
+          "title": "Último status da sincronização",
+          "layout": {
+            "column": 7,
+            "row": 1,
+            "width": 3,
+            "height": 3
+          },
+          "linkedEntityGuids": null,
+          "visualization": {
+            "id": "viz.billboard"
+          },
+          "rawConfiguration": {
+            "facet": {
+              "showOtherSeries": false
+            },
+            "nrqlQueries": [
+              {
+                "accountIds": [6563675],
+                "query": "SELECT latest(koinos.treasury.status) AS 'Status', latest(koinos.treasury.base_date_age_days) AS 'Dias desde a base' FROM Span WHERE service.name = 'koinos' AND name = 'cron.treasury' SINCE 7 days ago"
+              }
+            ],
+            "platformOptions": {
+              "ignoreTimeRange": true
+            }
+          }
+        },
+        {
+          "title": "% com falha",
+          "layout": {
+            "column": 10,
+            "row": 1,
+            "width": 3,
+            "height": 3
+          },
+          "linkedEntityGuids": null,
+          "visualization": {
+            "id": "viz.billboard"
+          },
+          "rawConfiguration": {
+            "facet": {
+              "showOtherSeries": false
+            },
+            "nrqlQueries": [
+              {
+                "accountIds": [6563675],
+                "query": "SELECT percentage(count(*), WHERE (http.status_code >= 400 OR otel.status_code = 'ERROR')) AS '% falha' FROM Span WHERE service.name = 'koinos' AND http.client.name = 'fetch' AND net.peer.name LIKE '%tesourotransparente.gov.br' SINCE 7 days ago"
+              }
+            ],
+            "platformOptions": {
+              "ignoreTimeRange": true
+            },
+            "thresholds": [
+              {
+                "alertSeverity": "WARNING",
+                "value": 10
+              },
+              {
+                "alertSeverity": "CRITICAL",
+                "value": 50
+              }
+            ]
+          }
+        },
+        {
+          "title": "Catálogo x CSV por dia",
+          "layout": {
+            "column": 1,
+            "row": 4,
+            "width": 6,
+            "height": 3
+          },
+          "linkedEntityGuids": null,
+          "visualization": {
+            "id": "viz.stacked-bar"
+          },
+          "rawConfiguration": {
+            "facet": {
+              "showOtherSeries": false
+            },
+            "nrqlQueries": [
+              {
+                "accountIds": [6563675],
+                "query": "SELECT count(*) FROM Span WHERE service.name = 'koinos' AND http.client.name = 'fetch' AND net.peer.name LIKE '%tesourotransparente.gov.br' FACET CASES(WHERE http.url LIKE '%package_show%' AS 'catálogo', WHERE http.status_code = 304 AS 'CSV 304 (sem mudança)', WHERE http.status_code = 200 AS 'CSV 200 (baixado)') TIMESERIES 1 day SINCE 7 days ago WITH TIMEZONE 'America/Sao_Paulo'"
+              }
+            ],
+            "platformOptions": {
+              "ignoreTimeRange": true
+            }
+          }
+        },
+        {
+          "title": "Duração (ms) e tamanho",
+          "layout": {
+            "column": 7,
+            "row": 4,
+            "width": 6,
+            "height": 3
+          },
+          "linkedEntityGuids": null,
+          "visualization": {
+            "id": "viz.table"
+          },
+          "rawConfiguration": {
+            "facet": {
+              "showOtherSeries": false
+            },
+            "nrqlQueries": [
+              {
+                "accountIds": [6563675],
+                "query": "SELECT count(*) AS 'Chamadas', percentile(duration.ms, 95) AS 'p95 (ms)', max(duration.ms) AS 'Máx. (ms)', average(http.response_content_length) AS 'Bytes (média)' FROM Span WHERE service.name = 'koinos' AND http.client.name = 'fetch' AND net.peer.name LIKE '%tesourotransparente.gov.br' FACET http.status_code SINCE 7 days ago"
+              }
+            ],
+            "platformOptions": {
+              "ignoreTimeRange": true
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Google (login)",
+      "description": "OAuth do Better Auth: troca do código, perfil e chaves. Cota do projeto muito acima do uso de um dono.",
+      "widgets": [
+        {
+          "title": "Chamadas (período)",
+          "layout": {
+            "column": 1,
+            "row": 1,
+            "width": 4,
+            "height": 3
+          },
+          "linkedEntityGuids": null,
+          "visualization": {
+            "id": "viz.billboard"
+          },
+          "rawConfiguration": {
+            "facet": {
+              "showOtherSeries": false
+            },
+            "nrqlQueries": [
+              {
+                "accountIds": [6563675],
+                "query": "SELECT count(*) AS 'Chamadas' FROM Span WHERE service.name = 'koinos' AND http.client.name = 'fetch' AND (net.peer.name LIKE '%google.com' OR net.peer.name LIKE '%googleapis.com')"
+              }
+            ],
+            "platformOptions": {
+              "ignoreTimeRange": false
+            }
+          }
+        },
+        {
+          "title": "% com falha",
+          "layout": {
+            "column": 5,
+            "row": 1,
+            "width": 4,
+            "height": 3
+          },
+          "linkedEntityGuids": null,
+          "visualization": {
+            "id": "viz.billboard"
+          },
+          "rawConfiguration": {
+            "facet": {
+              "showOtherSeries": false
+            },
+            "nrqlQueries": [
+              {
+                "accountIds": [6563675],
+                "query": "SELECT percentage(count(*), WHERE (http.status_code >= 400 OR otel.status_code = 'ERROR')) AS '% falha' FROM Span WHERE service.name = 'koinos' AND http.client.name = 'fetch' AND (net.peer.name LIKE '%google.com' OR net.peer.name LIKE '%googleapis.com')"
+              }
+            ],
+            "platformOptions": {
+              "ignoreTimeRange": false
+            },
+            "thresholds": [
+              {
+                "alertSeverity": "WARNING",
+                "value": 10
+              },
+              {
+                "alertSeverity": "CRITICAL",
+                "value": 30
+              }
+            ]
+          }
+        },
+        {
+          "title": "Logins (volta do Google)",
+          "layout": {
+            "column": 9,
+            "row": 1,
+            "width": 4,
+            "height": 3
+          },
+          "linkedEntityGuids": null,
+          "visualization": {
+            "id": "viz.billboard"
+          },
+          "rawConfiguration": {
+            "facet": {
+              "showOtherSeries": false
+            },
+            "nrqlQueries": [
+              {
+                "accountIds": [6563675],
+                "query": "SELECT count(*) AS 'Logins' FROM Span WHERE service.name = 'koinos' AND better_auth.operation_id = 'handleOAuthCallback' AND http.response.status_code IS NOT NULL"
+              }
+            ],
+            "platformOptions": {
+              "ignoreTimeRange": false
+            }
+          }
+        },
+        {
+          "title": "Por endpoint",
+          "layout": {
+            "column": 1,
+            "row": 4,
+            "width": 8,
+            "height": 3
+          },
+          "linkedEntityGuids": null,
+          "visualization": {
+            "id": "viz.table"
+          },
+          "rawConfiguration": {
+            "facet": {
+              "showOtherSeries": false
+            },
+            "nrqlQueries": [
+              {
+                "accountIds": [6563675],
+                "query": "SELECT count(*) AS 'Chamadas', percentile(duration.ms, 95) AS 'p95 (ms)', filter(count(*), WHERE (http.status_code >= 400 OR otel.status_code = 'ERROR')) AS 'Falhas' FROM Span WHERE service.name = 'koinos' AND http.client.name = 'fetch' AND (net.peer.name LIKE '%google.com' OR net.peer.name LIKE '%googleapis.com') FACET net.peer.name, http.url"
+              }
+            ],
+            "platformOptions": {
+              "ignoreTimeRange": false
+            }
+          }
+        },
+        {
+          "title": "Status HTTP",
+          "layout": {
+            "column": 9,
+            "row": 4,
+            "width": 4,
+            "height": 3
+          },
+          "linkedEntityGuids": null,
+          "visualization": {
+            "id": "viz.pie"
+          },
+          "rawConfiguration": {
+            "facet": {
+              "showOtherSeries": false
+            },
+            "nrqlQueries": [
+              {
+                "accountIds": [6563675],
+                "query": "SELECT count(*) FROM Span WHERE service.name = 'koinos' AND http.client.name = 'fetch' AND (net.peer.name LIKE '%google.com' OR net.peer.name LIKE '%googleapis.com') FACET http.status_code"
+              }
+            ],
+            "platformOptions": {
+              "ignoreTimeRange": false
+            }
+          }
+        }
+      ]
+    }
+  ],
+  "variables": []
+}

@@ -7,6 +7,7 @@ import {
   refreshPayDates,
   refreshMissingFundamentals,
   refreshQuotes,
+  reportApiUsage,
 } from "@/features/market-data/server";
 import { listTargetAssetsOf } from "@/features/strategy/server";
 import { computePositions } from "@/features/transactions";
@@ -46,6 +47,10 @@ export const refreshMyQuotesAction = authActionClient
       // que estiver faltando.
       refreshMissingFundamentals(targets.map((target) => target.ticker)),
     ] as const);
+    // Só quando algo pode ter gastado cota: brapi (cotações vencidas) ou usebolsai.
+    if ((result.status === "done" && result.stale > 0) || fundamentals.requested > 0) {
+      await reportApiUsage();
+    }
     if (
       (result.status === "done" && result.updated > 0) ||
       dividends.updated > 0 ||

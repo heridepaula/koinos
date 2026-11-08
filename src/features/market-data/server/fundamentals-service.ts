@@ -4,6 +4,7 @@ import { connectMongo } from "@/shared/db/mongo";
 import { env } from "@/shared/env";
 import { fetchBolsaiFii } from "../adapters/bolsai";
 import { AssetModel } from "./models";
+import { recordBolsaiRequest } from "./usage";
 
 /** Igual ao limite da leitura (assets-read): VP mais velho que isso conta como faltando. */
 const FUNDAMENTALS_MAX_AGE_MS = 60 * 86_400_000;
@@ -40,7 +41,8 @@ export async function refreshFundamentals(
   await connectMongo();
   for (const ticker of unique) {
     try {
-      const data = await fetchBolsaiFii(ticker, apiKey);
+      // O contador grava junto com a chamada, como o da brapi: um 404 também gasta a cota.
+      const [data] = await Promise.all([fetchBolsaiFii(ticker, apiKey), recordBolsaiRequest(now)]);
       if (!data) {
         summary.missing++;
         await AssetModel.updateOne(

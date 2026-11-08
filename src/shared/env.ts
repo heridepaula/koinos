@@ -33,6 +33,8 @@ export const env = createEnv({
     BRAPI_MONTHLY_QUOTA: z.coerce.number().int().positive().default(15000),
     // usebolsai (plano gratuito): VP por cota dos FIIs, para o P/VP. Sem a chave, o P/VP fica vazio.
     BOLSAI_API_KEY: z.string().min(1).optional(),
+    // Cota diária da usebolsai (zera às 0h UTC). Só informa o dashboard; nada é bloqueado por ela.
+    BOLSAI_DAILY_QUOTA: z.coerce.number().int().positive().default(200),
     CRON_SECRET: z.string().min(16).optional(),
     // Senha do HTTP Basic (usuário fixo "cron") para o cron-job.org chamar /api/cron/*.
     CRON_BASIC_PASSWORD: z.string().min(24).optional(),

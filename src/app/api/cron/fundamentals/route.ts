@@ -1,4 +1,4 @@
-import { refreshFundamentals } from "@/features/market-data/server";
+import { refreshFundamentals, reportApiUsage } from "@/features/market-data/server";
 import { listAllTargetTickers } from "@/features/strategy/server";
 import { withSpan } from "@/shared/lib/tracing";
 import { isCronAuthorized } from "../authorize";
@@ -22,6 +22,7 @@ export async function GET(request: Request) {
       "koinos.fundamentals.missing": summary.missing,
       "koinos.fundamentals.failed": summary.failed,
     });
+    await reportApiUsage();
     return Response.json(summary, { headers: { "Cache-Control": "no-store" } });
   });
 }

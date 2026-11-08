@@ -1,4 +1,4 @@
-import { runDailyMarketJob } from "@/features/market-data/server";
+import { reportApiUsage, runDailyMarketJob } from "@/features/market-data/server";
 import { listAllTargetTickers } from "@/features/strategy/server";
 import { listTradedTickersWithFirstDate } from "@/features/transactions/server";
 import { withSpan } from "@/shared/lib/tracing";
@@ -37,6 +37,7 @@ export async function GET(request: Request) {
       "koinos.catalog.entries": summary.catalog,
       "koinos.treasury.status": summary.treasury.status,
     });
+    await reportApiUsage(now);
     return Response.json(summary, { headers: { "Cache-Control": "no-store" } });
   });
 }
