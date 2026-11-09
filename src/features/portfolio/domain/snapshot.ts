@@ -62,6 +62,10 @@ export type SnapshotInput = {
  * A entrada do snapshot só com a classe pedida (spec etapa 2 das ações, §5). Cada classe tem a sua
  * Carteira Alvo: na visão Ações, só os alvos de ações.
  */
+/** A variação do dia sobre o valor de ontem (o de hoje menos a variação); null sem base. */
+const changeOver = (change: number, value: number) =>
+  value - change > 0 ? change / (value - change) : null;
+
 export function scopeToClass(input: SnapshotInput, filter: ClassFilter): SnapshotInput {
   if (filter === "TODOS") return input;
   // A mesma regra do buildSnapshot: o que faltar no mapa sai pelo código.
@@ -224,6 +228,7 @@ export function buildSnapshot({
   const patrimony = open.reduce((sum, position) => sum + valueOf(position.ticker), 0);
   const invested = open.reduce((sum, position) => sum + position.totalCost, 0);
   let dayChange = 0;
+  const classDayChange = { FII: 0, ACAO: 0 };
   let dyWeighted = 0;
   let dyBase = 0;
   let monthlyIncome = 0;
@@ -231,7 +236,9 @@ export function buildSnapshot({
     const info = prices.get(position.ticker);
     const value = valueOf(position.ticker);
     if (info?.changePercent != null && info.price !== null) {
-      dayChange += value - value / (1 + info.changePercent);
+      const change = value - value / (1 + info.changePercent);
+      dayChange += change;
+      classDayChange[classKey(position.ticker)] += change;
     }
     if (info?.dy12m != null) {
       dyWeighted += value * info.dy12m;
@@ -260,7 +267,20 @@ export function buildSnapshot({
     pnlWithDividends: portfolioAdjusted.withDividends,
     totalResult: portfolioAdjusted.total,
     dayChange,
-    dayChangePct: patrimony - dayChange > 0 ? dayChange / (patrimony - dayChange) : null,
+    dayChangePct: changeOver(dayChange, patrimony),
+    dayChangeByClass:
+      view === "TODOS" && classValues.FII > 0 && classValues.ACAO > 0
+        ? {
+            FII: {
+              value: classDayChange.FII,
+              pct: changeOver(classDayChange.FII, classValues.FII),
+            },
+            ACAO: {
+              value: classDayChange.ACAO,
+              pct: changeOver(classDayChange.ACAO, classValues.ACAO),
+            },
+          }
+        : null,
     dy12m: dyBase > 0 ? dyWeighted / dyBase : null,
     monthlyIncome,
     yieldOnCost: invested > 0 ? (monthlyIncome * 12) / invested : null,

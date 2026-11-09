@@ -353,6 +353,39 @@ describe("scopeToClass: visões Geral, FIIs e Ações", () => {
   it("Geral devolve a entrada como veio", () => {
     expect(scopeToClass(input, "TODOS")).toBe(input);
   });
+
+  describe("variação do dia por classe", () => {
+    const moving: SnapshotInput = {
+      ...input,
+      prices: new Map([
+        ["AAAA11", { ...quote, changePercent: 0.01 }],
+        ["BBBB11", { ...quote, changePercent: 0.01 }],
+        ["PETR4", { ...quote, changePercent: 0.05 }],
+      ]),
+    };
+    const movingView = (filter: ClassFilter) => buildSnapshot(scopeToClass(moving, filter));
+
+    it("no Geral, cada classe com o seu valor e %, somando o total", () => {
+      const { dayChange, dayChangeByClass } = movingView("TODOS").summary;
+      expect(dayChangeByClass).not.toBeNull();
+      const { FII, ACAO } = dayChangeByClass!;
+      expect(FII.value).toBeCloseTo(movingView("FII").summary.dayChange, 6);
+      expect(ACAO.value).toBeCloseTo(movingView("ACAO").summary.dayChange, 6);
+      expect(FII.pct).toBeCloseTo(0.01, 6);
+      expect(ACAO.pct).toBeCloseTo(0.05, 6);
+      expect(FII.value + ACAO.value).toBeCloseTo(dayChange, 6);
+    });
+
+    it("nas visões de uma classe não há divisão", () => {
+      expect(movingView("FII").summary.dayChangeByClass).toBeNull();
+      expect(movingView("ACAO").summary.dayChangeByClass).toBeNull();
+    });
+
+    it("no Geral com uma classe só não há divisão", () => {
+      const onlyFiis = { ...moving, transactions: [buy("AAAA11", 10)] };
+      expect(buildSnapshot(onlyFiis).summary.dayChangeByClass).toBeNull();
+    });
+  });
 });
 
 describe("buildSnapshot: Carteira Alvo de ações", () => {

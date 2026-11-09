@@ -211,6 +211,11 @@ export type PortfolioSummary = {
   totalResult: number;
   dayChange: number;
   dayChangePct: number | null;
+  /**
+   * A variação do dia de cada classe, só no Geral com FIIs e ações abertos (null nas outras
+   * visões): as ações pesam pouco e somem no % do total. Os valores somam `dayChange`.
+   */
+  dayChangeByClass: Record<"FII" | "ACAO", { value: number; pct: number | null }> | null;
   dy12m: number | null;
   monthlyIncome: number;
   /** Renda mensal estimada × 12 ÷ investido. Null sem custo. */

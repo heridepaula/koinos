@@ -149,6 +149,14 @@ function PatrimonyCard({
               pct={summary.dayChangePct}
               suffix={dayChangeLabel(market)}
             />
+            {summary.dayChangeByClass ? (
+              <p className="text-footnote text-muted-foreground tabular-nums">
+                FIIs <Delta pct={summary.dayChangeByClass.FII.pct} />
+                <span aria-hidden="true"> · </span>
+                <span className="sr-only">, </span>
+                Ações <Delta pct={summary.dayChangeByClass.ACAO.pct} />
+              </p>
+            ) : null}
           </div>
           <dl className="grid grid-cols-2 gap-x-10 gap-y-4 @min-[960px]:order-last">
             <Stat label="Investido" value={<Sensitive>{formatBRL(summary.invested)}</Sensitive>} />
