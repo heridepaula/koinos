@@ -1,7 +1,8 @@
+import type { ReactNode } from "react";
 import { TargetIcon } from "lucide-react";
 import { reasonHelp } from "@/features/smart-buy/ui";
 import { EXCLUSION_LABELS } from "@/features/smart-buy";
-import { BIAS_LABELS } from "@/features/strategy";
+import { BIAS_LABELS, marginToCeiling } from "@/features/strategy";
 import { CeilingCheckIcon } from "@/features/strategy/ui";
 import { MetricCard, StatList, StatRow } from "@/shared/components/metric";
 import { formatBRL, formatPercent } from "@/shared/lib/format";
@@ -40,54 +41,57 @@ function verdictOf(row: StrategyRow, kind: "FII" | "ACAO"): Verdict {
 
 /**
  * O preço contra o teto, numa barra: cheia até o preço, com o teto no fim. Verde enquanto cabe
- * abaixo do teto; vermelha (e cheia) quando passa dele. Embaixo, a margem que sobra (ou quanto
- * passou) e o teto, com o triângulo de divergência quando o teto calculado discorda.
+ * abaixo do teto; vermelha (e cheia) quando passa dele. As margens ficam nas linhas abaixo.
  */
-function CeilingMeter({
-  row,
-  price,
-  ceiling,
-}: {
-  row: StrategyRow;
-  price: number;
-  ceiling: number;
-}) {
+function CeilingMeter({ price, ceiling }: { price: number; ceiling: number }) {
   const within = price <= ceiling;
   const fill = Math.min(price / ceiling, 1);
   return (
-    <div className="grid gap-2">
+    <div
+      role="meter"
+      aria-label="Preço em relação ao teto"
+      aria-valuemin={0}
+      aria-valuemax={ceiling}
+      aria-valuenow={price}
+      aria-valuetext={`Preço de ${formatBRL(price)} para um teto de ${formatBRL(ceiling)}`}
+      className={cn("h-2 overflow-hidden rounded-full", within ? "bg-gain/15" : "bg-loss/15")}
+    >
       <div
-        role="meter"
-        aria-label="Preço em relação ao teto"
-        aria-valuemin={0}
-        aria-valuemax={ceiling}
-        aria-valuenow={price}
-        aria-valuetext={`Preço de ${formatBRL(price)} para um teto de ${formatBRL(ceiling)}`}
-        className={cn("h-2 overflow-hidden rounded-full", within ? "bg-gain/15" : "bg-loss/15")}
-      >
-        <div
-          className={cn("h-full rounded-full", within ? "bg-gain" : "bg-loss")}
-          style={{ width: `${fill * 100}%` }}
-        />
-      </div>
-      <div className="flex items-center justify-between gap-3 text-footnote tabular-nums">
-        {within ? (
-          <span className="text-muted-foreground">
-            {row.marginToCeiling === null
-              ? "Abaixo do teto"
-              : `Margem de ${formatPercent(row.marginToCeiling, 1)}`}
-          </span>
-        ) : (
-          <span className="text-loss">{formatBRL(price - ceiling)} acima do teto</span>
-        )}
-        <span className="inline-flex items-center gap-1.5 text-muted-foreground">
-          Teto {formatBRL(ceiling)}
-          {row.ceilingCheck ? (
-            <CeilingCheckIcon check={row.ceilingCheck} ceiling={ceiling} price={price} />
-          ) : null}
-        </span>
-      </div>
+        className={cn("h-full rounded-full", within ? "bg-gain" : "bg-loss")}
+        style={{ width: `${fill * 100}%` }}
+      />
     </div>
+  );
+}
+
+/**
+ * Um teto com a margem do preço atual até ele: (teto − preço) ÷ teto, a mesma da Carteira Alvo.
+ * Abaixo do teto, "margem de X%"; acima, quanto passou, em vermelho.
+ */
+function CeilingValue({
+  ceiling,
+  price,
+  icon,
+}: {
+  ceiling: number | null;
+  price: number | null;
+  icon?: ReactNode;
+}) {
+  if (ceiling === null) return EMPTY;
+  const margin = marginToCeiling(ceiling, price);
+  return (
+    <span className="inline-flex items-center gap-1.5">
+      {icon}
+      {formatBRL(ceiling)}
+      {margin === null ? null : margin >= 0 ? (
+        <span className="font-normal text-muted-foreground">
+          {" "}
+          · margem de {formatPercent(margin, 1)}
+        </span>
+      ) : (
+        <span className="font-normal text-loss"> · {formatPercent(-margin, 1)} acima</span>
+      )}
+    </span>
   );
 }
 
@@ -133,13 +137,31 @@ export function AporteCard({
         <p className="-mt-1 mb-3 text-footnote text-muted-foreground">{verdict.detail}</p>
       ) : null}
       {row.price !== null && row.ceilingPrice !== null ? (
-        <CeilingMeter row={row} price={row.price} ceiling={row.ceilingPrice} />
+        <CeilingMeter price={row.price} ceiling={row.ceilingPrice} />
       ) : null}
       <StatList className={row.price !== null && row.ceilingPrice !== null ? "mt-4" : undefined}>
-        {row.price === null || row.ceilingPrice === null ? (
+        <StatRow
+          label="Teto cadastrado"
+          value={<CeilingValue ceiling={row.ceilingPrice} price={row.price} />}
+        />
+        {kind === "FII" ? (
           <StatRow
-            label="Preço teto"
-            value={row.ceilingPrice === null ? EMPTY : formatBRL(row.ceilingPrice)}
+            label="Teto calculado"
+            value={
+              <CeilingValue
+                ceiling={row.calculatedCeiling?.calculated ?? null}
+                price={row.price}
+                icon={
+                  row.ceilingCheck && row.ceilingPrice !== null ? (
+                    <CeilingCheckIcon
+                      check={row.ceilingCheck}
+                      ceiling={row.ceilingPrice}
+                      price={row.price}
+                    />
+                  ) : undefined
+                }
+              />
+            }
           />
         ) : null}
         <StatRow label="Ranking" value={row.rank === null ? EMPTY : `${row.rank}º`} />

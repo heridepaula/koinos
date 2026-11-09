@@ -668,6 +668,23 @@ describe("buildSnapshot: aviso de divergência do teto (spec divergencia-teto)",
     expect(papel?.paper).toBe(true);
   });
 
+  it("o teto calculado vem mesmo sem aviso, e só para FIIs da estratégia com dado fresco", () => {
+    const calculatedOf = (snapshot: ReturnType<typeof buildSnapshot>, ticker: string) =>
+      snapshot.strategy.rows.find((row) => row.ticker === ticker)?.calculatedCeiling ?? null;
+    const snapshot = buildSnapshot(withCeilings(0.07));
+    expect(checkOf(snapshot, "BBBB11")).toBeNull();
+    expect(calculatedOf(snapshot, "BBBB11")?.calculated).toBeCloseTo(100, 6);
+    expect(calculatedOf(snapshot, "PPPP11")?.calculated).toBeCloseTo(8 / 0.12, 6);
+    expect(calculatedOf(snapshot, "QQQQ11")).toBeNull();
+    expect(calculatedOf(buildSnapshot(withCeilings(null)), "BBBB11")).toBeNull();
+    const stale = buildSnapshot(
+      withCeilings(0.07, {
+        BBBB11: priced({ dividendsFetchedAt: new Date(Date.UTC(2026, 9, 10)) }),
+      }),
+    );
+    expect(calculatedOf(stale, "BBBB11")).toBeNull();
+  });
+
   it("FII fora da estratégia não recebe o aviso", () => {
     expect(checkOf(buildSnapshot(withCeilings(0.07)), "QQQQ11")).toBeNull();
   });

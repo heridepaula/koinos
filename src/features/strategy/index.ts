@@ -11,11 +11,13 @@ export {
 export {
   CEILING_CHECK,
   CEILING_MAX,
+  calculatedCeiling,
   ceilingCheck,
   ceilingFromInput,
   ceilingCheckDetails,
   isSuspiciousCeiling,
   marginToCeiling,
+  type CalculatedCeiling,
   type CeilingCheck,
   type CeilingCheckDetails,
   type CeilingCheckInput,

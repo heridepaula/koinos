@@ -1,7 +1,7 @@
 import type { AssetClass, MarketSession } from "@/features/market-data";
 import type { DividendMonths, PricePeriod } from "./asset-overview";
 import type { AportePriority, CascadeAsset, StockBuyAsset } from "@/features/smart-buy";
-import type { Bias, Category, CeilingCheck } from "@/features/strategy";
+import type { Bias, CalculatedCeiling, Category, CeilingCheck } from "@/features/strategy";
 import type {
   DividendKind,
   MonthlyContribution,
@@ -106,6 +106,8 @@ export type StrategyRow = {
   suspiciousCeiling: boolean;
   /** O teto do ranking está a mais de 10% do calculado pela NTN-B (spec divergencia-teto). Só informativo. */
   ceilingCheck: CeilingCheck | null;
+  /** O teto calculado pela NTN-B, mesmo dentro do limite (FIIs da estratégia com dado fresco). */
+  calculatedCeiling: CalculatedCeiling | null;
   strategyWeight: number | null;
   targetWeight: number | null;
   priority: AportePriority | null;

@@ -3,6 +3,7 @@ import { formatBRL, formatPercent, formatSignedPercent } from "@/shared/lib/form
 import {
   CEILING_CHECK,
   CEILING_MAX,
+  calculatedCeiling,
   ceilingCheck,
   ceilingCheckDetails,
   ceilingFromInput,
@@ -185,5 +186,32 @@ describe("ceilingFromInput: o teto digitado na máscara de moeda", () => {
       value: null,
       problem: `O teto deve ser de até ${formatBRL(CEILING_MAX)}.`,
     });
+  });
+});
+
+describe("calculatedCeiling: o teto calculado sem o limite", () => {
+  it("existe mesmo quando o teto do ranking está dentro dos 10%", () => {
+    // 8 ÷ 0,08 = 100, contra um teto de 100: sem aviso, mas com o teto calculado.
+    expect(ceilingCheck({ ...base, income12m: 8 })).toBeNull();
+    const result = calculatedCeiling({ income12m: 8, paper: false, ntnbRealRate: 0.07 });
+    expect(result?.calculated).toBeCloseTo(100, 6);
+    expect(result?.requiredYield).toBeCloseTo(0.08, 10);
+  });
+
+  it("papel soma o IPCA assumido, como no aviso", () => {
+    const result = calculatedCeiling({ income12m: 9.6, paper: true, ntnbRealRate: 0.07 });
+    expect(result?.calculated).toBeCloseTo(80, 6);
+    expect(ceilingCheck({ ...base, income12m: 9.6, paper: true })?.calculated).toBe(
+      result?.calculated,
+    );
+  });
+
+  it.each([
+    ["sem renda", { income12m: null, paper: false, ntnbRealRate: 0.07 }],
+    ["renda zero", { income12m: 0, paper: false, ntnbRealRate: 0.07 }],
+    ["sem taxa", { income12m: 8, paper: false, ntnbRealRate: null }],
+    ["rendimento exigido não positivo", { income12m: 8, paper: false, ntnbRealRate: -0.01 }],
+  ])("%s: null", (_name, input) => {
+    expect(calculatedCeiling(input)).toBeNull();
   });
 });

@@ -71,17 +71,18 @@ export type CeilingCheckInput = {
   ntnbRealRate: number | null;
 };
 
+/** O teto calculado sem a comparação com o do ranking: existe mesmo dentro do limite de 10%. */
+export type CalculatedCeiling = Omit<CeilingCheck, "divergence">;
+
 /**
- * Compara o teto do ranking com o teto calculado: proventos de 12 meses ÷ rendimento exigido. Devolve
- * o cálculo só quando a divergência passa do limite, nos dois lados; sem dado, null (sem aviso).
+ * O teto calculado: proventos de 12 meses ÷ rendimento exigido (NTN-B real + spread; papel soma o
+ * IPCA assumido). Não depende do teto do ranking; sem renda ou sem taxa, null.
  */
-export function ceilingCheck({
-  ceiling,
+export function calculatedCeiling({
   income12m,
   paper,
   ntnbRealRate,
-}: CeilingCheckInput): CeilingCheck | null {
-  if (ceiling === null || !Number.isFinite(ceiling) || ceiling <= 0) return null;
+}: Omit<CeilingCheckInput, "ceiling">): CalculatedCeiling | null {
   if (income12m === null || !Number.isFinite(income12m) || income12m <= 0) return null;
   if (ntnbRealRate === null || !Number.isFinite(ntnbRealRate)) return null;
   const requiredYield =
@@ -90,11 +91,21 @@ export function ceilingCheck({
       ? CEILING_CHECK.paperSpread + CEILING_CHECK.assumedInflation
       : CEILING_CHECK.tijoloSpread);
   if (!(requiredYield > 0)) return null;
-  const calculated = income12m / requiredYield;
+  return { calculated: income12m / requiredYield, requiredYield, income12m, ntnbRealRate, paper };
+}
+
+/**
+ * Compara o teto do ranking com o teto calculado: proventos de 12 meses ÷ rendimento exigido. Devolve
+ * o cálculo só quando a divergência passa do limite, nos dois lados; sem dado, null (sem aviso).
+ */
+export function ceilingCheck({ ceiling, ...input }: CeilingCheckInput): CeilingCheck | null {
+  if (ceiling === null || !Number.isFinite(ceiling) || ceiling <= 0) return null;
+  const result = calculatedCeiling(input);
+  if (!result) return null;
   // 6 casas: o ponto flutuante não pode empurrar um 10% exato para 10,000000000000002%.
-  const divergence = Math.round((calculated / ceiling - 1) * 1_000_000) / 1_000_000;
+  const divergence = Math.round((result.calculated / ceiling - 1) * 1_000_000) / 1_000_000;
   if (Math.abs(divergence) <= CEILING_CHECK.limit) return null;
-  return { calculated, divergence, requiredYield, income12m, ntnbRealRate, paper };
+  return { ...result, divergence };
 }
 
 /** Uma linha de valores do aviso. `tone: "warn"` destaca a linha (o preço já passou do calculado). */

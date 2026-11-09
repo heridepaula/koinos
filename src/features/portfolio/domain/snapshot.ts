@@ -9,11 +9,13 @@ import {
   type StockBuyAsset,
 } from "@/features/smart-buy";
 import {
+  calculatedCeiling,
   ceilingCheck,
   effectiveWeights,
   isSuspiciousCeiling,
   marginToCeiling,
   suggestCategory,
+  type CalculatedCeiling,
   type CeilingCheck,
 } from "@/features/strategy";
 import { monthlyContributions, replayLedger, type DividendEntry } from "@/features/transactions";
@@ -187,15 +189,23 @@ export function buildSnapshot({
   // Aviso de divergência do teto: só FIIs da estratégia (têm a macro calculada), com proventos
   // recentes e a taxa da NTN-B. Papel soma o IPCA assumido; as demais classes, não. Só informativo.
   const cascadeByTicker = new Map(cascadeInput.map((asset) => [asset.ticker, asset]));
-  const ceilingCheckOf = (ticker: string, ceiling: number | null): CeilingCheck | null => {
+  const ceilingInputOf = (ticker: string) => {
     const asset = cascadeByTicker.get(ticker);
     if (!asset) return null;
-    return ceilingCheck({
-      ceiling,
+    return {
       income12m: isDividendsFresh(prices.get(ticker)) ? asset.dividends12m : null,
       paper: asset.macro === "Papel",
       ntnbRealRate,
-    });
+    };
+  };
+  const ceilingCheckOf = (ticker: string, ceiling: number | null): CeilingCheck | null => {
+    const input = ceilingInputOf(ticker);
+    return input ? ceilingCheck({ ceiling, ...input }) : null;
+  };
+  /** O teto calculado sempre que há dado, dentro ou fora do limite (a página do ativo o mostra). */
+  const calculatedCeilingOf = (ticker: string): CalculatedCeiling | null => {
+    const input = ceilingInputOf(ticker);
+    return input ? calculatedCeiling(input) : null;
   };
   // Smart Buy de ações (spec smart-buy-acoes, §3): os membros da estratégia de ações com o peso
   // efetivo, reescalado para 100% como nos FIIs (spec tabelas-unificadas, §3.3). Na ordem das
@@ -372,6 +382,7 @@ export function buildSnapshot({
             cls === "FII" && inStrategy
               ? ceilingCheckOf(ticker, target?.ceilingPrice ?? null)
               : null,
+          calculatedCeiling: cls === "FII" && inStrategy ? calculatedCeilingOf(ticker) : null,
           strategyWeight: inStrategy ? strategy.weightOf(ticker) : null,
           targetWeight: inStrategy ? (strategy.weights.get(ticker) ?? 0) : null,
           priority: inStrategy ? (priorities.get(ticker) ?? null) : null,
