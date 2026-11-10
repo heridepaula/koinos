@@ -1,4 +1,13 @@
 // API pública da feature smart-buy (regras puras; os componentes entram na tela de recomendações).
+export {
+  orderImpact,
+  portfolioImpact,
+  type ImpactAsset,
+  type ImpactKind,
+  type ImpactOrder,
+  type OrderImpact,
+  type PortfolioImpact,
+} from "./domain/aporte-impact";
 export { splitAmount } from "./domain/aporte-split";
 export {
   CURRENT_ENGINE,

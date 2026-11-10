@@ -219,6 +219,10 @@ export function buildSnapshot({
       quantity: openByTicker.get(member.ticker)?.quantity ?? 0,
       weight: strategies.ACAO.weights.get(member.ticker) ?? 0,
       bias: member.bias ?? null,
+      // Só para o impacto do aporte (spec impacto-do-aporte); o motor não lê.
+      averagePrice: openByTicker.get(member.ticker)?.averagePrice ?? null,
+      lastDividend: prices.get(member.ticker)?.lastDividend?.amount ?? null,
+      dividends12m: prices.get(member.ticker)?.dividends12m ?? null,
     }))
     .sort(
       (a, b) => (a.rank ?? Infinity) - (b.rank ?? Infinity) || a.ticker.localeCompare(b.ticker),

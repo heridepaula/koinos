@@ -22,6 +22,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import type { MergedOrder } from "../../domain/merge-orders";
 import type { StockBuyOrder } from "../../domain/stock-buy";
 import type { CascadeOrder } from "../../domain/fii-cascade";
+import type { OrderImpact } from "../../domain/aporte-impact";
 import {
   explain,
   explainStock,
@@ -30,6 +31,7 @@ import {
   unitOf,
   type OrderKind,
 } from "./explain";
+import { ImpactGroup, IncomeBadge, impactKey, impactText } from "./impact";
 
 export type AssetMeta = {
   ticker: string;
@@ -45,19 +47,27 @@ type OrdersProps = {
   meta: ReadonlyMap<string, AssetMeta>;
   /** O selo "FII"/"Ação" ao lado do ativo, quando há as duas classes. */
   showClass: boolean;
+  /** O impacto de cada ordem (preço médio, YOC, L/P, renda), pela chave `impactKey`. */
+  impacts: ReadonlyMap<string, OrderImpact>;
 };
 
 const capitalize = (text: string) => text.charAt(0).toUpperCase() + text.slice(1);
 
-const rowKey = (row: MergedOrder) => `${row.kind}:${row.order.ticker}`;
+const rowKey = (row: MergedOrder) => impactKey(row.kind, row.order.ticker);
 
 /** O porquê em poucas palavras, conforme a classe. */
 const shortOf = (row: MergedOrder) =>
   row.kind === "FII" ? shortReason(row.order) : shortStockReason(row.order);
 
-/** A conta inteira numa linha, para a dica da tabela. */
-const fullOf = (row: MergedOrder) =>
-  row.kind === "FII" ? capitalize(explain(row.order).join(" · ")) : explainStock(row.order);
+/** A conta inteira numa linha, para a dica da tabela, com o impacto da ordem no fim. */
+function fullOf(row: MergedOrder, impact: OrderImpact | undefined) {
+  const reason =
+    row.kind === "FII" ? capitalize(explain(row.order).join(" · ")) : explainStock(row.order);
+  return impact
+    ? `${reason}
+${impactText(impact)}`
+    : reason;
+}
 
 /** "Cotas" só com FIIs, "Ações" só com ações e "Qtd." com as duas. */
 function quantityHeader(rows: readonly MergedOrder[]) {
@@ -75,7 +85,7 @@ function ClassBadge({ kind }: { kind: OrderKind }) {
  * comentário curto e discreto; a conta inteira (nos FIIs, cada tensor, o pedido e a trava; nas
  * ações, a margem e a meta) fica na dica ao passar o mouse.
  */
-export function OrdersTable({ rows, meta, showClass }: OrdersProps) {
+export function OrdersTable({ rows, meta, showClass, impacts }: OrdersProps) {
   return (
     <Table>
       <TableHeader>
@@ -93,6 +103,7 @@ export function OrdersTable({ rows, meta, showClass }: OrdersProps) {
         {rows.map((row) => {
           const { order } = row;
           const info = meta.get(order.ticker);
+          const impact = impacts.get(rowKey(row));
           return (
             <TableRow key={rowKey(row)}>
               <TableCell className="pl-(--card-spacing)">
@@ -121,7 +132,10 @@ export function OrdersTable({ rows, meta, showClass }: OrdersProps) {
               </TableCell>
               <TableCell className="text-right tabular-nums">{formatBRL(order.price)}</TableCell>
               <TableCell className="text-right font-medium tabular-nums">
-                <Sensitive>{formatBRL(order.total)}</Sensitive>
+                <div className="grid justify-items-end">
+                  <Sensitive>{formatBRL(order.total)}</Sensitive>
+                  <IncomeBadge impact={impact} className="font-normal" />
+                </div>
               </TableCell>
               <TableCell className="text-right tabular-nums">
                 {formatPercent(order.weightBefore, 1)} → {formatPercent(order.weightAfter, 1)}
@@ -131,7 +145,7 @@ export function OrdersTable({ rows, meta, showClass }: OrdersProps) {
               </TableCell>
               <TableCell
                 className="min-w-48 pr-(--card-spacing) text-caption whitespace-normal text-muted-foreground"
-                title={fullOf(row)}
+                title={fullOf(row, impact)}
               >
                 {shortOf(row)}
               </TableCell>
@@ -148,7 +162,7 @@ export function OrdersTable({ rows, meta, showClass }: OrdersProps) {
  * × preço e o peso antes → depois; e, discreto, o porquê em poucas palavras. A conta inteira abre
  * numa folha ao tocar, a da classe da ordem, com o chevron dizendo que há mais.
  */
-export function OrdersList({ rows, meta, showClass }: OrdersProps) {
+export function OrdersList({ rows, meta, showClass, impacts }: OrdersProps) {
   const [sheet] = useState(() => createDrawerHandle<MergedOrder>());
   return (
     <>
@@ -156,6 +170,7 @@ export function OrdersList({ rows, meta, showClass }: OrdersProps) {
         {rows.map((row) => {
           const { order } = row;
           const info = meta.get(order.ticker);
+          const impact = impacts.get(rowKey(row));
           return (
             <li key={rowKey(row)}>
               <DrawerTrigger
@@ -190,7 +205,10 @@ export function OrdersList({ rows, meta, showClass }: OrdersProps) {
                       {formatPercent(order.weightBefore, 1)} → {formatPercent(order.weightAfter, 1)}
                     </span>
                   </p>
-                  <p className="text-caption text-muted-foreground">{shortOf(row)}</p>
+                  <p className="flex justify-between gap-3 text-caption text-muted-foreground">
+                    <span>{shortOf(row)}</span>
+                    <IncomeBadge impact={impact} />
+                  </p>
                 </div>
                 <ChevronRightIcon
                   className="size-4 shrink-0 text-muted-foreground"
@@ -203,25 +221,33 @@ export function OrdersList({ rows, meta, showClass }: OrdersProps) {
       </ul>
       <Drawer handle={sheet}>
         {({ payload }) =>
-          payload ? <RowSheet row={payload} info={meta.get(payload.order.ticker)} /> : null
+          payload ? (
+            <RowSheet
+              row={payload}
+              info={meta.get(payload.order.ticker)}
+              impact={impacts.get(rowKey(payload))}
+            />
+          ) : null
         }
       </Drawer>
     </>
   );
 }
 
-function RowSheet({ row, info }: { row: MergedOrder; info: AssetMeta | undefined }) {
+type SheetExtras = { info: AssetMeta | undefined; impact: OrderImpact | undefined };
+
+function RowSheet({ row, ...extras }: { row: MergedOrder } & SheetExtras) {
   return row.kind === "FII" ? (
-    <OrderSheet order={row.order} info={info} />
+    <OrderSheet order={row.order} {...extras} />
   ) : (
-    <StockOrderSheet order={row.order} info={info} />
+    <StockOrderSheet order={row.order} {...extras} />
   );
 }
 
 /** O detalhe de uma ordem de FII: o porquê em partes (ranking, meta, cada tensor, a trava). */
-function OrderSheet({ order, info }: { order: CascadeOrder; info: AssetMeta | undefined }) {
+function OrderSheet({ order, ...extras }: { order: CascadeOrder } & SheetExtras) {
   return (
-    <OrderSheetFrame row={{ kind: "FII", order }} info={info}>
+    <OrderSheetFrame row={{ kind: "FII", order }} {...extras}>
       {explain(order).map((reason) => (
         <ReasonRow key={reason}>{capitalize(reason)}</ReasonRow>
       ))}
@@ -230,9 +256,9 @@ function OrderSheet({ order, info }: { order: CascadeOrder; info: AssetMeta | un
 }
 
 /** O detalhe de uma ordem de ação: a margem de segurança e o que faltava para a meta. */
-function StockOrderSheet({ order, info }: { order: StockBuyOrder; info: AssetMeta | undefined }) {
+function StockOrderSheet({ order, ...extras }: { order: StockBuyOrder } & SheetExtras) {
   return (
-    <OrderSheetFrame row={{ kind: "ACAO", order }} info={info}>
+    <OrderSheetFrame row={{ kind: "ACAO", order }} {...extras}>
       <ReasonRow>{explainStock(order)}</ReasonRow>
     </OrderSheetFrame>
   );
@@ -246,12 +272,12 @@ function ReasonRow({ children }: { children: ReactNode }) {
 function OrderSheetFrame({
   row,
   info,
+  impact,
   children,
 }: {
   row: MergedOrder;
-  info: AssetMeta | undefined;
   children: ReactNode;
-}) {
+} & SheetExtras) {
   const { order } = row;
   return (
     <DrawerContent>
@@ -279,6 +305,7 @@ function OrderSheetFrame({
           <InsetValueRow label="Meta" value={formatPercent(order.targetWeight, 1)} />
         </InsetGroup>
         <InsetGroup title="Por quê">{children}</InsetGroup>
+        {impact ? <ImpactGroup impact={impact} /> : null}
         {info?.ceilingWarning ? (
           <InsetGroup title="Aviso">
             <div className="px-4 py-3 text-footnote">

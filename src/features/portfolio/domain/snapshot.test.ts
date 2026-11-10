@@ -433,7 +433,18 @@ describe("buildSnapshot: Carteira Alvo de ações", () => {
       ),
     });
     expect(stockBuyInput).toEqual([
-      { ticker: "PETR4", rank: 1, ceiling: 12, price: 10, quantity: 20, weight: 0.7, bias: null },
+      {
+        ticker: "PETR4",
+        rank: 1,
+        ceiling: 12,
+        price: 10,
+        quantity: 20,
+        weight: 0.7,
+        bias: null,
+        averagePrice: 10,
+        lastDividend: null,
+        dividends12m: null,
+      },
       {
         ticker: "VALE3",
         rank: 2,
@@ -442,8 +453,34 @@ describe("buildSnapshot: Carteira Alvo de ações", () => {
         quantity: 5,
         weight: 0.3,
         bias: "AGUARDAR",
+        averagePrice: 10,
+        lastDividend: null,
+        dividends12m: null,
       },
     ]);
+  });
+
+  it("stockBuyInput leva o preço médio e os proventos, para o impacto do aporte", () => {
+    const { stockBuyInput } = buildSnapshot({
+      ...input,
+      prices: new Map([
+        ...input.prices,
+        [
+          "PETR4",
+          {
+            ...quote,
+            lastDividend: { amount: 0.9, exDate: new Date("2026-10-01T00:00:00Z") },
+            dividends12m: 2.4,
+          },
+        ],
+      ]),
+    });
+    expect(stockBuyInput[0]).toMatchObject({
+      ticker: "PETR4",
+      averagePrice: 10,
+      lastDividend: 0.9,
+      dividends12m: 2.4,
+    });
   });
 
   it("stockBuyInput fica na ordem das linhas: rank, depois ticker", () => {

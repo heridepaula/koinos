@@ -217,6 +217,14 @@ export function HowItWorks() {
               ],
               ["Por quê:", "cada ordem tem um resumo do motivo, e o ⓘ mostra a conta completa."],
               [
+                "Depois desta ordem:",
+                "o preço médio, o yield on cost (proventos de 12 meses ÷ preço médio) e o L/P % antes e depois da compra. Comprando ao preço atual, o resultado em R$ não muda: só o % se dilui.",
+              ],
+              [
+                "Renda/mês a mais:",
+                "nos FIIs, as cotas × o último provento; nas ações, as ações × os proventos de 12 meses ÷ 12, porque elas não pagam todo mês. É uma estimativa. Em cima, o patrimônio antes e depois das ordens e a renda somada.",
+              ],
+              [
                 "Triângulo ao lado do ativo:",
                 "o teto que você digitou está muito diferente do teto calculado pelos juros do Tesouro. É só um aviso e não muda a ordem.",
               ],

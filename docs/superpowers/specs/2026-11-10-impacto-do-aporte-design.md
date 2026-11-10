@@ -1,6 +1,6 @@
 # Impacto do aporte: antes ➔ depois, por papel e geral
 
-Data: 2026-11-10. Estado: aprovada, a implementar. Origem: o dono pediu que `/recomendacoes` mostre o efeito das ordens antes de enviá-las (preço médio, proventos, yield on cost e patrimônio), "por papel e geral". Escolhas do dono no mesmo dia: FIIs e ações; por papel, um selo de renda na linha e o resto no "Por quê"; o geral nos cards de números do topo, sem barra fixa nova.
+Data: 2026-11-10. Estado: implementada. Origem: o dono pediu que `/recomendacoes` mostre o efeito das ordens antes de enviá-las (preço médio, proventos, yield on cost e patrimônio), "por papel e geral". Escolhas do dono no mesmo dia: FIIs e ações; por papel, um selo de renda na linha e o resto no "Por quê"; o geral nos cards de números do topo, sem barra fixa nova.
 
 ## O que não muda
 

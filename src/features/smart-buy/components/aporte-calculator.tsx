@@ -5,8 +5,9 @@ import { parseAsFloat, parseAsInteger, parseAsStringLiteral, useQueryState } fro
 import { MetricCard, StatList, StatRow } from "@/shared/components/metric";
 import { MoneyInput } from "@/shared/components/money-input";
 import { Sensitive } from "@/shared/components/sensitive";
-import { formatBRL, formatPercent } from "@/shared/lib/format";
+import { formatBRL, formatCompactBRL, formatPercent } from "@/shared/lib/format";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/shared/ui/card";
+import { orderImpact, portfolioImpact, type OrderImpact } from "../domain/aporte-impact";
 import { splitAmount } from "../domain/aporte-split";
 import { CURRENT_ENGINE, ENGINE_VERSIONS } from "../domain/engine-options";
 import { mergeOrders, type MergedOrder } from "../domain/merge-orders";
@@ -16,6 +17,7 @@ import { fiiCascade, type CascadeAsset, type CascadeOrder } from "../domain/fii-
 import { SplitControl } from "./split-control";
 import { ExcludedCard } from "./aporte/excluded-card";
 import { groupExcluded } from "./aporte/explain";
+import { impactKey } from "./aporte/impact";
 import { OrdersList, OrdersTable, type AssetMeta } from "./aporte/orders";
 
 export type { AssetMeta };
@@ -71,9 +73,11 @@ function OrdersCard({
   fiiCount,
   fiiAmount,
   stockLot,
+  impacts,
 }: {
   view: View;
   rows: readonly MergedOrder[];
+  impacts: ReadonlyMap<string, OrderImpact>;
   /** Alguma trava de risco cortou o pedido de um FII. */
   riskLimited: boolean;
   metaByTicker: ReadonlyMap<string, AssetMeta>;
@@ -126,10 +130,15 @@ function OrdersCard({
         ) : (
           <>
             <div className="@min-[760px]:hidden">
-              <OrdersList rows={rows} meta={metaByTicker} showClass={showClass} />
+              <OrdersList rows={rows} meta={metaByTicker} showClass={showClass} impacts={impacts} />
             </div>
             <div className="hidden @min-[760px]:block">
-              <OrdersTable rows={rows} meta={metaByTicker} showClass={showClass} />
+              <OrdersTable
+                rows={rows}
+                meta={metaByTicker}
+                showClass={showClass}
+                impacts={impacts}
+              />
             </div>
           </>
         )}
@@ -187,6 +196,35 @@ export function AporteCalculator({
     (order) => order.limitedBy !== null && order.limitedBy !== "saldo",
   );
 
+  // O impacto das ordens (spec impacto-do-aporte): por papel e o geral das classes da visão.
+  const fiiByTicker = new Map(fiiAssets.map((asset) => [asset.ticker, asset]));
+  const stockByTicker = new Map(stockAssets.map((asset) => [asset.ticker, asset]));
+  const impactItems = rows.flatMap((row) => {
+    const asset =
+      row.kind === "FII" ? fiiByTicker.get(row.order.ticker) : stockByTicker.get(row.order.ticker);
+    return asset
+      ? [{ row, order: row.order, impact: orderImpact(row.kind, row.order, asset) }]
+      : [];
+  });
+  const impacts = new Map(
+    impactItems.map((item) => [impactKey(item.row.kind, item.order.ticker), item.impact]),
+  );
+  const viewValue =
+    view === "fiis" ? values.FII : view === "acoes" ? values.ACAO : values.FII + values.ACAO;
+  const overall = portfolioImpact(impactItems, viewValue);
+  const incomeText = (
+    <>
+      +<Sensitive>{formatBRL(overall.monthlyIncome)}</Sensitive>
+      {overall.incomeMissing > 0 ? ` (sem dado de ${overall.incomeMissing})` : null}
+    </>
+  );
+  const patrimonyText = (
+    <>
+      <Sensitive>{formatCompactBRL(overall.valueBefore)}</Sensitive> ➔{" "}
+      <Sensitive>{formatCompactBRL(overall.valueAfter)}</Sensitive>
+    </>
+  );
+
   const totalValue = values.FII + values.ACAO;
   const todayFii = totalValue > 0 ? values.FII / totalValue : 0;
 
@@ -233,6 +271,12 @@ export function AporteCalculator({
                 label="Sobra para o próximo aporte"
                 value={<Sensitive>{formatBRL(leftover)}</Sensitive>}
               />
+              {hasResult ? (
+                <>
+                  <StatRow label="Patrimônio" value={patrimonyText} />
+                  <StatRow label="Renda/mês a mais" value={incomeText} />
+                </>
+              ) : null}
             </StatList>
           </CardContent>
         </Card>
@@ -253,13 +297,25 @@ export function AporteCalculator({
             tile="[--tile:var(--tile-green)]"
             label="Ordens"
             value={<Sensitive>{formatBRL(spent)}</Sensitive>}
-          />
+          >
+            {hasResult ? (
+              <StatList>
+                <StatRow label="Patrimônio" value={patrimonyText} />
+              </StatList>
+            ) : null}
+          </MetricCard>
           <MetricCard
             icon={PiggyBankIcon}
             tile="[--tile:var(--tile-orange)]"
             label="Sobra para o próximo aporte"
             value={<Sensitive>{formatBRL(leftover)}</Sensitive>}
-          />
+          >
+            {hasResult ? (
+              <StatList>
+                <StatRow label="Renda/mês a mais" value={incomeText} />
+              </StatList>
+            ) : null}
+          </MetricCard>
         </div>
       </div>
 
@@ -274,6 +330,7 @@ export function AporteCalculator({
             fiiCount={fiiAssets.length}
             fiiAmount={fiiPart}
             stockLot={showStock ? engine.stockLot : null}
+            impacts={impacts}
           />
           <ExcludedCard
             byReason={groupExcluded(fiiResult?.excluded ?? [], stockResult?.excluded ?? [])}

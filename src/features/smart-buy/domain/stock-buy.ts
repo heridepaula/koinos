@@ -21,6 +21,10 @@ export type StockBuyAsset = {
   /** Peso-alvo na estratégia de ações, como fração: a meta é base × peso. */
   weight: number;
   bias: StockBias | null;
+  /** Só para o impacto do aporte (aporte-impact.ts): o motor não lê. Ausente ou null: sem dado. */
+  averagePrice?: number | null;
+  lastDividend?: number | null;
+  dividends12m?: number | null;
 };
 
 export type StockExclusionReason =
