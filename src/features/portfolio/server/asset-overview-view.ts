@@ -6,6 +6,7 @@ import {
   getAssetClasses,
   getAssetSnapshots,
   getCatalogEntry,
+  getDayInsight,
   getMonthlyCloses,
 } from "@/features/market-data/server";
 import { marketSession } from "@/features/market-data";
@@ -45,13 +46,14 @@ export const getAssetOverview = cache(
       const mine = transactions.filter((item) => item.ticker === ticker);
       if (!entry && mine.length === 0) notFound();
       const assetClass = classes.get(ticker) ?? null;
-      const [assets, closes, all, ofClass, dividends] = await Promise.all([
+      const [assets, closes, all, ofClass, dividends, dayInsight] = await Promise.all([
         getAssetSnapshots([ticker]),
         getMonthlyCloses([ticker]),
         getPortfolioSnapshot("TODOS"),
         // As linhas da estratégia são da classe da tela: em "TODOS" só vêm as dos FIIs.
         getPortfolioSnapshot(assetClass ?? "TODOS"),
         getDividendsView("TODOS"),
+        getDayInsight(ticker),
       ]);
       const asset = assets.get(ticker);
       const position = all.positions.find((row) => row.ticker === ticker) ?? null;
@@ -100,6 +102,7 @@ export const getAssetOverview = cache(
           .sort((a, b) => b.paidAt.getTime() - a.paidAt.getTime()),
         dividendMonths: dividendMonths(mineReceived, now),
         upcoming: dividends.upcoming.filter((item) => item.ticker === ticker),
+        dayInsight,
       };
     },
     (overview) => ({

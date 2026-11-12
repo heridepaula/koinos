@@ -1,4 +1,4 @@
-import type { AssetClass, MarketSession } from "@/features/market-data";
+import type { AssetClass, DayInsight, MarketSession } from "@/features/market-data";
 import type { DividendMonths, PricePeriod } from "./asset-overview";
 import type { AportePriority, CascadeAsset, StockBuyAsset } from "@/features/smart-buy";
 import type { Bias, CalculatedCeiling, Category, CeilingCheck } from "@/features/strategy";
@@ -493,6 +493,8 @@ export type AssetOverview = {
   /** Os recebidos por mês nos 12 meses fechados: a mesma janela do yield on cost. */
   dividendMonths: DividendMonths;
   upcoming: UpcomingDividend[];
+  /** O resumo da IA da variação forte deste pregão (gerado em segundo plano). Null sem resumo. */
+  dayInsight: DayInsight | null;
 };
 
 /** Um ativo da lista de `/ativos`: o que o dono tem ou acompanha na Carteira Alvo. */

@@ -11,6 +11,13 @@ export {
   type MarketSession,
 } from "./domain/market-hours";
 export { assetClassOf, type AssetClass, type CatalogType } from "./domain/asset-class";
+export {
+  DAY_INSIGHT,
+  type DayInsight,
+  type DayInsightStatus,
+  type InsightCandidate,
+  type NewsItem,
+} from "./domain/day-insight";
 export type { CatalogEntry, Quote, QuoteSource } from "./ports";
 export {
   BENCHMARK_TITLE,

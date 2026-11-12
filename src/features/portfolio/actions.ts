@@ -1,8 +1,10 @@
 "use server";
 
 import { refresh } from "next/cache";
+import { after } from "next/server";
 import { ActionError, authActionClient } from "@/features/auth/server";
 import {
+  refreshDayInsights,
   refreshDividends,
   refreshPayDates,
   refreshMissingFundamentals,
@@ -30,10 +32,33 @@ export const refreshMyQuotesAction = authActionClient
       listTransactionsOf(ctx.tenant),
       listTargetAssetsOf(ctx.tenant),
     ]);
-    const held = computePositions(transactions)
-      .filter((position) => position.quantity > 0)
-      .map((position) => position.ticker);
+    const positions = computePositions(transactions).filter((position) => position.quantity > 0);
+    const held = positions.map((position) => position.ticker);
     const quotes = refreshQuotes([...held, ...targets.map((target) => target.ticker)]);
+    // Resumo da IA das variações fortes: depois da resposta (after), com as cotações novas, para
+    // não segurar a tela. No máximo 2 ativos por vez; o cron de 30 min cuida do resto.
+    after(async () => {
+      try {
+        await quotes;
+        await refreshDayInsights(
+          [
+            ...positions.map((position) => ({
+              ticker: position.ticker,
+              quantity: position.quantity,
+              rank: null,
+            })),
+            ...targets.map((target) => ({
+              ticker: target.ticker,
+              quantity: null,
+              rank: target.rank,
+            })),
+          ],
+          { maxAssets: 2 },
+        );
+      } catch (error) {
+        console.warn("[resumo-ia]", error instanceof Error ? error.message : String(error));
+      }
+    });
     // Tudo em paralelo; o limite de requisições fica em cada fonte. Só o DY espera: os proventos
     // buscam junto com as cotações e gravam depois delas, com o preço novo.
     const [result, dividends, payDates, fundamentals] = await settleAll([

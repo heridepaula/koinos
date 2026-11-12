@@ -2,5 +2,5 @@
 import "server-only";
 
 export { getMyTargetAssets, listTargetAssetsOf } from "./server/strategy-dal";
-export { listAllTargetTickers } from "./server/target-asset-repo";
+export { listAllTargetRanks, listAllTargetTickers } from "./server/target-asset-repo";
 export type { TargetAssetRecord } from "./server/target-asset-repo";

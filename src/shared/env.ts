@@ -35,6 +35,9 @@ export const env = createEnv({
     BOLSAI_API_KEY: z.string().min(1).optional(),
     // Cota diária da usebolsai (zera às 0h UTC). Só informa o dashboard; nada é bloqueado por ela.
     BOLSAI_DAILY_QUOTA: z.coerce.number().int().positive().default(200),
+    // Gemini (free tier, chave do Google AI Studio): o resumo da IA das variações fortes do dia.
+    // Sem a chave, o resumo fica desligado. Só dados públicos vão para o Gemini.
+    GEMINI_API_KEY: z.string().min(1).optional(),
     CRON_SECRET: z.string().min(16).optional(),
     // Senha do HTTP Basic (usuário fixo "cron") para o cron-job.org chamar /api/cron/*.
     CRON_BASIC_PASSWORD: z.string().min(24).optional(),

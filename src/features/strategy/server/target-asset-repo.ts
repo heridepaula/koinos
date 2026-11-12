@@ -90,6 +90,18 @@ export async function deleteTargetAsset(portfolioId: string, ticker: string): Pr
   return result.deletedCount === 1;
 }
 
+/**
+ * Ticker e melhor rank de cada ativo configurado em qualquer carteira. Uso interno do cron do
+ * resumo da IA: nada de usuário além do rank, que nunca sai do servidor.
+ */
+export async function listAllTargetRanks(): Promise<{ ticker: string; rank: number | null }[]> {
+  await connectMongo();
+  const rows = await TargetAssetModel.aggregate<{ _id: string; rank: number | null }>([
+    { $group: { _id: "$ticker", rank: { $min: "$rank" } } },
+  ]);
+  return rows.map((row) => ({ ticker: row._id, rank: row.rank ?? null }));
+}
+
 /** Tickers configurados em qualquer carteira. Uso interno do cron: só tickers, nada de usuário. */
 export async function listAllTargetTickers(): Promise<string[]> {
   await connectMongo();

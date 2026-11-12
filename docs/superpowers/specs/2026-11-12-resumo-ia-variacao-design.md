@@ -27,7 +27,10 @@ Quando um ativo varia muito no dia, a página `/ativos/[ticker]` mostra um pará
 
 ## Prompt e Gemini
 
-- SDK `@google/genai`. O modelo é uma constante (`DAY_INSIGHT.model`, `gemini-3.8-flash` na data deste spec); confirmar no AI Studio o modelo e a cota do free tier antes do deploy.
+- API REST (`adapters/gemini.ts`, chave no header `X-goog-api-key`), sem SDK: uma chamada só, já vista no APM pela instrumentação do `fetch`.
+- **Cadeia de modelos** (`GEMINI_MODELS`, pedido do dono na mesma data: o mais barato que atende primeiro, os caros guardados para outros usos). A cota gratuita é por modelo, então cada um tem o seu contador. Ordem: `gemini-3.5-flash-lite` (450/dia), `gemini-3.1-flash-lite` (450), e de reserva, com teto 5/dia cada, `gemini-3-flash-preview`, `gemini-3.6-flash`, `gemini-3.7-flash`, `gemini-3.8-flash`.
+  - Teste de 2026-11-12 com o prompt real: os Lite fizeram resumos corretos em 1 a 2 s, sem raciocínio; o 3.6 Flash, de qualidade parecida, levou 8 s e 1.305 tokens de raciocínio. Os 2.5 respondem 404 para contas novas e os omni têm cota 0; os apelidos `*-latest` ficam de fora porque dividem a cota de um destes.
+  - 429 esgota o modelo no dia (o contador vai ao teto) e a chamada passa ao próximo; 503, 500, 404, timeout ou resposta vazia só passam ao próximo.
 - `buildInsightPrompt` (pura) monta o texto em pt-BR com: ticker, "fundo imobiliário" ou "ação", a variação com sinal e as notícias (título, portal, data e texto). Instruções:
   - escrever para quem não entende de mercado, em até 4 frases, sem jargão (ou explicando o termo quando for inevitável);
   - dizer o fato que explica o movimento, se as notícias trouxerem um;
@@ -52,7 +55,7 @@ Cada tentativa busca no Bing (grátis). O Gemini só é chamado de novo quando a
 
 ## Cota
 
-- Contador `gemini:AAAA-MM-DD` (dia UTC) em `market-data/server/usage.ts`, teto de 18 chamadas por dia (`GEMINI_DAILY_QUOTA`, relato de ~20 RPD do 3.8 Flash no free tier). No teto, nada mais chama o Gemini até o dia seguinte; as buscas no Bing também param, para não marcar tentativas inúteis.
+- Contador `gemini:<modelo>:AAAA-MM-DD` por modelo em `market-data/server/usage.ts`, no dia do Pacífico (a cota do Gemini zera à meia-noite de lá). As cotas são relatos de desenvolvedores, com folga, não números oficiais. Com todos os modelos no teto, nada mais chama o Gemini até o dia seguinte; as buscas no Bing também param, para não marcar tentativas inúteis.
 - Prioridade: as posições abertas por valor, depois os ativos da Carteira Alvo sem posição, por rank.
 - O contador entra no span `api.usage`.
 
@@ -64,6 +67,7 @@ No documento do ativo (dado de mercado, sem `portfolioId`):
 dayInsight: {
   session: Date,          // quoteSessionDate da cotação usada
   changePercent: number,
+  status: "ok" | "no-news" | "failed", // "failed" não aparece na tela
   text: string | null,
   sameDay: boolean,
   sources: { title, publisher, url, publishedAt }[],

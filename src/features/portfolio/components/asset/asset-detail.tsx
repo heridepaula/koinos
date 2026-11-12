@@ -2,6 +2,7 @@ import { cn } from "@/shared/lib/utils";
 import type { AssetOverview } from "../../domain/types";
 import { AporteCard } from "./aporte-card";
 import { AssetHero } from "./asset-hero";
+import { DayInsightCard } from "./day-insight-card";
 import { DividendsCard } from "./dividends-card";
 import { OrdersCard } from "./orders-card";
 import { PositionCard } from "./position-card";
@@ -29,10 +30,11 @@ export function AssetDetail({ overview }: { overview: AssetOverview }) {
             "@min-[1000px]:grid-cols-[minmax(0,1fr)_22.5rem] @min-[1000px]:grid-rows-[auto_auto_1fr]",
         )}
       >
-        <AssetHero
-          overview={overview}
-          className="@min-[1000px]:col-start-1 @min-[1000px]:row-start-1 @min-[1000px]:self-start"
-        />
+        {/* O resumo da IA fica colado na cotação, que é o que ele explica: a mesma célula da grade. */}
+        <div className="grid gap-4 md:gap-6 @min-[1000px]:col-start-1 @min-[1000px]:row-start-1 @min-[1000px]:self-start">
+          <AssetHero overview={overview} />
+          <DayInsightCard overview={overview} />
+        </div>
         {side ? (
           <div
             className={cn(

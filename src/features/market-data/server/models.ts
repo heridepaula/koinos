@@ -1,5 +1,6 @@
 import "server-only";
 import mongoose, { Schema, type Model } from "mongoose";
+import type { DayInsight } from "../domain/day-insight";
 import type { PaySchedule } from "../domain/fundamentus";
 import type { CatalogEntry, QuoteSource } from "../ports";
 
@@ -53,7 +54,29 @@ export interface AssetDoc {
   dividends12m?: number | null;
   /** Quantos proventos entraram nessa soma. Mede a regularidade: um FII mensal tem 12. */
   dividendPayments12m?: number | null;
+  /** O resumo da IA da variação forte do pregão (um por pregão; o de outro pregão é ignorado). */
+  dayInsight?: DayInsight | null;
 }
+
+const newsItemSchema = new Schema(
+  { title: String, publisher: String, url: String, publishedAt: Date },
+  { _id: false },
+);
+
+const dayInsightSchema = new Schema(
+  {
+    session: Date,
+    changePercent: Number,
+    status: { type: String, enum: ["ok", "no-news", "failed"] },
+    text: { type: String, default: null },
+    sameDay: Boolean,
+    sources: { type: [newsItemSchema], default: [] },
+    model: { type: String, default: null },
+    generatedAt: { type: Date, default: null },
+    attemptedAt: Date,
+  },
+  { _id: false },
+);
 
 const assetSchema = new Schema<AssetDoc>(
   {
@@ -105,6 +128,7 @@ const assetSchema = new Schema<AssetDoc>(
     realEstatePct: { type: Number, default: null },
     dividends12m: { type: Number, default: null },
     dividendPayments12m: { type: Number, default: null },
+    dayInsight: { type: dayInsightSchema, default: null },
   },
   { timestamps: true, versionKey: false },
 );

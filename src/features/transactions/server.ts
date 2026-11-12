@@ -7,5 +7,5 @@ export {
   getMyTransactions,
   listTransactionsOf,
 } from "./server/transactions-dal";
-export { listTradedTickersWithFirstDate } from "./server/transaction-repo";
+export { listHeldQuantities, listTradedTickersWithFirstDate } from "./server/transaction-repo";
 export type { TransactionRecord } from "./server/transaction-repo";

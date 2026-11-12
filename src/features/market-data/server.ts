@@ -23,6 +23,8 @@ export {
   searchTickers,
 } from "./server/catalog";
 export { refreshPayDates } from "./server/pay-dates-service";
+export { getDayInsight } from "./server/day-insight-read";
+export { refreshDayInsights, type DayInsightSummary } from "./server/day-insight-service";
 export { reportApiUsage } from "./server/usage";
 export { runDailyMarketJob, type DailyJobSummary } from "./server/daily-job";
 export {

@@ -304,6 +304,29 @@ export async function deleteTransactionsBySource(
  * Tickers que aparecem em algum lançamento, com a primeira data de cada um, considerando todas as carteiras.
  * Uso interno do cron de dados de mercado: devolve só ticker e data, nada que identifique o usuário.
  */
+/**
+ * Cotas em aberto de cada ticker, somando as carteiras (compras − vendas, só as positivas). Uso
+ * interno do cron do resumo da IA, para a ordem de prioridade; nunca sai do servidor.
+ */
+export async function listHeldQuantities(): Promise<{ ticker: string; quantity: number }[]> {
+  await connectMongo();
+  const rows = await TransactionModel.aggregate<{ _id: string; quantity: number }>([
+    {
+      $group: {
+        _id: { portfolioId: "$portfolioId", ticker: "$ticker" },
+        quantity: {
+          $sum: {
+            $cond: [{ $eq: ["$type", "BUY"] }, "$quantity", { $multiply: ["$quantity", -1] }],
+          },
+        },
+      },
+    },
+    { $match: { quantity: { $gt: 1e-9 } } },
+    { $group: { _id: "$_id.ticker", quantity: { $sum: "$quantity" } } },
+  ]);
+  return rows.map((row) => ({ ticker: row._id, quantity: row.quantity }));
+}
+
 export async function listTradedTickersWithFirstDate(): Promise<
   { ticker: string; firstDate: Date }[]
 > {
