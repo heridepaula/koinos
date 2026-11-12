@@ -3,6 +3,7 @@ import { DeltaChip } from "@/shared/components/delta";
 import { formatDateTime } from "@/shared/lib/format";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/shared/ui/card";
 import type { AssetOverview } from "../../domain/types";
+import { TypedText } from "./typed-text";
 
 const shortDate = (date: Date) => formatDateTime(date).slice(0, 5);
 
@@ -39,7 +40,7 @@ export function DayInsightCard({
       </CardHeader>
       <CardContent className="grid gap-4">
         {insight.status === "ok" && insight.text ? (
-          <p className="text-pretty">{insight.text}</p>
+          <TypedText text={insight.text} className="text-pretty" />
         ) : (
           <p className="text-muted-foreground">
             Nenhuma notícia recente explica o movimento deste pregão.
