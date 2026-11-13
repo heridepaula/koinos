@@ -99,6 +99,9 @@ export type RadarInput = FiiRadarInput | StockRadarInput;
 const DAY_MS = 86_400_000;
 const HALF_YEAR_MS = 182.5 * DAY_MS;
 
+/** Como o prompt chama um banco (descrição do ativo e regra de tratamento do texto). */
+export const BANK_DESCRIPTION = "um banco";
+
 const plain = (text: string | null) =>
   (text ?? "").normalize("NFD").replace(/\p{M}/gu, "").trim().toLowerCase();
 
@@ -141,20 +144,21 @@ export function peerPosition(value: number, peers: readonly number[]): "top" | "
   return null;
 }
 
+const EPS = 1e-9;
+
 function priceFacts(input: { monthChange: number | null; yearChange: number | null }): RadarFact[] {
   const facts: RadarFact[] = [];
-  const eps = 1e-9;
   if (input.monthChange !== null) {
-    if (input.monthChange <= -RADAR.monthMove + eps) {
+    if (input.monthChange <= -RADAR.monthMove + EPS) {
       facts.push(fact("preco-caiu-mes", "o preço caiu forte no último mês", "neutral"));
-    } else if (input.monthChange >= RADAR.monthMove - eps) {
+    } else if (input.monthChange >= RADAR.monthMove - EPS) {
       facts.push(fact("preco-subiu-mes", "o preço subiu forte no último mês", "neutral"));
     }
   }
   if (input.yearChange !== null) {
-    if (input.yearChange <= RADAR.yearDrop + eps) {
+    if (input.yearChange <= RADAR.yearDrop + EPS) {
       facts.push(fact("preco-caiu-ano", "o preço caiu bastante no último ano", "neutral"));
-    } else if (input.yearChange >= RADAR.yearRise - eps) {
+    } else if (input.yearChange >= RADAR.yearRise - EPS) {
       facts.push(fact("preco-subiu-ano", "o preço subiu bastante no último ano", "neutral"));
     }
   }
@@ -189,7 +193,7 @@ function fiiFacts(input: FiiRadarInput): RadarFact[] {
     );
   }
   if (input.dividendTrend !== null) {
-    if (input.dividendTrend >= RADAR.trendUp - 1e-9) {
+    if (input.dividendTrend >= RADAR.trendUp - EPS && !input.suspended && !cut) {
       facts.push(
         fact(
           "proventos-subindo",
@@ -198,7 +202,7 @@ function fiiFacts(input: FiiRadarInput): RadarFact[] {
           "rendimentos",
         ),
       );
-    } else if (input.dividendTrend <= RADAR.trendDown + 1e-9 && !input.suspended && !cut) {
+    } else if (input.dividendTrend <= RADAR.trendDown + EPS && !input.suspended && !cut) {
       facts.push(
         fact(
           "proventos-caindo",
@@ -211,7 +215,7 @@ function fiiFacts(input: FiiRadarInput): RadarFact[] {
   }
   if (input.dy12m !== null && input.realRate !== null) {
     const inflation = input.macro === "Papel" ? RADAR.assumedInflation : 0;
-    if (input.dy12m - input.realRate - inflation < -1e-9) {
+    if (input.dy12m - input.realRate - inflation < -EPS) {
       facts.push(
         fact(
           "premio-negativo",
@@ -428,7 +432,7 @@ export const RADAR_EXAMPLES: readonly RadarExample[] = [
   },
   {
     kind: "ACAO",
-    description: "um banco",
+    description: BANK_DESCRIPTION,
     facts: [
       { text: "o preço está abaixo do que o banco vale no balanço", tone: "good", term: "pvp" },
       {
@@ -530,7 +534,7 @@ export function buildRadarPrompt(input: {
   const call =
     input.kind === "FII"
       ? '"o fundo"'
-      : input.description === "um banco"
+      : input.description === BANK_DESCRIPTION
         ? '"o banco"'
         : '"a empresa"';
   return [
@@ -721,11 +725,11 @@ const FUND_TYPE_LABELS: Record<string, string> = {
 export function describeAsset(input: RadarInput): string {
   if (input.kind === "FII") {
     const type = plain(input.fundType);
-    if (type === "papel") return FUND_TYPE_LABELS.papel;
+    if (type === "papel" || (!type && input.macro === "Papel")) return FUND_TYPE_LABELS.papel;
     return SEGMENT_LABELS[plain(input.segment)] ?? FUND_TYPE_LABELS[type] ?? "um fundo imobiliário";
   }
   const subsector = plain(input.indicators?.subsector ?? null);
-  if (subsector === "bancos") return "um banco";
+  if (subsector === "bancos") return BANK_DESCRIPTION;
   if (subsector === "seguradoras") return "uma seguradora";
   const sector = input.indicators?.sector?.trim();
   return sector ? `uma empresa do setor de ${sector.toLowerCase()}` : "uma empresa da bolsa";

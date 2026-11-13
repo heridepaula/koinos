@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { CEILING_CHECK } from "@/features/strategy";
 import {
+  BANK_DESCRIPTION,
   buildRadarPrompt,
   businessKind,
   describeAsset,
@@ -265,6 +266,78 @@ describe("radarFacts: fatos novos", () => {
     expect(ids(fii({ dividendTrend }))).toEqual(expected);
   });
 
+  it("'proventos-subindo' some com suspensão ou corte", () => {
+    expect(ids(fii({ dividendTrend: 1.2, suspended: true }))).toEqual(["suspenso"]);
+    expect(ids(fii({ dividendTrend: 1.2, dividendRatio: 0.5 }))).toEqual(["provento-menor"]);
+  });
+
+  it("DY contra 4 pares: quartil superior", () => {
+    expect(ids(fii({ peerDy: [0.08, 0.09, 0.1, 0.13], dy12m: 0.12 }))).toEqual(["dy-acima-pares"]);
+  });
+
+  it("todo fato tem termo que o glossário resolve e os ids esperados são todos cobertos", () => {
+    const bank = { sector: "Intermediários Financeiros", subsector: "Bancos" };
+    const all = [
+      ...[0.7, 0.8, 1.1, 1.3].flatMap((pvp) => radarFacts(fii({ pvp }))),
+      ...radarFacts(fii({ suspended: true })),
+      ...radarFacts(fii({ dividendRatio: 0.5 })),
+      ...radarFacts(fii({ dividendTrend: 1.2 })),
+      ...radarFacts(fii({ dividendTrend: 0.8 })),
+      ...radarFacts(fii({ dy12m: 0.06, realRate: 0.07 })),
+      ...radarFacts(fii({ peerDy: [0.08, 0.09, 0.1, 0.13], dy12m: 0.12 })),
+      ...radarFacts(fii({ peerDy: [0.08, 0.09, 0.1, 0.13], dy12m: 0.07 })),
+      ...radarFacts(fii({ vacancy: 0.02 })),
+      ...radarFacts(fii({ vacancy: 0.2 })),
+      ...radarFacts(fii({ monthChange: -0.2, yearChange: -0.3 })),
+      ...radarFacts(fii({ monthChange: 0.2, yearChange: 0.4 })),
+      ...radarFacts(stock({}, { netIncome12m: -1 })),
+      ...radarFacts(
+        stock({}, { netMargin: 0.01, roe: 0.01, netDebtToEquity: 2, revenueGrowth5y: -0.1 }),
+      ),
+      ...radarFacts(
+        stock({}, { netMargin: 0.3, roe: 0.3, netDebtToEquity: 0.1, revenueGrowth5y: 0.3 }),
+      ),
+      ...radarFacts(stock({}, { ...bank, pvp: 0.5 })),
+      ...radarFacts(stock({}, { ...bank, pvp: 2 })),
+      ...radarFacts(stock({ dividendsKnown: true, payments12m: 0 })),
+      ...radarFacts(stock({ dividendsKnown: true, dy12m: 0.1, payments12m: 4 })),
+    ];
+    const expected = [
+      "pvp-bem-baixo",
+      "pvp-baixo",
+      "pvp-alto",
+      "pvp-bem-alto",
+      "suspenso",
+      "provento-menor",
+      "proventos-subindo",
+      "proventos-caindo",
+      "premio-negativo",
+      "dy-acima-pares",
+      "dy-abaixo-pares",
+      "vacancia-baixa",
+      "vacancia-alta",
+      "prejuizo",
+      "margem-baixa",
+      "margem-alta",
+      "roe-alto",
+      "roe-baixo",
+      "divida-alta",
+      "divida-baixa",
+      "receita-caiu",
+      "receita-cresceu",
+      "pvp-banco-baixo",
+      "pvp-banco-alto",
+      "sem-dividendos",
+      "dividendos-bons",
+      "preco-caiu-mes",
+      "preco-subiu-mes",
+      "preco-caiu-ano",
+      "preco-subiu-ano",
+    ];
+    expect(new Set(all.map((f) => f.id))).toEqual(new Set(expected));
+    for (const f of all) if (f.term !== null) expect(glossaryEntry(f.term)).toBeDefined();
+  });
+
   it("'proventos-caindo' some quando já há corte ou suspensão", () => {
     expect(ids(fii({ dividendTrend: 0.8, dividendRatio: 0.5 }))).toEqual(["provento-menor"]);
     expect(ids(fii({ dividendTrend: 0.8, suspended: true }))).toEqual(["suspenso"]);
@@ -323,6 +396,10 @@ describe("describeAsset", () => {
     ],
     [{ segment: null, fundType: "Fiagro" }, "um fundo do agronegócio"],
     [{ segment: null, fundType: null }, "um fundo imobiliário"],
+    [
+      { segment: null, fundType: null, macro: "Papel" as const },
+      "um fundo imobiliário de papel, que empresta dinheiro ao setor imobiliário",
+    ],
   ])("FII %j", (over, expected) => {
     expect(describeAsset(fii(over))).toBe(expected);
   });
@@ -330,7 +407,7 @@ describe("describeAsset", () => {
   it("ações pelo subsetor e pelo setor", () => {
     expect(
       describeAsset(stock({}, { sector: "Intermediários Financeiros", subsector: "Bancos" })),
-    ).toBe("um banco");
+    ).toBe(BANK_DESCRIPTION);
     expect(
       describeAsset(stock({}, { sector: "Previdência e Seguros", subsector: "Seguradoras" })),
     ).toBe("uma seguradora");
