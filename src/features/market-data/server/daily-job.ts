@@ -8,6 +8,7 @@ import {
   refreshDividends,
   type HistoryRequest,
 } from "./history-service";
+import { refreshFundamentusIndicators } from "./indicators-service";
 import { refreshPayDates } from "./pay-dates-service";
 import { refreshQuotes, type RefreshResult } from "./quote-service";
 import { syncTreasuryRates } from "./treasury-service";
@@ -17,6 +18,7 @@ export type DailyJobSummary = {
   quotes: RefreshResult;
   dividends: number;
   payDates: { updated: number; failed: number };
+  indicators: { updated: number; failed: number };
   historyMonths: number;
   recentCloses: number;
   catalog: number;
@@ -39,6 +41,7 @@ const errorMessage = (error: unknown) => (error instanceof Error ? error.message
 export async function runDailyMarketJob(
   requests: readonly HistoryRequest[],
   now = new Date(),
+  options: { indicatorTickers?: readonly string[] } = {},
 ): Promise<DailyJobSummary> {
   const tickers = [...new Set(requests.map((request) => request.ticker))];
   const quotesStep = withSpan(
@@ -82,6 +85,26 @@ export async function runDailyMarketJob(
         recordError(span, error);
         console.warn("[pagamentos]", errorMessage(error));
         return { updated: 0, failed: tickers.length };
+      }
+    },
+  );
+  // Indicadores do Fundamentus para o Radar: só posições e Carteira Alvo. Falha não para a rotina.
+  const indicatorTickers = options.indicatorTickers ?? [];
+  const indicatorsStep = withSpan(
+    "cron.refresh-indicators",
+    { "koinos.tickers": indicatorTickers.length },
+    async (span) => {
+      try {
+        const result = await refreshFundamentusIndicators(indicatorTickers, now);
+        span.setAttributes({
+          "koinos.indicators.updated": result.updated,
+          "koinos.indicators.failed": result.failed,
+        });
+        return { updated: result.updated, failed: result.failed };
+      } catch (error) {
+        recordError(span, error);
+        console.warn("[indicadores]", errorMessage(error));
+        return { updated: 0, failed: indicatorTickers.length };
       }
     },
   );
@@ -140,21 +163,24 @@ export async function runDailyMarketJob(
     }
   });
 
-  const [quotes, dividends, payDates, history, recent, catalog, treasury] = await settleAll([
-    quotesStep,
-    dividendsStep,
-    payDatesStep,
-    historyStep,
-    recentStep,
-    catalogStep,
-    treasuryStep,
-  ] as const);
+  const [quotes, dividends, payDates, history, recent, catalog, treasury, indicators] =
+    await settleAll([
+      quotesStep,
+      dividendsStep,
+      payDatesStep,
+      historyStep,
+      recentStep,
+      catalogStep,
+      treasuryStep,
+      indicatorsStep,
+    ] as const);
 
   return {
     tickers: tickers.length,
     quotes,
     dividends: dividends.updated,
     payDates,
+    indicators,
     historyMonths: history.fetched,
     recentCloses: recent.updated,
     catalog,

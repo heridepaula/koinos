@@ -3,7 +3,7 @@ import { createLimiter } from "@/shared/lib/concurrency";
 import { recordSpan } from "@/shared/lib/tracing";
 import type { FundamentusPage } from "../domain/fundamentus";
 
-// Fundamentus: páginas públicas de proventos, lidas uma vez por dia por ativo da carteira. O
+// Fundamentus: páginas públicas de proventos e de indicadores, lidas uma vez por dia por ativo da carteira. O
 // cliente se identifica como é (sem se passar por navegador). Se o site passar a bloquear, a
 // busca falha e o "a receber" volta à estimativa do Yahoo.
 const BASE_URL = "https://www.fundamentus.com.br";
@@ -34,12 +34,7 @@ async function download(url: string, ticker: string): Promise<string> {
   return new TextDecoder("latin1").decode(await response.arrayBuffer());
 }
 
-/** O HTML da página de proventos (o site responde em ISO-8859-1). */
-export function fetchFundamentusDividendsPage(
-  ticker: string,
-  page: FundamentusPage,
-): Promise<string> {
-  const url = `${BASE_URL}/${PATHS[page]}?papel=${encodeURIComponent(ticker)}&tipo=2`;
+function fetchReused(url: string, ticker: string, page: string): Promise<string> {
   const now = Date.now();
   for (const [key, entry] of recent) if (now - entry.at > REUSE_MS) recent.delete(key);
   const cached = recent.get(url);
@@ -53,4 +48,19 @@ export function fetchFundamentusDividendsPage(
   // Falha não fica guardada: a próxima chamada tenta de novo.
   html.catch(() => recent.delete(url));
   return html;
+}
+
+/** O HTML da página de proventos (o site responde em ISO-8859-1). */
+export function fetchFundamentusDividendsPage(
+  ticker: string,
+  page: FundamentusPage,
+): Promise<string> {
+  const url = `${BASE_URL}/${PATHS[page]}?papel=${encodeURIComponent(ticker)}&tipo=2`;
+  return fetchReused(url, ticker, page);
+}
+
+/** O HTML da página de indicadores (`detalhes.php`), para o Radar de fundamentos. */
+export function fetchFundamentusDetailsPage(ticker: string): Promise<string> {
+  const url = `${BASE_URL}/detalhes.php?papel=${encodeURIComponent(ticker)}`;
+  return fetchReused(url, ticker, "detalhes");
 }

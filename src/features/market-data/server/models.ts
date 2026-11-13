@@ -1,4 +1,5 @@
 import "server-only";
+import type { FiiIndicators, StockIndicators } from "../domain/fundamentus-indicators";
 import mongoose, { Schema, type Model } from "mongoose";
 import type { DayInsight } from "../domain/day-insight";
 import type { PaySchedule } from "../domain/fundamentus";
@@ -56,6 +57,16 @@ export interface AssetDoc {
   dividendPayments12m?: number | null;
   /** O resumo da IA da variação forte do pregão (um por pregão; o de outro pregão é ignorado). */
   dayInsight?: DayInsight | null;
+  /** Indicadores da página `detalhes.php` do Fundamentus (Radar de fundamentos). */
+  fundamentusIndicators?: ((StockIndicators | FiiIndicators) & { fetchedAt: Date }) | null;
+  /** O texto do Radar de fundamentos, refeito quando os fatos mudam. */
+  radar?: {
+    factsKey: string;
+    status: "ok" | "failed";
+    text: string | null;
+    model: string | null;
+    generatedAt: Date;
+  } | null;
 }
 
 const newsItemSchema = new Schema(
@@ -74,6 +85,42 @@ const dayInsightSchema = new Schema(
     model: { type: String, default: null },
     generatedAt: { type: Date, default: null },
     attemptedAt: Date,
+  },
+  { _id: false },
+);
+
+const fundamentusIndicatorsSchema = new Schema(
+  {
+    kind: { type: String, enum: ["ACAO", "FII"] },
+    sector: { type: String, default: null },
+    subsector: { type: String, default: null },
+    balanceDate: { type: Date, default: null },
+    pl: { type: Number, default: null },
+    pvp: { type: Number, default: null },
+    netMargin: { type: Number, default: null },
+    ebitMargin: { type: Number, default: null },
+    roe: { type: Number, default: null },
+    roic: { type: Number, default: null },
+    netDebtToEquity: { type: Number, default: null },
+    currentRatio: { type: Number, default: null },
+    revenueGrowth5y: { type: Number, default: null },
+    netIncome12m: { type: Number, default: null },
+    ffoYield: { type: Number, default: null },
+    capRate: { type: Number, default: null },
+    propertyCount: { type: Number, default: null },
+    quarterlyReport: { type: Date, default: null },
+    fetchedAt: Date,
+  },
+  { _id: false },
+);
+
+const radarSchema = new Schema(
+  {
+    factsKey: String,
+    status: { type: String, enum: ["ok", "failed"] },
+    text: { type: String, default: null },
+    model: { type: String, default: null },
+    generatedAt: Date,
   },
   { _id: false },
 );
@@ -129,6 +176,8 @@ const assetSchema = new Schema<AssetDoc>(
     dividends12m: { type: Number, default: null },
     dividendPayments12m: { type: Number, default: null },
     dayInsight: { type: dayInsightSchema, default: null },
+    fundamentusIndicators: { type: fundamentusIndicatorsSchema, default: null },
+    radar: { type: radarSchema, default: null },
   },
   { timestamps: true, versionKey: false },
 );

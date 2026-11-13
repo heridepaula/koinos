@@ -1,6 +1,6 @@
 import { reportApiUsage, runDailyMarketJob } from "@/features/market-data/server";
 import { listAllTargetTickers } from "@/features/strategy/server";
-import { listTradedTickersWithFirstDate } from "@/features/transactions/server";
+import { listHeldQuantities, listTradedTickersWithFirstDate } from "@/features/transactions/server";
 import { withSpan } from "@/shared/lib/tracing";
 import { currentMonthKey, monthKeyOfTradeDate } from "@/shared/lib/time";
 import { isCronAuthorized } from "../authorize";
@@ -15,8 +15,8 @@ export async function GET(request: Request) {
   const now = new Date();
   // O span da rotina inteira leva o resumo; as etapas (cron.*) ficam embaixo dele.
   return withSpan("cron.daily", {}, async (span) => {
-    const [traded, targetTickers] = await withSpan("cron.load-tickers", {}, () =>
-      Promise.all([listTradedTickersWithFirstDate(), listAllTargetTickers()]),
+    const [traded, targetTickers, held] = await withSpan("cron.load-tickers", {}, () =>
+      Promise.all([listTradedTickersWithFirstDate(), listAllTargetTickers(), listHeldQuantities()]),
     );
     // Histórico mensal desde o primeiro negócio; ativo só na Carteira Alvo precisa só da cotação.
     const fromMonth = new Map(
@@ -28,6 +28,7 @@ export async function GET(request: Request) {
     const summary = await runDailyMarketJob(
       [...fromMonth].map(([ticker, month]) => ({ ticker, fromMonth: month })),
       now,
+      { indicatorTickers: [...new Set([...held.map(({ ticker }) => ticker), ...targetTickers])] },
     );
     span.setAttributes({
       "koinos.tickers": summary.tickers,
@@ -36,6 +37,7 @@ export async function GET(request: Request) {
       "koinos.history.months_fetched": summary.historyMonths,
       "koinos.catalog.entries": summary.catalog,
       "koinos.treasury.status": summary.treasury.status,
+      "koinos.indicators.updated": summary.indicators.updated,
     });
     await reportApiUsage(now);
     return Response.json(summary, { headers: { "Cache-Control": "no-store" } });
