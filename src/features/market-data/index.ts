@@ -21,6 +21,7 @@ export {
   type InsightCandidate,
   type NewsItem,
 } from "./domain/day-insight";
+export type { WeekSummaryView } from "./domain/week-summary";
 export { RADAR, type RadarChip, type RadarFact, type RadarView } from "./domain/radar";
 export type { CatalogEntry, Quote, QuoteSource } from "./ports";
 export {

@@ -1,4 +1,9 @@
-import type { AssetClass, DayInsight, MarketSession } from "@/features/market-data";
+import type {
+  AssetClass,
+  DayInsight,
+  MarketSession,
+  WeekSummaryView,
+} from "@/features/market-data";
 import type { DividendMonths, PricePeriod } from "./asset-overview";
 import type { AportePriority, CascadeAsset, StockBuyAsset } from "@/features/smart-buy";
 import type { Bias, CalculatedCeiling, Category, CeilingCheck } from "@/features/strategy";
@@ -495,6 +500,11 @@ export type AssetOverview = {
   upcoming: UpcomingDividend[];
   /** O resumo da IA da variação forte deste pregão (gerado em segundo plano). Null sem resumo. */
   dayInsight: DayInsight | null;
+  /**
+   * O resumo das notícias da semana dos ativos da Carteira Alvo, com a linha do mercado atual.
+   * A tela só o mostra sem `dayInsight`. Null sem resumo válido e fresco.
+   */
+  weekSummary: WeekSummaryView | null;
 };
 
 /** Um ativo da lista de `/ativos`: o que o dono tem ou acompanha na Carteira Alvo. */

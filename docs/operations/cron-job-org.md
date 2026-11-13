@@ -20,7 +20,7 @@ O cron-job.org corta a requisição em **30 segundos** ([FAQ](https://cron-job.o
 
 O resumo da IA e o Radar de fundamentos precisam de `GEMINI_API_KEY` na Vercel (Production, Sensitive); sem ela, as duas rotas respondem `"status": "off"`. A regra de horários (de manhã até 12:00, depois das 18:00 às 20:00) fica no domínio, então uma chamada entre 12:00 e 18:00 só responde contagens zeradas, sem gastar cota. Cada chamada do resumo processa no máximo 3 ativos. Cada chamada do Radar lê até 6 páginas `detalhes.php` do Fundamentus (as mais antigas primeiro) e depois gera até 6 textos em 25 s; o que sobra fica para a chamada seguinte.
 
-O job de notícias lê os feeds RSS de Suno, fiis.com.br, InfoMoney e Money Times (cada um traz só 10 itens, por isso de 30 em 30 min) e até 4 feeds de empresa da InfoMoney por chamada, e guarda as notícias dos ativos acompanhados e do cenário por 14 dias. No pregão, também atualiza o Ibovespa e o IFIX. Não usa o Gemini.
+O job de notícias lê os feeds RSS de Suno, fiis.com.br, InfoMoney e Money Times (cada um traz só 10 itens, por isso de 30 em 30 min) e até 4 feeds de empresa da InfoMoney por chamada, e guarda as notícias dos ativos acompanhados e do cenário por 14 dias. No pregão, também atualiza o Ibovespa e o IFIX. Depois da coleta, gera o resumo da semana dos ativos da Carteira Alvo com o Gemini (até 4 por chamada, só quando as notícias da semana do ativo mudam; ~10–20 chamadas por dia), no mesmo prazo de 25 s. Sem `GEMINI_API_KEY`, só grava os ativos sem notícias.
 
 Nos cinco: método GET, autenticação HTTP ligada (usuário `cron` e a senha), timeout 30 s, salvar respostas, redirecionamento como sucesso desligado, notificações de falha ligadas.
 

@@ -372,6 +372,17 @@ Relato do dono, 2026-11-13: "TRXF11 está positivo hoje, porém ontem ele caiu; 
 - **Feriados:** `isSessionNews` não trata feriados, como o resto do app (`market-hours.ts`): num feriado, o "dia útil anterior" é só o dia da semana anterior.
 - **Detalhes decididos na implementação:** um resumo `failed` conta como nenhum no `insightPlan`; no modo `day`, se nenhuma página puder ser lida e não houver resumo deste movimento, vale o modo `week`; a Suno conta entre as 3 notícias lidas; os resumos da semana e do dia entram no span `insights.generate` como `koinos.insights.week` e `koinos.insights.day` (só os gerados pelo Gemini).
 
+### Decisões da implementação (resumo da semana da Carteira Alvo, 2026-11-13)
+
+Pedido do dono, 2026-11-13: tirar a trava de ±2%/±3% só para os ativos das carteiras recomendadas. Relatório de impacto da mesma data: sem a trava, a Carteira Alvo (37 ativos) passaria de ~7,5 a 37 resumos do dia por dia, e o gargalo seria o corte de 30 s do cron, não a cota. Decisão (plano `2026-11-13-resumo-semana-carteira-alvo.md`): acima da trava nada muda; abaixo dela, só para a Carteira Alvo, a linha do mercado (código) e um resumo das notícias guardadas da semana, gerado no `/api/cron/news` com chave de notícias (~10–20 chamadas extras ao Gemini por dia, nenhuma busca extra no Bing). Posições fora da Carteira Alvo continuam só com a trava.
+
+- **W1–W3:** só os tickers de `listAllTargetRanks`; as notícias são as de `selectWeekNews` (a mesma seleção do modo semana do resumo do dia, agora genérica e com o id); `weekNewsKey` = os `_id` ordenados unidos por `|`. `needsWeekSummary`: sem resumo, sim; chave diferente ou `failed`, com a última tentativa há 6 h ou mais; mesma chave `ok`/`no-news`, com a última tentativa há 47 h ou mais (a tela esconde com 48 h). Chave vazia grava `no-news` sem Gemini, mesmo sem chave de API ou sem cota.
+- **W4:** `buildWeekSummaryPrompt` com `describeAsset` do Radar (`radarInputOf` com a taxa real nula, que a descrição não usa); `validateWeekSummary` aceita números (as datas e os valores de proventos das notícias). `temperature: 0.4`, `maxOutputTokens: 1024`, `timeoutMs: 8_000`, `generateWithChain`.
+- **W5/W6:** `Asset.weekSummary`; `refreshWeekSummaries` (`server/week-summary-service.ts`, lock `week-summaries`, span `week.summaries`) roda depois de `collectNews`, no mesmo prazo de 25 s, até 4 ativos com Gemini por chamada, na ordem de `prioritizeInsights`. A rota responde `{ news, indices, week }` e chama `reportApiUsage()` quando houve chamada ao Gemini. A leitura (`getWeekSummary`) monta a linha do mercado com a variação atual e o índice do mesmo pregão (`currentMarketReading`, `server/market-reading.ts`, compartilhado com `getDayInsight`).
+- **W7:** no modo semana do resumo do dia, um `weekSummary` `ok` com a mesma chave é reaproveitado (texto, fontes, modelo e data), sem Gemini; `koinos.insights.week_reused`.
+- **W8:** `WeekSummaryCard` só sem `dayInsight`; as fontes viraram `NewsSources`, usado pelos dois cards.
+- **Detalhes decididos na implementação:** como no resumo do dia, uma falha (resposta recusada ou nenhum modelo respondeu) não apaga um resumo válido (`ok` ou `no-news`): só atualiza `attemptedAt`, o que espera 6 h para tentar de novo e mantém o texto anterior na tela; sem resumo válido, grava `failed`. Uma cadeia que não chegou a chamar nenhum modelo (prazo) não conta como tentativa. Os `no-news` não contam no limite de 4. A data do card é `generatedAt` (a verificação, em `no-news`). Sem `GEMINI_API_KEY`, os ativos com notícias contam em `deferred` e o status é `off`.
+
 ## Glossário e tooltips
 
 Objetivo: o dono (e quem mais ler) aprende o vocabulário do mercado aos poucos, vendo o termo no contexto do próprio ativo, com o significado a um toque.
@@ -475,6 +486,7 @@ Cada etapa vai para `main` sozinha, com `format:check`, `lint`, `typecheck`, `te
 Spans novos, só com contagens:
 
 - `cron.news`: `koinos.news.sources`, `koinos.news.items_new`, `koinos.news.items_matched`, `koinos.news.source_errors`.
+- `week.summaries` (no `cron.news`, depois da coleta): `koinos.week.candidates`, `due`, `generated`, `no_news`, `failed`, `deferred`, `gemini_calls`, `quota_exhausted`.
 - `news.triage` (por chamada do cron do Radar): `koinos.news.triaged`, `koinos.news.kept`, `koinos.news.dropped_invalid`.
 - `scenario.triage`: `koinos.scenario.inputs`, `koinos.scenario.kept`, `koinos.scenario.rejected_banned`.
 - `radar.generate` ganha `koinos.radar.duplicates_retried`.

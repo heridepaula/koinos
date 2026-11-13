@@ -6,6 +6,7 @@ import { DayInsightCard } from "./day-insight-card";
 import { DividendsCard } from "./dividends-card";
 import { OrdersCard } from "./orders-card";
 import { PositionCard } from "./position-card";
+import { WeekSummaryCard } from "./week-summary-card";
 
 /*
  * A grade da página do ativo, pela largura do conteúdo (sidebar aberta ou fechada):
@@ -33,7 +34,12 @@ export function AssetDetail({ overview }: { overview: AssetOverview }) {
         {/* O resumo da IA fica colado na cotação, que é o que ele explica: a mesma célula da grade. */}
         <div className="grid gap-4 md:gap-6 @min-[1000px]:col-start-1 @min-[1000px]:row-start-1 @min-[1000px]:self-start">
           <AssetHero overview={overview} />
-          <DayInsightCard overview={overview} />
+          {/* Com resumo do dia, só ele; sem ele, o resumo da semana da Carteira Alvo. */}
+          {overview.dayInsight ? (
+            <DayInsightCard overview={overview} />
+          ) : (
+            <WeekSummaryCard overview={overview} />
+          )}
         </div>
         {side ? (
           <div

@@ -8,6 +8,7 @@ import {
   getCatalogEntry,
   getDayInsight,
   getMonthlyCloses,
+  getWeekSummary,
 } from "@/features/market-data/server";
 import { marketSession } from "@/features/market-data";
 import { getMyDividends, getMyTransactions } from "@/features/transactions/server";
@@ -46,7 +47,7 @@ export const getAssetOverview = cache(
       const mine = transactions.filter((item) => item.ticker === ticker);
       if (!entry && mine.length === 0) notFound();
       const assetClass = classes.get(ticker) ?? null;
-      const [assets, closes, all, ofClass, dividends, dayInsight] = await Promise.all([
+      const [assets, closes, all, ofClass, dividends, dayInsight, weekSummary] = await Promise.all([
         getAssetSnapshots([ticker]),
         getMonthlyCloses([ticker]),
         getPortfolioSnapshot("TODOS"),
@@ -54,6 +55,7 @@ export const getAssetOverview = cache(
         getPortfolioSnapshot(assetClass ?? "TODOS"),
         getDividendsView("TODOS"),
         getDayInsight(ticker, assetClass),
+        getWeekSummary(ticker, assetClass, now),
       ]);
       const asset = assets.get(ticker);
       const position = all.positions.find((row) => row.ticker === ticker) ?? null;
@@ -103,6 +105,7 @@ export const getAssetOverview = cache(
         dividendMonths: dividendMonths(mineReceived, now),
         upcoming: dividends.upcoming.filter((item) => item.ticker === ticker),
         dayInsight,
+        weekSummary,
       };
     },
     (overview) => ({
