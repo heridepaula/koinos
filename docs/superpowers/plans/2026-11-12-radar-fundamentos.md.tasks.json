@@ -10,7 +10,7 @@
     {
       "id": 2,
       "subject": "Task 2: Domínio do Radar",
-      "status": "pending",
+      "status": "completed",
       "blockedBy": [
         1
       ],
@@ -19,7 +19,7 @@
     {
       "id": 3,
       "subject": "Task 3: Gemini com limite de tokens e finishReason",
-      "status": "pending",
+      "status": "completed",
       "description": "**Goal:** generateContent com opções e finishReason; generateText inalterado.\n\n**Files:**\n- Modify: src/features/market-data/adapters/gemini.ts\n\n**Acceptance Criteria:** ver Task 3 do plano\n\n**Verify:** npm run typecheck\n\n```json:metadata\n{\"files\": [\"src/features/market-data/adapters/gemini.ts\"], \"verifyCommand\": \"npm run typecheck\", \"acceptanceCriteria\": [\"generateContent devolve text e finishReason\", \"generateText inalterado\", \"erros inalterados\"]}\n```"
     },
     {
@@ -70,5 +70,5 @@
       "description": "**Goal:** Checks verdes e dry-run só leitura sobre a carteira real.\n\n**Files:**\n- Create (temporário): _radar-dry-run.mts\n\n**Acceptance Criteria:** ver Task 8 do plano\n\n**Verify:** npm run format:check && npm run lint && npm run typecheck && npm test && npm run build\n\n```json:metadata\n{\"files\": [], \"verifyCommand\": \"npm run format:check && npm run lint && npm run typecheck && npm test && npm run build\", \"acceptanceCriteria\": [\"todos os checks passam\", \"textos do dry-run sem dígito nem sigla; BBAS3/BBSE3/TUPY3/EGIE3 como esperado\", \"script apagado, árvore limpa\"]}\n```"
     }
   ],
-  "lastUpdated": "2026-11-13T00:39:19.548Z"
+  "lastUpdated": "2026-11-13T00:42:58.788Z"
 }
