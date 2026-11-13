@@ -66,6 +66,8 @@ export interface AssetDoc {
     text: string | null;
     model: string | null;
     generatedAt: Date;
+    /** Os termos do glossário (sem os comuns) dos 2 últimos textos, o mais novo primeiro. */
+    termHistory?: string[][];
   } | null;
 }
 
@@ -121,6 +123,7 @@ const radarSchema = new Schema(
     text: { type: String, default: null },
     model: { type: String, default: null },
     generatedAt: Date,
+    termHistory: { type: [[String]], default: [] },
   },
   { _id: false },
 );

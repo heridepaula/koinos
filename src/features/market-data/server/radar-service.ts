@@ -17,15 +17,18 @@ import {
   describeAsset,
   factsKey,
   needsRadar,
+  normalizeForDuplicate,
   radarFacts,
   radarSources,
+  radarTerms,
   validateRadarText,
+  type FiiRadarInput,
   type RadarInput,
   type RadarSourceDoc,
 } from "../domain/radar";
 import { getAssetClasses } from "./catalog";
 import { GEMINI_BUDGET_MS, generateWithChain, geminiModelsWithQuota } from "./gemini-chain";
-import { AssetModel, type AssetDoc } from "./models";
+import { AssetModel, PriceHistoryModel, type AssetDoc } from "./models";
 import { getRealRate } from "./treasury-read";
 
 // Radar de fundamentos (spec 2026-11-12-radar-fundamentos-design.md): em segundo plano, de
@@ -43,6 +46,8 @@ export type RadarSummary = {
   /** Ativos que perderam todos os fatos e tiveram o texto antigo apagado. */
   cleared: number;
   geminiCalls: number;
+  /** Textos iguais ao de outro ativo que ganharam uma segunda chamada. */
+  duplicatesRetried: number;
   quotaExhausted: boolean;
 };
 
@@ -56,6 +61,7 @@ const empty = (status: RadarSummary["status"]): RadarSummary => ({
   deferred: 0,
   cleared: 0,
   geminiCalls: 0,
+  duplicatesRetried: 0,
   quotaExhausted: false,
 });
 
@@ -65,8 +71,14 @@ export function radarInputOf(
   assetClass: "FII" | "ACAO" | null,
   realRate: number | null,
   now: Date,
+  yearAgoClose: number | null = null,
 ): RadarInput | null {
   const src = radarSources(doc, now);
+  const price = doc.price ?? null;
+  const yearChange =
+    price !== null && yearAgoClose !== null && price > 0 && yearAgoClose > 0
+      ? price / yearAgoClose - 1
+      : null;
   if (assetClass === "FII") {
     const { macro } = classifyRisk({
       fundType: doc.fundType ?? null,
@@ -97,7 +109,7 @@ export function radarInputOf(
       peerDy: [],
       dividendTrend: src.dividendTrend,
       monthChange: src.monthChange,
-      yearChange: null,
+      yearChange,
     };
   }
   if (assetClass === "ACAO") {
@@ -111,7 +123,7 @@ export function radarInputOf(
       payments12m: src.payments12m,
       dividendsKnown: src.dividendsKnown,
       monthChange: src.monthChange,
-      yearChange: null,
+      yearChange,
     };
   }
   return null;
@@ -140,11 +152,16 @@ export async function refreshRadars(
       "koinos.radar.deferred": summary.deferred,
       "koinos.radar.cleared": summary.cleared,
       "koinos.radar.gemini_calls": summary.geminiCalls,
+      "koinos.radar.duplicates_retried": summary.duplicatesRetried,
       "koinos.radar.quota_exhausted": summary.quotaExhausted,
     });
     return summary;
   });
 }
+
+/** O mês (AAAA-MM, UTC) de 12 meses antes de `now`. */
+const yearAgoMonth = (now: Date) =>
+  new Date(Date.UTC(now.getUTCFullYear() - 1, now.getUTCMonth(), 1)).toISOString().slice(0, 7);
 
 async function run(
   apiKey: string,
@@ -167,39 +184,68 @@ async function run(
   summary.candidates = tickers.length;
   if (tickers.length === 0) return summary;
   await connectMongo();
-  const [docs, classes, rate] = await Promise.all([
+  const month = yearAgoMonth(now);
+  const [docs, classes, rate, history] = await Promise.all([
     AssetModel.find({ _id: mongoose.trusted({ $in: tickers }) }).lean(),
     getAssetClasses(tickers),
     getRealRate(now).catch(() => null),
+    PriceHistoryModel.find(
+      { _id: mongoose.trusted({ $in: tickers.map((t) => `${t}:${month}`) }) },
+      { ticker: 1, close: 1 },
+    ).lean(),
   ]);
   // A taxa vem em % (6,5 = 6,5% a.a. real); o domínio usa fração.
   const realRate = rate && !rate.stale ? rate.median / 100 : null;
   const assets = new Map(docs.map((doc) => [doc._id, doc]));
+  const yearAgo = new Map(history.map((h) => [h.ticker, h.close]));
   const ordered = prioritizeInsights([...byTicker.values()], (t) => assets.get(t)?.price ?? null);
 
-  const due: {
-    ticker: string;
-    kind: "FII" | "ACAO";
-    description: string;
-    facts: ReturnType<typeof radarFacts>;
-  }[] = [];
+  // As entradas de todos primeiro: o DY relativo compara cada FII com os do mesmo macro.
+  const inputs = new Map<string, RadarInput>();
   for (const { ticker } of ordered) {
     const doc = assets.get(ticker);
     const assetClass = classes.get(ticker) ?? null;
     if (!doc || !assetClass) continue;
-    const input = radarInputOf(doc, assetClass, realRate, now);
-    if (!input) continue;
+    const input = radarInputOf(doc, assetClass, realRate, now, yearAgo.get(ticker) ?? null);
+    if (input) inputs.set(ticker, input);
+  }
+  const fiis = [...inputs.entries()].filter(
+    (entry): entry is [string, FiiRadarInput] => entry[1].kind === "FII",
+  );
+  for (const [ticker, input] of fiis) {
+    input.peerDy = fiis
+      .filter(
+        ([other, peer]) => other !== ticker && peer.macro === input.macro && peer.dy12m !== null,
+      )
+      .map(([, peer]) => peer.dy12m as number);
+  }
+
+  // Textos atuais de cada ativo, para achar repetição.
+  const texts = new Map<string, string>();
+  for (const doc of docs) {
+    if (doc.radar?.status === "ok" && doc.radar.text) {
+      texts.set(doc._id, normalizeForDuplicate(doc.radar.text));
+    }
+  }
+  const repeated = (ticker: string, text: string) => {
+    const key = normalizeForDuplicate(text);
+    return [...texts.entries()].some(([other, value]) => other !== ticker && value === key);
+  };
+
+  const due: { ticker: string; input: RadarInput; facts: ReturnType<typeof radarFacts> }[] = [];
+  for (const [ticker, input] of inputs) {
+    const doc = assets.get(ticker);
     const facts = radarFacts(input);
     if (facts.length === 0) {
       // Sem fatos o texto antigo seria falso: apaga.
-      if (doc.radar) {
+      if (doc?.radar) {
         await AssetModel.updateOne({ _id: ticker }, { $set: { radar: null } });
         summary.cleared += 1;
       }
       continue;
     }
-    if (!needsRadar(doc.radar ?? null, factsKey(facts), now)) continue;
-    due.push({ ticker, kind: input.kind, description: describeAsset(input), facts });
+    if (!needsRadar(doc?.radar ?? null, factsKey(facts), now)) continue;
+    due.push({ ticker, input, facts });
   }
   summary.due = due.length;
   if (due.length === 0) return summary;
@@ -219,29 +265,61 @@ async function run(
       summary.quotaExhausted = true;
       break;
     }
-    const { result, calls } = await generateWithChain(
+    const recentTerms = assets.get(item.ticker)?.radar?.termHistory ?? [];
+    const prompt = (avoid: string | null) =>
+      buildRadarPrompt({
+        kind: item.input.kind,
+        description: describeAsset(item.input),
+        facts: item.facts,
+        recentTerms,
+        avoid,
+      });
+    const options = { temperature: 0.6, maxOutputTokens: 2048, timeoutMs: 8_000 };
+    const first = await generateWithChain(
       apiKey,
       models,
-      buildRadarPrompt({
-        kind: item.kind,
-        description: item.description,
-        facts: item.facts,
-        recentTerms: [],
-      }),
-      { temperature: 0.2, maxOutputTokens: 2048, timeoutMs: 8_000 },
+      prompt(null),
+      options,
       now,
       `radar ${item.ticker}`,
       deadline,
     );
-    summary.geminiCalls += calls;
-    if (!result) {
+    summary.geminiCalls += first.calls;
+    if (!first.result) {
       // Todos os modelos falharam: nada gravado, a próxima chamada tenta de novo.
       summary.failed += 1;
       continue;
     }
-    const text = validateRadarText(result.text, result.finishReason, item.kind);
+    let result = first.result;
+    let text = validateRadarText(result.text, result.finishReason, item.input.kind);
+    if (text !== null && repeated(item.ticker, text) && Date.now() < deadline - GEMINI_BUDGET_MS) {
+      // Igual ao de outro ativo: uma nova chamada, uma vez. Repetindo, fica o primeiro texto.
+      summary.duplicatesRetried += 1;
+      const retry = await generateWithChain(
+        apiKey,
+        models,
+        prompt(text),
+        options,
+        now,
+        `radar ${item.ticker} retry`,
+        deadline,
+      );
+      summary.geminiCalls += retry.calls;
+      const again = retry.result
+        ? validateRadarText(retry.result.text, retry.result.finishReason, item.input.kind)
+        : null;
+      if (retry.result && again !== null) {
+        result = retry.result;
+        text = again;
+      }
+    }
     if (text === null) summary.rejected += 1;
-    else summary.generated += 1;
+    else {
+      summary.generated += 1;
+      texts.set(item.ticker, normalizeForDuplicate(text));
+    }
+    const termHistory =
+      text === null ? recentTerms : [radarTerms(text, item.input.kind), ...recentTerms].slice(0, 2);
     await AssetModel.updateOne(
       { _id: item.ticker },
       {
@@ -252,6 +330,7 @@ async function run(
             text,
             model: result.model,
             generatedAt: now,
+            termHistory,
           },
         },
       },
