@@ -614,6 +614,16 @@ describe("needsWeekSummary", () => {
     expect(needsWeekSummary(v1(60, "failed"), "a|b", KEY, NOW)).toBe(true);
   });
 
+  it("leitura sem notícia específica e chegaram notícias novas: na hora", () => {
+    const empty = summary({ text: null, attemptedAt: hoursAgo(0.1), generatedAt: hoursAgo(0.1) });
+    expect(needsWeekSummary(empty, "a|b|c", KEY, NOW)).toBe(true);
+    expect(needsWeekSummary(empty, "a|b", KEY, NOW)).toBe(false);
+    // com texto, a chave nova espera as 6 h
+    expect(needsWeekSummary(summary({ attemptedAt: hoursAgo(0.1) }), "a|b|c", KEY, NOW)).toBe(
+      false,
+    );
+  });
+
   it("o movimento mudou de faixa: refaz respeitando as 6 h", () => {
     const at = (h: number) => summary({ attemptedAt: hoursAgo(h), generatedAt: hoursAgo(h) });
     expect(needsWeekSummary(at(6), "a|b", "estavel:sem-indice", NOW)).toBe(true);

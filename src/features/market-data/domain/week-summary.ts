@@ -189,6 +189,7 @@ const HOUR_MS = 3_600_000;
  * A leitura da semana deve ser (re)feita agora?
  * - sem resumo guardado: sim;
  * - `no-news` guardado e agora há notícias: sim, na hora;
+ * - `ok` sem texto (nenhuma notícia específica do ativo) e a chave mudou: sim, na hora;
  * - `ok` ou `failed` de versão anterior: com a última tentativa há 60 min ou mais;
  * - chave das notícias diferente ou status `failed`: com a última tentativa há 6 h ou mais;
  * - `ok` com o movimento em outra faixa (`moveKey`): também com 6 h;
@@ -204,6 +205,11 @@ export function needsWeekSummary(
 ): boolean {
   if (!stored) return true;
   if (stored.status === "no-news" && key !== "") return true;
+  // Sem notícia específica do ativo (texto null) e chegaram notícias novas: na hora, como o no-news.
+  const current = (stored.version ?? 1) === WEEK_SUMMARY.version;
+  if (stored.status === "ok" && current && !stored.text && stored.newsKey !== key && key !== "") {
+    return true;
+  }
   const sinceAttempt = now.getTime() - stored.attemptedAt.getTime();
   if (stored.status !== "no-news" && (stored.version ?? 1) !== WEEK_SUMMARY.version) {
     return sinceAttempt >= WEEK_SUMMARY.upgradeRetryMinutes * 60_000;
