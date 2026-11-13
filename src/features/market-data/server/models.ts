@@ -317,3 +317,28 @@ const treasurySyncSchema = new Schema<TreasurySyncDoc>(
 export const TreasurySyncModel: Model<TreasurySyncDoc> =
   (mongoose.models.TreasurySync as Model<TreasurySyncDoc> | undefined) ??
   mongoose.model<TreasurySyncDoc>("TreasurySync", treasurySyncSchema, "treasury_sync");
+
+export interface MarketIndexDoc {
+  _id: string; // "IBOV" | "IFIX"
+  price: number;
+  previousClose: number | null;
+  changePercent: number;
+  session: Date;
+  fetchedAt: Date;
+}
+
+const marketIndexSchema = new Schema<MarketIndexDoc>(
+  {
+    _id: { type: String, required: true },
+    price: { type: Number, required: true },
+    previousClose: { type: Number, default: null },
+    changePercent: { type: Number, required: true },
+    session: { type: Date, required: true },
+    fetchedAt: { type: Date, required: true },
+  },
+  { versionKey: false },
+);
+
+export const MarketIndexModel: Model<MarketIndexDoc> =
+  (mongoose.models.MarketIndex as Model<MarketIndexDoc> | undefined) ??
+  mongoose.model<MarketIndexDoc>("MarketIndex", marketIndexSchema, "market_indices");

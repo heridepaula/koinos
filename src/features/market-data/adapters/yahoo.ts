@@ -2,6 +2,7 @@ import "server-only";
 import YahooFinance from "yahoo-finance2";
 import type { ChartResultArray } from "yahoo-finance2/modules/chart";
 import { monthKeyOfTradeDate, todayTradeDate } from "@/shared/lib/time";
+import type { IndexQuote } from "../domain/market-indices";
 import type {
   DailyClose,
   DividendEvent,
@@ -31,6 +32,38 @@ function client(): YahooClient {
 const toSymbol = (ticker: string) => `${ticker}.SA`;
 const fromSymbol = (symbol: string) => symbol.replace(/\.SA$/i, "");
 const errorMessage = (error: unknown) => (error instanceof Error ? error.message : String(error));
+
+const asNumber = (value: unknown) =>
+  typeof value === "number" && Number.isFinite(value) ? value : null;
+const asDate = (value: unknown) =>
+  value instanceof Date
+    ? value
+    : typeof value === "number"
+      ? new Date(value * 1000)
+      : typeof value === "string"
+        ? new Date(value)
+        : null;
+
+/** Cotação de índices (símbolos do Yahoo, como `^BVSP`), numa chamada só. */
+export async function getIndexQuotes(symbols: readonly string[]): Promise<Map<string, IndexQuote>> {
+  const quotes = new Map<string, IndexQuote>();
+  if (symbols.length === 0) return quotes;
+  const results = await client().quote(
+    [...symbols],
+    { return: "array" },
+    { validateResult: false },
+  );
+  for (const result of results) {
+    const percent = asNumber(result.regularMarketChangePercent);
+    quotes.set(result.symbol, {
+      price: asNumber(result.regularMarketPrice),
+      previousClose: asNumber(result.regularMarketPreviousClose),
+      changePercent: percent === null ? null : percent / 100,
+      time: asDate(result.regularMarketTime),
+    });
+  }
+  return quotes;
+}
 
 export const yahooProvider: QuoteProvider & HistoryProvider = {
   name: "yahoo",
