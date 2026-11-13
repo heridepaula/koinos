@@ -7,7 +7,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/sha
 import type { AssetOverview } from "../../domain/types";
 import { AssetHeatMeter } from "./asset-heat-meter";
 import { NewsSources } from "./news-sources";
-import { WeekLenses } from "./week-lenses";
+import { CouncilLenses } from "@/features/market-data/ui";
 
 /** O veredito: a primeira frase em Headline, o resto em texto normal. */
 function Verdict({ text, assetClass }: { text: string; assetClass: AssetClass | null }) {
@@ -75,7 +75,7 @@ export function WeekSummaryCard({
         {heat ? <AssetHeatMeter heat={heat} /> : null}
         {summary && (summary.lenses.length > 0 || summary.sources.length > 0) ? (
           <div className="grid gap-3">
-            <WeekLenses lenses={summary.lenses} assetClass={overview.assetClass} />
+            <CouncilLenses lenses={summary.lenses} assetClass={overview.assetClass} />
             <NewsSources sources={summary.sources} />
           </div>
         ) : null}

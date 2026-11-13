@@ -1,19 +1,27 @@
-import type { AssetClass, WeekLensView } from "@/features/market-data";
+import type { NewsTone } from "../domain/week-summary";
+import type { AssetClass } from "../domain/asset-class";
 import { Disclosure } from "@/shared/components/disclosure";
 import { GlossaryText } from "@/shared/components/glossary-text";
-import { NewsToneChip } from "./news-tone";
+import { NewsToneChip } from "./tone-chip";
+
+export type CouncilLens = {
+  id: string;
+  label: string;
+  persona: string;
+  tone: NewsTone;
+  text: string;
+};
 
 /**
- * "Pelas lentes do conselho": a leitura da semana pelas lentes da skill `conselho-investidores`
- * (renda, imóveis, risco e fundamento ou ruído nos FIIs; dividendos, negócio, risco e fundamento ou
- * ruído nas ações), cada uma com o sentido e a observação apoiada nas notícias. Recolhido: o
- * veredito vem antes. As lentes só aparecem quando têm fato.
+ * "Pelas lentes do conselho": cada lente da skill `conselho-investidores` com o sentido (decidido
+ * pelo código) e a observação. Recolhido: o veredito vem antes. Usado pela leitura da semana e pela
+ * tese do ativo.
  */
-export function WeekLenses({
+export function CouncilLenses({
   lenses,
   assetClass,
 }: {
-  lenses: readonly WeekLensView[];
+  lenses: readonly CouncilLens[];
   assetClass: AssetClass | null;
 }) {
   if (lenses.length === 0) return null;

@@ -2,7 +2,7 @@ import { ArrowUpRightIcon } from "lucide-react";
 import type { NewsItem, NewsTone } from "@/features/market-data";
 import { Disclosure } from "@/shared/components/disclosure";
 import { formatDateTime } from "@/shared/lib/format";
-import { NEWS_TONE_LABELS } from "./news-tone";
+import { NEWS_TONE_LABELS } from "@/features/market-data/ui";
 
 const shortDate = (date: Date) => formatDateTime(date).slice(0, 5);
 

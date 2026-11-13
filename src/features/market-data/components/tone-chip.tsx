@@ -1,4 +1,4 @@
-import type { NewsTone } from "@/features/market-data";
+import type { NewsTone } from "../domain/week-summary";
 import { cn } from "@/shared/lib/utils";
 
 export const NEWS_TONE_LABELS: Record<NewsTone, string> = {
