@@ -356,6 +356,20 @@ Tarefa: explique a quem não entende de mercado, em um parágrafo de até 4 fras
 
 As fontes mostradas no `DayInsightCard` passam a incluir as da semana e do cenário que entraram no prompt (até 3 no total, as do dia primeiro). O parágrafo é desenhado por `GlossaryText`. O resumo do dia não é recusado por jargão (como hoje); os termos do glossário só ganham o tooltip.
 
+### Decisões da implementação (resumo do dia, 2026-11-13)
+
+Relato do dono, 2026-11-13: "TRXF11 está positivo hoje, porém ontem ele caiu; nos detalhes do FII fala que teve queda 'hoje', porém as notícias são de ontem. Se não houver justificativa para a alta ou baixa no dia, talvez não devêssemos mostrar nada, ou mudar para resumo da semana." Nos dados: KNRI11 (+2,43% em 13/11) explicado com 3 notícias de 12/11, SNEL11 (+2,21%) com uma de 06/11, e o TRXF11 manteve "caiu forte" depois de virar para +1,73%. Esta parte da Camada 6 foi adiantada (plano `2026-11-13-resumo-dia-sem-noticia-antiga.md`), sem o cenário e sem a triagem da semana:
+
+- **R1, notícia do pregão** (`isSessionNews`): publicada desde as 18:00 de São Paulo do dia útil anterior (na segunda, desde sexta 18:00) até 23:59:59 do dia do pregão. Só ela explica o movimento; substituiu `isSameDay`, removido com `shouldCallGemini`.
+- **R2:** `nextInsightAttempt` não processa nada antes das 10:30 do dia do pregão (`DAY_INSIGHT.settleMinutes`), nem a primeira tentativa: a brapi ainda traz a variação do pregão anterior.
+- **R3, o resumo pertence a um movimento** (`sameMovement`): só conta o do mesmo pregão e do mesmo sinal da variação atual; com o sinal trocado, gera de novo. A leitura (`getDayInsight(ticker, assetClass)`) devolve null com o sinal trocado ou quando a variação não passa mais do gatilho da classe.
+- **R4, dois modos** (`DayInsight.kind`, `insightPlan`): `day` com notícia do pregão (sem resumo deste movimento, com um da semana, ou com notícia do pregão fora das fontes); `week` sem notícia do pregão e sem resumo (lista vazia grava `no-news` sem o Gemini); senão nada. Documentos antigos sem `kind` leem como `day` (`withInsightDefaults`). `sameDay` passou a significar "resumo do dia que deu certo".
+- **R5, as notícias:** do pregão, as de `news_items` do ticker mais as do Bing que passam em R1, sem URL repetida (`mergeSessionNews`), lendo até 3 (a Suno, `readPage: false`, entra com título e resumo como texto); o Bing falhando não é mais `failed`. Da semana, as de `news_items` do ticker com tópico `ativo` dos últimos 7 dias, até 5, só título e resumo (`weekNews`); o Bing não entra.
+- **R6, o mercado** (`marketReading`, `insightMarket`, `marketReadingText`): `acompanhou` com o mesmo sinal e |ativo − índice| < max(1 p.p., 0,5 × |índice|), senão `descolou`; o IFIX para FII e o Ibovespa para ação, de `market_indices`, só do mesmo pregão. Guardado em `DayInsight.market` nos dois modos.
+- **R7, prompts:** `buildInsightPrompt` ganhou a linha do mercado e "Use só as notícias abaixo, todas publicadas desde o fechamento do pregão anterior…"; `buildWeekPrompt` resume a semana e proíbe dizer que as notícias explicam a variação de hoje. Sem dados da carteira.
+- **R8, tela:** "Resumo do dia" ou "O que aconteceu nesta semana" ("Nenhuma notícia do pregão explica o movimento."), a linha do mercado em Subheadline antes do texto e, sem notícia da semana, "Sem notícias do ativo nesta semana.".
+- **Detalhes decididos na implementação:** um resumo `failed` conta como nenhum no `insightPlan`; no modo `day`, se nenhuma página puder ser lida e não houver resumo deste movimento, vale o modo `week`; a Suno conta entre as 3 notícias lidas; os resumos da semana e do dia entram no span `insights.generate` como `koinos.insights.week` e `koinos.insights.day` (só os gerados pelo Gemini).
+
 ## Glossário e tooltips
 
 Objetivo: o dono (e quem mais ler) aprende o vocabulário do mercado aos poucos, vendo o termo no contexto do próprio ativo, com o significado a um toque.

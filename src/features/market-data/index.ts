@@ -13,8 +13,11 @@ export {
 export { assetClassOf, type AssetClass, type CatalogType } from "./domain/asset-class";
 export {
   DAY_INSIGHT,
+  marketReadingText,
   type DayInsight,
+  type DayInsightKind,
   type DayInsightStatus,
+  type MarketReading,
   type InsightCandidate,
   type NewsItem,
 } from "./domain/day-insight";

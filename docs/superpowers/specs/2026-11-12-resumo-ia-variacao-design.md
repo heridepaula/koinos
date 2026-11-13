@@ -2,6 +2,8 @@
 
 Data: 2026-11-12. Decisões do dono na mesma data.
 
+> **Mudança de 2026-11-13:** só notícia do pregão (desde as 18:00 do dia útil anterior) explica o movimento; o resumo pertence a um movimento (some quando o sinal troca ou a variação sai do gatilho); sem notícia do pregão, vira "O que aconteceu nesta semana"; e a comparação com o IFIX/Ibovespa é calculada pelo código. Ver "Decisões da implementação (resumo do dia, 2026-11-13)" em `2026-11-13-noticias-e-cenario-design.md` e o plano `2026-11-13-resumo-dia-sem-noticia-antiga.md`.
+
 Quando um ativo varia muito no dia, a página `/ativos/[ticker]` mostra um parágrafo em linguagem simples explicando o que as notícias do dia dizem sobre o movimento. O texto é gerado pelo Gemini (free tier da Gemini Developer API, chave do Google AI Studio) a partir de notícias públicas.
 
 ## O que não muda
