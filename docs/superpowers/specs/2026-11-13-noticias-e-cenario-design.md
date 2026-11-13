@@ -52,7 +52,7 @@ Em `market-data/domain/radar.ts`. Entra primeiro, sozinha já reduz a repetiçã
 ### Identidade
 
 - **FII:** `segmentLabel(segment, fundType, macro)` traduz o segmento do usebolsai para uma expressão do dia a dia: "fundo de galpões logísticos", "fundo de shoppings", "fundo de escritórios", "fundo de crédito imobiliário", "fundo de fundos", "fundo de renda urbana"; sem mapeamento, "fundo imobiliário". O nome do catálogo dos FIIs ("CSHG LOGISTICA FDO INV IMOB - FII") não entra.
-- **Ação:** "empresa de {subsetor do Fundamentus em minúsculas}" ("empresa de bancos" vira "banco", "empresa de energia elétrica"), mais o nome curto do catálogo quando ele não for só sigla ("Petrobras", "Vale").
+- **Ação:** "empresa de {subsetor do Fundamentus em minúsculas}" ("empresa de bancos" vira "banco", "empresa de energia elétrica"). O nome curto do catálogo ("Petrobras") fica para a etapa das notícias (decisão da etapa 1).
 - O ticker não entra no texto (tem dígitos, e a validação recusa dígitos).
 
 ### Fatos alterados
@@ -68,9 +68,9 @@ Em `market-data/domain/radar.ts`. Entra primeiro, sozinha já reduz a repetiçã
 
 | Id | Regra | Texto | Tom |
 |---|---|---|---|
-| `dy-acima-pares` | DY no quartil superior dos FIIs do mesmo macro entre os candidatos do Radar (Carteira Alvo + posições), com pelo menos 4 pares com DY | "paga mais que a maioria dos fundos parecidos que você acompanha" | good |
+| `dy-acima-pares` | DY no quartil superior dos FIIs do mesmo macro entre os candidatos do Radar (Carteira Alvo + posições), com um grupo de 4 ou mais FIIs com DY (o ativo e 3 pares) | "paga mais que a maioria dos fundos parecidos que você acompanha" | good |
 | `dy-abaixo-pares` | DY no quartil inferior, mesmas condições | "paga menos que a maioria dos fundos parecidos que você acompanha" | bad |
-| `proventos-subindo` | FII com ≥ 10 pagamentos em 12 meses; soma dos últimos 6 meses ÷ 6 anteriores ≥ 1,05 | "os pagamentos vêm aumentando nos últimos meses" | good |
+| `proventos-subindo` | FII com 4 ou mais pagamentos em cada metade de 12 meses; média por pagamento dos últimos 6 meses ÷ a dos 6 anteriores ≥ 1,05 (média, não soma: 6 contra 5 pagamentos iguais dariam 1,2) | "os pagamentos vêm aumentando nos últimos meses" | good |
 | `proventos-caindo` | Mesma conta ≤ 0,90 (e sem `provento-menor` nem `suspenso`, que já dizem isso) | "os pagamentos vêm diminuindo nos últimos meses" | bad |
 | `preco-caiu-mes` | Fechamento de hoje ÷ o de ~30 dias atrás (`recentCloses`) − 1 ≤ −8% | "o preço caiu forte no último mês" | neutral |
 | `preco-subiu-mes` | Mesma conta ≥ +8% | "o preço subiu forte no último mês" | neutral |
@@ -271,7 +271,7 @@ Regras:
 - Se uma notícia ou o cenário ajudar a entender um fundamento (por exemplo, a queda do preço),
   ligue os dois; se não ajudar, não force a ligação.
 - Havendo pontos favoráveis e desfavoráveis, cite ao menos um de cada.
-- Chame o ativo de "o fundo" ou "a empresa"{ou pelo nome curto, para ações}.
+- Chame o ativo de "o fundo", "a empresa" ou "o banco".
 - Sem números.
 - Use 1 ou 2 termos da lista de termos do mercado, para o leitor se acostumar com eles. A frase
   precisa continuar clara para quem não sabe o termo: ponha o termo junto da ideia em palavras
@@ -399,7 +399,10 @@ Os textos de ajuda dos chips do Radar (`CHIP_HELP`) passam a vir daqui, para o m
 
 - **Termo sugerido por fato:** cada fato do código traz o `glossaryId` que ele explica (`pvp-*` → P/VP, `vacancia-*` → vacância, `dy-*` → dividend yield, `proventos-*`/`provento-menor`/`suspenso` → rendimentos (FII) ou dividendos (ação), `premio-negativo` → Tesouro IPCA+, `margem-*` → margem líquida, `roe-*` → ROE, `divida-*` → dívida líquida, `prejuizo` → lucro líquido; o canal `juros` → Selic, `fiscal` → arcabouço fiscal, `inflacao` → IPCA). O prompt mostra o termo ao lado do fato (`[termo: P/VP]`).
 - **A lista "termos que você pode usar"** é a união dos termos sugeridos pelos fatos enviados e mais os do escopo da classe que aparecem nas notícias enviadas. Nunca a lista inteira: menos opções, menos uso forçado.
-- **Variedade:** quando o mesmo `glossaryId` foi o único termo dos últimos 2 textos do ativo, ele vai para o fim da lista (o texto guardado registra `terms[]`). Assim o leitor vê termos diferentes ao longo das semanas.
+- **Variedade:** quando o mesmo `glossaryId` foi o único termo dos últimos 2 textos do ativo, ele vai para o fim da lista (o radar guardado registra `termHistory`, os termos dos 2 últimos textos). Assim o leitor vê termos diferentes ao longo das semanas.
+- **Termos comuns** (cota, proventos, rendimentos, dividendos; `common: true`) ganham tooltip e não contam no limite de 3. Um termo do glossário de outra classe (ROE num FII) conta como jargão.
+- **Apelidos soltos ambíguos ficaram fora** na etapa 1: "tijolo", "papel", "calote", "lucro", "margem" e "realização" sozinhos não marcam (só "fundo de tijolo", "lucro líquido", "margem líquida"…).
+- **Fato de preço no ano:** só aparece quando `price_history` já tem o fechamento de 12 meses atrás (ativos que já tiveram posição); os da Carteira Alvo sem esse fechamento ficam sem ele.
 
 ### Marcação no texto (`glossarySegments`, puro)
 

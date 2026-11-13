@@ -293,7 +293,8 @@ async function run(
     let result = first.result;
     let text = validateRadarText(result.text, result.finishReason, item.input.kind);
     if (text !== null && repeated(item.ticker, text) && Date.now() < deadline - GEMINI_BUDGET_MS) {
-      // Igual ao de outro ativo: uma nova chamada, uma vez. Repetindo, fica o primeiro texto.
+      // Igual ao de outro ativo: uma nova chamada, uma vez. Se repetir de novo, grava assim mesmo;
+      // o primeiro texto só fica se a nova chamada falhar ou for recusada.
       summary.duplicatesRetried += 1;
       const retry = await generateWithChain(
         apiKey,
