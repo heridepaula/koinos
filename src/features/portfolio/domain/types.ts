@@ -1,5 +1,6 @@
 import type {
   AssetClass,
+  AssetPulse,
   DayInsight,
   MarketSession,
   WeekSummaryView,
@@ -501,10 +502,15 @@ export type AssetOverview = {
   /** O resumo da IA da variação forte deste pregão (gerado em segundo plano). Null sem resumo. */
   dayInsight: DayInsight | null;
   /**
-   * O resumo das notícias da semana dos ativos da Carteira Alvo, com a linha do mercado atual.
-   * A tela só o mostra sem `dayInsight`. Null sem resumo válido e fresco.
+   * A leitura da semana dos ativos da Carteira Alvo (veredito, lentes e fontes). A tela só a
+   * mostra sem `dayInsight`. Null sem leitura válida e fresca.
    */
   weekSummary: WeekSummaryView | null;
+  /**
+   * O momento do ativo, de qualquer ativo com cotação: o movimento em 7 dias (contra o índice
+   * quando há o histórico dele) e o termômetro, de medo extremo a euforia. Null sem cotação.
+   */
+  pulse: AssetPulse | null;
 };
 
 /** Um ativo da lista de `/ativos`: o que o dono tem ou acompanha na Carteira Alvo. */

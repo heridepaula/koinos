@@ -4,6 +4,7 @@ import { DeltaChip } from "@/shared/components/delta";
 import { formatDateTime } from "@/shared/lib/format";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/shared/ui/card";
 import type { AssetOverview } from "../../domain/types";
+import { AssetHeatMeter } from "./asset-heat-meter";
 import { NewsSources } from "./news-sources";
 import { TypedText } from "./typed-text";
 
@@ -57,10 +58,11 @@ export function DayInsightCard({
         ) : (
           <p className="text-muted-foreground">
             {week
-              ? "Sem notícias do ativo nesta semana."
+              ? `Nenhuma notícia específica do ${overview.ticker} nesta semana.`
               : "Nenhuma notícia recente explica o movimento deste pregão."}
           </p>
         )}
+        {overview.pulse?.heat ? <AssetHeatMeter heat={overview.pulse.heat} /> : null}
         <NewsSources sources={insight.sources} />
         <p className="text-footnote text-muted-foreground">
           Gerado por IA (Gemini) a partir de notícias públicas. Pode conter erros e não é

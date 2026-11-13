@@ -4,6 +4,7 @@ import { connection } from "next/server";
 import { cache } from "react";
 import {
   getAssetClasses,
+  getAssetPulse,
   getAssetSnapshots,
   getCatalogEntry,
   getDayInsight,
@@ -47,16 +48,18 @@ export const getAssetOverview = cache(
       const mine = transactions.filter((item) => item.ticker === ticker);
       if (!entry && mine.length === 0) notFound();
       const assetClass = classes.get(ticker) ?? null;
-      const [assets, closes, all, ofClass, dividends, dayInsight, weekSummary] = await Promise.all([
-        getAssetSnapshots([ticker]),
-        getMonthlyCloses([ticker]),
-        getPortfolioSnapshot("TODOS"),
-        // As linhas da estratégia são da classe da tela: em "TODOS" só vêm as dos FIIs.
-        getPortfolioSnapshot(assetClass ?? "TODOS"),
-        getDividendsView("TODOS"),
-        getDayInsight(ticker, assetClass),
-        getWeekSummary(ticker, assetClass, now),
-      ]);
+      const [assets, closes, all, ofClass, dividends, dayInsight, weekSummary, pulse] =
+        await Promise.all([
+          getAssetSnapshots([ticker]),
+          getMonthlyCloses([ticker]),
+          getPortfolioSnapshot("TODOS"),
+          // As linhas da estratégia são da classe da tela: em "TODOS" só vêm as dos FIIs.
+          getPortfolioSnapshot(assetClass ?? "TODOS"),
+          getDividendsView("TODOS"),
+          getDayInsight(ticker, assetClass),
+          getWeekSummary(ticker, assetClass, now),
+          getAssetPulse(ticker, assetClass, now),
+        ]);
       const asset = assets.get(ticker);
       const position = all.positions.find((row) => row.ticker === ticker) ?? null;
       const mineReceived = received.filter((item) => item.ticker === ticker);
@@ -106,6 +109,7 @@ export const getAssetOverview = cache(
         upcoming: dividends.upcoming.filter((item) => item.ticker === ticker),
         dayInsight,
         weekSummary,
+        pulse,
       };
     },
     (overview) => ({

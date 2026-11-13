@@ -1,16 +1,37 @@
 import { SparklesIcon } from "lucide-react";
-import { marketReadingText } from "@/features/market-data";
+import { weekMoveText, type AssetClass } from "@/features/market-data";
 import { DeltaChip } from "@/shared/components/delta";
 import { GlossaryText } from "@/shared/components/glossary-text";
 import { formatDateTime } from "@/shared/lib/format";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/shared/ui/card";
 import type { AssetOverview } from "../../domain/types";
+import { AssetHeatMeter } from "./asset-heat-meter";
 import { NewsSources } from "./news-sources";
+import { WeekLenses } from "./week-lenses";
+
+/** O veredito: a primeira frase em Headline, o resto em texto normal. */
+function Verdict({ text, assetClass }: { text: string; assetClass: AssetClass | null }) {
+  const [first, ...rest] = text.split(/(?<=[.!?])\s+/);
+  return (
+    <div className="grid gap-1.5 text-pretty">
+      <p className="text-headline">
+        <GlossaryText text={first} assetClass={assetClass} />
+      </p>
+      {rest.length > 0 ? (
+        <p>
+          <GlossaryText text={rest.join(" ")} assetClass={assetClass} />
+        </p>
+      ) : null}
+    </div>
+  );
+}
 
 /**
- * O resumo da semana dos ativos da Carteira Alvo (plano 2026-11-13-resumo-semana-carteira-alvo.md,
- * W8): sem resumo do dia, a linha do mercado atual (código) e o resumo das notícias guardadas da
- * semana (Gemini, gerado no cron de notícias). Só mostra o que está guardado; sem resumo, nada.
+ * "O que aconteceu nesta semana" (spec 2026-11-13-leitura-da-semana-design.md, parte 8): o chip é a
+ * variação em 7 dias; o veredito da leitura da semana vem primeiro e é o que mais aparece; depois a
+ * comparação com o índice, o termômetro do momento, as lentes do conselho e as fontes, recolhidas.
+ * Sem leitura (ativo fora da Carteira Alvo), o card mostra só o movimento e o termômetro; sem os
+ * dois, não aparece.
  */
 export function WeekSummaryCard({
   overview,
@@ -20,8 +41,10 @@ export function WeekSummaryCard({
   className?: string;
 }) {
   const summary = overview.weekSummary;
-  if (!summary) return null;
-  const text = summary.status === "ok" ? summary.text : null;
+  const move = overview.pulse?.move ?? null;
+  const heat = overview.pulse?.heat ?? null;
+  if (!summary && !heat) return null;
+  const text = summary?.status === "ok" ? summary.text : null;
   return (
     <Card className={className}>
       <CardHeader>
@@ -32,24 +55,30 @@ export function WeekSummaryCard({
           </h2>
         </CardTitle>
         <CardDescription className="flex flex-wrap items-center gap-2">
-          {summary.changePercent !== null ? <DeltaChip pct={summary.changePercent} /> : null}
-          <span>Atualizado em {formatDateTime(summary.updatedAt)}</span>
+          {move ? <DeltaChip pct={move.change} suffix="em 7 dias" /> : null}
+          {summary ? <span>Atualizado em {formatDateTime(summary.updatedAt)}</span> : null}
         </CardDescription>
       </CardHeader>
-      <CardContent className="grid gap-4">
-        {summary.market && summary.changePercent !== null ? (
-          <p className="text-subheadline text-pretty">
-            {marketReadingText(overview.ticker, summary.changePercent, summary.market)}
+      <CardContent className="grid gap-5">
+        {text ? (
+          <Verdict text={text} assetClass={overview.assetClass} />
+        ) : summary ? (
+          <p className="text-muted-foreground">
+            Nenhuma notícia específica do {overview.ticker} nesta semana.
           </p>
         ) : null}
-        {text ? (
-          <p className="text-pretty">
-            <GlossaryText text={text} assetClass={overview.assetClass} />
+        {move?.index ? (
+          <p className="-mt-2 text-subheadline text-pretty text-muted-foreground">
+            {weekMoveText(overview.ticker, move)}
           </p>
-        ) : (
-          <p className="text-muted-foreground">Sem notícias do ativo nesta semana.</p>
-        )}
-        <NewsSources sources={summary.sources.slice(0, 5)} />
+        ) : null}
+        {heat ? <AssetHeatMeter heat={heat} /> : null}
+        {summary && (summary.lenses.length > 0 || summary.sources.length > 0) ? (
+          <div className="grid gap-3">
+            <WeekLenses lenses={summary.lenses} assetClass={overview.assetClass} />
+            <NewsSources sources={summary.sources} />
+          </div>
+        ) : null}
         {text ? (
           <p className="text-footnote text-muted-foreground">
             Gerado por IA (Gemini) a partir de notícias públicas. Pode conter erros e não é

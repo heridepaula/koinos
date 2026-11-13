@@ -1,35 +1,46 @@
 import { ArrowUpRightIcon } from "lucide-react";
-import type { NewsItem } from "@/features/market-data";
+import type { NewsItem, NewsTone } from "@/features/market-data";
+import { Disclosure } from "@/shared/components/disclosure";
 import { formatDateTime } from "@/shared/lib/format";
+import { NEWS_TONE_LABELS } from "./news-tone";
 
 const shortDate = (date: Date) => formatDateTime(date).slice(0, 5);
 
 /**
- * As fontes de um resumo da IA (resumo do dia e resumo da semana): título, portal e data, cada uma
- * abrindo o portal em nova aba. Sem fontes, nada aparece.
+ * As fontes de um resumo da IA (resumo do dia e leitura da semana), recolhidas em "Fontes (N)":
+ * uma lista compacta em Footnote, sem fundo, para o texto do resumo ser o que mais aparece (pedido
+ * do dono, 2026-11-13). Cada fonte abre o portal em nova aba e, na leitura da semana, diz o sentido
+ * dela para quem tem o ativo. Sem fontes, nada aparece.
  */
-export function NewsSources({ sources }: { sources: readonly NewsItem[] }) {
+export function NewsSources({
+  sources,
+}: {
+  sources: readonly (NewsItem & { tone?: NewsTone | null })[];
+}) {
   if (sources.length === 0) return null;
   return (
-    <section aria-label="Fontes" className="grid gap-2">
-      <h3 className="text-footnote font-medium text-muted-foreground">Fontes</h3>
-      <ul className="divide-y divide-border/70 rounded-xl bg-foreground/4 px-3">
+    <Disclosure
+      summary={`Fontes (${sources.length})`}
+      summaryClassName="text-footnote font-normal text-muted-foreground"
+    >
+      <ul aria-label="Fontes" className="grid gap-1">
         {sources.map((source) => (
           <li key={source.url}>
             <a
               href={source.url}
               target="_blank"
               rel="noopener noreferrer"
-              className="flex min-h-11 items-center gap-3 py-2 hover:text-primary"
+              className="group/source flex items-start gap-2 rounded-md py-1 text-footnote pointer-coarse:min-h-11"
             >
               <span className="grid min-w-0 flex-1 gap-0.5">
-                <span className="line-clamp-2 text-subheadline">{source.title}</span>
-                <span className="text-footnote text-muted-foreground">
+                <span className="line-clamp-2 group-hover/source:underline">{source.title}</span>
+                <span className="text-muted-foreground">
                   {source.publisher} · {shortDate(source.publishedAt)}
+                  {source.tone ? ` · ${NEWS_TONE_LABELS[source.tone]}` : ""}
                 </span>
               </span>
               <ArrowUpRightIcon
-                className="size-4 shrink-0 text-muted-foreground"
+                className="mt-0.5 size-3.5 shrink-0 text-muted-foreground"
                 aria-hidden="true"
               />
               <span className="sr-only">(abre em nova aba)</span>
@@ -37,6 +48,6 @@ export function NewsSources({ sources }: { sources: readonly NewsItem[] }) {
           </li>
         ))}
       </ul>
-    </section>
+    </Disclosure>
   );
 }
