@@ -374,6 +374,8 @@ Relato do dono, 2026-11-13: "TRXF11 está positivo hoje, porém ontem ele caiu; 
 
 ### Decisões da implementação (resumo da semana da Carteira Alvo, 2026-11-13)
 
+> Substituído no mesmo dia pelo spec `2026-11-13-leitura-da-semana-design.md`. O texto livre deu lugar à leitura do conselho: triagem, lentes e veredito em JSON validado. A busca do Bing por ativo agora alimenta a semana, e o chip passou a ser o de 7 dias, com o termômetro. W1–W8 abaixo ficam como histórico.
+
 Pedido do dono, 2026-11-13: tirar a trava de ±2%/±3% só para os ativos das carteiras recomendadas. Relatório de impacto da mesma data: sem a trava, a Carteira Alvo (37 ativos) passaria de ~7,5 a 37 resumos do dia por dia, e o gargalo seria o corte de 30 s do cron, não a cota. Decisão (plano `2026-11-13-resumo-semana-carteira-alvo.md`): acima da trava nada muda; abaixo dela, só para a Carteira Alvo, a linha do mercado (código) e um resumo das notícias guardadas da semana, gerado no `/api/cron/news` com chave de notícias (~10–20 chamadas extras ao Gemini por dia, nenhuma busca extra no Bing). Posições fora da Carteira Alvo continuam só com a trava.
 
 - **W1–W3:** só os tickers de `listAllTargetRanks`; as notícias são as de `selectWeekNews` (a mesma seleção do modo semana do resumo do dia, agora genérica e com o id); `weekNewsKey` = os `_id` ordenados unidos por `|`. `needsWeekSummary`: sem resumo, sim; chave diferente ou `failed`, com a última tentativa há 6 h ou mais; mesma chave `ok`/`no-news`, com a última tentativa há 47 h ou mais (a tela esconde com 48 h). Chave vazia grava `no-news` sem Gemini, mesmo sem chave de API ou sem cota.
