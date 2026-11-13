@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Suspense } from "react";
+import { getRadarViews } from "@/features/market-data/server";
 import { getPortfolioSnapshot } from "@/features/portfolio/server";
 import { QuoteRefresher } from "@/features/portfolio/ui";
 import {
@@ -69,6 +70,11 @@ async function RecommendationsContent() {
     if (!meta.has(row.ticker)) {
       meta.set(row.ticker, { ticker: row.ticker, name: row.name, logoUrl: row.logoUrl });
     }
+  }
+  const radars = await getRadarViews([...meta.keys()]);
+  for (const [ticker, radar] of radars) {
+    const entry = meta.get(ticker);
+    if (entry) meta.set(ticker, { ...entry, radar });
   }
   return (
     <AporteCalculator

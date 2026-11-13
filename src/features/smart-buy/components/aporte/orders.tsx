@@ -2,6 +2,7 @@
 
 import { ChevronRightIcon } from "lucide-react";
 import { useState, type ReactNode } from "react";
+import type { RadarView } from "@/features/market-data";
 import type { CeilingCheck } from "@/features/strategy";
 import { CeilingCheckBody, CeilingCheckIcon } from "@/features/strategy/ui";
 import { AssetLabel } from "@/shared/components/asset-label";
@@ -32,6 +33,7 @@ import {
   type OrderKind,
 } from "./explain";
 import { ImpactGroup, IncomeBadge, impactKey, impactText } from "./impact";
+import { RadarPopover, RadarSheetGroup } from "./radar-block";
 
 export type AssetMeta = {
   ticker: string;
@@ -39,6 +41,8 @@ export type AssetMeta = {
   logoUrl: string | null;
   /** O teto do ranking está a mais de 10% do calculado pela NTN-B; só informativo (spec divergencia-teto). */
   ceilingWarning?: { check: CeilingCheck; ceiling: number };
+  /** Radar de fundamentos (chips + texto da IA), lido no servidor; ausente sem dado. */
+  radar?: RadarView;
 };
 
 type OrdersProps = {
@@ -123,6 +127,7 @@ export function OrdersTable({ rows, meta, showClass, impacts }: OrdersProps) {
                         price={order.price}
                       />
                     ) : null}
+                    {info?.radar ? <RadarPopover ticker={order.ticker} radar={info.radar} /> : null}
                   </div>
                   {showClass ? <ClassBadge kind={row.kind} /> : null}
                 </div>
@@ -306,6 +311,7 @@ function OrderSheetFrame({
         </InsetGroup>
         <InsetGroup title="Por quê">{children}</InsetGroup>
         {impact ? <ImpactGroup impact={impact} /> : null}
+        {info?.radar ? <RadarSheetGroup radar={info.radar} /> : null}
         {info?.ceilingWarning ? (
           <InsetGroup title="Aviso">
             <div className="px-4 py-3 text-footnote">

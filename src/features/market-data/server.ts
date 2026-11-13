@@ -37,3 +37,4 @@ export {
 export { readCatalogTypes } from "./server/catalog-db";
 export { getRealRate } from "./server/treasury-read";
 export { syncTreasuryRates, type TreasurySyncResult } from "./server/treasury-service";
+export { getRadarViews } from "./server/radar-read";
