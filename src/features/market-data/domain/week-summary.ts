@@ -1,4 +1,5 @@
 import { saoPauloParts } from "@/shared/lib/time";
+import { allowedNumbers, BANNED, normalize, numbersIn } from "./ai-text-rules";
 import type { AssetClass } from "./asset-class";
 import type { NewsItem } from "./day-insight";
 import { weekMoveFacts, type MoveBucket, type WeekMove } from "./week-move";
@@ -442,32 +443,9 @@ export type WeekReading = {
   sentences: string[];
 };
 
-/**
- * Frases que serviriam para qualquer ativo, nomes de investidores, recomendação e texto sem
- * acentos (o Flash-Lite às vezes devolve "gestao", "noticias"; medido em 2026-11-13).
- */
-const BANNED = [
-  /nada mudou/i,
-  /isso significa/i,
-  /\b(barsi|buffett|baroni|tiago reis)\b/i,
-  // A recomendação nossa; relatar que uma corretora mudou a recomendação é fato da notícia.
-  /\b(recomendamos|recomenda-se|recomendável|recomendo)\b/i,
-  /hora de (comprar|vender)/i,
-  /vale a pena/i,
-  /oportunidade/i,
-  /bom momento para/i,
-  /\b(nao|noticias?|gestao|preco|periodo|dividas?|pressao|expansao|balanco|distribuicao|reducao|acoes|cotacao|tambem|apos|projecoes|provisoes)\b/i,
-];
-
-const NUMBER = /\d+(?:[.,]\d+)*/g;
-/** O número sem separadores nem zeros à esquerda: "0,63" e "63" valem o mesmo. */
-const numberKey = (token: string) => token.replace(/\D/g, "").replace(/^0+(?=\d)/, "");
-const numbersIn = (text: string) => new Set([...text.matchAll(NUMBER)].map((m) => numberKey(m[0])));
-
 const asString = (value: unknown) => (typeof value === "string" ? value.trim() : null);
 const oneOf = <T extends string>(values: readonly T[], value: unknown): T | null =>
   typeof value === "string" && (values as readonly string[]).includes(value) ? (value as T) : null;
-const normalize = (text: string) => text.replace(/\s+/g, " ").trim();
 
 /**
  * A resposta do Gemini validada, ou null (falha). Recusa a resposta inteira: sem `STOP`, JSON
@@ -514,9 +492,7 @@ export function parseWeekReading(
     return { items, lenses: [], explainsMove: "nao", tone: "sem_fato", sentences: [] };
   }
 
-  const start = context.prompt.indexOf("<dados>");
-  const end = context.prompt.indexOf("</dados>");
-  const allowed = numbersIn(start >= 0 && end > start ? context.prompt.slice(start, end) : "");
+  const allowed = allowedNumbers(context.prompt);
   /** As posições das notícias "ativo" citadas, e se algum fato do painel foi citado. */
   const evidenceOf = (value: unknown) => {
     const news: number[] = [];
