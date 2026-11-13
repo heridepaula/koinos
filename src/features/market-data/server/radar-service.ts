@@ -77,6 +77,8 @@ export function radarInputOf(
     return {
       kind: "FII",
       macro,
+      segment: doc.segment ?? null,
+      fundType: doc.fundType ?? null,
       pvp: src.pvp,
       dividendRatio: src.dividendsKnown
         ? dividendRatio(src.lastDividendAmount, src.dividends12m)
@@ -91,6 +93,10 @@ export function radarInputOf(
       dy12m: src.dy12m,
       realRate,
       vacancy: src.vacancy,
+      peerDy: [],
+      dividendTrend: null,
+      monthChange: null,
+      yearChange: null,
     };
   }
   if (assetClass === "ACAO") {
@@ -103,6 +109,8 @@ export function radarInputOf(
       dy12m: src.dy12m,
       payments12m: src.payments12m,
       dividendsKnown: src.dividendsKnown,
+      monthChange: null,
+      yearChange: null,
     };
   }
   return null;

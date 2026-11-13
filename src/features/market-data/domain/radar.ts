@@ -6,10 +6,11 @@ import type { FiiIndicators, StockIndicators } from "./fundamentus-indicators";
 // para leigos. A IA nunca recebe números, siglas nem dados da carteira.
 
 export const RADAR = {
+  pvpVeryLow: 0.75,
   pvpLow: 0.85,
   pvpHigh: 1.05,
+  pvpVeryHigh: 1.2,
   dividendDropRatio: 0.9,
-  premiumHigh: 0.01,
   /** O mesmo IPCA assumido de `CEILING_CHECK` (strategy): o DY do papel já embute a inflação. */
   assumedInflation: 0.04,
   vacancyLow: 0.05,
@@ -23,6 +24,18 @@ export const RADAR = {
   growthHigh: 0.1,
   dyHigh: 0.08,
   minPayments: 2,
+  /** FIIs no grupo (o ativo e os pares do mesmo macro) para o DY relativo valer. */
+  minPeerGroup: 4,
+  peerQuartile: 0.75,
+  trendUp: 1.05,
+  trendDown: 0.9,
+  /** Pagamentos em cada metade de 12 meses para a tendência dos proventos. */
+  trendMinPerHalf: 4,
+  monthMove: 0.08,
+  /** Fechamento com pelo menos isso de idade para a variação do mês. */
+  monthMinDays: 28,
+  yearDrop: -0.15,
+  yearRise: 0.2,
   maxSentences: 2,
   maxChars: 320,
   regenerateAfterHours: 20,
@@ -31,13 +44,16 @@ export const RADAR = {
 } as const;
 
 export type RadarTone = "good" | "bad" | "neutral";
-export type RadarFact = { id: string; text: string; tone: RadarTone };
+export type RadarFact = { id: string; text: string; tone: RadarTone; term: string | null };
 export type RadarMacro = "Papel" | "Tijolo" | "Outros";
 export type BusinessKind = "financial" | "regulated" | "general";
 
 export type FiiRadarInput = {
   kind: "FII";
   macro: RadarMacro;
+  /** Segmento e tipo do usebolsai, para a descrição. */
+  segment: string | null;
+  fundType: string | null;
   pvp: number | null;
   /** Último provento ÷ média mensal de 12 meses. */
   dividendRatio: number | null;
@@ -47,6 +63,13 @@ export type FiiRadarInput = {
   realRate: number | null;
   /** Vacância física (usebolsai), fração. */
   vacancy: number | null;
+  /** DY dos outros FIIs do mesmo macro entre os candidatos do Radar. */
+  peerDy: readonly number[];
+  /** Média por pagamento dos últimos 6 meses ÷ a dos 6 anteriores (`dividendTrend`). */
+  dividendTrend: number | null;
+  /** Variação do preço em ~1 mês e em 12 meses, frações. */
+  monthChange: number | null;
+  yearChange: number | null;
 };
 
 export type StockRadarInput = {
@@ -58,9 +81,14 @@ export type StockRadarInput = {
   payments12m: number | null;
   /** O histórico de proventos foi buscado nos últimos dias: "nenhum pagamento" é dado, não falta dele. */
   dividendsKnown: boolean;
+  monthChange: number | null;
+  yearChange: number | null;
 };
 
 export type RadarInput = FiiRadarInput | StockRadarInput;
+
+const DAY_MS = 86_400_000;
+const HALF_YEAR_MS = 182.5 * DAY_MS;
 
 const plain = (text: string | null) =>
   (text ?? "").normalize("NFD").replace(/\p{M}/gu, "").trim().toLowerCase();
@@ -87,39 +115,139 @@ export function businessKind(sector: string | null, subsector: string | null): B
 /** Os fatos que, quando existem, vêm antes de todos. */
 const STRONG = new Set(["prejuizo", "suspenso", "sem-dividendos"]);
 
-const fact = (id: string, text: string, tone: RadarTone): RadarFact => ({ id, text, tone });
+const fact = (
+  id: string,
+  text: string,
+  tone: RadarTone,
+  term: string | null = null,
+): RadarFact => ({ id, text, tone, term });
+
+/** "top" no quartil de cima, "bottom" no de baixo, null no meio ou com grupo pequeno. */
+export function peerPosition(value: number, peers: readonly number[]): "top" | "bottom" | null {
+  if (peers.length + 1 < RADAR.minPeerGroup) return null;
+  const below = peers.filter((peer) => peer < value).length / peers.length;
+  const above = peers.filter((peer) => peer > value).length / peers.length;
+  if (below >= RADAR.peerQuartile) return "top";
+  if (above >= RADAR.peerQuartile) return "bottom";
+  return null;
+}
+
+function priceFacts(input: { monthChange: number | null; yearChange: number | null }): RadarFact[] {
+  const facts: RadarFact[] = [];
+  const eps = 1e-9;
+  if (input.monthChange !== null) {
+    if (input.monthChange <= -RADAR.monthMove + eps) {
+      facts.push(fact("preco-caiu-mes", "o preço caiu forte no último mês", "neutral"));
+    } else if (input.monthChange >= RADAR.monthMove - eps) {
+      facts.push(fact("preco-subiu-mes", "o preço subiu forte no último mês", "neutral"));
+    }
+  }
+  if (input.yearChange !== null) {
+    if (input.yearChange <= RADAR.yearDrop + eps) {
+      facts.push(fact("preco-caiu-ano", "o preço caiu bastante no último ano", "neutral"));
+    } else if (input.yearChange >= RADAR.yearRise - eps) {
+      facts.push(fact("preco-subiu-ano", "o preço subiu bastante no último ano", "neutral"));
+    }
+  }
+  return facts;
+}
 
 function fiiFacts(input: FiiRadarInput): RadarFact[] {
   const facts: RadarFact[] = [];
   const what = input.macro === "Papel" ? "os títulos do fundo valem" : "os imóveis do fundo valem";
-  if (input.pvp !== null && input.pvp < RADAR.pvpLow) {
-    facts.push(fact("pvp-baixo", `o preço na bolsa está abaixo do que ${what}`, "good"));
-  } else if (input.pvp !== null && input.pvp > RADAR.pvpHigh) {
-    facts.push(fact("pvp-alto", `o preço na bolsa está acima do que ${what}`, "bad"));
+  const pvp = input.pvp;
+  if (pvp !== null) {
+    if (pvp < RADAR.pvpVeryLow) {
+      facts.push(
+        fact("pvp-bem-baixo", `o preço na bolsa está bem abaixo do que ${what}`, "good", "pvp"),
+      );
+    } else if (pvp < RADAR.pvpLow) {
+      facts.push(fact("pvp-baixo", `o preço na bolsa está abaixo do que ${what}`, "good", "pvp"));
+    } else if (pvp > RADAR.pvpVeryHigh) {
+      facts.push(
+        fact("pvp-bem-alto", `o preço na bolsa está bem acima do que ${what}`, "bad", "pvp"),
+      );
+    } else if (pvp > RADAR.pvpHigh) {
+      facts.push(fact("pvp-alto", `o preço na bolsa está acima do que ${what}`, "bad", "pvp"));
+    }
   }
+  const cut = input.dividendRatio !== null && input.dividendRatio < RADAR.dividendDropRatio;
   if (input.suspended) {
-    facts.push(fact("suspenso", "parou de pagar rendimentos", "bad"));
-  } else if (input.dividendRatio !== null && input.dividendRatio < RADAR.dividendDropRatio) {
-    facts.push(fact("provento-menor", "o último pagamento foi menor que o de costume", "bad"));
+    facts.push(fact("suspenso", "parou de pagar rendimentos", "bad", "rendimentos"));
+  } else if (cut) {
+    facts.push(
+      fact("provento-menor", "o último pagamento foi menor que o de costume", "bad", "rendimentos"),
+    );
+  }
+  if (input.dividendTrend !== null) {
+    if (input.dividendTrend >= RADAR.trendUp - 1e-9) {
+      facts.push(
+        fact(
+          "proventos-subindo",
+          "os pagamentos vêm aumentando nos últimos meses",
+          "good",
+          "rendimentos",
+        ),
+      );
+    } else if (input.dividendTrend <= RADAR.trendDown + 1e-9 && !input.suspended && !cut) {
+      facts.push(
+        fact(
+          "proventos-caindo",
+          "os pagamentos vêm diminuindo nos últimos meses",
+          "bad",
+          "rendimentos",
+        ),
+      );
+    }
   }
   if (input.dy12m !== null && input.realRate !== null) {
     const inflation = input.macro === "Papel" ? RADAR.assumedInflation : 0;
-    const premium = input.dy12m - input.realRate - inflation;
-    // Tolerância de arredondamento: 0,08 − 0,07 dá 0,00999… em ponto flutuante.
-    if (premium >= RADAR.premiumHigh - 1e-9) {
-      facts.push(fact("premio-alto", "paga mais que o Tesouro protegido da inflação", "good"));
-    } else if (premium < -1e-9) {
-      facts.push(fact("premio-negativo", "paga menos que o Tesouro protegido da inflação", "bad"));
+    if (input.dy12m - input.realRate - inflation < -1e-9) {
+      facts.push(
+        fact(
+          "premio-negativo",
+          "paga menos que o Tesouro protegido da inflação",
+          "bad",
+          "tesouro-ipca",
+        ),
+      );
+    }
+  }
+  if (input.dy12m !== null) {
+    const position = peerPosition(input.dy12m, input.peerDy);
+    if (position === "top") {
+      facts.push(
+        fact(
+          "dy-acima-pares",
+          "paga mais que a maioria dos fundos parecidos que você acompanha",
+          "good",
+          "dividend-yield",
+        ),
+      );
+    }
+    if (position === "bottom") {
+      facts.push(
+        fact(
+          "dy-abaixo-pares",
+          "paga menos que a maioria dos fundos parecidos que você acompanha",
+          "bad",
+          "dividend-yield",
+        ),
+      );
     }
   }
   if (input.macro === "Tijolo" && input.vacancy !== null) {
     if (input.vacancy <= RADAR.vacancyLow) {
-      facts.push(fact("vacancia-baixa", "quase todos os imóveis estão alugados", "good"));
+      facts.push(
+        fact("vacancia-baixa", "quase todos os imóveis estão alugados", "good", "vacancia"),
+      );
     } else if (input.vacancy >= RADAR.vacancyHigh) {
-      facts.push(fact("vacancia-alta", "uma parte relevante dos imóveis está vazia", "bad"));
+      facts.push(
+        fact("vacancia-alta", "uma parte relevante dos imóveis está vazia", "bad", "vacancia"),
+      );
     }
   }
-  return facts;
+  return [...facts, ...priceFacts(input)];
 }
 
 function stockFacts(input: StockRadarInput): RadarFact[] {
@@ -127,14 +255,26 @@ function stockFacts(input: StockRadarInput): RadarFact[] {
   const ind = input.indicators;
   if (ind) {
     const loss = ind.netIncome12m !== null && ind.netIncome12m < 0;
-    if (loss) facts.push(fact("prejuizo", "teve prejuízo no último ano", "bad"));
+    if (loss) facts.push(fact("prejuizo", "teve prejuízo no último ano", "bad", "lucro-liquido"));
     if (!loss && input.business !== "financial" && ind.netMargin !== null) {
       if (ind.netMargin < RADAR.marginLow) {
         facts.push(
-          fact("margem-baixa", "no último ano, lucrou pouco a cada real que vendeu", "bad"),
+          fact(
+            "margem-baixa",
+            "no último ano, lucrou pouco a cada real que vendeu",
+            "bad",
+            "margem-liquida",
+          ),
         );
       } else if (ind.netMargin >= RADAR.marginHigh) {
-        facts.push(fact("margem-alta", "no último ano, lucrou bem a cada real que vendeu", "good"));
+        facts.push(
+          fact(
+            "margem-alta",
+            "no último ano, lucrou bem a cada real que vendeu",
+            "good",
+            "margem-liquida",
+          ),
+        );
       }
     }
     if (!loss && ind.roe !== null) {
@@ -144,6 +284,7 @@ function stockFacts(input: StockRadarInput): RadarFact[] {
             "roe-alto",
             "no último ano, o dinheiro dos sócios rendeu bem dentro da empresa",
             "good",
+            "roe",
           ),
         );
       } else if (ind.roe < RADAR.roeLow) {
@@ -152,15 +293,18 @@ function stockFacts(input: StockRadarInput): RadarFact[] {
             "roe-baixo",
             "no último ano, o dinheiro dos sócios rendeu pouco dentro da empresa",
             "bad",
+            "roe",
           ),
         );
       }
     }
     if (input.business === "general" && ind.netDebtToEquity !== null) {
       if (ind.netDebtToEquity > RADAR.debtHigh) {
-        facts.push(fact("divida-alta", "deve mais do que tem de patrimônio", "bad"));
+        facts.push(
+          fact("divida-alta", "deve mais do que tem de patrimônio", "bad", "divida-liquida"),
+        );
       } else if (ind.netDebtToEquity < RADAR.debtLow) {
-        facts.push(fact("divida-baixa", "deve pouco perto do que tem", "good"));
+        facts.push(fact("divida-baixa", "deve pouco perto do que tem", "good", "divida-liquida"));
       }
     }
     if (ind.revenueGrowth5y !== null) {
@@ -173,27 +317,39 @@ function stockFacts(input: StockRadarInput): RadarFact[] {
     if (input.isBank && ind.pvp !== null) {
       if (ind.pvp < RADAR.pvpLow) {
         facts.push(
-          fact("pvp-banco-baixo", "o preço está abaixo do que o banco vale no balanço", "good"),
+          fact(
+            "pvp-banco-baixo",
+            "o preço está abaixo do que o banco vale no balanço",
+            "good",
+            "pvp",
+          ),
         );
       } else if (ind.pvp > RADAR.pvpHigh) {
         facts.push(
-          fact("pvp-banco-alto", "o preço está acima do que o banco vale no balanço", "bad"),
+          fact("pvp-banco-alto", "o preço está acima do que o banco vale no balanço", "bad", "pvp"),
         );
       }
     }
   }
   if (input.dividendsKnown) {
     if (input.payments12m === 0) {
-      facts.push(fact("sem-dividendos", "não pagou dividendos no último ano", "bad"));
+      facts.push(fact("sem-dividendos", "não pagou dividendos no último ano", "bad", "dividendos"));
     } else if (
       input.dy12m !== null &&
       input.dy12m >= RADAR.dyHigh &&
       (input.payments12m ?? 0) >= RADAR.minPayments
     ) {
-      facts.push(fact("dividendos-bons", "paga bons dividendos pelo preço da ação", "good"));
+      facts.push(
+        fact(
+          "dividendos-bons",
+          "paga bons dividendos pelo preço da ação",
+          "good",
+          "dividend-yield",
+        ),
+      );
     }
   }
-  return facts;
+  return [...facts, ...priceFacts(input)];
 }
 
 /** Os fatos do ativo, os fortes primeiro e depois a ordem das tabelas do spec. */
@@ -224,32 +380,37 @@ export const RADAR_EXAMPLES: readonly { facts: readonly Omit<RadarFact, "id">[];
   [
     {
       facts: [
-        { text: "o preço na bolsa está abaixo do que os imóveis do fundo valem", tone: "good" },
-        { text: "uma parte relevante dos imóveis está vazia", tone: "bad" },
+        {
+          text: "o preço na bolsa está abaixo do que os imóveis do fundo valem",
+          tone: "good",
+          term: null,
+        },
+        { text: "uma parte relevante dos imóveis está vazia", tone: "bad", term: null },
       ],
       text: "O preço das cotas está abaixo do que os imóveis do fundo valem, mas uma parte relevante deles está vazia.",
     },
     {
       facts: [
-        { text: "paga mais que o Tesouro protegido da inflação", tone: "good" },
-        { text: "o último pagamento foi menor que o de costume", tone: "bad" },
+        { text: "paga mais que o Tesouro protegido da inflação", tone: "good", term: null },
+        { text: "o último pagamento foi menor que o de costume", tone: "bad", term: null },
       ],
       text: "O fundo paga mais que o Tesouro protegido da inflação, mas o último pagamento veio menor que o de costume.",
     },
     {
       facts: [
-        { text: "teve prejuízo no último ano", tone: "bad" },
-        { text: "não pagou dividendos no último ano", tone: "bad" },
-        { text: "deve pouco perto do que tem", tone: "good" },
+        { text: "teve prejuízo no último ano", tone: "bad", term: null },
+        { text: "não pagou dividendos no último ano", tone: "bad", term: null },
+        { text: "deve pouco perto do que tem", tone: "good", term: null },
       ],
       text: "A empresa teve prejuízo no último ano e não pagou dividendos. Por outro lado, deve pouco perto do que tem.",
     },
     {
       facts: [
-        { text: "o preço está abaixo do que o banco vale no balanço", tone: "good" },
+        { text: "o preço está abaixo do que o banco vale no balanço", tone: "good", term: null },
         {
           text: "no último ano, o dinheiro dos sócios rendeu pouco dentro da empresa",
           tone: "bad",
+          term: null,
         },
       ],
       text: "O preço da ação está abaixo do que o banco vale no balanço, mas no último ano o dinheiro dos sócios rendeu pouco.",
@@ -396,7 +557,6 @@ export type RadarSourceDoc = {
   fundamentusIndicators?: ((StockIndicators | FiiIndicators) & { fetchedAt: Date }) | null;
 };
 
-const DAY_MS = 86_400_000;
 /** P/VP e vacância com mais de 60 dias contam como ausentes, como nos tensores. */
 const PROFILE_STALE_DAYS = 60;
 
@@ -439,4 +599,73 @@ export function radarSources(doc: RadarSourceDoc, now: Date): RadarSources {
     fiiIndicators: ind?.kind === "FII" ? ind : null,
     stockIndicators: ind?.kind === "ACAO" ? ind : null,
   };
+}
+
+const SEGMENT_LABELS: Record<string, string> = {
+  logistica: "um fundo imobiliário de galpões logísticos",
+  shoppings: "um fundo imobiliário de shoppings",
+  escritorios: "um fundo imobiliário de escritórios",
+  "lajes corporativas": "um fundo imobiliário de escritórios",
+  hotel: "um fundo imobiliário de hotéis",
+  hospital: "um fundo imobiliário de hospitais",
+  residencial: "um fundo imobiliário de imóveis residenciais",
+  educacional: "um fundo imobiliário de imóveis de educação",
+  agencias: "um fundo imobiliário de agências bancárias",
+};
+
+const FUND_TYPE_LABELS: Record<string, string> = {
+  papel: "um fundo imobiliário de papel, que empresta dinheiro ao setor imobiliário",
+  tijolo: "um fundo imobiliário dono de imóveis de vários tipos",
+  hibrido: "um fundo imobiliário que mistura imóveis e crédito imobiliário",
+  "fundo de fundos": "um fundo imobiliário que investe em outros fundos imobiliários",
+  fiagro: "um fundo do agronegócio",
+};
+
+/** Como o prompt chama o ativo: sem ticker (tem dígitos) e sem nome do catálogo. */
+export function describeAsset(input: RadarInput): string {
+  if (input.kind === "FII") {
+    const type = plain(input.fundType);
+    if (type === "papel") return FUND_TYPE_LABELS.papel;
+    return SEGMENT_LABELS[plain(input.segment)] ?? FUND_TYPE_LABELS[type] ?? "um fundo imobiliário";
+  }
+  const subsector = plain(input.indicators?.subsector ?? null);
+  if (subsector === "bancos") return "um banco";
+  if (subsector === "seguradoras") return "uma seguradora";
+  const sector = input.indicators?.sector?.trim();
+  return sector ? `uma empresa do setor de ${sector.toLowerCase()}` : "uma empresa da bolsa";
+}
+
+/**
+ * Média por pagamento dos últimos 6 meses ÷ a dos 6 anteriores, ou null com menos de 4
+ * pagamentos em alguma metade. Média, não soma: 6 contra 5 pagamentos iguais dão 1.
+ */
+export function dividendTrend(
+  announcements: readonly { exDate: Date; perShare: number }[],
+  now: Date,
+): number | null {
+  const t = now.getTime();
+  const recent = announcements.filter(
+    (a) => a.exDate.getTime() > t - HALF_YEAR_MS && a.exDate.getTime() <= t,
+  );
+  const old = announcements.filter(
+    (a) => a.exDate.getTime() > t - 2 * HALF_YEAR_MS && a.exDate.getTime() <= t - HALF_YEAR_MS,
+  );
+  if (recent.length < RADAR.trendMinPerHalf || old.length < RADAR.trendMinPerHalf) return null;
+  const avg = (list: typeof recent) => list.reduce((sum, a) => sum + a.perShare, 0) / list.length;
+  const before = avg(old);
+  return before > 0 ? avg(recent) / before : null;
+}
+
+/** Preço ÷ o fechamento mais recente com 28 dias ou mais − 1, ou null. */
+export function monthChange(
+  price: number | null,
+  closes: readonly { date: Date; close: number }[],
+  now: Date,
+): number | null {
+  if (price === null) return null;
+  const limit = now.getTime() - RADAR.monthMinDays * DAY_MS;
+  const old = closes.filter((c) => c.date.getTime() <= limit && c.close > 0);
+  if (old.length === 0) return null;
+  const ref = old.reduce((a, b) => (a.date.getTime() >= b.date.getTime() ? a : b));
+  return price / ref.close - 1;
 }

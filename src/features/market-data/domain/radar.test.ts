@@ -3,7 +3,10 @@ import { CEILING_CHECK } from "@/features/strategy";
 import {
   buildRadarPrompt,
   businessKind,
+  describeAsset,
+  dividendTrend,
   factsKey,
+  monthChange,
   needsRadar,
   RADAR,
   RADAR_EXAMPLES,
@@ -19,12 +22,18 @@ import type { StockIndicators } from "./fundamentus-indicators";
 const fii = (over: Partial<FiiRadarInput> = {}): FiiRadarInput => ({
   kind: "FII",
   macro: "Tijolo",
+  segment: null,
+  fundType: null,
   pvp: null,
   dividendRatio: null,
   suspended: false,
   dy12m: null,
   realRate: null,
   vacancy: null,
+  peerDy: [],
+  dividendTrend: null,
+  monthChange: null,
+  yearChange: null,
   ...over,
 });
 
@@ -59,6 +68,8 @@ const stock = (
     dy12m: null,
     payments12m: null,
     dividendsKnown: false,
+    monthChange: null,
+    yearChange: null,
     ...over,
   };
 };
@@ -67,10 +78,14 @@ const ids = (input: FiiRadarInput | StockRadarInput) => radarFacts(input).map((f
 
 describe("radarFacts: FIIs", () => {
   it.each([
+    [0.74, ["pvp-bem-baixo"]],
+    [0.75, ["pvp-baixo"]],
     [0.84, ["pvp-baixo"]],
     [0.85, []],
     [1.05, []],
     [1.06, ["pvp-alto"]],
+    [1.2, ["pvp-alto"]],
+    [1.21, ["pvp-bem-alto"]],
   ])("P/VP %s", (pvp, expected) => {
     expect(ids(fii({ pvp }))).toEqual(expected);
   });
@@ -83,7 +98,7 @@ describe("radarFacts: FIIs", () => {
   it("provento suspenso vem primeiro e substitui o 'menor que o de costume'", () => {
     expect(ids(fii({ pvp: 0.7, suspended: true, dividendRatio: 0.5 }))).toEqual([
       "suspenso",
-      "pvp-baixo",
+      "pvp-bem-baixo",
     ]);
   });
 
@@ -94,15 +109,11 @@ describe("radarFacts: FIIs", () => {
     expect(ids(fii({ dividendRatio }))).toEqual(expected);
   });
 
-  it("prêmio sobre a NTN-B: tijolo pela taxa real, papel descontando o IPCA assumido", () => {
-    // 0,08 − 0,07 = 1 p.p. no tijolo
-    expect(ids(fii({ dy12m: 0.08, realRate: 0.07 }))).toEqual(["premio-alto"]);
-    // papel: 0,12 − (0,07 + 0,04) = 1 p.p.
-    expect(ids(fii({ macro: "Papel", dy12m: 0.12, realRate: 0.07 }))).toEqual(["premio-alto"]);
-    // papel: 0,10 − 0,11 < 0
+  it("prêmio: só o negativo vira fato (tijolo pela taxa real, papel descontando o IPCA)", () => {
+    expect(ids(fii({ dy12m: 0.12, realRate: 0.07 }))).toEqual([]);
+    expect(ids(fii({ dy12m: 0.06, realRate: 0.07 }))).toEqual(["premio-negativo"]);
     expect(ids(fii({ macro: "Papel", dy12m: 0.1, realRate: 0.07 }))).toEqual(["premio-negativo"]);
-    // sem taxa, sem fato
-    expect(ids(fii({ dy12m: 0.2 }))).toEqual([]);
+    expect(ids(fii({ macro: "Papel", dy12m: 0.12, realRate: 0.07 }))).toEqual([]);
   });
 
   it.each([
@@ -227,6 +238,139 @@ describe("radarFacts: ações", () => {
   });
 });
 
+describe("radarFacts: fatos novos", () => {
+  it.each([
+    [[0.08, 0.09, 0.1], 0.12, ["dy-acima-pares"]],
+    [[0.08, 0.09, 0.1], 0.07, ["dy-abaixo-pares"]],
+    [[0.08, 0.09, 0.1], 0.095, []],
+    [[0.08, 0.09], 0.12, []],
+  ])("DY contra os pares %j, DY %s", (peerDy, dy12m, expected) => {
+    expect(ids(fii({ peerDy, dy12m }))).toEqual(expected);
+  });
+
+  it("DY empatado com os pares não conta como acima", () => {
+    expect(ids(fii({ peerDy: [0.1, 0.1, 0.1], dy12m: 0.1 }))).toEqual([]);
+  });
+
+  it.each([
+    [1.05, ["proventos-subindo"]],
+    [1.04, []],
+    [0.91, []],
+    [0.9, ["proventos-caindo"]],
+  ])("tendência dos proventos %s", (dividendTrend, expected) => {
+    expect(ids(fii({ dividendTrend }))).toEqual(expected);
+  });
+
+  it("'proventos-caindo' some quando já há corte ou suspensão", () => {
+    expect(ids(fii({ dividendTrend: 0.8, dividendRatio: 0.5 }))).toEqual(["provento-menor"]);
+    expect(ids(fii({ dividendTrend: 0.8, suspended: true }))).toEqual(["suspenso"]);
+  });
+
+  it.each([
+    [{ monthChange: -0.08 }, ["preco-caiu-mes"]],
+    [{ monthChange: -0.079 }, []],
+    [{ monthChange: 0.08 }, ["preco-subiu-mes"]],
+    [{ yearChange: -0.15 }, ["preco-caiu-ano"]],
+    [{ yearChange: 0.2 }, ["preco-subiu-ano"]],
+    [{ yearChange: 0.19 }, []],
+  ])("preço %j", (over, expected) => {
+    expect(ids(fii(over))).toEqual(expected);
+    expect(ids(stock(over))).toEqual(expected);
+  });
+
+  it("os fatos de preço são neutros e sem termo", () => {
+    const [fact] = radarFacts(fii({ monthChange: -0.2 }));
+    expect(fact).toMatchObject({ tone: "neutral", term: null });
+  });
+
+  it("cada fato traz o termo que ele explica", () => {
+    const termOf = (input: FiiRadarInput | StockRadarInput) =>
+      radarFacts(input).map((f) => `${f.id}=${f.term}`);
+    expect(termOf(fii({ pvp: 0.7, vacancy: 0.2, dy12m: 0.06, realRate: 0.07 }))).toEqual([
+      "pvp-bem-baixo=pvp",
+      "premio-negativo=tesouro-ipca",
+      "vacancia-alta=vacancia",
+    ]);
+    expect(termOf(fii({ dividendRatio: 0.5 }))).toEqual(["provento-menor=rendimentos"]);
+    expect(termOf(stock({}, { netIncome12m: -1 }))).toEqual(["prejuizo=lucro-liquido"]);
+    expect(termOf(stock({}, { netMargin: 0.2, roe: 0.2, netDebtToEquity: 0.1 }))).toEqual([
+      "margem-alta=margem-liquida",
+      "roe-alto=roe",
+      "divida-baixa=divida-liquida",
+    ]);
+  });
+});
+
+describe("describeAsset", () => {
+  it.each([
+    [{ segment: "Logística", fundType: "Tijolo" }, "um fundo imobiliário de galpões logísticos"],
+    [{ segment: "Shoppings", fundType: "Híbrido" }, "um fundo imobiliário de shoppings"],
+    [
+      { segment: "Logística", fundType: "Papel" },
+      "um fundo imobiliário de papel, que empresta dinheiro ao setor imobiliário",
+    ],
+    [
+      { segment: "Multicategoria", fundType: "Tijolo" },
+      "um fundo imobiliário dono de imóveis de vários tipos",
+    ],
+    [
+      { segment: "Outros", fundType: "Fundo de Fundos" },
+      "um fundo imobiliário que investe em outros fundos imobiliários",
+    ],
+    [{ segment: null, fundType: "Fiagro" }, "um fundo do agronegócio"],
+    [{ segment: null, fundType: null }, "um fundo imobiliário"],
+  ])("FII %j", (over, expected) => {
+    expect(describeAsset(fii(over))).toBe(expected);
+  });
+
+  it("ações pelo subsetor e pelo setor", () => {
+    expect(
+      describeAsset(stock({}, { sector: "Intermediários Financeiros", subsector: "Bancos" })),
+    ).toBe("um banco");
+    expect(
+      describeAsset(stock({}, { sector: "Previdência e Seguros", subsector: "Seguradoras" })),
+    ).toBe("uma seguradora");
+    expect(describeAsset(stock({}, { sector: "Mineração", subsector: "Minerais Metálicos" }))).toBe(
+      "uma empresa do setor de mineração",
+    );
+    expect(describeAsset(stock({ indicators: null }))).toBe("uma empresa da bolsa");
+  });
+});
+
+describe("dividendTrend e monthChange", () => {
+  const now = new Date("2026-11-13T12:00:00Z");
+  const monthsAgo = (m: number) => new Date(now.getTime() - m * 30.4 * 86_400_000);
+  const monthly = (values: number[]) =>
+    values.map((perShare, i) => ({ exDate: monthsAgo(i + 0.5), perShare }));
+
+  it("média por pagamento: 6 recentes contra 6 antigos", () => {
+    const recent = Array(6).fill(1.1);
+    const old = Array(6).fill(1);
+    expect(dividendTrend(monthly([...recent, ...old]), now)).toBeCloseTo(1.1);
+  });
+
+  it("6 contra 5 pagamentos iguais dão 1 (a contagem não pesa)", () => {
+    expect(dividendTrend(monthly(Array(11).fill(1)), now)).toBeCloseTo(1);
+  });
+
+  it("menos de 4 pagamentos numa metade: null", () => {
+    expect(dividendTrend(monthly([1, 1, 1, 1, 1, 1, 1, 1, 1]), now)).toBeNull();
+    expect(dividendTrend([], now)).toBeNull();
+  });
+
+  it("monthChange: o fechamento mais recente com 28 dias ou mais", () => {
+    const daysAgo = (d: number) => new Date(now.getTime() - d * 86_400_000);
+    const closes = [
+      { date: daysAgo(31), close: 90 },
+      { date: daysAgo(29), close: 100 },
+      { date: daysAgo(10), close: 120 },
+    ];
+    expect(monthChange(110, closes, now)).toBeCloseTo(0.1);
+    expect(monthChange(110, [{ date: daysAgo(10), close: 100 }], now)).toBeNull();
+    expect(monthChange(null, closes, now)).toBeNull();
+  });
+});
+
 describe("businessKind", () => {
   it.each([
     ["Intermediários Financeiros", "Bancos", "financial"],
@@ -245,7 +389,9 @@ describe("factsKey e needsRadar", () => {
   const hoursAgo = (h: number) => new Date(now.getTime() - h * 3_600_000);
 
   it("a chave são os ids em ordem", () => {
-    expect(factsKey(radarFacts(fii({ pvp: 0.7, vacancy: 0.2 })))).toBe("pvp-baixo|vacancia-alta");
+    expect(factsKey(radarFacts(fii({ pvp: 0.7, vacancy: 0.2 })))).toBe(
+      "pvp-bem-baixo|vacancia-alta",
+    );
   });
 
   it("regerar só com chave nova (ou falha) e mais de 20 h", () => {
