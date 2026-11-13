@@ -1,6 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { GlossaryText } from "@/shared/components/glossary-text";
+import type { GlossaryClass } from "@/shared/lib/glossary";
 import { cn } from "@/shared/lib/utils";
 
 /** A pausa de "pensando" antes de começar a digitar. */
@@ -22,7 +24,16 @@ type Phase = "thinking" | "typing" | "done";
  * - Leitores de tela recebem o texto inteiro de uma vez; a animação é só visual (`aria-hidden`).
  * - Com movimento reduzido, o texto aparece pronto.
  */
-export function TypedText({ text, className }: { text: string; className?: string }) {
+export function TypedText({
+  text,
+  className,
+  glossaryClass,
+}: {
+  text: string;
+  className?: string;
+  /** Com a classe, os termos do glossário ganham tooltip quando o texto termina de aparecer. */
+  glossaryClass?: GlossaryClass | null;
+}) {
   const [phase, setPhase] = useState<Phase>("thinking");
   const [shown, setShown] = useState(0);
 
@@ -51,6 +62,14 @@ export function TypedText({ text, className }: { text: string; className?: strin
     }, THINK_MS);
     return () => window.clearTimeout(timer);
   }, [text]);
+
+  if (phase === "done" && glossaryClass !== undefined) {
+    return (
+      <p className={className}>
+        <GlossaryText text={text} assetClass={glossaryClass} />
+      </p>
+    );
+  }
 
   return (
     <p className={cn("grid", className)}>

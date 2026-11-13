@@ -2,7 +2,9 @@
 
 import { SparklesIcon } from "lucide-react";
 import type { RadarChip, RadarView } from "@/features/market-data";
+import { GlossaryText } from "@/shared/components/glossary-text";
 import { InsetGroup, InsetValueRow } from "@/shared/components/inset-list";
+import { glossaryEntry, glossaryIdsIn } from "@/shared/lib/glossary";
 import { Button } from "@/shared/ui/button";
 import { Popover, PopoverContent, PopoverTrigger } from "@/shared/ui/popover";
 
@@ -26,7 +28,9 @@ function Chip({ chip }: { chip: RadarChip }) {
 function RadarText({ radar }: { radar: RadarView }) {
   return radar.text ? (
     <>
-      <p className="text-subheadline text-pretty">{radar.text}</p>
+      <p className="text-subheadline text-pretty">
+        <GlossaryText text={radar.text} assetClass={radar.kind} />
+      </p>
       <p className="text-footnote text-muted-foreground">{RADAR_NOTE}</p>
     </>
   ) : null;
@@ -70,6 +74,9 @@ export function RadarPopover({ ticker, radar }: { ticker: string; radar: RadarVi
 
 /** Sheet (iPhone): cada indicador com o valor e a explicação, sem popover dentro da folha. */
 export function RadarSheetGroup({ radar }: { radar: RadarView }) {
+  const terms = radar.text
+    ? glossaryIdsIn(radar.text, radar.kind).flatMap((id) => glossaryEntry(id) ?? [])
+    : [];
   return (
     <InsetGroup title="Radar de fundamentos">
       {radar.chips.map((chip) => (
@@ -82,6 +89,19 @@ export function RadarSheetGroup({ radar }: { radar: RadarView }) {
         <div className="grid gap-3 px-4 py-3">
           <RadarText radar={radar} />
         </div>
+      ) : null}
+      {terms.length > 0 ? (
+        <>
+          <p className="px-4 pt-2 text-footnote font-medium text-muted-foreground">
+            Termos deste texto
+          </p>
+          {terms.map((entry) => (
+            <div key={entry.id} className="grid gap-0.5 px-4 py-2">
+              <p className="text-subheadline font-medium">{entry.term}</p>
+              <p className="text-footnote text-muted-foreground">{entry.definition}</p>
+            </div>
+          ))}
+        </>
       ) : null}
     </InsetGroup>
   );

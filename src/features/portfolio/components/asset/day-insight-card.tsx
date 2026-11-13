@@ -40,7 +40,11 @@ export function DayInsightCard({
       </CardHeader>
       <CardContent className="grid gap-4">
         {insight.status === "ok" && insight.text ? (
-          <TypedText text={insight.text} className="text-pretty" />
+          <TypedText
+            text={insight.text}
+            className="text-pretty"
+            glossaryClass={overview.assetClass}
+          />
         ) : (
           <p className="text-muted-foreground">
             Nenhuma notícia recente explica o movimento deste pregão.
