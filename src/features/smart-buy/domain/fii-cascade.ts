@@ -164,7 +164,10 @@ const SUSPENSION_MAX_DAYS = 365;
  * Provento suspenso (spec koinos-3-1, §4.2): pagador regular há mais de 45 dias sem data ex, ou um
  * ano sem pagar. Só vale com `suspensionBrake` e com a data do último provento conhecida.
  */
-export function isDividendSuspended(asset: CascadeAsset, options: EngineOptions): boolean {
+export function isDividendSuspended(
+  asset: Pick<CascadeAsset, "daysSinceLastDividend" | "dividendPayments12m">,
+  options: EngineOptions,
+): boolean {
   const days = asset.daysSinceLastDividend;
   if (!options.suspensionBrake || typeof days !== "number") return false;
   const regular = (asset.dividendPayments12m ?? 0) >= SUSPENSION_MIN_PAYMENTS;

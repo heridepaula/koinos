@@ -8,6 +8,7 @@ export {
   type OrderImpact,
   type PortfolioImpact,
 } from "./domain/aporte-impact";
+export { dividendRatio } from "./domain/conviction";
 export { splitAmount } from "./domain/aporte-split";
 export {
   CURRENT_ENGINE,
@@ -48,6 +49,7 @@ export {
   aportePriorities,
   EXCLUSION_LABELS,
   fiiCascade,
+  isDividendSuspended,
   type AportePriority,
   type CascadeAsset,
   type CascadeExclusion,
