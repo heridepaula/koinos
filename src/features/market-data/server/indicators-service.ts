@@ -42,28 +42,35 @@ export async function refreshFundamentusIndicators(
     .sort((a, b) => (fetchedAt.get(a) ?? 0) - (fetchedAt.get(b) ?? 0));
   const batch = due.slice(0, options.maxPages);
   summary.pending = due.length - batch.length;
-  await Promise.all(
-    batch.map(async (ticker) => {
-      // Na fila do semáforo pode passar do prazo: o que não começou fica para a próxima chamada.
+  // Dois de cada vez (o limite do site), e cada um olha o prazo antes de começar a próxima página:
+  // o que não começou a tempo fica para a próxima chamada.
+  const queue = [...batch];
+  const worker = async () => {
+    for (let ticker = queue.shift(); ticker !== undefined; ticker = queue.shift()) {
       if (options.deadline !== undefined && Date.now() >= options.deadline) {
-        summary.pending += 1;
+        summary.pending += 1 + queue.length;
+        queue.length = 0;
         return;
       }
-      try {
-        const html = await fetchFundamentusDetailsPage(ticker, REQUEST_TIMEOUT_MS);
-        const indicators =
-          classes.get(ticker) === "FII" ? parseFiiDetails(html) : parseStockDetails(html);
-        await AssetModel.updateOne(
-          { _id: ticker },
-          { $set: { fundamentusIndicators: { ...indicators, fetchedAt: now } } },
-        );
-        summary.updated += 1;
-      } catch (error) {
-        // Nada é gravado: os indicadores antigos ficam até a próxima chamada.
-        console.warn(`[indicadores] ${ticker}:`, errorMessage(error));
-        summary.failed += 1;
-      }
-    }),
-  );
+      await refreshOne(ticker);
+    }
+  };
+  const refreshOne = async (ticker: string) => {
+    try {
+      const html = await fetchFundamentusDetailsPage(ticker, REQUEST_TIMEOUT_MS);
+      const indicators =
+        classes.get(ticker) === "FII" ? parseFiiDetails(html) : parseStockDetails(html);
+      await AssetModel.updateOne(
+        { _id: ticker },
+        { $set: { fundamentusIndicators: { ...indicators, fetchedAt: now } } },
+      );
+      summary.updated += 1;
+    } catch (error) {
+      // Nada é gravado: os indicadores antigos ficam até a próxima chamada.
+      console.warn(`[indicadores] ${ticker}:`, errorMessage(error));
+      summary.failed += 1;
+    }
+  };
+  await Promise.all([worker(), worker()]);
   return summary;
 }
