@@ -257,6 +257,12 @@ describe("factsKey e needsRadar", () => {
     expect(needsRadar({ ...ok, status: "failed" }, "a", now)).toBe(true);
     expect(needsRadar({ ...ok, status: "failed", generatedAt: hoursAgo(2) }, "a", now)).toBe(false);
   });
+
+  it("mesma chave: renova um dia antes de o texto sumir (staleDays - 1)", () => {
+    const ok = { factsKey: "a", status: "ok" as const };
+    expect(needsRadar({ ...ok, generatedAt: hoursAgo(8 * 24) }, "a", now)).toBe(false);
+    expect(needsRadar({ ...ok, generatedAt: hoursAgo(9 * 24) }, "a", now)).toBe(true);
+  });
 });
 
 describe("validateRadarText", () => {

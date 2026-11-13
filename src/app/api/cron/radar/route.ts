@@ -35,7 +35,10 @@ export async function GET(request: Request) {
     // Uma falha nos indicadores nunca impede o Radar: os antigos valem até 10 dias.
     const indicators = await withSpan("cron.refresh-indicators", {}, async (span) => {
       try {
-        const result = await refreshFundamentusIndicators(tickers, { maxPages: 6 });
+        const result = await refreshFundamentusIndicators(tickers, {
+          maxPages: 6,
+          deadline: startedAt + 8_000,
+        });
         span.setAttributes({
           "koinos.indicators.updated": result.updated,
           "koinos.indicators.failed": result.failed,

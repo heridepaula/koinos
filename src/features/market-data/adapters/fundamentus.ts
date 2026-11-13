@@ -24,17 +24,22 @@ const REUSE_MS = 5 * 60 * 1000;
 const limit = createLimiter(CONCURRENCY);
 const recent = new Map<string, { at: number; html: Promise<string> }>();
 
-async function download(url: string, ticker: string): Promise<string> {
+async function download(url: string, ticker: string, timeoutMs = TIMEOUT_MS): Promise<string> {
   const response = await fetch(url, {
     headers: { "User-Agent": USER_AGENT, Accept: "text/html" },
-    signal: AbortSignal.timeout(TIMEOUT_MS),
+    signal: AbortSignal.timeout(timeoutMs),
     cache: "no-store",
   });
   if (!response.ok) throw new Error(`Fundamentus respondeu ${response.status} para ${ticker}`);
   return new TextDecoder("latin1").decode(await response.arrayBuffer());
 }
 
-function fetchReused(url: string, ticker: string, page: string): Promise<string> {
+function fetchReused(
+  url: string,
+  ticker: string,
+  page: string,
+  timeoutMs?: number,
+): Promise<string> {
   const now = Date.now();
   for (const [key, entry] of recent) if (now - entry.at > REUSE_MS) recent.delete(key);
   const cached = recent.get(url);
@@ -43,7 +48,7 @@ function fetchReused(url: string, ticker: string, page: string): Promise<string>
     recordSpan("fundamentus.reuse", { "koinos.fundamentus.page": page });
     return cached.html;
   }
-  const html = limit(() => download(url, ticker));
+  const html = limit(() => download(url, ticker, timeoutMs));
   recent.set(url, { at: now, html });
   // Falha não fica guardada: a próxima chamada tenta de novo.
   html.catch(() => recent.delete(url));
@@ -60,7 +65,7 @@ export function fetchFundamentusDividendsPage(
 }
 
 /** O HTML da página de indicadores (`detalhes.php`), para o Radar de fundamentos. */
-export function fetchFundamentusDetailsPage(ticker: string): Promise<string> {
+export function fetchFundamentusDetailsPage(ticker: string, timeoutMs?: number): Promise<string> {
   const url = `${BASE_URL}/detalhes.php?papel=${encodeURIComponent(ticker)}`;
-  return fetchReused(url, ticker, "detalhes");
+  return fetchReused(url, ticker, "detalhes", timeoutMs);
 }

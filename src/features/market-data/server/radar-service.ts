@@ -39,6 +39,8 @@ export type RadarSummary = {
   failed: number;
   /** Ativos que ficaram para a próxima chamada por falta de tempo. */
   deferred: number;
+  /** Ativos que perderam todos os fatos e tiveram o texto antigo apagado. */
+  cleared: number;
   geminiCalls: number;
   quotaExhausted: boolean;
 };
@@ -51,6 +53,7 @@ const empty = (status: RadarSummary["status"]): RadarSummary => ({
   rejected: 0,
   failed: 0,
   deferred: 0,
+  cleared: 0,
   geminiCalls: 0,
   quotaExhausted: false,
 });
@@ -126,6 +129,7 @@ export async function refreshRadars(
       "koinos.radar.rejected": summary.rejected,
       "koinos.radar.failed": summary.failed,
       "koinos.radar.deferred": summary.deferred,
+      "koinos.radar.cleared": summary.cleared,
       "koinos.radar.gemini_calls": summary.geminiCalls,
       "koinos.radar.quota_exhausted": summary.quotaExhausted,
     });
@@ -172,13 +176,24 @@ async function run(
     const input = radarInputOf(doc, assetClass, realRate, now);
     if (!input) continue;
     const facts = radarFacts(input);
-    if (facts.length === 0) continue;
+    if (facts.length === 0) {
+      // Sem fatos o texto antigo seria falso: apaga.
+      if (doc.radar) {
+        await AssetModel.updateOne({ _id: ticker }, { $set: { radar: null } });
+        summary.cleared += 1;
+      }
+      continue;
+    }
     if (!needsRadar(doc.radar ?? null, factsKey(facts), now)) continue;
     due.push({ ticker, kind: input.kind, facts });
   }
   summary.due = due.length;
   if (due.length === 0) return summary;
 
+  if (Date.now() > deadline - GEMINI_BUDGET_MS) {
+    summary.deferred = due.length;
+    return summary;
+  }
   const models = await geminiModelsWithQuota(now);
   const batch = due.slice(0, maxAssets);
   for (const [index, item] of batch.entries()) {

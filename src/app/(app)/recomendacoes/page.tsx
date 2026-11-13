@@ -71,7 +71,10 @@ async function RecommendationsContent() {
       meta.set(row.ticker, { ticker: row.ticker, name: row.name, logoUrl: row.logoUrl });
     }
   }
-  const radars = await getRadarViews([...meta.keys()]);
+  const radars = await getRadarViews([...meta.keys()]).catch((error) => {
+    console.warn("[radar]", error instanceof Error ? error.message : String(error));
+    return new Map();
+  });
   for (const [ticker, radar] of radars) {
     const entry = meta.get(ticker);
     if (entry) meta.set(ticker, { ...entry, radar });

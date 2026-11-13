@@ -10,6 +10,7 @@ import { AssetModel } from "./models";
 // máximo a cada 20 h. Roda na rota do Radar em lotes (`maxPages`), não no job diário: o
 // cron-job.org corta a requisição em 30 s. O semáforo do adapter limita a 2 requisições ao site.
 
+const REQUEST_TIMEOUT_MS = 5_000;
 const MIN_INTERVAL_MS = 20 * 60 * 60 * 1000;
 const errorMessage = (error: unknown) => (error instanceof Error ? error.message : String(error));
 
@@ -18,7 +19,7 @@ export type IndicatorsSummary = { updated: number; failed: number; pending: numb
 /** Atualiza até `maxPages` ativos vencidos, os mais antigos (ou nunca buscados) primeiro. */
 export async function refreshFundamentusIndicators(
   tickers: readonly string[],
-  options: { maxPages: number; now?: Date },
+  options: { maxPages: number; now?: Date; deadline?: number },
 ): Promise<IndicatorsSummary> {
   const now = options.now ?? new Date();
   const unique = [...new Set(tickers)];
@@ -43,8 +44,13 @@ export async function refreshFundamentusIndicators(
   summary.pending = due.length - batch.length;
   await Promise.all(
     batch.map(async (ticker) => {
+      // Na fila do semáforo pode passar do prazo: o que não começou fica para a próxima chamada.
+      if (options.deadline !== undefined && Date.now() >= options.deadline) {
+        summary.pending += 1;
+        return;
+      }
       try {
-        const html = await fetchFundamentusDetailsPage(ticker);
+        const html = await fetchFundamentusDetailsPage(ticker, REQUEST_TIMEOUT_MS);
         const indicators =
           classes.get(ticker) === "FII" ? parseFiiDetails(html) : parseStockDetails(html);
         await AssetModel.updateOne(

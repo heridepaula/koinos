@@ -206,11 +206,17 @@ export const factsKey = (facts: readonly RadarFact[]) => facts.map((f) => f.id).
 
 export type StoredRadar = { factsKey: string; status: "ok" | "failed"; generatedAt: Date };
 
-/** Regera quando não há texto, ou quando os fatos mudaram (ou a última falhou) e já passou 20 h. */
+/**
+ * Regera quando não há texto, quando os fatos mudaram (ou a última falhou) e já passou 20 h, ou
+ * quando o texto igual está a um dia de sumir da tela (`staleDays`), para não ficar sem texto.
+ */
 export function needsRadar(radar: StoredRadar | null, key: string, now: Date): boolean {
   if (!radar) return true;
-  if (radar.status === "ok" && radar.factsKey === key) return false;
-  return now.getTime() - radar.generatedAt.getTime() >= RADAR.regenerateAfterHours * 3_600_000;
+  const age = now.getTime() - radar.generatedAt.getTime();
+  if (radar.status === "ok" && radar.factsKey === key) {
+    return age >= (RADAR.staleDays - 1) * 86_400_000;
+  }
+  return age >= RADAR.regenerateAfterHours * 3_600_000;
 }
 
 /** Exemplos fixos do prompt (no lugar de ajuste fino), sem ticker, no tom pedido pelo dono. */
