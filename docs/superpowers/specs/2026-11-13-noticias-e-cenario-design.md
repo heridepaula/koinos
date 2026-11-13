@@ -128,6 +128,13 @@ Para comparar a variação do ativo com a do mercado, no mesmo pregão. Testado 
 
 Coleção `market_indices`: `{ _id: "IBOV" | "IFIX", price, previousClose, changePercent (fração), session: Date, fetchedAt }`, atualizada pelo cron de notícias durante o pregão (10:00–18:30), pelo mesmo cliente Yahoo (fila `YAHOO_CONCURRENCY`). Sem dado do pregão do ativo, a comparação não existe e o resumo segue como hoje.
 
+### Decisões da implementação (etapa 2, 2026-11-13)
+
+- Notícia de feed só de ativos (Suno, fiis.com.br) sem ticker acompanhado não é guardada.
+- A rota abre o span `cron.news`; os atributos `koinos.news.*` ficam no `news.collect` e os índices no `market.indices`.
+- O Bing por ticker e os termos fixos do cenário entram nas etapas da triagem e do cenário.
+- SEER3 não tem feed por empresa na InfoMoney (404).
+
 ## Camada 3: triagem por ativo, "notícias da semana" (Gemini)
 
 Roda no `/api/cron/radar`, antes da geração dos textos, para os mesmos candidatos e na mesma ordem (`prioritizeInsights`).
