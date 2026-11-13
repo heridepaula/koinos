@@ -1,5 +1,6 @@
 import { saoPauloParts } from "@/shared/lib/time";
 import type { AssetClass } from "./asset-class";
+import { rssTag } from "./news";
 
 // Resumo da IA para variações fortes do dia (spec 2026-11-12-resumo-ia-variacao-design.md).
 // Regras puras: gatilho, leitura do RSS do Bing, horários das novas tentativas e o prompt. Só
@@ -119,35 +120,6 @@ export function crossesThreshold(
   return magnitude >= DAY_INSIGHT.threshold[assetClass ?? "ACAO"];
 }
 
-const ENTITIES: Record<string, string> = {
-  amp: "&",
-  lt: "<",
-  gt: ">",
-  quot: '"',
-  apos: "'",
-  nbsp: " ",
-};
-
-function decodeEntities(text: string): string {
-  return text.replace(/&(#x[0-9a-f]+|#\d+|[a-z]+);/gi, (match, code: string) => {
-    if (code[0] === "#") {
-      const value =
-        code[1] === "x" || code[1] === "X"
-          ? Number.parseInt(code.slice(2), 16)
-          : Number.parseInt(code.slice(1), 10);
-      return Number.isFinite(value) ? String.fromCodePoint(value) : match;
-    }
-    return ENTITIES[code.toLowerCase()] ?? match;
-  });
-}
-
-const tag = (item: string, name: string): string | null => {
-  const match = item.match(new RegExp(`<${name}>([\\s\\S]*?)</${name}>`, "i"));
-  if (!match) return null;
-  const raw = match[1].replace(/^<!\[CDATA\[([\s\S]*)\]\]>$/, "$1");
-  return decodeEntities(raw).trim();
-};
-
 /** A URL do portal: o parâmetro `url=` do link `apiclick.aspx` do Bing, ou o próprio link. */
 function portalUrl(link: string): string | null {
   let candidate = link;
@@ -175,15 +147,15 @@ export function parseBingNews(xml: string): NewsItem[] {
   const seen = new Set<string>();
   for (const match of xml.matchAll(/<item>([\s\S]*?)<\/item>/gi)) {
     const body = match[1];
-    const title = tag(body, "title");
-    const link = tag(body, "link");
-    const date = tag(body, "pubDate");
+    const title = rssTag(body, "title");
+    const link = rssTag(body, "link");
+    const date = rssTag(body, "pubDate");
     const url = link ? portalUrl(link) : null;
     const publishedAt = date ? new Date(date) : null;
     if (!title || !url || !publishedAt || Number.isNaN(publishedAt.getTime())) continue;
     if (seen.has(url)) continue;
     seen.add(url);
-    const publisher = tag(body, "News:Source") ?? new URL(url).hostname.replace(/^www\./, "");
+    const publisher = rssTag(body, "News:Source") ?? new URL(url).hostname.replace(/^www\./, "");
     items.push({ title, publisher, url, publishedAt });
   }
   return items.sort((a, b) => b.publishedAt.getTime() - a.publishedAt.getTime());
