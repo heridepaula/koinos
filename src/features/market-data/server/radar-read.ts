@@ -62,7 +62,8 @@ export async function getRadarViews(
     // O texto some depois de `staleDays`: os fatos dele podem ter mudado.
     const text =
       doc.radar?.status === "ok" && within(doc.radar.generatedAt) ? doc.radar.text : null;
-    if (chips.length > 0 || text) views.set(doc._id, { chips, text: text ?? null });
+    if (chips.length > 0 || text)
+      views.set(doc._id, { kind: assetClass, chips, text: text ?? null });
   }
   return views;
 }

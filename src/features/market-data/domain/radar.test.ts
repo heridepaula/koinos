@@ -8,15 +8,19 @@ import {
   factsKey,
   monthChange,
   needsRadar,
+  normalizeForDuplicate,
+  promptTerms,
   RADAR,
   RADAR_EXAMPLES,
   radarChips,
   radarFacts,
   radarSources,
+  radarTerms,
   validateRadarText,
   type FiiRadarInput,
   type StockRadarInput,
 } from "./radar";
+import { glossaryEntry, glossaryIdsIn } from "@/shared/lib/glossary";
 import type { StockIndicators } from "./fundamentus-indicators";
 
 const fii = (over: Partial<FiiRadarInput> = {}): FiiRadarInput => ({
@@ -416,12 +420,13 @@ describe("validateRadarText", () => {
     "Quase todos os imóveis estão alugados, mas o último pagamento veio menor que o de costume.";
 
   it("aceita texto válido, aparado", () => {
-    expect(validateRadarText(`  ${good}\n`, "STOP")).toBe(good);
+    expect(validateRadarText(`  ${good}\n`, "STOP", "FII")).toBe(good);
   });
 
-  it("jargão por palavra inteira, sem acento nem caixa", () => {
-    expect(validateRadarText("A inflação pode corroer a renda do fundo.", "STOP")).not.toBeNull();
-    expect(validateRadarText("A VACÂNCIA do fundo subiu.", "STOP")).toBeNull();
+  it("aceita termos do glossário, com ou sem acento e caixa", () => {
+    expect(validateRadarText("A VACÂNCIA do fundo subiu.", "STOP", "FII")).not.toBeNull();
+    expect(validateRadarText("O P/VP do fundo está baixo.", "STOP", "FII")).not.toBeNull();
+    expect(validateRadarText("O dividend yield da empresa é alto.", "STOP", "ACAO")).not.toBeNull();
   });
 
   it.each([
@@ -429,30 +434,101 @@ describe("validateRadarText", () => {
     ["STOP", ""],
     ["STOP", "A empresa é negociada acima do"],
     ["STOP", "O fundo paga 9% ao ano."],
-    ["STOP", "O p/vp do fundo está baixo."],
-    ["STOP", "A vacância está baixa."],
-    ["STOP", "Uma frase. Outra frase. Mais uma."],
-    ["STOP", `${"palavra ".repeat(60).trim()}.`],
+    ["STOP", "O EBITDA da empresa caiu."],
+    ["STOP", "O yield do fundo caiu."],
+    ["STOP", "Uma frase. Outra frase. Mais uma. E outra."],
+    ["STOP", `${"palavra ".repeat(80).trim()}.`],
+    ["STOP", "O P/VP, o FFO, o cap rate e a vacância mudaram."],
   ])("recusa (%s) %s", (finish, text) => {
-    expect(validateRadarText(text, finish)).toBeNull();
+    expect(validateRadarText(text, finish, "FII")).toBeNull();
   });
 
-  it("os exemplos do prompt passam na validação", () => {
+  it("termo de outra classe é jargão: ROE num FII", () => {
+    expect(validateRadarText("O ROE do fundo caiu.", "STOP", "FII")).toBeNull();
+  });
+
+  it("termos comuns não contam no limite", () => {
+    const text = "A cota, os rendimentos e os proventos: o P/VP, o FFO e a vacância mudaram.";
+    expect(validateRadarText(text, "STOP", "FII")).not.toBeNull();
+  });
+
+  it("os exemplos do prompt passam e usam de 1 a 3 termos", () => {
     for (const example of RADAR_EXAMPLES) {
-      expect(validateRadarText(example.text, "STOP")).toBe(example.text);
+      expect(validateRadarText(example.text, "STOP", example.kind)).toBe(example.text);
+      const used = glossaryIdsIn(example.text, example.kind).length;
+      expect(used).toBeGreaterThanOrEqual(1);
     }
+    const firstWords = RADAR_EXAMPLES.map((e) => e.text.split(" ")[0]);
+    expect(new Set(firstWords).size).toBe(firstWords.length);
+  });
+});
+
+describe("promptTerms e radarTerms", () => {
+  const facts = radarFacts(fii({ pvp: 0.7, vacancy: 0.2, dividendRatio: 0.5 }));
+
+  it("os termos dos fatos, distintos, na ordem", () => {
+    expect(promptTerms(facts, [])).toEqual(["pvp", "rendimentos", "vacancia"]);
+  });
+
+  it("o termo único dos 2 últimos textos vai para o fim", () => {
+    expect(promptTerms(facts, [["pvp"], ["pvp"]])).toEqual(["rendimentos", "vacancia", "pvp"]);
+    expect(promptTerms(facts, [["pvp"], ["vacancia"]])).toEqual(["pvp", "rendimentos", "vacancia"]);
+  });
+
+  it("radarTerms tira os comuns", () => {
+    expect(radarTerms("A cota tem P/VP baixo e vacância alta.", "FII")).toEqual([
+      "pvp",
+      "vacancia",
+    ]);
+  });
+
+  it("normalizeForDuplicate ignora caixa, acento e pontuação", () => {
+    expect(normalizeForDuplicate("O fundo, hoje, PAGA bem.")).toBe(
+      normalizeForDuplicate("o fundo hoje paga bem"),
+    );
   });
 });
 
 describe("buildRadarPrompt", () => {
-  const prompt = buildRadarPrompt("FII", radarFacts(fii({ pvp: 0.7, vacancy: 0.2 })));
+  const facts = radarFacts(fii({ pvp: 0.7, vacancy: 0.2 }));
+  const prompt = buildRadarPrompt({
+    kind: "FII",
+    description: "um fundo imobiliário de galpões logísticos",
+    facts,
+    recentTerms: [],
+  });
 
-  it("leva os fatos com o sentido e os 4 exemplos", () => {
+  it("leva a descrição, os fatos com o termo, a lista de termos e os 4 exemplos", () => {
+    expect(prompt).toContain("como está agora um fundo imobiliário de galpões logísticos");
     expect(prompt).toContain(
-      "(favorável) o preço na bolsa está abaixo do que os imóveis do fundo valem",
+      "(favorável) o preço na bolsa está bem abaixo do que os imóveis do fundo valem [termo: P/VP]",
     );
-    expect(prompt).toContain("(desfavorável) uma parte relevante dos imóveis está vazia");
+    expect(prompt).toContain(
+      "Termos do mercado que você pode usar (no máximo dois, escritos igual): P/VP, vacância",
+    );
     for (const example of RADAR_EXAMPLES) expect(prompt).toContain(example.text);
+  });
+
+  it("sem termos, proíbe siglas", () => {
+    const plainPrompt = buildRadarPrompt({
+      kind: "FII",
+      description: "um fundo imobiliário",
+      facts: radarFacts(fii({ monthChange: -0.2 })),
+      recentTerms: [],
+    });
+    expect(plainPrompt).not.toContain("Termos do mercado que você pode usar");
+    expect(plainPrompt).toContain("Sem siglas nem termos técnicos de investimento.");
+  });
+
+  it("com texto a evitar, pede outra abertura", () => {
+    const again = buildRadarPrompt({
+      kind: "FII",
+      description: "x",
+      facts,
+      recentTerms: [],
+      avoid: "Texto igual.",
+    });
+    expect(again).toContain("Outro ativo já tem este texto: «Texto igual.»");
   });
 
   it("não leva números nem dados da carteira", () => {
@@ -483,6 +559,7 @@ describe("radarChips", () => {
       "FFO Yield 7,6%",
       "Vacância 2,0%",
     ]);
+    expect(chips[0].help).toBe(glossaryEntry("pvp")?.definition);
     expect(chips.every((chip) => chip.help.length > 0)).toBe(true);
   });
 
@@ -555,6 +632,8 @@ describe("radarSources", () => {
       vacancy: null,
       dy12m: null,
       dividendsKnown: false,
+      dividendTrend: null,
+      monthChange: null,
     });
   });
 });

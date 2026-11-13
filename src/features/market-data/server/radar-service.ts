@@ -14,6 +14,7 @@ import { prioritizeInsights, type InsightCandidate } from "../domain/day-insight
 import {
   buildRadarPrompt,
   businessKind,
+  describeAsset,
   factsKey,
   needsRadar,
   radarFacts,
@@ -94,8 +95,8 @@ export function radarInputOf(
       realRate,
       vacancy: src.vacancy,
       peerDy: [],
-      dividendTrend: null,
-      monthChange: null,
+      dividendTrend: src.dividendTrend,
+      monthChange: src.monthChange,
       yearChange: null,
     };
   }
@@ -109,7 +110,7 @@ export function radarInputOf(
       dy12m: src.dy12m,
       payments12m: src.payments12m,
       dividendsKnown: src.dividendsKnown,
-      monthChange: null,
+      monthChange: src.monthChange,
       yearChange: null,
     };
   }
@@ -176,7 +177,12 @@ async function run(
   const assets = new Map(docs.map((doc) => [doc._id, doc]));
   const ordered = prioritizeInsights([...byTicker.values()], (t) => assets.get(t)?.price ?? null);
 
-  const due: { ticker: string; kind: "FII" | "ACAO"; facts: ReturnType<typeof radarFacts> }[] = [];
+  const due: {
+    ticker: string;
+    kind: "FII" | "ACAO";
+    description: string;
+    facts: ReturnType<typeof radarFacts>;
+  }[] = [];
   for (const { ticker } of ordered) {
     const doc = assets.get(ticker);
     const assetClass = classes.get(ticker) ?? null;
@@ -193,7 +199,7 @@ async function run(
       continue;
     }
     if (!needsRadar(doc.radar ?? null, factsKey(facts), now)) continue;
-    due.push({ ticker, kind: input.kind, facts });
+    due.push({ ticker, kind: input.kind, description: describeAsset(input), facts });
   }
   summary.due = due.length;
   if (due.length === 0) return summary;
@@ -216,7 +222,12 @@ async function run(
     const { result, calls } = await generateWithChain(
       apiKey,
       models,
-      buildRadarPrompt(item.kind, item.facts),
+      buildRadarPrompt({
+        kind: item.kind,
+        description: item.description,
+        facts: item.facts,
+        recentTerms: [],
+      }),
       { temperature: 0.2, maxOutputTokens: 2048, timeoutMs: 8_000 },
       now,
       `radar ${item.ticker}`,
@@ -228,7 +239,7 @@ async function run(
       summary.failed += 1;
       continue;
     }
-    const text = validateRadarText(result.text, result.finishReason);
+    const text = validateRadarText(result.text, result.finishReason, item.kind);
     if (text === null) summary.rejected += 1;
     else summary.generated += 1;
     await AssetModel.updateOne(
