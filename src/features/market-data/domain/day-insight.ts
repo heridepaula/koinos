@@ -327,6 +327,21 @@ const sameSession = (insight: DayInsight | null | undefined, session: Date) =>
   Boolean(insight) && insight!.session.getTime() === session.getTime();
 
 /**
+ * A cotação foi buscada a partir das 10:30 (São Paulo) do dia do pregão? Antes disso a brapi ainda
+ * atrasa e a variação pode ser a do pregão anterior: o ativo espera uma cotação assentada.
+ */
+export function quoteSettled(quoteFetchedAt: Date, session: Date): boolean {
+  const settleAt = saoPauloToUtc(
+    session.getUTCFullYear(),
+    session.getUTCMonth() + 1,
+    session.getUTCDate(),
+    Math.floor(DAY_INSIGHT.settleMinutes / 60),
+    DAY_INSIGHT.settleMinutes % 60,
+  );
+  return quoteFetchedAt.getTime() >= settleAt.getTime();
+}
+
+/**
  * O ativo deve ser processado agora? (horário de São Paulo)
  * - no dia do pregão antes das 10:30: não, nem a primeira vez (a variação ainda é a do anterior);
  * - sem resumo deste pregão: sim;
@@ -517,12 +532,14 @@ export function buildInsightPrompt(input: {
     news,
     "",
     "Tarefa:",
-    "- Use só as notícias abaixo, todas publicadas desde o fechamento do pregão anterior. Se elas não explicarem o movimento, diga isso; não invente causas.",
+    "- Use só as notícias acima, todas publicadas desde o fechamento do pregão anterior. Se elas não explicarem o movimento, diga isso; não invente causas.",
     "- Explique, para quem não entende de mercado financeiro, o que as notícias dizem sobre esse movimento.",
     "- Escreva um único parágrafo, com no máximo 4 frases curtas, em português do Brasil.",
     "- Evite jargões; se um termo técnico for inevitável, explique-o em poucas palavras.",
     "- Se as notícias trouxerem um fato que explica a variação, diga qual é.",
-    "- Se não trouxerem, diga que as notícias não explicam o movimento e que ele pode refletir o humor geral do mercado.",
+    !input.market || input.market.reading === "acompanhou"
+      ? "- Se não trouxerem, diga que as notícias não explicam o movimento e que ele pode refletir o humor geral do mercado."
+      : "- Se não trouxerem, diga apenas que as notícias não explicam o movimento.",
     "- Não recomende comprar, vender ou manter o ativo.",
     "- Responda só com o parágrafo, sem título e sem listar as fontes.",
   ].join("\n");

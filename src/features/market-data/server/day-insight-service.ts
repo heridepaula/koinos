@@ -17,6 +17,7 @@ import {
   insightPlan,
   mergeSessionNews,
   nextInsightAttempt,
+  quoteSettled,
   prioritizeInsights,
   readFirstArticles,
   sameMovement,
@@ -236,6 +237,8 @@ async function run(
     const stored = asset.dayInsight ? withInsightDefaults(asset.dayInsight) : null;
     // Só conta o resumo deste movimento: mesmo pregão e mesmo sinal. Sinal trocado gera de novo.
     const previous = sameMovement(stored, session, asset.changePercent) ? stored : null;
+    // Cotação buscada antes das 10:30 do pregão ainda pode trazer a variação do anterior.
+    if (!quoteSettled(asset.quoteFetchedAt, session)) continue;
     if (!nextInsightAttempt(previous, session, now)) continue;
     due.push({ ticker: candidate.ticker, session, change: asset.changePercent, previous });
   }
@@ -246,11 +249,7 @@ async function run(
     now,
   );
   const models = availableModels((model) => usage.get(model) ?? 0);
-  if (models.length === 0) {
-    // Sem cota, nem busca no Bing: não marca tentativas que não poderiam virar resumo.
-    summary.quotaExhausted = true;
-    return summary;
-  }
+  // Sem cota, só o que não precisa do Gemini segue (o "no-news" da semana vazia).
 
   const batch = due.slice(0, maxAssets);
   const [newsByTicker, indices] = await Promise.all([
@@ -281,10 +280,6 @@ async function run(
   }
 
   for (const item of batch) {
-    if (models.length === 0) {
-      summary.quotaExhausted = true;
-      break;
-    }
     summary.processed += 1;
     const { ticker, session, change, previous } = item;
     const assetClass = classes.get(ticker) ?? null;
@@ -302,6 +297,11 @@ async function run(
     const plan = insightPlan(previous, mergeSessionNews(stored, bing, session), weekItems);
     if (plan.mode === "none") {
       await touchAttempt(ticker, now);
+      continue;
+    }
+    // Sem cota, não marca tentativa do que precisaria do Gemini; o resto da semana vazia grava.
+    if (models.length === 0 && !(plan.mode === "week" && weekItems.length === 0)) {
+      summary.quotaExhausted = true;
       continue;
     }
 
@@ -362,7 +362,8 @@ async function run(
       summary[kind] += 1;
     } else {
       summary.failed += 1;
-      if (previous?.status === "ok") await touchAttempt(ticker, now);
+      // um resumo válido (ok ou no-news) não é apagado por uma tentativa que falhou
+      if (previous && previous.status !== "failed") await touchAttempt(ticker, now);
       else {
         await saveInsight(ticker, {
           ...base,

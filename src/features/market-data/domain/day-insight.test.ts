@@ -15,6 +15,7 @@ import {
   nextInsightAttempt,
   parseBingNews,
   prioritizeInsights,
+  quoteSettled,
   readFirstArticles,
   recentNews,
   sameMovement,
@@ -164,6 +165,19 @@ describe("readFirstArticles", () => {
   });
 });
 
+describe("quoteSettled", () => {
+  it("cotação buscada antes das 10:30 do pregão não vale, mesmo que agora sejam 11:00", () => {
+    expect(quoteSettled(sp(10, 29), SESSION)).toBe(false);
+    expect(quoteSettled(sp(9, 0), SESSION)).toBe(false);
+  });
+
+  it("a partir das 10:30 do pregão vale, inclusive no dia seguinte", () => {
+    expect(quoteSettled(sp(10, 30), SESSION)).toBe(true);
+    expect(quoteSettled(sp(18, 0), SESSION)).toBe(true);
+    expect(quoteSettled(sp(8, 0, 13), SESSION)).toBe(true);
+  });
+});
+
 describe("nextInsightAttempt", () => {
   it("sem resumo, ou com resumo de outro pregão, processa", () => {
     expect(nextInsightAttempt(null, SESSION, sp(14))).toBe(true);
@@ -284,9 +298,34 @@ describe("buildInsightPrompt", () => {
 
   it("só as notícias do pregão, sem inventar causas", () => {
     expect(prompt).toContain(
-      "Use só as notícias abaixo, todas publicadas desde o fechamento do pregão anterior.",
+      "Use só as notícias acima, todas publicadas desde o fechamento do pregão anterior.",
     );
     expect(prompt).toContain("Se elas não explicarem o movimento, diga isso; não invente causas.");
+  });
+
+  it("a notícia está acima da tarefa", () => {
+    expect(prompt).toContain("Use só as notícias acima");
+    expect(prompt).not.toContain("notícias abaixo");
+  });
+
+  it("o humor geral do mercado só sem leitura ou quando acompanhou", () => {
+    const base = {
+      ticker: "HGLG11",
+      assetClass: "FII" as const,
+      changePercent: -0.0234,
+      session: SESSION,
+      articles: [],
+    };
+    const humor = "humor geral do mercado";
+    expect(buildInsightPrompt(base)).toContain(humor);
+    const acompanhou = {
+      index: "IFIX" as const,
+      indexChange: -0.02,
+      reading: "acompanhou" as const,
+    };
+    expect(buildInsightPrompt({ ...base, market: acompanhou })).toContain(humor);
+    const descolou = { ...acompanhou, indexChange: 0.01, reading: "descolou" as const };
+    expect(buildInsightPrompt({ ...base, market: descolou })).not.toContain(humor);
   });
 
   it("sem mercado, sem a linha do índice; com ele, a leitura do código", () => {
