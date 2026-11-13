@@ -113,3 +113,192 @@ export function parseRssFeed(xml: string): FeedItem[] {
   }
   return items.sort((a, b) => b.publishedAt.getTime() - a.publishedAt.getTime());
 }
+
+export type NewsTopic = "ativo" | "cenario";
+export type NewsSourceId =
+  "suno" | "fiis" | "infomoney" | "infomoney-empresa" | "moneytimes" | "moneytimes-politica";
+
+export type NewsSource = {
+  id: NewsSourceId;
+  url: string;
+  publisher: string;
+  topics: readonly NewsTopic[];
+  /** A Suno bloqueia robôs de IA no robots.txt: só título e resumo do RSS, nunca a página. */
+  readPage: boolean;
+};
+
+/** Os feeds gerais, testados em 2026-11-13 (10 itens cada). */
+export const NEWS_SOURCES: readonly NewsSource[] = [
+  {
+    id: "suno",
+    url: "https://www.suno.com.br/noticias/feed/",
+    publisher: "Suno",
+    topics: ["ativo"],
+    readPage: false,
+  },
+  {
+    id: "fiis",
+    url: "https://fiis.com.br/noticias/feed/",
+    publisher: "FIIs.com.br",
+    topics: ["ativo"],
+    readPage: true,
+  },
+  {
+    id: "infomoney",
+    url: "https://www.infomoney.com.br/feed/",
+    publisher: "InfoMoney",
+    topics: ["ativo", "cenario"],
+    readPage: true,
+  },
+  {
+    id: "moneytimes",
+    url: "https://www.moneytimes.com.br/feed/",
+    publisher: "Money Times",
+    topics: ["ativo", "cenario"],
+    readPage: true,
+  },
+  {
+    id: "moneytimes-politica",
+    url: "https://www.moneytimes.com.br/category/politica/feed/",
+    publisher: "Money Times",
+    topics: ["cenario"],
+    readPage: true,
+  },
+];
+
+/** O feed da InfoMoney de uma empresa (só ativos). */
+export const COMPANY_FEED_SOURCE: NewsSource = {
+  id: "infomoney-empresa",
+  url: "",
+  publisher: "InfoMoney",
+  topics: ["ativo"],
+  readPage: true,
+};
+
+/** Slugs de `infomoney.com.br/tudo-sobre/<slug>/feed/`, testados em 2026-11-13 (SEER3 dá 404). */
+export const INFOMONEY_SLUGS: Readonly<Record<string, string>> = {
+  PETR4: "petrobras",
+  VALE3: "vale",
+  BBAS3: "banco-do-brasil",
+  BBSE3: "bb-seguridade",
+  ITSA4: "itausa",
+  EGIE3: "engie-brasil",
+  AXIA7: "axia",
+  UNIP6: "unipar",
+  SLCE3: "slc-agricola",
+  AGRO3: "brasilagro",
+  TUPY3: "tupy",
+};
+
+export const infomoneyCompanyUrl = (slug: string) =>
+  `https://www.infomoney.com.br/tudo-sobre/${slug}/feed/`;
+
+/** Nomes que identificam o ativo sem o ticker, com caixa exata ("Vale" sozinho fica de fora). */
+export const NEWS_ALIASES: Readonly<Record<string, readonly string[]>> = {
+  PETR4: ["Petrobras"],
+  VALE3: ["Vale S.A.", "mineradora Vale"],
+  BBAS3: ["Banco do Brasil"],
+  BBSE3: ["BB Seguridade"],
+  ITSA4: ["Itaúsa"],
+  EGIE3: ["Engie Brasil"],
+  AXIA7: ["Axia Energia", "Eletrobras"],
+  UNIP6: ["Unipar"],
+  SLCE3: ["SLC Agrícola"],
+  AGRO3: ["BrasilAgro"],
+  TUPY3: ["Tupy"],
+};
+
+const TICKER = /(?<![A-Z0-9])([A-Z]{4})(\d{1,2})(?![A-Z0-9])/g;
+const escapeRegExp = (text: string) => text.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+
+/** Os tickers acompanhados citados no texto: o código exato, a família (PETR3 → PETR4) e os apelidos. */
+export function matchTickers(
+  text: string,
+  tracked: readonly string[],
+  aliases: Readonly<Record<string, readonly string[]>> = NEWS_ALIASES,
+): string[] {
+  const found = new Set<string>();
+  const families = new Map<string, string[]>();
+  for (const ticker of tracked) {
+    const family = ticker.slice(0, 4);
+    families.set(family, [...(families.get(family) ?? []), ticker]);
+  }
+  for (const match of text.matchAll(TICKER)) {
+    const code = match[1] + match[2];
+    if (tracked.includes(code)) found.add(code);
+    else for (const ticker of families.get(match[1]) ?? []) found.add(ticker);
+  }
+  for (const ticker of tracked) {
+    for (const alias of aliases[ticker] ?? []) {
+      const pattern = new RegExp(
+        `(?<![\\p{L}\\p{N}])${escapeRegExp(alias)}(?![\\p{L}\\p{N}])`,
+        "u",
+      );
+      if (pattern.test(text)) found.add(ticker);
+    }
+  }
+  return [...found].sort();
+}
+
+export type NewsItemInput = {
+  url: string;
+  title: string;
+  publisher: string;
+  source: NewsSourceId;
+  publishedAt: Date;
+  description: string | null;
+  tickers: string[];
+  topics: NewsTopic[];
+  readPage: boolean;
+};
+
+const DAY_MS = 86_400_000;
+
+/**
+ * O item a guardar, ou null: velho demais, no futuro, ou sem tópico (feed de ativos sem ticker
+ * acompanhado). `companyTicker` é o ativo do feed por empresa, ligado mesmo sem ser citado.
+ */
+export function newsItemFromFeed(
+  item: FeedItem,
+  source: NewsSource,
+  tracked: readonly string[],
+  now: Date,
+  companyTicker: string | null = null,
+): NewsItemInput | null {
+  const age = now.getTime() - item.publishedAt.getTime();
+  if (age > NEWS.keepDays * DAY_MS || -age > NEWS.futureToleranceMs) return null;
+  const tickers = matchTickers(`${item.title} ${item.description ?? ""}`, tracked);
+  if (companyTicker && !tickers.includes(companyTicker)) {
+    tickers.push(companyTicker);
+    tickers.sort();
+  }
+  const topics: NewsTopic[] = [];
+  if (source.topics.includes("ativo") && tickers.length > 0) topics.push("ativo");
+  if (source.topics.includes("cenario")) topics.push("cenario");
+  if (topics.length === 0) return null;
+  return {
+    url: item.url,
+    title: item.title,
+    publisher: source.publisher,
+    source: source.id,
+    publishedAt: item.publishedAt,
+    description: item.description,
+    tickers,
+    topics,
+    readPage: source.readPage,
+  };
+}
+
+/** Os feeds por empresa a ler agora: nunca lidos ou lidos há 2 h ou mais, os mais antigos primeiro. */
+export function companyFeedsDue<T extends { url: string }>(
+  feeds: readonly T[],
+  lastFetched: ReadonlyMap<string, Date>,
+  now: Date,
+): T[] {
+  const limit = now.getTime() - NEWS.companyFeedEveryHours * 3_600_000;
+  const time = (feed: T) => lastFetched.get(feed.url)?.getTime() ?? Number.NEGATIVE_INFINITY;
+  return feeds
+    .filter((feed) => time(feed) <= limit)
+    .sort((a, b) => time(a) - time(b))
+    .slice(0, NEWS.companyFeedsPerCall);
+}

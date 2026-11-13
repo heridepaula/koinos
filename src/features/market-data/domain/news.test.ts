@@ -1,5 +1,15 @@
 import { describe, expect, it } from "vitest";
-import { cleanDescription, normalizeNewsUrl, parseRssFeed } from "./news";
+import {
+  cleanDescription,
+  COMPANY_FEED_SOURCE,
+  companyFeedsDue,
+  matchTickers,
+  NEWS_SOURCES,
+  newsItemFromFeed,
+  normalizeNewsUrl,
+  parseRssFeed,
+  type FeedItem,
+} from "./news";
 
 const item = (body: string) => `<item>${body}</item>`;
 const feed = (...items: string[]) =>
@@ -80,5 +90,123 @@ describe("normalizeNewsUrl", () => {
   it("recusa o que não é http(s) ou não é URL", () => {
     expect(normalizeNewsUrl("javascript:alert(1)")).toBeNull();
     expect(normalizeNewsUrl("nada")).toBeNull();
+  });
+});
+
+const tracked = ["PETR4", "VALE3", "HGLG11", "BBAS3"];
+
+describe("matchTickers", () => {
+  it("ticker exato, palavra inteira", () => {
+    expect(matchTickers("HGLG11 paga rendimento; XHGLG11 não", tracked)).toEqual(["HGLG11"]);
+    expect(matchTickers("hglg11 em minúsculas não conta", tracked)).toEqual([]);
+  });
+
+  it("família: PETR3 liga à PETR4 acompanhada", () => {
+    expect(matchTickers("PETR3 sobe", tracked)).toEqual(["PETR4"]);
+  });
+
+  it("apelidos com caixa exata e palavra inteira", () => {
+    expect(matchTickers("A Petrobras anunciou", tracked)).toEqual(["PETR4"]);
+    expect(matchTickers("Vale a pena investir?", tracked)).toEqual([]);
+    expect(matchTickers("A mineradora Vale e o Banco do Brasil", tracked)).toEqual([
+      "BBAS3",
+      "VALE3",
+    ]);
+    expect(matchTickers("A Petrobras não é acompanhada", ["VALE3"])).toEqual([]);
+  });
+});
+
+describe("newsItemFromFeed", () => {
+  const now = new Date("2026-11-13T15:00:00Z");
+  const feedItem = (over: Partial<FeedItem> = {}): FeedItem => ({
+    title: "HGLG11 aluga galpão",
+    url: "https://fiis.com.br/n/1",
+    publishedAt: new Date("2026-11-13T12:00:00Z"),
+    description: null,
+    ...over,
+  });
+  const source = (id: string) => NEWS_SOURCES.find((s) => s.id === id)!;
+
+  it("fonte de ativo: só com ticker", () => {
+    expect(newsItemFromFeed(feedItem(), source("fiis"), tracked, now)).toMatchObject({
+      tickers: ["HGLG11"],
+      topics: ["ativo"],
+      publisher: "FIIs.com.br",
+      source: "fiis",
+      readPage: true,
+    });
+    expect(
+      newsItemFromFeed(feedItem({ title: "Mercado sobe" }), source("fiis"), tracked, now),
+    ).toBeNull();
+  });
+
+  it("fonte de cenário: guarda sem ticker; com ticker, os dois tópicos", () => {
+    expect(
+      newsItemFromFeed(
+        feedItem({ title: "Senado aprova pacote" }),
+        source("moneytimes-politica"),
+        tracked,
+        now,
+      ),
+    ).toMatchObject({ tickers: [], topics: ["cenario"] });
+    expect(newsItemFromFeed(feedItem(), source("infomoney"), tracked, now)?.topics).toEqual([
+      "ativo",
+      "cenario",
+    ]);
+  });
+
+  it("a Suno não tem a página lida", () => {
+    expect(newsItemFromFeed(feedItem(), source("suno"), tracked, now)?.readPage).toBe(false);
+  });
+
+  it("idade: até 14 dias e no máximo 1 h no futuro", () => {
+    const day = 86_400_000;
+    expect(
+      newsItemFromFeed(
+        feedItem({ publishedAt: new Date(now.getTime() - 15 * day) }),
+        source("fiis"),
+        tracked,
+        now,
+      ),
+    ).toBeNull();
+    expect(
+      newsItemFromFeed(
+        feedItem({ publishedAt: new Date(now.getTime() + 2 * 3_600_000) }),
+        source("fiis"),
+        tracked,
+        now,
+      ),
+    ).toBeNull();
+  });
+
+  it("feed por empresa acrescenta o ticker do feed", () => {
+    const item = newsItemFromFeed(
+      feedItem({ title: "Estatal muda diretoria" }),
+      COMPANY_FEED_SOURCE,
+      tracked,
+      now,
+      "PETR4",
+    );
+    expect(item).toMatchObject({
+      tickers: ["PETR4"],
+      topics: ["ativo"],
+      source: "infomoney-empresa",
+    });
+  });
+});
+
+describe("companyFeedsDue", () => {
+  const now = new Date("2026-11-13T15:00:00Z");
+  const hoursAgo = (h: number) => new Date(now.getTime() - h * 3_600_000);
+  const feeds = ["A", "B", "C", "D", "E", "F"].map((t) => ({ ticker: t, url: `u/${t}` }));
+
+  it("nunca lidos primeiro, depois os mais antigos; respeita 2 h e o máximo de 4", () => {
+    const last = new Map([
+      ["u/A", hoursAgo(1)],
+      ["u/B", hoursAgo(5)],
+      ["u/C", hoursAgo(3)],
+      ["u/D", hoursAgo(2)],
+    ]);
+    expect(companyFeedsDue(feeds, last, now).map((f) => f.ticker)).toEqual(["E", "F", "B", "C"]);
   });
 });
