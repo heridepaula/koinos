@@ -376,3 +376,61 @@ export function radarChips(input: ChipsInput): RadarChip[] {
   );
   return chips;
 }
+
+/** O mínimo do documento do ativo que o Radar lê (o `AssetDoc` serve, sem o domínio importá-lo). */
+export type RadarSourceDoc = {
+  priceToBook?: number | null;
+  fundamentalsFetchedAt?: Date | null;
+  vacancyPct?: number | null;
+  dy12m?: number | null;
+  lastDividend?: { amount: number; exDate: Date } | null;
+  dividends12m?: number | null;
+  dividendPayments12m?: number | null;
+  dividendsFetchedAt?: Date | null;
+  fundamentusIndicators?: ((StockIndicators | FiiIndicators) & { fetchedAt: Date }) | null;
+};
+
+const DAY_MS = 86_400_000;
+/** P/VP e vacância com mais de 60 dias contam como ausentes, como nos tensores. */
+const PROFILE_STALE_DAYS = 60;
+
+export type RadarSources = {
+  pvp: number | null;
+  /** Fração. */
+  vacancy: number | null;
+  dy12m: number | null;
+  /** Os proventos foram buscados nos últimos dias: "nenhum pagamento" é dado, não falta dele. */
+  dividendsKnown: boolean;
+  payments12m: number | null;
+  lastDividendAmount: number | null;
+  dividends12m: number | null;
+  daysSinceLastDividend: number | null;
+  fiiIndicators: FiiIndicators | null;
+  stockIndicators: StockIndicators | null;
+};
+
+/** Os valores do ativo que passam pelo corte de frescor; a tela e o gerador leem daqui. */
+export function radarSources(doc: RadarSourceDoc, now: Date): RadarSources {
+  const within = (date: Date | null | undefined, days: number) =>
+    date != null && now.getTime() - date.getTime() <= days * DAY_MS;
+  const profileFresh = within(doc.fundamentalsFetchedAt, PROFILE_STALE_DAYS);
+  const dividendsKnown = within(doc.dividendsFetchedAt, RADAR.staleDays);
+  const ind = within(doc.fundamentusIndicators?.fetchedAt, RADAR.staleDays)
+    ? (doc.fundamentusIndicators ?? null)
+    : null;
+  return {
+    pvp: profileFresh ? (doc.priceToBook ?? null) : null,
+    vacancy: profileFresh && doc.vacancyPct != null ? doc.vacancyPct / 100 : null,
+    dy12m: dividendsKnown ? (doc.dy12m ?? null) : null,
+    dividendsKnown,
+    payments12m: dividendsKnown ? (doc.dividendPayments12m ?? null) : null,
+    lastDividendAmount: dividendsKnown ? (doc.lastDividend?.amount ?? null) : null,
+    dividends12m: dividendsKnown ? (doc.dividends12m ?? null) : null,
+    daysSinceLastDividend:
+      dividendsKnown && doc.lastDividend
+        ? Math.floor((now.getTime() - doc.lastDividend.exDate.getTime()) / DAY_MS)
+        : null,
+    fiiIndicators: ind?.kind === "FII" ? ind : null,
+    stockIndicators: ind?.kind === "ACAO" ? ind : null,
+  };
+}

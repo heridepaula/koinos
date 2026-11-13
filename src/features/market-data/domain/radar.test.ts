@@ -9,6 +9,7 @@ import {
   RADAR_EXAMPLES,
   radarChips,
   radarFacts,
+  radarSources,
   validateRadarText,
   type FiiRadarInput,
   type StockRadarInput,
@@ -357,5 +358,51 @@ describe("radarChips", () => {
 describe("constantes", () => {
   it("o IPCA assumido é o mesmo do teto calculado", () => {
     expect(RADAR.assumedInflation).toBe(CEILING_CHECK.assumedInflation);
+  });
+});
+
+describe("radarSources", () => {
+  const now = new Date("2026-11-12T12:00:00Z");
+  const daysAgo = (days: number) => new Date(now.getTime() - days * 86_400_000);
+
+  it("corta os proventos em 10 dias", () => {
+    const base = {
+      dy12m: 0.1,
+      dividendPayments12m: 12,
+      lastDividend: { amount: 1, exDate: daysAgo(5) },
+    };
+    const fresh = radarSources({ ...base, dividendsFetchedAt: daysAgo(10) }, now);
+    expect(fresh.dy12m).toBe(0.1);
+    expect(fresh.daysSinceLastDividend).toBe(5);
+    const stale = radarSources({ ...base, dividendsFetchedAt: daysAgo(11) }, now);
+    expect(stale).toMatchObject({ dy12m: null, payments12m: null, daysSinceLastDividend: null });
+    expect(stale.dividendsKnown).toBe(false);
+  });
+
+  it("corta P/VP e vacância em 60 dias e dá a vacância em fração", () => {
+    const doc = { priceToBook: 0.9, vacancyPct: 7 };
+    const fresh = radarSources({ ...doc, fundamentalsFetchedAt: daysAgo(60) }, now);
+    expect(fresh.pvp).toBe(0.9);
+    expect(fresh.vacancy).toBeCloseTo(0.07);
+    const stale = radarSources({ ...doc, fundamentalsFetchedAt: daysAgo(61) }, now);
+    expect(stale.pvp).toBeNull();
+    expect(stale.vacancy).toBeNull();
+  });
+
+  it("indicadores do Fundamentus com mais de 10 dias viram null", () => {
+    const stock = { kind: "ACAO", fetchedAt: daysAgo(3) } as StockIndicators & { fetchedAt: Date };
+    expect(radarSources({ fundamentusIndicators: stock }, now).stockIndicators).toBe(stock);
+    expect(radarSources({ fundamentusIndicators: stock }, now).fiiIndicators).toBeNull();
+    const old = { ...stock, fetchedAt: daysAgo(11) };
+    expect(radarSources({ fundamentusIndicators: old }, now).stockIndicators).toBeNull();
+  });
+
+  it("sem dados, tudo ausente", () => {
+    expect(radarSources({}, now)).toMatchObject({
+      pvp: null,
+      vacancy: null,
+      dy12m: null,
+      dividendsKnown: false,
+    });
   });
 });

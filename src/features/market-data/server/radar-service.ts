@@ -11,16 +11,16 @@ import { connectMongo } from "@/shared/db/mongo";
 import { env } from "@/shared/env";
 import { withSpan } from "@/shared/lib/tracing";
 import { prioritizeInsights, type InsightCandidate } from "../domain/day-insight";
-import type { StockIndicators } from "../domain/fundamentus-indicators";
 import {
   buildRadarPrompt,
   businessKind,
   factsKey,
   needsRadar,
-  RADAR,
   radarFacts,
+  radarSources,
   validateRadarText,
   type RadarInput,
+  type RadarSourceDoc,
 } from "../domain/radar";
 import { getAssetClasses } from "./catalog";
 import { GEMINI_BUDGET_MS, generateWithChain, geminiModelsWithQuota } from "./gemini-chain";
@@ -55,36 +55,14 @@ const empty = (status: RadarSummary["status"]): RadarSummary => ({
   quotaExhausted: false,
 });
 
-const DAY_MS = 86_400_000;
-const fresh = (date: Date | null | undefined, now: Date, days: number) =>
-  date != null && now.getTime() - date.getTime() <= days * DAY_MS;
-
 /** A entrada pura do Radar a partir do documento do ativo; null para classe desconhecida. */
 export function radarInputOf(
-  doc: Pick<
-    AssetDoc,
-    | "priceToBook"
-    | "fundamentalsFetchedAt"
-    | "vacancyPct"
-    | "fundType"
-    | "segment"
-    | "paperPct"
-    | "realEstatePct"
-    | "dy12m"
-    | "lastDividend"
-    | "dividends12m"
-    | "dividendPayments12m"
-    | "dividendsFetchedAt"
-    | "fundamentusIndicators"
-  >,
+  doc: RadarSourceDoc & Pick<AssetDoc, "fundType" | "segment" | "paperPct" | "realEstatePct">,
   assetClass: "FII" | "ACAO" | null,
   realRate: number | null,
   now: Date,
 ): RadarInput | null {
-  const indicators = fresh(doc.fundamentusIndicators?.fetchedAt, now, RADAR.staleDays)
-    ? (doc.fundamentusIndicators ?? null)
-    : null;
-  const dividendsFresh = fresh(doc.dividendsFetchedAt, now, RADAR.staleDays);
+  const src = radarSources(doc, now);
   if (assetClass === "FII") {
     const { macro } = classifyRisk({
       fundType: doc.fundType ?? null,
@@ -93,38 +71,35 @@ export function radarInputOf(
       realEstatePct: doc.realEstatePct ?? null,
       category: null,
     });
-    // P/VP e vacância com mais de 60 dias contam como ausentes, como nos tensores.
-    const profileFresh = fresh(doc.fundamentalsFetchedAt, now, 60);
-    const daysSinceLastDividend =
-      dividendsFresh && doc.lastDividend
-        ? Math.floor((now.getTime() - doc.lastDividend.exDate.getTime()) / DAY_MS)
-        : null;
     return {
       kind: "FII",
       macro,
-      pvp: profileFresh ? (doc.priceToBook ?? null) : null,
-      dividendRatio: dividendsFresh
-        ? dividendRatio(doc.lastDividend?.amount ?? null, doc.dividends12m ?? null)
+      pvp: src.pvp,
+      dividendRatio: src.dividendsKnown
+        ? dividendRatio(src.lastDividendAmount, src.dividends12m)
         : null,
       suspended: isDividendSuspended(
-        { daysSinceLastDividend, dividendPayments12m: doc.dividendPayments12m ?? null },
+        {
+          daysSinceLastDividend: src.daysSinceLastDividend,
+          dividendPayments12m: doc.dividendPayments12m ?? null,
+        },
         ENGINE_VERSIONS["3.1"],
       ),
-      dy12m: dividendsFresh ? (doc.dy12m ?? null) : null,
+      dy12m: src.dy12m,
       realRate,
-      vacancy: profileFresh && doc.vacancyPct != null ? doc.vacancyPct / 100 : null,
+      vacancy: src.vacancy,
     };
   }
   if (assetClass === "ACAO") {
-    const stock = indicators?.kind === "ACAO" ? (indicators as StockIndicators) : null;
+    const stock = src.stockIndicators;
     return {
       kind: "ACAO",
       business: businessKind(stock?.sector ?? null, stock?.subsector ?? null),
       isBank: (stock?.subsector ?? "").trim().toLowerCase() === "bancos",
       indicators: stock,
-      dy12m: dividendsFresh ? (doc.dy12m ?? null) : null,
-      payments12m: dividendsFresh ? (doc.dividendPayments12m ?? null) : null,
-      dividendsKnown: dividendsFresh,
+      dy12m: src.dy12m,
+      payments12m: src.payments12m,
+      dividendsKnown: src.dividendsKnown,
     };
   }
   return null;
