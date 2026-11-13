@@ -7,17 +7,22 @@ import { getAssetClasses } from "./catalog";
 import { AssetModel } from "./models";
 
 // Indicadores do Fundamentus para o Radar (spec radar-fundamentos): uma página por ativo, no
-// máximo a cada 20 h. O semáforo do adapter limita a 2 requisições ao site, somando as etapas.
+// máximo a cada 20 h. Roda na rota do Radar em lotes (`maxPages`), não no job diário: o
+// cron-job.org corta a requisição em 30 s. O semáforo do adapter limita a 2 requisições ao site.
 
 const MIN_INTERVAL_MS = 20 * 60 * 60 * 1000;
 const errorMessage = (error: unknown) => (error instanceof Error ? error.message : String(error));
 
+export type IndicatorsSummary = { updated: number; failed: number; pending: number };
+
+/** Atualiza até `maxPages` ativos vencidos, os mais antigos (ou nunca buscados) primeiro. */
 export async function refreshFundamentusIndicators(
   tickers: readonly string[],
-  now = new Date(),
-): Promise<{ updated: number; failed: number; skipped: number }> {
+  options: { maxPages: number; now?: Date },
+): Promise<IndicatorsSummary> {
+  const now = options.now ?? new Date();
   const unique = [...new Set(tickers)];
-  const summary = { updated: 0, failed: 0, skipped: 0 };
+  const summary: IndicatorsSummary = { updated: 0, failed: 0, pending: 0 };
   if (unique.length === 0) return summary;
   await connectMongo();
   const [docs, classes] = await Promise.all([
@@ -28,26 +33,27 @@ export async function refreshFundamentusIndicators(
     getAssetClasses(unique),
   ]);
   const fetchedAt = new Map(
-    docs.map((doc) => [doc._id, doc.fundamentusIndicators?.fetchedAt ?? null]),
+    docs.map((doc) => [doc._id, doc.fundamentusIndicators?.fetchedAt?.getTime() ?? 0]),
   );
+  const due = unique
+    .filter((ticker) => classes.get(ticker) != null)
+    .filter((ticker) => now.getTime() - (fetchedAt.get(ticker) ?? 0) >= MIN_INTERVAL_MS)
+    .sort((a, b) => (fetchedAt.get(a) ?? 0) - (fetchedAt.get(b) ?? 0));
+  const batch = due.slice(0, options.maxPages);
+  summary.pending = due.length - batch.length;
   await Promise.all(
-    unique.map(async (ticker) => {
-      const assetClass = classes.get(ticker) ?? null;
-      const last = fetchedAt.get(ticker) ?? null;
-      if (!assetClass || (last && now.getTime() - last.getTime() < MIN_INTERVAL_MS)) {
-        summary.skipped += 1;
-        return;
-      }
+    batch.map(async (ticker) => {
       try {
         const html = await fetchFundamentusDetailsPage(ticker);
-        const indicators = assetClass === "FII" ? parseFiiDetails(html) : parseStockDetails(html);
+        const indicators =
+          classes.get(ticker) === "FII" ? parseFiiDetails(html) : parseStockDetails(html);
         await AssetModel.updateOne(
           { _id: ticker },
           { $set: { fundamentusIndicators: { ...indicators, fetchedAt: now } } },
         );
         summary.updated += 1;
       } catch (error) {
-        // Nada é gravado: os indicadores antigos ficam até a próxima rotina.
+        // Nada é gravado: os indicadores antigos ficam até a próxima chamada.
         console.warn(`[indicadores] ${ticker}:`, errorMessage(error));
         summary.failed += 1;
       }

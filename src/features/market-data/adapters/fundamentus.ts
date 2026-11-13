@@ -3,9 +3,9 @@ import { createLimiter } from "@/shared/lib/concurrency";
 import { recordSpan } from "@/shared/lib/tracing";
 import type { FundamentusPage } from "../domain/fundamentus";
 
-// Fundamentus: páginas públicas de proventos e de indicadores, lidas uma vez por dia por ativo da carteira. O
-// cliente se identifica como é (sem se passar por navegador). Se o site passar a bloquear, a
-// busca falha e o "a receber" volta à estimativa do Yahoo.
+// Fundamentus: páginas públicas de proventos e de indicadores, lidas uma vez por dia por ativo
+// da carteira. O cliente se identifica como é (sem se passar por navegador). Se o site passar a
+// bloquear, a busca falha: o "a receber" volta à estimativa do Yahoo e o Radar fica sem chips.
 const BASE_URL = "https://www.fundamentus.com.br";
 const USER_AGENT = "Koinos/1.0 (painel pessoal de carteira)";
 const TIMEOUT_MS = 10_000;

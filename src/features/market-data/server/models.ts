@@ -1,8 +1,8 @@
 import "server-only";
-import type { FiiIndicators, StockIndicators } from "../domain/fundamentus-indicators";
 import mongoose, { Schema, type Model } from "mongoose";
 import type { DayInsight } from "../domain/day-insight";
 import type { PaySchedule } from "../domain/fundamentus";
+import type { FiiIndicators, StockIndicators } from "../domain/fundamentus-indicators";
 import type { CatalogEntry, QuoteSource } from "../ports";
 
 // Dados de mercado são públicos e compartilhados: nenhuma destas coleções guarda dado de usuário.
