@@ -2,13 +2,13 @@ import "server-only";
 import { connectMongo } from "@/shared/db/mongo";
 import type { AssetClass } from "../domain/asset-class";
 import { quoteSessionDate } from "../domain/market-hours";
-import { WEEK_SUMMARY, type WeekSummaryView } from "../domain/week-summary";
+import { weekSummaryVisible, type WeekSummaryView } from "../domain/week-summary";
 import { currentMarketReading } from "./market-reading";
 import { AssetModel } from "./models";
 
 /**
  * O resumo da semana guardado do ativo, com a variação e a linha do mercado atuais, ou null: sem
- * resumo, com `failed` ou com a última tentativa há mais de 48 h (um ativo que saiu da Carteira
+ * resumo, com `failed` ou com a geração há mais de 48 h (um ativo que saiu da Carteira
  * Alvo perde o card quando o texto envelhece). Só lê o que está guardado.
  */
 export async function getWeekSummary(
@@ -23,10 +23,7 @@ export async function getWeekSummary(
     weekSummary: 1,
   }).lean();
   const stored = doc?.weekSummary;
-  if (!stored || stored.status === "failed") return null;
-  if (now.getTime() - stored.attemptedAt.getTime() > WEEK_SUMMARY.maxAgeHours * 3_600_000) {
-    return null;
-  }
+  if (!stored || stored.status === "failed" || !weekSummaryVisible(stored, now)) return null;
   const change =
     typeof doc.changePercent === "number" && Number.isFinite(doc.changePercent)
       ? doc.changePercent

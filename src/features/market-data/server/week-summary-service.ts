@@ -142,12 +142,13 @@ async function run(
 
   // Sem notícias na semana: grava sem Gemini, mesmo sem chave ou sem cota.
   const withNews: typeof due = [];
+  const noNewsWrites: { updateOne: { filter: { _id: string }; update: { $set: object } } }[] = [];
   for (const item of due) {
     if (item.key !== "") {
       withNews.push(item);
       continue;
     }
-    await save(item.ticker, {
+    const noNews: WeekSummary = {
       newsKey: "",
       status: "no-news",
       text: null,
@@ -155,8 +156,15 @@ async function run(
       model: null,
       generatedAt: now,
       attemptedAt: now,
+    };
+    noNewsWrites.push({
+      updateOne: { filter: { _id: item.ticker }, update: { $set: { weekSummary: noNews } } },
     });
-    summary.noNews += 1;
+  }
+  // Uma só escrita para todos os "no-news"; sem prazo, ficam para a próxima execução.
+  if (noNewsWrites.length > 0 && Date.now() <= deadline) {
+    await AssetModel.bulkWrite(noNewsWrites);
+    summary.noNews += noNewsWrites.length;
   }
   if (withNews.length === 0) return summary;
   if (!apiKey) {
@@ -223,7 +231,7 @@ async function run(
     }
     summary.failed += 1;
     const previous = doc?.weekSummary;
-    if (previous && previous.status !== "failed") {
+    if (previous?.status === "ok") {
       // Um resumo válido não é apagado por uma falha: só marca a tentativa (espera 6 h).
       await AssetModel.updateOne(
         { _id: item.ticker },

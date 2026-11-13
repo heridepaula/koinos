@@ -4,6 +4,7 @@ import {
   buildWeekSummaryPrompt,
   needsWeekSummary,
   validateWeekSummary,
+  weekSummaryVisible,
   weekNewsKey,
   WEEK_SUMMARY,
   type WeekSummary,
@@ -99,12 +100,57 @@ describe("needsWeekSummary", () => {
     );
   });
 
-  it("mesma chave, ok ou no-news: só a partir de 47 h, para o card não sumir", () => {
-    expect(needsWeekSummary(summary({ attemptedAt: hoursAgo(47) }), "a|b", NOW)).toBe(true);
-    expect(needsWeekSummary(summary({ attemptedAt: hoursAgo(46.9) }), "a|b", NOW)).toBe(false);
+  it("mesma chave, ok: precisa de 47 h desde a geração E 6 h desde a tentativa", () => {
+    const old = (generated: number, attempted: number) =>
+      summary({ generatedAt: hoursAgo(generated), attemptedAt: hoursAgo(attempted) });
+    expect(needsWeekSummary(old(47, 47), "a|b", NOW)).toBe(true);
+    expect(needsWeekSummary(old(46.9, 46.9), "a|b", NOW)).toBe(false);
+    // tentou há 1 h e falhou: não repete a chamada a cada execução
+    expect(needsWeekSummary(old(47, 1), "a|b", NOW)).toBe(false);
+    // tentativa recente não prolonga um texto velho, mas a espera de 6 h vale
+    expect(needsWeekSummary(old(47, 6), "a|b", NOW)).toBe(true);
+    // sem generatedAt, vale a tentativa
+    expect(
+      needsWeekSummary(summary({ generatedAt: null, attemptedAt: hoursAgo(47) }), "a|b", NOW),
+    ).toBe(true);
+  });
+
+  it("no-news com chave vazia: refaz a partir de 47 h", () => {
     const noNews = summary({ newsKey: "", status: "no-news", text: null });
-    expect(needsWeekSummary({ ...noNews, attemptedAt: hoursAgo(47) }, "", NOW)).toBe(true);
-    expect(needsWeekSummary({ ...noNews, attemptedAt: hoursAgo(10) }, "", NOW)).toBe(false);
+    const at = (h: number) => ({ ...noNews, generatedAt: hoursAgo(h), attemptedAt: hoursAgo(h) });
+    expect(needsWeekSummary(at(47), "", NOW)).toBe(true);
+    expect(needsWeekSummary(at(10), "", NOW)).toBe(false);
+  });
+
+  it("no-news e agora há notícias: sim, na hora, sem a espera de 6 h", () => {
+    const noNews = summary({
+      newsKey: "",
+      status: "no-news",
+      text: null,
+      generatedAt: hoursAgo(0.1),
+      attemptedAt: hoursAgo(0.1),
+    });
+    expect(needsWeekSummary(noNews, "a|b", NOW)).toBe(true);
+  });
+});
+
+describe("weekSummaryVisible", () => {
+  it("some com failed, ou com a geração há mais de 48 h mesmo com tentativa recente", () => {
+    expect(weekSummaryVisible(null, NOW)).toBe(false);
+    expect(weekSummaryVisible(summary({ status: "failed" }), NOW)).toBe(false);
+    expect(weekSummaryVisible(summary({ generatedAt: hoursAgo(48) }), NOW)).toBe(true);
+    expect(
+      weekSummaryVisible(summary({ generatedAt: hoursAgo(48.1), attemptedAt: hoursAgo(1) }), NOW),
+    ).toBe(false);
+  });
+
+  it("sem generatedAt, vale a tentativa", () => {
+    expect(weekSummaryVisible(summary({ generatedAt: null, attemptedAt: hoursAgo(49) }), NOW)).toBe(
+      false,
+    );
+    expect(weekSummaryVisible(summary({ generatedAt: null, attemptedAt: hoursAgo(2) }), NOW)).toBe(
+      true,
+    );
   });
 });
 

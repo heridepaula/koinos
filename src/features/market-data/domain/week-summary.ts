@@ -12,7 +12,7 @@ export const WEEK_SUMMARY = {
   retryHours: 6,
   /** Com a mesma chave, refaz quando falta 1 h para o texto sumir da tela. */
   refreshAfterHours: 47,
-  /** A tela esconde o resumo com a última tentativa há mais disso. */
+  /** A tela esconde o resumo gerado há mais disso. */
   maxAgeHours: 48,
   maxChars: 500,
   maxSentences: 3,
@@ -61,9 +61,11 @@ const HOUR_MS = 3_600_000;
 /**
  * O resumo da semana deve ser (re)feito agora?
  * - sem resumo guardado: sim;
+ * - `no-news` guardado e agora há notícias: sim, na hora (sem a espera de 6 h);
  * - chave diferente da guardada ou status `failed`: sim, com a última tentativa há 6 h ou mais;
- * - mesma chave, `ok` ou `no-news`: só com a última tentativa há 47 h ou mais (a tela o esconde
- *   com 48 h), para o card não sumir quando as notícias param;
+ * - mesma chave, `ok` ou `no-news`: com o texto gerado há 47 h ou mais (a tela o esconde com
+ *   48 h; sem `generatedAt`, vale a tentativa) E a última tentativa há 6 h ou mais, para o card
+ *   não sumir quando as notícias param e uma falha não repetir a chamada a cada execução;
  * - senão: não.
  */
 export function needsWeekSummary(
@@ -72,11 +74,25 @@ export function needsWeekSummary(
   now: Date,
 ): boolean {
   if (!stored) return true;
+  if (stored.status === "no-news" && key !== "") return true;
   const sinceAttempt = now.getTime() - stored.attemptedAt.getTime();
-  if (stored.newsKey !== key || stored.status === "failed") {
-    return sinceAttempt >= WEEK_SUMMARY.retryHours * HOUR_MS;
-  }
-  return sinceAttempt >= WEEK_SUMMARY.refreshAfterHours * HOUR_MS;
+  const retry = sinceAttempt >= WEEK_SUMMARY.retryHours * HOUR_MS;
+  if (stored.newsKey !== key || stored.status === "failed") return retry;
+  const sinceGenerated = now.getTime() - (stored.generatedAt ?? stored.attemptedAt).getTime();
+  return sinceGenerated >= WEEK_SUMMARY.refreshAfterHours * HOUR_MS && retry;
+}
+
+/**
+ * O resumo guardado aparece na tela? Não com `failed` nem com a geração (ou a tentativa, quando
+ * não há `generatedAt`) há mais de 48 h: uma tentativa que falhou não prolonga o texto antigo.
+ */
+export function weekSummaryVisible(
+  stored: Pick<WeekSummary, "status" | "generatedAt" | "attemptedAt"> | null | undefined,
+  now: Date,
+): boolean {
+  if (!stored || stored.status === "failed") return false;
+  const since = now.getTime() - (stored.generatedAt ?? stored.attemptedAt).getTime();
+  return since <= WEEK_SUMMARY.maxAgeHours * HOUR_MS;
 }
 
 const dayMonth = (date: Date) => {
