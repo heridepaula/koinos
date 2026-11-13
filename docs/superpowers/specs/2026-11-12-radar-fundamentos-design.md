@@ -18,16 +18,19 @@ Cada ordem de `/recomendacoes` ganha um "Radar de fundamentos": os indicadores a
 - Os motores (`fiiCascade`, `stockSmartBuy`), a Prioridade e o "Por quê".
 - Nenhuma chamada à B3. Sem `GEMINI_API_KEY`, os chips aparecem e o texto não.
 - O DY e o P/VP dos FIIs continuam os do app (`dy12m` Yahoo + Fundamentus, P/VP do usebolsai). O Fundamentus calcula o DY de outro jeito (UNIP6: 12,5% lá) e não pode mostrar um número diferente do resto do app.
-- A vacância física do usebolsai continua sendo a do freio da cascata; a vacância média do Fundamentus só entra no Radar.
+- A vacância é só a física do usebolsai, a mesma do freio da cascata. A "Vacância média" do Fundamentus fica de fora: no teste de 2026-11-12 ela deu 100% num FII de papel (RECR11), 39,9% no PVBI11 (usebolsai 9,3%), 23,5% no FATN11 (0,1%) e 16,5% no XPLG11 (4,8%), ou seja, outra conta.
+- O segmento e o tipo do FII são os do usebolsai: o campo "Segmento" do Fundamentus veio vazio nos 17 FIIs da Carteira Alvo.
 
 ## Fonte: Fundamentus (`adapters/fundamentus.ts`)
 
-Páginas públicas, o mesmo User-Agent honesto (`Koinos/1.0`), o mesmo semáforo de 2 requisições e o mesmo reuso de 5 min. Testado em 2026-11-12: as duas responderam 200.
+Páginas públicas, o mesmo User-Agent honesto (`Koinos/1.0`), o mesmo semáforo de 2 requisições e o mesmo reuso de 5 min. Testado em 2026-11-12: responderam 200.
 
-- **Ações: `resultado.php`**, uma requisição por dia para a lista inteira (~1.000 papéis, ~760 KB). Colunas usadas: P/L, P/VP, Margem líquida, Margem EBIT, ROE, ROIC, Dív. líquida/Patrimônio, Liquidez corrente, Cresc. receita 5a. A página não traz a data do balanço; o app guarda só os tickers das ações da Carteira Alvo e das posições.
-- **FIIs: `detalhes.php?papel=XXXX11`**, uma por FII da Carteira Alvo e das posições, no máximo a cada 20 h por ativo. Campos: FFO Yield, Cap Rate, Vacância média, Qtd imóveis, Segmento (o do Fundamentus, só para o texto) e "Últ Info Trimestral".
-- Parsers puros em `market-data/domain/fundamentus-indicators.ts`: `parseStockScreener(html)` e `parseFiiDetails(html)`. Número no formato brasileiro ("22,06", "13,3%", "-8,4%", "1.234,5"); célula vazia ou "-" é null; percentual guardado como fração, como o resto do app.
-- Falha de rede, status diferente de 200 ou cabeçalho da tabela diferente do esperado: nada é gravado e os indicadores antigos ficam. A verificação do cabeçalho existe porque é leitura de página: se o layout mudar, o parser recusa em vez de gravar colunas trocadas.
+- **Uma página por ativo: `detalhes.php?papel=<TICKER>`**, para os ativos da Carteira Alvo e das posições (hoje 17 FIIs e 12 ações, 29 requisições), no máximo a cada 20 h por ativo. A `resultado.php` (a lista inteira numa requisição) foi descartada pelo conselho de 2026-11-12: ela não traz o setor nem a data do balanço, e sem o setor os zeros dos bancos viram fatos errados (abaixo).
+- **Ações:** Setor e Subsetor (o texto dos links), "Últ balanço processado", P/L, P/VP, Marg. Líquida, Marg. EBIT, ROE, ROIC, Dív. Líq./Patrim., Liquidez Corr., Cres. Rec (5a) e o Lucro Líquido dos últimos 12 meses (o sinal diz se houve prejuízo).
+- **FIIs:** FFO Yield, Cap Rate, Qtd imóveis e "Últ Info Trimestral". Cap Rate e Qtd imóveis só valem para tijolo: nos de papel vêm "-" ou 0 e ficam nulos.
+- Parsers puros em `market-data/domain/fundamentus-indicators.ts`: `parseStockDetails(html)` e `parseFiiDetails(html)`. Número no formato brasileiro ("22,06", "13,3%", "-8,4%", "1.234,5"); célula vazia ou "-" é null; percentual guardado como fração, como o resto do app.
+- **Zeros que não são dado:** nos bancos e na seguradora o Fundamentus mostra margem 0,00%, dívida/PL 0,00 e liquidez 0,00 (BBAS3, BBSE3, 2026-11-12). Margem, dívida e liquidez exatamente 0 contam como ausentes, e margem acima de 100% também (ITSA4, holding: 217%).
+- Falha de rede, status diferente de 200 ou página sem os rótulos esperados ("Papel"/"FII", "Cotação", "Indicadores"): nada é gravado e os indicadores antigos ficam. Se o layout mudar, o parser recusa em vez de gravar campos trocados.
 
 ## Dados (documento do ativo, sem `portfolioId`)
 
@@ -35,9 +38,11 @@ Páginas públicas, o mesmo User-Agent honesto (`Koinos/1.0`), o mesmo semáforo
 fundamentusIndicators: {
   kind: "ACAO" | "FII",
   // ACAO
+  sector, subsector, balanceDate (Date | null),
   pl, pvp, netMargin, ebitMargin, roe, roic, netDebtToEquity, currentRatio, revenueGrowth5y,
+  netIncome12m,
   // FII
-  ffoYield, capRate, avgVacancy, propertyCount, quarterlyReport (Date | null),
+  ffoYield, capRate, propertyCount, quarterlyReport (Date | null),
   fetchedAt: Date,
 } | null
 radar: {
@@ -53,31 +58,47 @@ Indicadores com `fetchedAt` acima de 10 dias leem como ausentes (chips e texto s
 
 ## Prompt e Gemini (`market-data/domain/radar.ts`, puro)
 
-- `radarInput(asset)` monta só dados públicos: ticker, classe, segmento/tipo do FII, e os indicadores. FII: P/VP, DY 12m, último provento ÷ média de 12 meses, vacância física e média, FFO Yield, Cap Rate, quantidade de imóveis, provento suspenso (a regra 3.1) e o prêmio do DY sobre a NTN-B real (`dy12m` − a mediana de 60 pregões de `getRealRate`). Ação: P/L, P/VP, DY 12m, margens, ROE, ROIC, dívida líquida/patrimônio, liquidez e crescimento da receita.
+- `radarInput(asset)` monta só dados públicos: ticker, classe, macro e segmento do FII (usebolsai, `classifyRisk`), setor da ação, e os indicadores. FII: P/VP, último provento ÷ média de 12 meses, vacância física (tijolo), FFO Yield, Cap Rate, quantidade de imóveis, provento suspenso (a regra 3.1) e o prêmio sobre a NTN-B real (abaixo). Ação: P/L, P/VP, DY 12m, pagamentos em 12 meses (`dividendPayments12m`), margens, ROE, ROIC, dívida líquida/patrimônio, liquidez, crescimento da receita, lucro de 12 meses e a data do balanço.
+- **Prêmio sobre a NTN-B:** tijolo e outros, `dy12m` − a taxa real (mediana de 60 pregões de `getRealRate`); papel, `dy12m` − (taxa real + 4,0%), o IPCA assumido de `CEILING_CHECK`, porque o DY do papel já embute a inflação (a mesma correção do teto calculado). Sem taxa fresca, sem prêmio.
+- **Tipo de negócio** (`businessKind`, pelo setor e subsetor do Fundamentus): `financeira` (bancos, seguradoras, holdings), `perene-regulada` (energia elétrica, saneamento) ou `geral`. A lista de nomes fica em `RADAR_SECTORS` e é conferida nos testes com as páginas reais de BBAS3, BBSE3, ITSA4 e EGIE3.
 - Nunca entram: quantidade, preço médio, valor, rank, teto, margem até o teto, peso ou meta. Teto e margem são da estratégia do dono; ficam só nos chips.
 ### Para leigos (pedido do dono na mesma data)
 
 O texto é para quem nunca investiu: sem siglas, sem jargão, em português do dia a dia.
 
 - **O código decide o que cada número quer dizer; a IA só escreve.** No teste de 2026-11-12, com o jargão proibido, o Flash-Lite escreveu em linguagem simples, mas pôs "o preço está abaixo do valor real dos imóveis" depois de um "mas", como se fosse ruim, e disse "está com as contas em dia" de uma empresa que deve mais do que o patrimônio. Um leigo não tem como notar esse erro.
-- `radarFacts(input)` (pura) transforma os indicadores em frases simples já com o sentido, cada uma marcada `favorável`, `desfavorável` ou `neutro`. A IA recebe só esses fatos, não os números nem as siglas. Regras iniciais (constantes `RADAR_FACTS`, ajustáveis):
+- `radarFacts(input)` (pura) transforma os indicadores em frases simples já com o sentido, cada uma marcada `favorável`, `desfavorável` ou `neutro`. A IA recebe só esses fatos, não os números nem as siglas. Regras (constantes `RADAR_FACTS`, revistas pelo conselho de 2026-11-12 sobre a carteira real):
+
+  **FIIs**
 
   | Indicador | Fato | Sentido |
   |---|---|---|
-  | P/VP < 0,95 | "o preço na bolsa está abaixo do que os imóveis/a empresa valem no balanço" | favorável |
-  | P/VP > 1,05 | "o preço na bolsa está acima do que … valem no balanço" | desfavorável |
-  | P/VP entre os dois | "o preço está perto do que … valem no balanço" | neutro |
-  | último provento ÷ média 12m < 0,9 | "o último pagamento foi menor que o de costume" | desfavorável |
+  | P/VP < 0,85 | "o preço na bolsa está abaixo do que os imóveis/títulos do fundo valem" | favorável |
+  | P/VP > 1,05 | "o preço na bolsa está acima do que … valem" | desfavorável |
   | provento suspenso | "parou de pagar rendimentos" | desfavorável |
-  | DY − NTN-B real ≥ 1 p.p. / < 0 | "paga mais / menos que o Tesouro protegido da inflação" | favorável / desfavorável |
-  | vacância física ≤ 5% / ≥ 15% (tijolo) | "quase todos os imóveis estão alugados" / "muitos imóveis estão vazios" | favorável / desfavorável |
-  | margem líquida < 5% / ≥ 15% | "lucra pouco / bem a cada real que vende" | desfavorável / favorável |
-  | ROE ≥ 15% / < 8% | "o dinheiro dos sócios rende bem / pouco dentro da empresa" | favorável / desfavorável |
+  | último provento ÷ média 12m < 0,9 | "o último pagamento foi menor que o de costume" | desfavorável |
+  | prêmio sobre a NTN-B ≥ 1 p.p. / < 0 | "paga mais / menos que o Tesouro protegido da inflação" | favorável / desfavorável |
+  | vacância física ≤ 5% / ≥ 10% (tijolo) | "quase todos os imóveis estão alugados" / "uma parte relevante dos imóveis está vazia" | favorável / desfavorável |
+
+  **Ações** (balanço sempre "no último ano"; `financeira` pula margem, dívida e liquidez; `perene-regulada` pula a dívida)
+
+  | Indicador | Fato | Sentido |
+  |---|---|---|
+  | lucro de 12 meses < 0 | "teve prejuízo no último ano" (substitui os fatos de margem e ROE) | desfavorável |
+  | margem líquida < 5% / ≥ 15% | "no último ano, lucrou pouco / bem a cada real que vendeu" | desfavorável / favorável |
+  | ROE ≥ 15% / < 8% | "no último ano, o dinheiro dos sócios rendeu bem / pouco dentro da empresa" | favorável / desfavorável |
   | dív. líquida/patrimônio > 1 / < 0,5 | "deve mais do que tem de patrimônio" / "deve pouco perto do que tem" | desfavorável / favorável |
   | crescimento da receita 5a < 0 / ≥ 10% | "vende menos / bem mais que há cinco anos" | desfavorável / favorável |
-  | DY 12m ≥ 8% | "paga uma boa parte do que ganha aos donos" | favorável |
+  | DY 12m ≥ 8% e ≥ 2 pagamentos em 12 meses | "paga bons dividendos pelo preço da ação" | favorável |
+  | nenhum pagamento em 12 meses (com o histórico de proventos buscado) | "não pagou dividendos no último ano" | desfavorável |
+  | P/VP < 0,85 / > 1,05, só `financeira` com subsetor de banco | "o preço está abaixo / acima do que o banco vale no balanço" | favorável / desfavorável |
 
-  Indicador ausente não gera fato. Sem nenhum fato, o Gemini não é chamado e só os chips aparecem. P/L, ROIC, FFO Yield, Cap Rate e liquidez ficam só nos chips: o sentido deles depende do setor, e o app não tem como julgá-lo sozinho.
+  Indicador ausente não gera fato. Sem nenhum fato, o Gemini não é chamado e só os chips aparecem. P/L, ROIC, FFO Yield, Cap Rate e liquidez ficam só nos chips. O P/VP das outras ações também: numa seguradora de ROE alto (BBSE3, 5,7) ele não quer dizer "cara".
+
+  - **Por que o DY não é fato nos FIIs:** com 8% de corte, os 17 FIIs da Carteira Alvo passariam (o Fundamentus dá de 7,9% a 21,4%), e o fato não diria nada; o prêmio sobre a NTN-B é a régua que separa.
+  - **Por que a regularidade:** o DY de 12 meses da UNIP6 no app é 24,1% (um provento extraordinário) contra 12,5% no Fundamentus; um pagamento único não deve virar "paga bons dividendos".
+  - **Faixa morta do P/VP (0,85 a 1,05):** 16 dos 17 FIIs estavam abaixo de 0,95, e o texto soaria sempre otimista. Dentro da faixa, nenhum fato.
+  - **Ordem dos fatos:** os desfavoráveis fortes primeiro (prejuízo, provento suspenso, sem dividendos), depois a ordem das tabelas.
 - `buildRadarPrompt(facts)` em pt-BR, os fatos como lista. Instruções:
   - no máximo 2 frases curtas, como se falasse com um amigo que nunca investiu;
   - sem siglas nem jargão (P/VP, P/L, ROE, ROIC, EBIT, FFO, cap rate, yield, liquidez, múltiplos, patrimônio líquido, valor patrimonial, vacância, NTN-B);
@@ -111,12 +132,13 @@ O texto é para quem nunca investiu: sem siglas, sem jargão, em português do d
 
 ## Testes (puros)
 
-- `fundamentus-indicators.test.ts`: os dois parsers sobre trechos reais das páginas (UNIP6 e HGLG11 de 2026-11-12): números brasileiros, %, negativos, "-" como null, cabeçalho diferente recusado, ticker fora da tabela.
+- `fundamentus-indicators.test.ts`: os dois parsers sobre trechos reais das páginas de 2026-11-12 (UNIP6, BBAS3, BBSE3, ITSA4, EGIE3, TUPY3, HGLG11 e um FII de papel): números brasileiros, %, negativos, "-" como null, zeros de banco e margem acima de 100% como ausentes, setor e subsetor dos links, data do balanço, página sem os rótulos recusada.
 - `radar.test.ts`:
   - `radarInput` sem nenhum dado da carteira nem da estratégia (quantidade, preço médio, valor, rank, teto, peso);
   - o prêmio sobre a NTN-B, e ausente sem taxa;
   - indicadores com mais de 10 dias como ausentes;
-  - `radarFacts`: cada linha da tabela nos dois lados do limite (P/VP 0,94/0,95/1,05/1,06, dívida 1,0/1,01…), ausente sem fato, nenhum fato sem chamada, a ordem por força;
+  - `radarFacts`: cada linha das tabelas nos dois lados do limite (P/VP 0,84/0,85/1,05/1,06, vacância 5%/10%, dívida 1,0/1,01…), ausente sem fato, nenhum fato sem chamada, a ordem por força; e os casos do conselho: BBAS3/BBSE3 sem margem nem dívida, ITSA4 sem margem, EGIE3 sem dívida, TUPY3 com prejuízo e sem dividendos, VALE3 com "no último ano", UNIP6 sem "bons dividendos" com um pagamento só, BBSE3 sem fato de P/VP, FII de papel com o prêmio descontando 4,0%;
+  - `businessKind` pelos setores reais;
   - `buildRadarPrompt` sem números nem siglas (recebe só os fatos);
   - `validateRadarText`: dígito, jargão (inclusive "p/vp" minúsculo), sem ponto final, `finishReason` `MAX_TOKENS`, 3 frases, vazio, longo demais, texto válido;
   - `needsRadar`: sem radar, mesmo hash, hash novo antes e depois de 20 h;
