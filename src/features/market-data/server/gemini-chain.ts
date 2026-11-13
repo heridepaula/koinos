@@ -56,7 +56,11 @@ export async function generateWithChain(
       if (error instanceof GeminiError && error.kind === "quota") {
         await markGeminiExhausted(model, QUOTA[model], now);
         models.splice(models.indexOf(model), 1);
-      } else if (error instanceof GeminiError && error.kind === "unavailable") {
+      } else if (
+        error instanceof GeminiError &&
+        (error.kind === "unavailable" || error.kind === "rate")
+      ) {
+        // "rate" (limite por minuto) e "unavailable": o modelo sai só desta chamada, sem marcar o dia
         models.splice(models.indexOf(model), 1);
       }
     }

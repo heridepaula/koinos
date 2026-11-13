@@ -4,6 +4,7 @@ import {
   buildInsightPrompt,
   crossesThreshold,
   GEMINI_MODELS,
+  geminiLimitScope,
   isSameDay,
   nextInsightAttempt,
   parseBingNews,
@@ -307,5 +308,57 @@ describe("buildInsightPrompt", () => {
     });
     expect(stock).toContain("PETR4 é uma ação");
     expect(stock).toContain("+3,10%");
+  });
+});
+
+describe("geminiLimitScope", () => {
+  const body = (...quotaIds: string[]) => ({
+    error: {
+      code: 429,
+      details: [
+        {
+          "@type": "type.googleapis.com/google.rpc.QuotaFailure",
+          violations: quotaIds.map((quotaId) => ({ quotaId })),
+        },
+        { "@type": "type.googleapis.com/google.rpc.RetryInfo", retryDelay: "19s" },
+      ],
+    },
+  });
+
+  it("reconhece o limite por minuto do free tier", () => {
+    expect(geminiLimitScope(body("GenerateRequestsPerMinutePerProjectPerModel-FreeTier"))).toBe(
+      "minute",
+    );
+  });
+
+  it("reconhece a cota diária", () => {
+    expect(geminiLimitScope(body("GenerateRequestsPerDayPerProjectPerModel-FreeTier"))).toBe("day");
+  });
+
+  it("com os dois, vale o diário", () => {
+    expect(
+      geminiLimitScope(
+        body(
+          "GenerateRequestsPerMinutePerProjectPerModel-FreeTier",
+          "GenerateRequestsPerDayPerProjectPerModel-FreeTier",
+        ),
+      ),
+    ).toBe("day");
+  });
+
+  it("corpo vazio, estranho ou sem quotaId conhecido é desconhecido", () => {
+    for (const garbage of [
+      null,
+      undefined,
+      "x",
+      3,
+      {},
+      { error: null },
+      { error: { details: "x" } },
+      { error: { details: [null, { violations: [null, { quotaId: 1 }] }] } },
+      body("Outro"),
+    ]) {
+      expect(geminiLimitScope(garbage)).toBe("unknown");
+    }
   });
 });

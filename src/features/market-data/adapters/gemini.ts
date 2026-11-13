@@ -1,15 +1,20 @@
 import "server-only";
 
+import { geminiLimitScope } from "../domain/day-insight";
+
 // Gemini Developer API (free tier, chave do Google AI Studio), pela API REST: a chave vai no
 // header, nunca na URL, e a chamada aparece no APM pela instrumentação do fetch.
 const BASE_URL = "https://generativelanguage.googleapis.com/v1beta/models";
 const TIMEOUT_MS = 20_000;
 
-/** Por que a chamada falhou: `quota` (429) esgota o modelo no dia; o resto só pula para o próximo. */
+/**
+ * Por que a chamada falhou: `quota` (429 da cota diária, ou de origem desconhecida) esgota o modelo
+ * no dia; `rate` (429 do limite por minuto) e o resto só pulam o modelo nesta chamada.
+ */
 export class GeminiError extends Error {
   constructor(
     message: string,
-    readonly kind: "quota" | "unavailable" | "other",
+    readonly kind: "quota" | "rate" | "unavailable" | "other",
   ) {
     super(message);
     this.name = "GeminiError";
@@ -53,7 +58,18 @@ export async function generateContent(
       "unavailable",
     );
   }
-  if (response.status === 429) throw new GeminiError(`Gemini (${model}) sem cota`, "quota");
+  if (response.status === 429) {
+    let body: unknown = null;
+    try {
+      body = await response.json();
+    } catch {
+      // corpo ilegível: sem como saber o limite, vale o caso seguro (cota do dia)
+    }
+    if (geminiLimitScope(body) === "minute") {
+      throw new GeminiError(`Gemini (${model}) acima do limite por minuto`, "rate");
+    }
+    throw new GeminiError(`Gemini (${model}) sem cota`, "quota");
+  }
   if (response.status === 503 || response.status === 500 || response.status === 404) {
     throw new GeminiError(`Gemini (${model}) respondeu ${response.status}`, "unavailable");
   }

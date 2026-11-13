@@ -54,6 +54,28 @@ export function availableModels(used: (model: GeminiModel) => number): GeminiMod
   );
 }
 
+/**
+ * Qual limite o corpo de um 429 do Gemini estourou: `day` (cota diária, `PerDay` no `quotaId`),
+ * `minute` (limite por minuto, 15/min por modelo no free tier) ou `unknown` (corpo ilegível ou sem
+ * `quotaId` conhecido). Se houver os dois, vale o diário.
+ */
+export function geminiLimitScope(body: unknown): "day" | "minute" | "unknown" {
+  const details = (body as { error?: { details?: unknown } } | null | undefined)?.error?.details;
+  if (!Array.isArray(details)) return "unknown";
+  const ids: string[] = [];
+  for (const detail of details) {
+    const violations = (detail as { violations?: unknown } | null)?.violations;
+    if (!Array.isArray(violations)) continue;
+    for (const violation of violations) {
+      const id = (violation as { quotaId?: unknown } | null)?.quotaId;
+      if (typeof id === "string") ids.push(id);
+    }
+  }
+  if (ids.some((id) => id.includes("PerDay"))) return "day";
+  if (ids.some((id) => id.includes("PerMinute"))) return "minute";
+  return "unknown";
+}
+
 /** Uma notícia do RSS do Bing. */
 export type NewsItem = {
   title: string;

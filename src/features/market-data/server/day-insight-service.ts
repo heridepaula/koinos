@@ -216,6 +216,7 @@ async function run(
         break;
       } catch (error) {
         console.warn(`[resumo-ia] ${ticker}:`, errorMessage(error));
+        // só a cota do dia esgota o modelo; "rate" (por minuto) segue para o próximo da cadeia
         if (error instanceof GeminiError && error.kind === "quota") {
           await markGeminiExhausted(model, QUOTA[model], now);
           models.splice(models.indexOf(model), 1);
