@@ -1,14 +1,22 @@
-import { saoPauloParts } from "@/shared/lib/time";
+import { saoPauloParts, saoPauloToUtc } from "@/shared/lib/time";
 import type { AssetClass } from "./asset-class";
-import { rssTag } from "./news";
+import type { MarketIndexId } from "./market-indices";
+import { normalizeNewsUrl, rssTag } from "./news";
 
 // Resumo da IA para variações fortes do dia (spec 2026-11-12-resumo-ia-variacao-design.md).
 // Regras puras: gatilho, leitura do RSS do Bing, horários das novas tentativas e o prompt. Só
-// dados públicos entram aqui: nenhum dado de carteira chega ao Gemini.
+// dados públicos entram aqui: nenhum dado de carteira chega ao Gemini. Desde 2026-11-13 (plano
+// 2026-11-13-resumo-dia-sem-noticia-antiga.md): só notícia do pregão explica o movimento; sem
+// ela, o resumo vira "o que aconteceu nesta semana", e a comparação com o índice é do código.
 
 export const DAY_INSIGHT = {
   /** |variação do dia| (fração) que dispara o resumo, por classe. O limite exato dispara. */
   threshold: { FII: 0.02, ACAO: 0.03 } satisfies Record<AssetClass, number>,
+  /**
+   * Nada antes das 10:30 do dia do pregão: nos primeiros minutos a brapi (15–30 min de atraso)
+   * ainda traz a variação do pregão anterior.
+   */
+  settleMinutes: 10 * 60 + 30,
   /** Sem notícia do dia, uma nova tentativa a cada 30 min. */
   retryMinutes: 30,
   /** Tenta de novo até 12:00; volta das 18:00 às 20:00 (São Paulo). */
@@ -20,6 +28,10 @@ export const DAY_INSIGHT = {
   articleChars: 4000,
   /** Notícias de até 7 dias entram na lista. */
   maxNewsAgeDays: 7,
+  /** Notícias usadas no resumo da semana. */
+  weekItems: 5,
+  /** Uma variação abaixo disso (fração, 0,005%) "ficou estável". */
+  stableBelow: 0.00005,
 } as const;
 
 /**
@@ -89,23 +101,65 @@ export type NewsItem = {
 /** Uma notícia lida, com o texto extraído da página. */
 export type NewsArticle = NewsItem & { text: string };
 
+/** Uma notícia candidata ao resumo: do `news_items` ou do Bing (sem resumo, página lida). */
+export type InsightNews = NewsItem & {
+  description: string | null;
+  /** false (Suno): a página nunca é lida; o título e o resumo do RSS fazem as vezes do texto. */
+  readPage: boolean;
+};
+
+/** Uma notícia guardada no `news_items`. */
+export type StoredNews = InsightNews & { topics: readonly string[] };
+
 export type DayInsightStatus = "ok" | "no-news" | "failed";
 
-/** O resumo guardado no ativo: um por pregão. */
+/** "day": notícias do pregão explicam o movimento; "week": o que aconteceu nesta semana. */
+export type DayInsightKind = "day" | "week";
+
+export type MarketReadingKind = "acompanhou" | "descolou";
+
+/** O ativo contra o índice do mercado no mesmo pregão (IFIX para FII, Ibovespa para ação). */
+export type MarketReading = {
+  index: MarketIndexId;
+  indexChange: number;
+  reading: MarketReadingKind;
+};
+
+/** O resumo guardado no ativo: um por pregão e por movimento (sinal da variação). */
 export type DayInsight = {
   /** O pregão (data de negócio) da variação. */
   session: Date;
   changePercent: number;
+  kind: DayInsightKind;
   /** "ok": texto do Gemini; "no-news": nenhuma notícia lida; "failed": o Gemini falhou. */
   status: DayInsightStatus;
   text: string | null;
-  /** Alguma fonte usada é notícia do dia do pregão. */
+  /** O resumo é do dia (`kind: "day"`) e deu certo: encerra as novas tentativas. */
   sameDay: boolean;
   sources: NewsItem[];
+  /** A leitura contra o índice, calculada pelo código; null sem índice do mesmo pregão. */
+  market: MarketReading | null;
   model: string | null;
   generatedAt: Date | null;
   attemptedAt: Date;
 };
+
+/** Documentos anteriores a 2026-11-13 não têm `kind` nem `market`: leem como "day", sem mercado. */
+export function withInsightDefaults(
+  raw: Omit<DayInsight, "kind" | "market"> & Partial<Pick<DayInsight, "kind" | "market">>,
+): DayInsight {
+  return { ...raw, kind: raw.kind ?? "day", market: raw.market ?? null };
+}
+
+/** O resumo guardado é deste movimento: mesmo pregão e mesmo sinal da variação atual. */
+export function sameMovement(
+  insight: DayInsight | null | undefined,
+  session: Date,
+  changePercent: number,
+): boolean {
+  if (!insight || insight.session.getTime() !== session.getTime()) return false;
+  return Math.sign(insight.changePercent) === Math.sign(changePercent);
+}
 
 /** A variação do dia passa do limite da classe. Sem classe, vale o limite das ações. */
 export function crossesThreshold(
@@ -167,21 +221,89 @@ export function recentNews(items: readonly NewsItem[], now: Date): NewsItem[] {
   return items.filter((item) => item.publishedAt.getTime() >= from);
 }
 
-/** A notícia foi publicada, no horário de São Paulo, no dia do pregão (meia-noite UTC). */
-export function isSameDay(publishedAt: Date, session: Date): boolean {
-  const { year, month, day } = saoPauloParts(publishedAt);
-  return Date.UTC(year, month - 1, day) === session.getTime();
+/**
+ * A notícia é do pregão (data de negócio, meia-noite UTC): publicada a partir do fechamento do
+ * pregão anterior (18:00 de São Paulo do dia útil anterior; na segunda, desde sexta 18:00) e até o
+ * fim do dia do pregão (23:59:59 de São Paulo). Só ela explica o movimento.
+ */
+export function isSessionNews(publishedAt: Date, session: Date): boolean {
+  const previous = new Date(session.getTime());
+  do {
+    previous.setUTCDate(previous.getUTCDate() - 1);
+  } while (previous.getUTCDay() === 0 || previous.getUTCDay() === 6);
+  const from = saoPauloToUtc(
+    previous.getUTCFullYear(),
+    previous.getUTCMonth() + 1,
+    previous.getUTCDate(),
+    18,
+    0,
+  );
+  const until = saoPauloToUtc(
+    session.getUTCFullYear(),
+    session.getUTCMonth() + 1,
+    session.getUTCDate() + 1,
+    0,
+    0,
+  );
+  const time = publishedAt.getTime();
+  return time >= from.getTime() && time < until.getTime();
+}
+
+const urlKey = (url: string) => normalizeNewsUrl(url) ?? url;
+const newestFirst = (a: NewsItem, b: NewsItem) => b.publishedAt.getTime() - a.publishedAt.getTime();
+const toInsightNews = ({
+  title,
+  publisher,
+  url,
+  publishedAt,
+  description,
+  readPage,
+}: InsightNews): InsightNews => ({ title, publisher, url, publishedAt, description, readPage });
+
+/**
+ * As notícias do pregão: as guardadas do ticker e as do Bing que passam em `isSessionNews`, sem URL
+ * repetida (a guardada vence, porque sabe se a página pode ser lida), da mais nova à mais velha.
+ */
+export function mergeSessionNews(
+  stored: readonly StoredNews[],
+  bing: readonly NewsItem[],
+  session: Date,
+): InsightNews[] {
+  const seen = new Set<string>();
+  const merged: InsightNews[] = [];
+  const candidates: InsightNews[] = [
+    ...stored.map(toInsightNews),
+    ...bing.map((item) => ({ ...item, description: null, readPage: true })),
+  ];
+  for (const item of candidates) {
+    if (!isSessionNews(item.publishedAt, session)) continue;
+    const key = urlKey(item.url);
+    if (seen.has(key)) continue;
+    seen.add(key);
+    merged.push(item);
+  }
+  return merged.sort(newestFirst);
+}
+
+/** As notícias da semana: as guardadas do ticker com tópico `ativo` dos últimos 7 dias, até 5. */
+export function weekNews(stored: readonly StoredNews[], now: Date): InsightNews[] {
+  const from = now.getTime() - DAY_INSIGHT.maxNewsAgeDays * 86_400_000;
+  return stored
+    .filter((item) => item.topics.includes("ativo") && item.publishedAt.getTime() >= from)
+    .sort(newestFirst)
+    .slice(0, DAY_INSIGHT.weekItems)
+    .map(toInsightNews);
 }
 
 /**
  * Lê as notícias na ordem dada até conseguir `DAY_INSIGHT.articles`: uma que falha (rede, status,
  * sem texto) é pulada e entra a próxima. Uma de cada vez, porque os sites são de terceiros.
  */
-export async function readFirstArticles(
-  items: readonly NewsItem[],
-  read: (item: NewsItem) => Promise<string | null>,
-): Promise<{ articles: NewsArticle[]; failed: number }> {
-  const articles: NewsArticle[] = [];
+export async function readFirstArticles<T extends NewsItem>(
+  items: readonly T[],
+  read: (item: T) => Promise<string | null>,
+): Promise<{ articles: (T & { text: string })[]; failed: number }> {
+  const articles: (T & { text: string })[] = [];
   let failed = 0;
   for (const item of items) {
     if (articles.length >= DAY_INSIGHT.articles) break;
@@ -206,8 +328,9 @@ const sameSession = (insight: DayInsight | null | undefined, session: Date) =>
 
 /**
  * O ativo deve ser processado agora? (horário de São Paulo)
+ * - no dia do pregão antes das 10:30: não, nem a primeira vez (a variação ainda é a do anterior);
  * - sem resumo deste pregão: sim;
- * - com notícia do dia: não, o resumo é definitivo;
+ * - com resumo do dia: não, ele é definitivo;
  * - fora do dia do pregão (de noite depois das 20:00, no fim de semana): não;
  * - das 12:00 às 18:00 e a partir das 20:00: não;
  * - antes das 12:00 e das 18:00 às 20:00: sim, 30 min depois da última tentativa.
@@ -217,12 +340,14 @@ export function nextInsightAttempt(
   session: Date,
   now: Date,
 ): boolean {
+  const parts = saoPauloParts(now);
+  const onSessionDay = Date.UTC(parts.year, parts.month - 1, parts.day) === session.getTime();
+  const minutes = parts.hour * 60 + parts.minute;
+  if (onSessionDay && minutes < DAY_INSIGHT.settleMinutes) return false;
   if (!sameSession(insight, session)) return true;
   const current = insight!;
   if (current.sameDay) return false;
-  const parts = saoPauloParts(now);
-  if (Date.UTC(parts.year, parts.month - 1, parts.day) !== session.getTime()) return false;
-  const minutes = parts.hour * 60 + parts.minute;
+  if (!onSessionDay) return false;
   const morning = minutes < DAY_INSIGHT.morningUntilMinutes;
   const afterClose =
     minutes >= DAY_INSIGHT.afterCloseFromMinutes && minutes < DAY_INSIGHT.finalAtMinutes;
@@ -230,20 +355,92 @@ export function nextInsightAttempt(
   return now.getTime() - current.attemptedAt.getTime() >= DAY_INSIGHT.retryMinutes * 60_000;
 }
 
+export type InsightPlan =
+  { mode: "day"; news: InsightNews[] } | { mode: "week"; news: InsightNews[] } | { mode: "none" };
+
 /**
- * Vale chamar o Gemini com estas notícias? Sem resumo bom deste pregão, sim (havendo notícia).
- * Com um, só quando aparece uma notícia do dia que não está entre as fontes salvas: a busca no
- * Bing é grátis, a cota do Gemini não.
+ * O que fazer agora. `previous` é o resumo deste movimento (`sameMovement`) ou null; um que falhou
+ * conta como nenhum.
+ * - há notícia do pregão e (não há resumo, ou ele é da semana, ou há notícia do pregão fora das
+ *   fontes): resumo do dia;
+ * - não há notícia do pregão nem resumo: resumo da semana (lista vazia grava "no-news" sem Gemini);
+ * - senão: nada (a busca é grátis, a cota do Gemini não).
  */
-export function shouldCallGemini(
-  insight: DayInsight | null | undefined,
-  news: readonly NewsItem[],
+export function insightPlan(
+  previous: DayInsight | null | undefined,
+  sessionNews: readonly InsightNews[],
+  weekItems: readonly InsightNews[],
+): InsightPlan {
+  const current = previous && previous.status !== "failed" ? previous : null;
+  if (sessionNews.length > 0) {
+    if (!current || current.kind === "week") return { mode: "day", news: [...sessionNews] };
+    const known = new Set(current.sources.map((source) => urlKey(source.url)));
+    if (sessionNews.some((item) => !known.has(urlKey(item.url)))) {
+      return { mode: "day", news: [...sessionNews] };
+    }
+    return { mode: "none" };
+  }
+  if (!current) return { mode: "week", news: [...weekItems] };
+  return { mode: "none" };
+}
+
+/** O índice de comparação da classe: IFIX para FII, Ibovespa para ação (e sem classe). */
+export const marketIndexFor = (assetClass: AssetClass | null): MarketIndexId =>
+  assetClass === "FII" ? "IFIX" : "IBOV";
+
+const roundFraction = (value: number) => Math.round(value * 1e9) / 1e9;
+
+/**
+ * O ativo acompanhou o mercado: mesmo sinal e |ativo − índice| < max(1 p.p., metade do índice).
+ * Senão (inclusive sinais opostos e índice parado), descolou.
+ */
+export function marketReading(assetChange: number, indexChange: number): MarketReadingKind {
+  if (Math.sign(assetChange) !== Math.sign(indexChange)) return "descolou";
+  const gap = roundFraction(Math.abs(assetChange - indexChange));
+  const limit = roundFraction(Math.max(0.01, 0.5 * Math.abs(indexChange)));
+  return gap < limit ? "acompanhou" : "descolou";
+}
+
+/** A leitura contra o índice da classe, só quando o índice é do mesmo pregão do resumo. */
+export function insightMarket(
+  assetClass: AssetClass | null,
+  assetChange: number,
+  indices: ReadonlyMap<MarketIndexId, { changePercent: number; session: Date }>,
   session: Date,
-): boolean {
-  if (news.length === 0) return false;
-  if (!sameSession(insight, session) || insight!.status !== "ok") return true;
-  const known = new Set(insight!.sources.map((source) => source.url));
-  return news.some((item) => isSameDay(item.publishedAt, session) && !known.has(item.url));
+): MarketReading | null {
+  const index = marketIndexFor(assetClass);
+  const value = indices.get(index);
+  if (!value || value.session.getTime() !== session.getTime()) return null;
+  if (!Number.isFinite(value.changePercent)) return null;
+  return {
+    index,
+    indexChange: value.changePercent,
+    reading: marketReading(assetChange, value.changePercent),
+  };
+}
+
+const INDEX_NAMES: Record<MarketIndexId, string> = { IFIX: "IFIX", IBOV: "Ibovespa" };
+
+const formatPercent = (fraction: number) =>
+  `${Math.abs(fraction * 100).toLocaleString("pt-BR", {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  })}%`;
+
+const movement = (fraction: number) =>
+  Math.abs(fraction) < DAY_INSIGHT.stableBelow
+    ? "ficou estável"
+    : `${fraction > 0 ? "subiu" : "caiu"} ${formatPercent(fraction)}`;
+
+/** "O IFIX subiu 0,82% neste pregão e o TRXF11 subiu 1,73%, acompanhando o mercado." */
+export function marketReadingText(
+  ticker: string,
+  assetChange: number,
+  market: MarketReading,
+): string {
+  const ending =
+    market.reading === "acompanhou" ? "acompanhando o mercado" : "bem diferente do mercado";
+  return `O ${INDEX_NAMES[market.index]} ${movement(market.indexChange)} neste pregão e o ${ticker} ${movement(assetChange)}, ${ending}.`;
 }
 
 /** Um candidato ao resumo: posição aberta (quantidade) ou ativo da Carteira Alvo (rank). */
@@ -285,9 +482,16 @@ const formatDay = (date: Date) => {
   return `${pad(day)}/${pad(month)}/${year} ${pad(hour)}:${pad(minute)}`;
 };
 
+const assetKind = (assetClass: AssetClass | null) =>
+  assetClass === "FII" ? "um fundo imobiliário (FII)" : "uma ação";
+
+const marketLine = (ticker: string, change: number, market: MarketReading | null | undefined) =>
+  market ? [marketReadingText(ticker, change, market)] : [];
+
 /**
- * O prompt do Gemini, em pt-BR, só com dados públicos: o ticker, a classe, a variação do dia e as
- * notícias. Nunca leva quantidade, preço médio ou valor da carteira.
+ * O prompt do resumo do dia, em pt-BR, só com dados públicos: o ticker, a classe, a variação do
+ * dia, a leitura contra o índice e as notícias do pregão. Nunca leva quantidade, preço médio ou
+ * valor da carteira.
  */
 export function buildInsightPrompt(input: {
   ticker: string;
@@ -295,8 +499,8 @@ export function buildInsightPrompt(input: {
   changePercent: number;
   session: Date;
   articles: readonly NewsArticle[];
+  market?: MarketReading | null;
 }): string {
-  const kind = input.assetClass === "FII" ? "um fundo imobiliário (FII)" : "uma ação";
   const sessionDay = formatDay(input.session).slice(0, 10);
   const news = input.articles
     .map(
@@ -305,19 +509,53 @@ export function buildInsightPrompt(input: {
     )
     .join("\n\n");
   return [
-    `${input.ticker} é ${kind} negociado na bolsa brasileira. No pregão de ${sessionDay}, a cotação variou ${formatSigned(input.changePercent)}, um movimento fora do comum.`,
+    `${input.ticker} é ${assetKind(input.assetClass)} negociado na bolsa brasileira. No pregão de ${sessionDay}, a cotação variou ${formatSigned(input.changePercent)}, um movimento fora do comum.`,
+    ...marketLine(input.ticker, input.changePercent, input.market),
     "",
-    "Notícias recentes sobre o ativo:",
+    "Notícias do pregão sobre o ativo:",
     "",
     news,
     "",
     "Tarefa:",
+    "- Use só as notícias abaixo, todas publicadas desde o fechamento do pregão anterior. Se elas não explicarem o movimento, diga isso; não invente causas.",
     "- Explique, para quem não entende de mercado financeiro, o que as notícias dizem sobre esse movimento.",
     "- Escreva um único parágrafo, com no máximo 4 frases curtas, em português do Brasil.",
     "- Evite jargões; se um termo técnico for inevitável, explique-o em poucas palavras.",
     "- Se as notícias trouxerem um fato que explica a variação, diga qual é.",
-    "- Se não trouxerem, diga que as notícias não explicam o movimento e que ele pode refletir o humor geral do mercado. Não invente causas.",
+    "- Se não trouxerem, diga que as notícias não explicam o movimento e que ele pode refletir o humor geral do mercado.",
     "- Não recomende comprar, vender ou manter o ativo.",
     "- Responda só com o parágrafo, sem título e sem listar as fontes.",
+  ].join("\n");
+}
+
+/**
+ * O prompt do resumo da semana: sem notícia do pregão, o que aconteceu com o ativo nos últimos
+ * dias, só com título, portal, data e resumo de cada notícia (sem ler páginas). Nunca diz que as
+ * notícias explicam a variação de hoje. Sem dados da carteira.
+ */
+export function buildWeekPrompt(input: {
+  ticker: string;
+  assetClass: AssetClass | null;
+  changePercent: number;
+  session: Date;
+  items: readonly (NewsItem & { description: string | null })[];
+  market?: MarketReading | null;
+}): string {
+  const sessionDay = formatDay(input.session).slice(0, 10);
+  const news = input.items
+    .map((item) => {
+      const head = `"${item.title}" (${item.publisher}, ${formatDay(item.publishedAt).slice(0, 5)})`;
+      return item.description ? `${head} — ${item.description}` : head;
+    })
+    .join("\n");
+  return [
+    `${input.ticker} é ${assetKind(input.assetClass)} negociado na bolsa brasileira. No pregão de ${sessionDay}, a cotação variou ${formatSigned(input.changePercent)}.`,
+    ...marketLine(input.ticker, input.changePercent, input.market),
+    "",
+    `Escreva um parágrafo de até 4 frases curtas, para leigos, resumindo o que aconteceu com ${input.ticker} nesta semana segundo as notícias abaixo (cada uma com a data). Não diga que essas notícias explicam a variação de hoje: nenhuma é do pregão de hoje. Não recomende comprar, vender ou manter. Responda só com o parágrafo.`,
+    "",
+    "Notícias da semana sobre o ativo:",
+    "",
+    news,
   ].join("\n");
 }

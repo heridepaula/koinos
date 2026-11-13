@@ -11,12 +11,11 @@ import {
   buildInsightPrompt,
   crossesThreshold,
   GEMINI_MODELS,
-  isSameDay,
+  isSessionNews,
   nextInsightAttempt,
   prioritizeInsights,
   readFirstArticles,
   recentNews,
-  shouldCallGemini,
   type DayInsight,
   type GeminiModel,
   type InsightCandidate,
@@ -172,7 +171,13 @@ async function run(
     }
     summary.processed += 1;
     const { ticker, session, change, previous } = item;
-    const base = { session, changePercent: change, attemptedAt: now };
+    const base = {
+      session,
+      changePercent: change,
+      attemptedAt: now,
+      kind: "day" as const,
+      market: null,
+    };
     let news: NewsItem[];
     try {
       news = recentNews(await searchNews(ticker), now);
@@ -228,7 +233,7 @@ async function run(
         ...base,
         status: "ok",
         text: generated.text,
-        sameDay: articles.some((article) => isSameDay(article.publishedAt, session)),
+        sameDay: articles.some((article) => isSessionNews(article.publishedAt, session)),
         sources: articles.map(plainSource),
         model: generated.model,
         generatedAt: now,
@@ -253,7 +258,9 @@ async function run(
   return summary;
 }
 
-const noNews = (base: { session: Date; changePercent: number; attemptedAt: Date }): DayInsight => ({
+const noNews = (
+  base: Pick<DayInsight, "session" | "changePercent" | "attemptedAt" | "kind" | "market">,
+): DayInsight => ({
   ...base,
   status: "no-news",
   text: null,
@@ -262,3 +269,11 @@ const noNews = (base: { session: Date; changePercent: number; attemptedAt: Date 
   model: null,
   generatedAt: null,
 });
+
+// Provisório até o serviço usar `insightPlan` (a próxima etapa do plano).
+function shouldCallGemini(insight: DayInsight | null, news: readonly NewsItem[], session: Date) {
+  if (news.length === 0) return false;
+  if (!insight || insight.status !== "ok") return true;
+  const known = new Set(insight.sources.map((source) => source.url));
+  return news.some((item) => isSessionNews(item.publishedAt, session) && !known.has(item.url));
+}

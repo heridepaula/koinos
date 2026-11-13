@@ -4,16 +4,26 @@ import {
   buildInsightPrompt,
   crossesThreshold,
   GEMINI_MODELS,
+  buildWeekPrompt,
   geminiLimitScope,
-  isSameDay,
+  insightMarket,
+  insightPlan,
+  isSessionNews,
+  marketReading,
+  marketReadingText,
+  mergeSessionNews,
   nextInsightAttempt,
   parseBingNews,
   prioritizeInsights,
   readFirstArticles,
   recentNews,
-  shouldCallGemini,
+  sameMovement,
+  weekNews,
+  withInsightDefaults,
   type DayInsight,
+  type InsightNews,
   type NewsItem,
+  type StoredNews,
 } from "./day-insight";
 
 // Quinta, 12/11/2026. São Paulo é UTC−3.
@@ -31,9 +41,11 @@ const news = (url: string, publishedAt: Date, title = url): NewsItem => ({
 const insight = (overrides: Partial<DayInsight> = {}): DayInsight => ({
   session: SESSION,
   changePercent: 0.025,
+  kind: "day",
   status: "ok",
   text: "Resumo.",
   sameDay: false,
+  market: null,
   sources: [],
   model: "gemini-3.8-flash",
   generatedAt: sp(10, 30),
@@ -113,15 +125,6 @@ describe("recentNews", () => {
   });
 });
 
-describe("isSameDay", () => {
-  it("pelo dia de São Paulo, não pelo UTC", () => {
-    // 02:30 UTC de 12/11 é 23:30 de 11/11 em São Paulo; 03:00 UTC já é 00:00 de 12/11.
-    expect(isSameDay(new Date(Date.UTC(2026, 10, 12, 2, 30)), SESSION)).toBe(false);
-    expect(isSameDay(new Date(Date.UTC(2026, 10, 12, 3, 0)), SESSION)).toBe(true);
-    expect(isSameDay(new Date(Date.UTC(2026, 10, 13, 2, 59)), SESSION)).toBe(true);
-  });
-});
-
 describe("readFirstArticles", () => {
   const items = ["a", "b", "c", "d", "e"].map((id) => news(id, sp(10)));
 
@@ -168,6 +171,13 @@ describe("nextInsightAttempt", () => {
     expect(nextInsightAttempt(old, SESSION, sp(14))).toBe(true);
   });
 
+  it("nada antes das 10:30 do dia do pregão, nem a primeira tentativa", () => {
+    expect(nextInsightAttempt(null, SESSION, sp(10, 29))).toBe(false);
+    expect(nextInsightAttempt(null, SESSION, sp(10, 30))).toBe(true);
+    const old = insight({ session: new Date(Date.UTC(2026, 10, 11)), sameDay: true });
+    expect(nextInsightAttempt(old, SESSION, sp(10, 15))).toBe(false);
+  });
+
   it("com notícia do dia, o resumo é definitivo", () => {
     expect(nextInsightAttempt(insight({ sameDay: true }), SESSION, sp(11, 30))).toBe(false);
   });
@@ -204,32 +214,6 @@ describe("nextInsightAttempt", () => {
     const last = insight({ attemptedAt: sp(19, 0) });
     expect(nextInsightAttempt(last, SESSION, sp(9, 0, 13))).toBe(false);
     expect(nextInsightAttempt(last, SESSION, sp(11, 0, 14))).toBe(false);
-  });
-});
-
-describe("shouldCallGemini", () => {
-  const sameDayItem = news("hoje", sp(9));
-  const yesterday = news("ontem", sp(18, 0, 11));
-
-  it("sem notícia, nunca", () => {
-    expect(shouldCallGemini(null, [], SESSION)).toBe(false);
-  });
-
-  it("sem resumo deste pregão, ou com um que falhou ou não teve notícia, chama", () => {
-    expect(shouldCallGemini(null, [yesterday], SESSION)).toBe(true);
-    expect(shouldCallGemini(insight({ status: "failed" }), [yesterday], SESSION)).toBe(true);
-    expect(shouldCallGemini(insight({ status: "no-news" }), [yesterday], SESSION)).toBe(true);
-    const other = insight({ session: new Date(Date.UTC(2026, 10, 11)) });
-    expect(shouldCallGemini(other, [yesterday], SESSION)).toBe(true);
-  });
-
-  it("com resumo, só quando aparece notícia do dia nova", () => {
-    const current = insight({ sources: [yesterday] });
-    expect(shouldCallGemini(current, [yesterday], SESSION)).toBe(false);
-    expect(shouldCallGemini(current, [news("outra-de-ontem", sp(19, 0, 11))], SESSION)).toBe(false);
-    expect(shouldCallGemini(current, [sameDayItem, yesterday], SESSION)).toBe(true);
-    const known = insight({ sources: [sameDayItem] });
-    expect(shouldCallGemini(known, [sameDayItem], SESSION)).toBe(false);
   });
 });
 
@@ -298,6 +282,28 @@ describe("buildInsightPrompt", () => {
     expect(prompt).not.toMatch(/R\$|cotas na carteira|preço médio|posição|quantidade/i);
   });
 
+  it("só as notícias do pregão, sem inventar causas", () => {
+    expect(prompt).toContain(
+      "Use só as notícias abaixo, todas publicadas desde o fechamento do pregão anterior.",
+    );
+    expect(prompt).toContain("Se elas não explicarem o movimento, diga isso; não invente causas.");
+  });
+
+  it("sem mercado, sem a linha do índice; com ele, a leitura do código", () => {
+    expect(prompt).not.toContain("IFIX");
+    const withMarket = buildInsightPrompt({
+      ticker: "HGLG11",
+      assetClass: "FII",
+      changePercent: -0.0234,
+      session: SESSION,
+      articles: [],
+      market: { index: "IFIX", indexChange: -0.004, reading: "descolou" },
+    });
+    expect(withMarket).toContain(
+      "O IFIX caiu 0,40% neste pregão e o HGLG11 caiu 2,34%, bem diferente do mercado.",
+    );
+  });
+
   it("variação positiva com sinal e ação no texto", () => {
     const stock = buildInsightPrompt({
       ticker: "PETR4",
@@ -308,6 +314,272 @@ describe("buildInsightPrompt", () => {
     });
     expect(stock).toContain("PETR4 é uma ação");
     expect(stock).toContain("+3,10%");
+  });
+});
+
+describe("isSessionNews", () => {
+  // Segunda, 16/11/2026: o pregão anterior é a sexta, 13/11.
+  const MONDAY = new Date(Date.UTC(2026, 10, 16));
+  // Quarta, 11/11/2026.
+  const WEDNESDAY = new Date(Date.UTC(2026, 10, 11));
+
+  it("segunda conta desde sexta 18:00", () => {
+    expect(isSessionNews(sp(18, 0, 13), MONDAY)).toBe(true);
+    expect(isSessionNews(sp(17, 59, 13), MONDAY)).toBe(false);
+    expect(isSessionNews(sp(9, 0, 15), MONDAY)).toBe(true);
+  });
+
+  it("o próprio dia até 23:59 conta; o dia seguinte, não", () => {
+    expect(isSessionNews(sp(23, 59, 12), SESSION)).toBe(true);
+    expect(isSessionNews(new Date(Date.UTC(2026, 10, 13, 2, 59, 59)), SESSION)).toBe(true);
+    expect(isSessionNews(new Date(Date.UTC(2026, 10, 13, 3, 0)), SESSION)).toBe(false);
+  });
+
+  it("quarta conta desde terça 18:00 (instantes UTC explícitos)", () => {
+    // 18:00 de São Paulo é 21:00 UTC.
+    expect(isSessionNews(new Date(Date.UTC(2026, 10, 10, 21, 0)), WEDNESDAY)).toBe(true);
+    expect(isSessionNews(new Date(Date.UTC(2026, 10, 10, 20, 59)), WEDNESDAY)).toBe(false);
+    expect(isSessionNews(new Date(Date.UTC(2026, 10, 11, 14, 0)), WEDNESDAY)).toBe(true);
+  });
+});
+
+describe("sameMovement", () => {
+  it("mesmo pregão e mesmo sinal", () => {
+    expect(sameMovement(insight({ changePercent: 0.025 }), SESSION, 0.031)).toBe(true);
+    expect(sameMovement(insight({ changePercent: -0.025 }), SESSION, 0.0173)).toBe(false);
+    const other = insight({ session: new Date(Date.UTC(2026, 10, 11)) });
+    expect(sameMovement(other, SESSION, 0.025)).toBe(false);
+    expect(sameMovement(null, SESSION, 0.025)).toBe(false);
+  });
+});
+
+describe("withInsightDefaults", () => {
+  it("documento antigo, sem kind nem market, lê como day sem mercado", () => {
+    const { kind, market, ...legacy } = insight();
+    void kind;
+    void market;
+    const read = withInsightDefaults(legacy);
+    expect(read.kind).toBe("day");
+    expect(read.market).toBeNull();
+    expect(withInsightDefaults(insight({ kind: "week" })).kind).toBe("week");
+  });
+});
+
+const stored = (
+  url: string,
+  publishedAt: Date,
+  overrides: Partial<StoredNews> = {},
+): StoredNews => ({
+  ...news(url, publishedAt),
+  description: `Resumo de ${url}`,
+  topics: ["ativo"],
+  readPage: true,
+  ...overrides,
+});
+
+describe("mergeSessionNews", () => {
+  it("só as do pregão, guardadas e do Bing, sem URL repetida, da mais nova à mais velha", () => {
+    const merged = mergeSessionNews(
+      [
+        stored("a", sp(10)),
+        stored("velha", sp(17, 0, 11)),
+        stored("suno", sp(9), { readPage: false }),
+      ],
+      [
+        news("b", sp(12)),
+        { ...news("a", sp(10)), url: "https://portal.com.br/a?utm_source=bing" },
+        news("ontem", sp(18, 30, 11)),
+        news("antiga", sp(9, 0, 6)),
+      ],
+      SESSION,
+    );
+    expect(merged.map((item) => item.url)).toEqual([
+      "https://portal.com.br/b",
+      "https://portal.com.br/a",
+      "https://portal.com.br/suno",
+      "https://portal.com.br/ontem",
+    ]);
+    expect(merged.find((item) => item.url.endsWith("suno"))?.readPage).toBe(false);
+    expect(merged.find((item) => item.url.endsWith("b"))).toMatchObject({
+      readPage: true,
+      description: null,
+    });
+  });
+});
+
+describe("weekNews", () => {
+  it("tópico ativo dos últimos 7 dias, até 5, da mais nova à mais velha", () => {
+    const now = sp(14);
+    const items = [
+      stored("1", sp(9, 0, 6)),
+      stored("2", sp(10, 0, 7)),
+      stored("3", sp(10, 0, 8)),
+      stored("4", sp(10, 0, 9)),
+      stored("5", sp(10, 0, 10)),
+      stored("6", sp(10, 0, 11)),
+      stored("cenario", sp(11), { topics: ["cenario"] }),
+      stored("velha", sp(13, 0, 5)),
+    ];
+    expect(weekNews(items, now).map((item) => item.url.slice(-1))).toEqual([
+      "6",
+      "5",
+      "4",
+      "3",
+      "2",
+    ]);
+  });
+});
+
+describe("insightPlan", () => {
+  const today = { ...news("hoje", sp(11)), description: null, readPage: true } as InsightNews;
+  const week = [{ ...news("semana", sp(10, 0, 9)), description: "x", readPage: true }];
+
+  it("notícia do pregão sem resumo deste movimento: dia", () => {
+    expect(insightPlan(null, [today], week)).toEqual({ mode: "day", news: [today] });
+  });
+
+  it("notícia do pregão com resumo da semana: o dia substitui", () => {
+    const previous = insight({ kind: "week", sources: [week[0]] });
+    expect(insightPlan(previous, [today], week)).toEqual({ mode: "day", news: [today] });
+  });
+
+  it("resumo do dia: só com notícia do pregão fora das fontes", () => {
+    const known = insight({ kind: "day", sources: [today] });
+    expect(insightPlan(known, [today], week)).toEqual({ mode: "none" });
+    const fresh = { ...today, url: "https://portal.com.br/nova" };
+    expect(insightPlan(known, [today, fresh], week)).toEqual({
+      mode: "day",
+      news: [today, fresh],
+    });
+  });
+
+  it("sem notícia do pregão e sem resumo: semana, mesmo com a lista vazia", () => {
+    expect(insightPlan(null, [], week)).toEqual({ mode: "week", news: week });
+    expect(insightPlan(null, [], [])).toEqual({ mode: "week", news: [] });
+  });
+
+  it("um resumo que falhou não conta", () => {
+    expect(insightPlan(insight({ status: "failed" }), [], week)).toEqual({
+      mode: "week",
+      news: week,
+    });
+  });
+
+  it("sem notícia do pregão e com resumo deste movimento: nada", () => {
+    expect(insightPlan(insight({ kind: "week" }), [], week)).toEqual({ mode: "none" });
+    expect(insightPlan(insight({ kind: "day" }), [], week)).toEqual({ mode: "none" });
+  });
+});
+
+describe("marketReading", () => {
+  it("limite de 1 p.p. quando o índice é pequeno, nos dois lados", () => {
+    expect(marketReading(0.0199, 0.01)).toBe("acompanhou");
+    expect(marketReading(0.02, 0.01)).toBe("descolou");
+    expect(marketReading(0.0001, 0.01)).toBe("acompanhou");
+    expect(marketReading(-0.0199, -0.01)).toBe("acompanhou");
+    expect(marketReading(-0.02, -0.01)).toBe("descolou");
+  });
+
+  it("limite de 0,5 × índice quando ele é grande, nos dois lados", () => {
+    expect(marketReading(0.0599, 0.04)).toBe("acompanhou");
+    expect(marketReading(0.06, 0.04)).toBe("descolou");
+    expect(marketReading(0.0201, 0.04)).toBe("acompanhou");
+    expect(marketReading(0.02, 0.04)).toBe("descolou");
+    expect(marketReading(-0.0599, -0.04)).toBe("acompanhou");
+    expect(marketReading(-0.06, -0.04)).toBe("descolou");
+  });
+
+  it("sinais opostos descolam, mesmo perto; índice 0 também", () => {
+    expect(marketReading(0.005, -0.002)).toBe("descolou");
+    expect(marketReading(0.02, 0)).toBe("descolou");
+  });
+});
+
+describe("insightMarket", () => {
+  const indices = new Map([
+    ["IFIX", { changePercent: 0.0082, session: SESSION }],
+    ["IBOV", { changePercent: 0.004, session: new Date(Date.UTC(2026, 10, 11)) }],
+  ] as const);
+
+  it("FII contra o IFIX do mesmo pregão", () => {
+    expect(insightMarket("FII", 0.0173, indices, SESSION)).toEqual({
+      index: "IFIX",
+      indexChange: 0.0082,
+      reading: "acompanhou",
+    });
+  });
+
+  it("ação contra o Ibovespa; de outro pregão ou ausente, nada", () => {
+    expect(insightMarket("ACAO", 0.04, indices, SESSION)).toBeNull();
+    expect(insightMarket(null, 0.04, new Map(), SESSION)).toBeNull();
+    const ibov = new Map([["IBOV", { changePercent: 0.004, session: SESSION }]] as const);
+    expect(insightMarket("ACAO", -0.024, ibov, SESSION)).toEqual({
+      index: "IBOV",
+      indexChange: 0.004,
+      reading: "descolou",
+    });
+  });
+});
+
+describe("marketReadingText", () => {
+  it("IFIX acompanhando, com vírgula e duas casas", () => {
+    expect(
+      marketReadingText("TRXF11", 0.0173, {
+        index: "IFIX",
+        indexChange: 0.0082,
+        reading: "acompanhou",
+      }),
+    ).toBe("O IFIX subiu 0,82% neste pregão e o TRXF11 subiu 1,73%, acompanhando o mercado.");
+  });
+
+  it("Ibovespa, queda descolada", () => {
+    expect(
+      marketReadingText("PETR4", -0.024, {
+        index: "IBOV",
+        indexChange: 0.004,
+        reading: "descolou",
+      }),
+    ).toBe("O Ibovespa subiu 0,40% neste pregão e o PETR4 caiu 2,40%, bem diferente do mercado.");
+  });
+
+  it("estável abaixo de 0,005%", () => {
+    expect(
+      marketReadingText("HGLG11", 0.021, {
+        index: "IFIX",
+        indexChange: 0.00004,
+        reading: "descolou",
+      }),
+    ).toBe("O IFIX ficou estável neste pregão e o HGLG11 subiu 2,10%, bem diferente do mercado.");
+  });
+});
+
+describe("buildWeekPrompt", () => {
+  const prompt = buildWeekPrompt({
+    ticker: "TRXF11",
+    assetClass: "FII",
+    changePercent: 0.0173,
+    session: SESSION,
+    items: [
+      { ...news("a", sp(10, 0, 10), "TRXF11 compra galpão"), description: "Aquisição de imóvel." },
+      { ...news("b", sp(16, 0, 9), "Relatório do fundo"), description: null },
+    ],
+    market: { index: "IFIX", indexChange: 0.0082, reading: "acompanhou" },
+  });
+
+  it("cada notícia com título, portal, data e resumo", () => {
+    expect(prompt).toContain('"TRXF11 compra galpão" (Portal, 10/11) — Aquisição de imóvel.');
+    expect(prompt).toContain('"Relatório do fundo" (Portal, 09/11)');
+    expect(prompt).toContain("nesta semana");
+  });
+
+  it("proíbe explicar a variação de hoje e recomendar", () => {
+    expect(prompt).toContain("Não diga que essas notícias explicam a variação de hoje");
+    expect(prompt).toContain("Não recomende comprar, vender ou manter.");
+    expect(prompt).toContain("acompanhando o mercado");
+  });
+
+  it("não leva nenhum dado da carteira", () => {
+    expect(prompt).not.toMatch(/R\$|cotas na carteira|preço médio|posição|quantidade/i);
   });
 });
 

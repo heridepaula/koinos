@@ -1,6 +1,6 @@
 import "server-only";
 import { connectMongo } from "@/shared/db/mongo";
-import type { DayInsight } from "../domain/day-insight";
+import { withInsightDefaults, type DayInsight } from "../domain/day-insight";
 import { quoteSessionDate } from "../domain/market-hours";
 import { AssetModel } from "./models";
 
@@ -15,7 +15,7 @@ export async function getDayInsight(ticker: string): Promise<DayInsight | null> 
   if (!insight || !doc.quoteFetchedAt) return null;
   if (insight.session.getTime() !== quoteSessionDate(doc.quoteFetchedAt).getTime()) return null;
   if (insight.status === "failed") return null;
-  return {
+  return withInsightDefaults({
     session: insight.session,
     changePercent: insight.changePercent,
     status: insight.status,
@@ -30,5 +30,7 @@ export async function getDayInsight(ticker: string): Promise<DayInsight | null> 
     model: insight.model ?? null,
     generatedAt: insight.generatedAt ?? null,
     attemptedAt: insight.attemptedAt,
-  };
+    kind: insight.kind,
+    market: insight.market,
+  });
 }
