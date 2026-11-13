@@ -17,8 +17,8 @@ const QUOTA = Object.fromEntries(GEMINI_MODELS.map((m) => [m.id, m.dailyQuota]))
   GeminiModel,
   number
 >;
-/** O tempo que uma chamada ao Gemini pode levar (timeout de 20 s do adapter, com folga). */
-export const GEMINI_BUDGET_MS = 21_000;
+/** O tempo que uma chamada do Radar precisa ter sobrando para começar (o timeout dela é 8 s). */
+export const GEMINI_BUDGET_MS = 9_000;
 
 const errorMessage = (error: unknown) => (error instanceof Error ? error.message : String(error));
 

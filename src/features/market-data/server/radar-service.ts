@@ -219,7 +219,7 @@ async function run(
       apiKey,
       models,
       buildRadarPrompt(item.kind, item.facts),
-      { temperature: 0.2, maxOutputTokens: 2048 },
+      { temperature: 0.2, maxOutputTokens: 2048, timeoutMs: 8_000 },
       now,
       `radar ${item.ticker}`,
       deadline,

@@ -15,8 +15,8 @@ const NO_INDICATORS = { updated: 0, failed: 0, pending: 0 };
 /**
  * Radar de fundamentos (spec radar-fundamentos). Chamado pelo cron-job.org de 15 em 15 min, das
  * 03:00 às 06:45 (docs/operations/cron-job-org.md). Cada chamada busca até 6 páginas de
- * indicadores no Fundamentus e depois gera até 6 textos, sem começar nenhuma chamada ao Gemini
- * com menos de 21 s até o orçamento de 25 s (o cron-job.org corta em 30 s); o resto fica para a
+ * indicadores no Fundamentus e depois gera até 6 textos, com timeout de 8 s por chamada ao
+ * Gemini e sem começar nenhuma com menos de 9 s sobrando do orçamento de 25 s (o cron-job.org corta em 30 s); o resto fica para a
  * próxima chamada.
  * Responde só contagens.
  */

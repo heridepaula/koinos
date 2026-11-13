@@ -20,7 +20,12 @@ type GenerateResponse = {
   candidates?: { content?: { parts?: { text?: string }[] }; finishReason?: string }[];
 };
 
-export type GenerateOptions = { temperature?: number; maxOutputTokens?: number };
+/** `timeoutMs` é só do cliente (padrão 20 s); não vai para a API. */
+export type GenerateOptions = {
+  temperature?: number;
+  maxOutputTokens?: number;
+  timeoutMs?: number;
+};
 export type Generated = { text: string; finishReason: string | null };
 
 /** O texto que o modelo gerou e por que parou ("STOP"; "MAX_TOKENS" quando cortou). */
@@ -28,7 +33,7 @@ export async function generateContent(
   apiKey: string,
   model: string,
   prompt: string,
-  options: GenerateOptions = {},
+  { timeoutMs = TIMEOUT_MS, ...generationConfig }: GenerateOptions = {},
 ): Promise<Generated> {
   let response: Response;
   try {
@@ -37,9 +42,9 @@ export async function generateContent(
       headers: { "Content-Type": "application/json", "X-goog-api-key": apiKey },
       body: JSON.stringify({
         contents: [{ parts: [{ text: prompt }] }],
-        generationConfig: options,
+        generationConfig,
       }),
-      signal: AbortSignal.timeout(TIMEOUT_MS),
+      signal: AbortSignal.timeout(timeoutMs),
       cache: "no-store",
     });
   } catch (error) {
