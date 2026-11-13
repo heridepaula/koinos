@@ -1,5 +1,6 @@
 import "server-only";
 import mongoose, { Schema, type Model } from "mongoose";
+import type { StoredThesis } from "../domain/asset-thesis";
 import type { withInsightDefaults } from "../domain/day-insight";
 import type { PaySchedule } from "../domain/fundamentus";
 import type { WeekSummary } from "../domain/week-summary";
@@ -63,16 +64,12 @@ export interface AssetDoc {
   dayInsight?: Parameters<typeof withInsightDefaults>[0] | null;
   /** Indicadores da página `detalhes.php` do Fundamentus (Radar de fundamentos). */
   fundamentusIndicators?: ((StockIndicators | FiiIndicators) & { fetchedAt: Date }) | null;
-  /** O texto do Radar de fundamentos, refeito quando os fatos mudam. */
-  radar?: {
-    factsKey: string;
-    status: "ok" | "failed";
-    text: string | null;
-    model: string | null;
-    generatedAt: Date;
-    /** Os termos do glossário (sem os comuns) dos 2 últimos textos, o mais novo primeiro. */
-    termHistory?: string[][];
-  } | null;
+  /**
+   * A tese do ativo no Radar (spec 2026-11-13-tese-do-ativo-design.md), refeita quando as evidências
+   * mudam. Sem `version` é o texto livre antigo (v1). `termHistory`: os termos do glossário (sem os
+   * comuns) dos 2 últimos textos, o mais novo primeiro.
+   */
+  radar?: StoredThesis | null;
   /**
    * O resumo da semana dos ativos da Carteira Alvo (plano 2026-11-13-resumo-semana-carteira-alvo),
    * refeito quando as notícias guardadas da semana mudam.
@@ -180,14 +177,27 @@ const fundamentusIndicatorsSchema = new Schema(
   { _id: false },
 );
 
+const thesisEvidenceSchema = new Schema(
+  { id: String, group: String, text: String, tone: String },
+  { _id: false },
+);
+const thesisLensSchema = new Schema(
+  { id: String, tone: String, text: String, evidence: [String] },
+  { _id: false },
+);
+const thesisSentenceSchema = new Schema({ text: String, evidence: [String] }, { _id: false });
 const radarSchema = new Schema(
   {
+    version: { type: Number, default: undefined },
     factsKey: String,
     status: { type: String, enum: ["ok", "failed"] },
     text: { type: String, default: null },
     model: { type: String, default: null },
     generatedAt: Date,
     termHistory: { type: [[String]], default: [] },
+    sentences: { type: [thesisSentenceSchema], default: undefined },
+    lenses: { type: [thesisLensSchema], default: undefined },
+    evidence: { type: [thesisEvidenceSchema], default: undefined },
   },
   { _id: false },
 );

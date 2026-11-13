@@ -102,6 +102,31 @@ export async function listAllTargetRanks(): Promise<{ ticker: string; rank: numb
   return rows.map((row) => ({ ticker: row._id, rank: row.rank ?? null }));
 }
 
+/**
+ * Rank, teto e viés de cada ticker da estratégia, para a tese do ativo (cron do Radar). Uso interno
+ * do cron: nada de usuário. Com o ticker em mais de uma carteira, vale o de melhor rank.
+ */
+export async function listAllTargetSignals(): Promise<
+  { ticker: string; rank: number | null; ceiling: number | null; bias: Bias | null }[]
+> {
+  await connectMongo();
+  const rows = await TargetAssetModel.find(
+    { inStrategy: true },
+    { ticker: 1, rank: 1, ceilingPrice: 1, bias: 1 },
+  ).lean();
+  const best = new Map<string, (typeof rows)[number]>();
+  for (const row of rows) {
+    const known = best.get(row.ticker);
+    if (!known || (row.rank ?? Infinity) < (known.rank ?? Infinity)) best.set(row.ticker, row);
+  }
+  return [...best.values()].map((row) => ({
+    ticker: row.ticker,
+    rank: row.rank ?? null,
+    ceiling: row.ceilingPrice ?? null,
+    bias: row.bias ?? null,
+  }));
+}
+
 /** Tickers configurados em qualquer carteira. Uso interno do cron: só tickers, nada de usuário. */
 export async function listAllTargetTickers(): Promise<string[]> {
   await connectMongo();

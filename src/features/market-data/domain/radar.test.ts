@@ -2,26 +2,21 @@ import { describe, expect, it } from "vitest";
 import { CEILING_CHECK } from "@/features/strategy";
 import {
   BANK_DESCRIPTION,
-  buildRadarPrompt,
   businessKind,
   describeAsset,
   dividendTrend,
-  factsKey,
   monthChange,
-  needsRadar,
   normalizeForDuplicate,
   promptTerms,
   RADAR,
-  RADAR_EXAMPLES,
   radarChips,
   radarFacts,
   radarSources,
   radarTerms,
-  validateRadarText,
   type FiiRadarInput,
   type StockRadarInput,
 } from "./radar";
-import { glossaryEntry, glossaryIdsIn } from "@/shared/lib/glossary";
+import { glossaryEntry } from "@/shared/lib/glossary";
 import type { StockIndicators } from "./fundamentus-indicators";
 
 const fii = (over: Partial<FiiRadarInput> = {}): FiiRadarInput => ({
@@ -465,81 +460,6 @@ describe("businessKind", () => {
   });
 });
 
-describe("factsKey e needsRadar", () => {
-  const now = new Date("2026-11-13T06:00:00Z");
-  const hoursAgo = (h: number) => new Date(now.getTime() - h * 3_600_000);
-
-  it("a chave são os ids em ordem", () => {
-    expect(factsKey(radarFacts(fii({ pvp: 0.7, vacancy: 0.2 })))).toBe(
-      "pvp-bem-baixo|vacancia-alta",
-    );
-  });
-
-  it("regerar só com chave nova (ou falha) e mais de 20 h", () => {
-    const ok = { factsKey: "a", status: "ok" as const, generatedAt: hoursAgo(21) };
-    expect(needsRadar(null, "a", now)).toBe(true);
-    expect(needsRadar(ok, "a", now)).toBe(false);
-    expect(needsRadar({ ...ok, generatedAt: hoursAgo(19) }, "b", now)).toBe(false);
-    expect(needsRadar(ok, "b", now)).toBe(true);
-    expect(needsRadar({ ...ok, status: "failed" }, "a", now)).toBe(true);
-    expect(needsRadar({ ...ok, status: "failed", generatedAt: hoursAgo(2) }, "a", now)).toBe(false);
-  });
-
-  it("mesma chave: renova um dia antes de o texto sumir (staleDays - 1)", () => {
-    const ok = { factsKey: "a", status: "ok" as const };
-    expect(needsRadar({ ...ok, generatedAt: hoursAgo(8 * 24) }, "a", now)).toBe(false);
-    expect(needsRadar({ ...ok, generatedAt: hoursAgo(9 * 24) }, "a", now)).toBe(true);
-  });
-});
-
-describe("validateRadarText", () => {
-  const good =
-    "Quase todos os imóveis estão alugados, mas o último pagamento veio menor que o de costume.";
-
-  it("aceita texto válido, aparado", () => {
-    expect(validateRadarText(`  ${good}\n`, "STOP", "FII")).toBe(good);
-  });
-
-  it("aceita termos do glossário, com ou sem acento e caixa", () => {
-    expect(validateRadarText("A VACÂNCIA do fundo subiu.", "STOP", "FII")).not.toBeNull();
-    expect(validateRadarText("O P/VP do fundo está baixo.", "STOP", "FII")).not.toBeNull();
-    expect(validateRadarText("O dividend yield da empresa é alto.", "STOP", "ACAO")).not.toBeNull();
-  });
-
-  it.each([
-    ["MAX_TOKENS", good],
-    ["STOP", ""],
-    ["STOP", "A empresa é negociada acima do"],
-    ["STOP", "O fundo paga 9% ao ano."],
-    ["STOP", "O EBITDA da empresa caiu."],
-    ["STOP", "O yield do fundo caiu."],
-    ["STOP", "Uma frase. Outra frase. Mais uma. E outra."],
-    ["STOP", `${"palavra ".repeat(80).trim()}.`],
-    ["STOP", "O P/VP, o FFO, o cap rate e a vacância mudaram."],
-  ])("recusa (%s) %s", (finish, text) => {
-    expect(validateRadarText(text, finish, "FII")).toBeNull();
-  });
-
-  it("termo de outra classe é jargão: ROE num FII", () => {
-    expect(validateRadarText("O ROE do fundo caiu.", "STOP", "FII")).toBeNull();
-  });
-
-  it("termos comuns não contam no limite", () => {
-    const text = "A cota, os rendimentos e os proventos: o P/VP, o FFO e a vacância mudaram.";
-    expect(validateRadarText(text, "STOP", "FII")).not.toBeNull();
-  });
-
-  it("os exemplos do prompt passam e usam de 1 a 3 termos", () => {
-    for (const example of RADAR_EXAMPLES) {
-      expect(validateRadarText(example.text, "STOP", example.kind)).toBe(example.text);
-      const used = glossaryIdsIn(example.text, example.kind).length;
-      expect(used).toBeGreaterThanOrEqual(1);
-    }
-    const firstWords = RADAR_EXAMPLES.map((e) => e.text.split(" ")[0]);
-    expect(new Set(firstWords).size).toBe(firstWords.length);
-  });
-});
-
 describe("promptTerms e radarTerms", () => {
   const facts = radarFacts(fii({ pvp: 0.7, vacancy: 0.2, dividendRatio: 0.5 }));
 
@@ -563,54 +483,6 @@ describe("promptTerms e radarTerms", () => {
     expect(normalizeForDuplicate("O fundo, hoje, PAGA bem.")).toBe(
       normalizeForDuplicate("o fundo hoje paga bem"),
     );
-  });
-});
-
-describe("buildRadarPrompt", () => {
-  const facts = radarFacts(fii({ pvp: 0.7, vacancy: 0.2 }));
-  const prompt = buildRadarPrompt({
-    kind: "FII",
-    description: "um fundo imobiliário de galpões logísticos",
-    facts,
-    recentTerms: [],
-  });
-
-  it("leva a descrição, os fatos com o termo, a lista de termos e os 4 exemplos", () => {
-    expect(prompt).toContain("como está agora um fundo imobiliário de galpões logísticos");
-    expect(prompt).toContain(
-      "(favorável) o preço na bolsa está bem abaixo do que os imóveis do fundo valem [termo: P/VP]",
-    );
-    expect(prompt).toContain(
-      "Termos do mercado que você pode usar (no máximo dois, escritos igual): P/VP, vacância",
-    );
-    for (const example of RADAR_EXAMPLES) expect(prompt).toContain(example.text);
-  });
-
-  it("sem termos, proíbe siglas", () => {
-    const plainPrompt = buildRadarPrompt({
-      kind: "FII",
-      description: "um fundo imobiliário",
-      facts: radarFacts(fii({ monthChange: -0.2 })),
-      recentTerms: [],
-    });
-    expect(plainPrompt).not.toContain("Termos do mercado que você pode usar");
-    expect(plainPrompt).toContain("Sem siglas nem termos técnicos de investimento.");
-  });
-
-  it("com texto a evitar, pede outra abertura", () => {
-    const again = buildRadarPrompt({
-      kind: "FII",
-      description: "x",
-      facts,
-      recentTerms: [],
-      avoid: "Texto igual.",
-    });
-    expect(again).toContain("Outro ativo já tem este texto: «Texto igual.»");
-  });
-
-  it("não leva números nem dados da carteira", () => {
-    expect(prompt).not.toMatch(/\d/);
-    expect(prompt).not.toMatch(/teto|preço médio|quantidade|rank/i);
   });
 });
 

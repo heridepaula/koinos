@@ -10,29 +10,45 @@ import { withLock } from "@/shared/db/lock";
 import { connectMongo } from "@/shared/db/mongo";
 import { env } from "@/shared/env";
 import { withSpan } from "@/shared/lib/tracing";
+import {
+  needsThesis,
+  termName,
+  THESIS,
+  thesisEvidence,
+  thesisKey,
+  type ThesisEvidence,
+  type ThesisTarget,
+} from "../domain/asset-thesis";
 import { prioritizeInsights, type InsightCandidate } from "../domain/day-insight";
 import {
-  buildRadarPrompt,
   businessKind,
   describeAsset,
-  factsKey,
-  needsRadar,
   normalizeForDuplicate,
+  promptTerms,
   radarFacts,
   radarSources,
   radarTerms,
-  validateRadarText,
   type FiiRadarInput,
   type RadarInput,
   type RadarSourceDoc,
 } from "../domain/radar";
 import { getAssetClasses } from "./catalog";
-import { GEMINI_BUDGET_MS, generateWithChain, geminiModelsWithQuota } from "./gemini-chain";
+import { generateThesis } from "./asset-thesis";
+import { GEMINI_BUDGET_MS, geminiModelsWithQuota } from "./gemini-chain";
 import { AssetModel, PriceHistoryModel, type AssetDoc } from "./models";
 import { getRealRate } from "./treasury-read";
 
-// Radar de fundamentos (spec 2026-11-12-radar-fundamentos-design.md): em segundo plano, de
-// madrugada; a tela de Recomendações só lê o texto guardado.
+// Radar de fundamentos (spec 2026-11-12-radar-fundamentos-design.md) com a tese do ativo (spec
+// 2026-11-13-tese-do-ativo-design.md): em segundo plano, de madrugada; a tela só lê a tese guardada.
+// Ao Gemini vão só a descrição do ativo, as evidências e os termos (`buildThesisPrompt`).
+
+/** Um alvo da Carteira Alvo para a tese (rank, teto e viés; o de melhor rank entre as carteiras). */
+export type RadarTarget = {
+  ticker: string;
+  rank: number | null;
+  ceiling: number | null;
+  bias: "COMPRAR" | "AGUARDAR" | null;
+};
 
 export type RadarSummary = {
   status: "off" | "busy" | "done";
@@ -131,7 +147,12 @@ export function radarInputOf(
 
 export async function refreshRadars(
   candidates: readonly InsightCandidate[],
-  options: { maxAssets: number; now?: Date; deadline?: number },
+  options: {
+    maxAssets: number;
+    now?: Date;
+    deadline?: number;
+    targets?: readonly RadarTarget[];
+  },
 ): Promise<RadarSummary> {
   const apiKey = env.GEMINI_API_KEY;
   if (!apiKey) return empty("off");
@@ -140,7 +161,7 @@ export async function refreshRadars(
   return withSpan("radar.generate", {}, async (span) => {
     const summary =
       (await withLock("radar", 120_000, () =>
-        run(apiKey, candidates, options.maxAssets, now, deadline),
+        run(apiKey, candidates, options.targets ?? [], options.maxAssets, now, deadline),
       )) ?? empty("busy");
     span.setAttributes({
       "koinos.radar.status": summary.status,
@@ -166,6 +187,7 @@ const yearAgoMonth = (now: Date) =>
 async function run(
   apiKey: string,
   candidates: readonly InsightCandidate[],
+  targets: readonly RadarTarget[],
   maxAssets: number,
   now: Date,
   deadline: number,
@@ -179,6 +201,9 @@ async function run(
       quantity: (known?.quantity ?? 0) + (candidate.quantity ?? 0) || null,
       rank: known?.rank ?? candidate.rank,
     });
+  }
+  for (const { ticker, rank } of targets) {
+    if (!byTicker.has(ticker)) byTicker.set(ticker, { ticker, quantity: null, rank });
   }
   const tickers = [...byTicker.keys()];
   summary.candidates = tickers.length;
@@ -196,6 +221,18 @@ async function run(
   ]);
   // A taxa vem em % (6,5 = 6,5% a.a. real); o domínio usa fração.
   const realRate = rate && !rate.stale ? rate.median / 100 : null;
+  // O alvo de cada ticker, com quantos ativos da mesma classe têm rank.
+  const rankCount = (assetClass: "FII" | "ACAO") =>
+    targets.filter((t) => t.rank !== null && classes.get(t.ticker) === assetClass).length;
+  const targetOf = new Map<string, ThesisTarget | null>(
+    targets.map((t) => {
+      const assetClass = classes.get(t.ticker) ?? null;
+      const target: ThesisTarget | null = assetClass
+        ? { rank: t.rank, ceiling: t.ceiling, bias: t.bias, rankCount: rankCount(assetClass) }
+        : null;
+      return [t.ticker, target] as const;
+    }),
+  );
   const assets = new Map(docs.map((doc) => [doc._id, doc]));
   const yearAgo = new Map(history.map((h) => [h.ticker, h.close]));
   const ordered = prioritizeInsights([...byTicker.values()], (t) => assets.get(t)?.price ?? null);
@@ -232,7 +269,13 @@ async function run(
     return [...texts.entries()].some(([other, value]) => other !== ticker && value === key);
   };
 
-  const due: { ticker: string; input: RadarInput; facts: ReturnType<typeof radarFacts> }[] = [];
+  const due: {
+    ticker: string;
+    input: RadarInput;
+    facts: ReturnType<typeof radarFacts>;
+    evidence: ThesisEvidence[];
+    key: string;
+  }[] = [];
   for (const [ticker, input] of inputs) {
     const doc = assets.get(ticker);
     const facts = radarFacts(input);
@@ -244,8 +287,18 @@ async function run(
       }
       continue;
     }
-    if (!needsRadar(doc?.radar ?? null, factsKey(facts), now)) continue;
-    due.push({ ticker, input, facts });
+    const evidence = thesisEvidence({
+      kind: input.kind,
+      target: targetOf.get(ticker) ?? null,
+      price: doc?.price ?? null,
+      input,
+      facts,
+      week: doc?.weekSummary ?? null,
+      now,
+    });
+    const key = thesisKey(evidence);
+    if (!needsThesis(doc?.radar ?? null, key, now)) continue;
+    due.push({ ticker, input, facts, evidence, key });
   }
   summary.due = due.length;
   if (due.length === 0) return summary;
@@ -266,76 +319,62 @@ async function run(
       break;
     }
     const recentTerms = assets.get(item.ticker)?.radar?.termHistory ?? [];
-    const prompt = (avoid: string | null) =>
-      buildRadarPrompt({
+    const terms = promptTerms(item.facts, recentTerms).map(termName);
+    const call = (avoid: string | null, label: string) =>
+      generateThesis({
+        apiKey,
+        models,
         kind: item.input.kind,
         description: describeAsset(item.input),
-        facts: item.facts,
-        recentTerms,
+        evidence: item.evidence,
+        terms,
+        key: item.key,
+        termHistory: recentTerms,
         avoid,
+        now,
+        deadline,
+        label,
       });
-    const options = { temperature: 0.6, maxOutputTokens: 2048, timeoutMs: 8_000 };
-    const first = await generateWithChain(
-      apiKey,
-      models,
-      prompt(null),
-      options,
-      now,
-      `radar ${item.ticker}`,
-      deadline,
-    );
-    summary.geminiCalls += first.calls;
-    if (!first.result) {
+    let out = await call(null, `radar ${item.ticker}`);
+    summary.geminiCalls += out.calls;
+    summary.rejected += out.rejected;
+    if (!out.stored && out.rejected === 0) {
       // Todos os modelos falharam: nada gravado, a próxima chamada tenta de novo.
       summary.failed += 1;
       continue;
     }
-    let result = first.result;
-    let text = validateRadarText(result.text, result.finishReason, item.input.kind);
-    if (text !== null && repeated(item.ticker, text) && Date.now() < deadline - GEMINI_BUDGET_MS) {
-      // Igual ao de outro ativo: uma nova chamada, uma vez. Se repetir de novo, grava assim mesmo;
-      // o primeiro texto só fica se a nova chamada falhar ou for recusada.
+    if (
+      out.text !== null &&
+      repeated(item.ticker, out.text) &&
+      Date.now() < deadline - GEMINI_BUDGET_MS
+    ) {
+      // Igual à de outro ativo: uma nova chamada, uma vez. Se repetir de novo, grava assim mesmo;
+      // a primeira só fica se a nova chamada falhar ou for recusada.
       summary.duplicatesRetried += 1;
-      const retry = await generateWithChain(
-        apiKey,
-        models,
-        prompt(text),
-        options,
-        now,
-        `radar ${item.ticker} retry`,
-        deadline,
-      );
-      summary.geminiCalls += retry.calls;
-      const again = retry.result
-        ? validateRadarText(retry.result.text, retry.result.finishReason, item.input.kind)
-        : null;
-      if (retry.result && again !== null) {
-        result = retry.result;
-        text = again;
-      }
+      const again = await call(out.text, `radar ${item.ticker} retry`);
+      summary.geminiCalls += again.calls;
+      if (again.stored) out = again;
     }
-    if (text === null) summary.rejected += 1;
-    else {
+    let stored = out.stored;
+    if (stored) {
       summary.generated += 1;
-      texts.set(item.ticker, normalizeForDuplicate(text));
+      texts.set(item.ticker, normalizeForDuplicate(stored.text ?? ""));
+      stored = {
+        ...stored,
+        termHistory: [radarTerms(stored.text ?? "", item.input.kind), ...recentTerms].slice(0, 2),
+      };
+    } else {
+      stored = {
+        version: THESIS.version,
+        factsKey: item.key,
+        status: "failed",
+        text: null,
+        model: out.model,
+        generatedAt: now,
+        termHistory: recentTerms,
+      };
     }
-    const termHistory =
-      text === null ? recentTerms : [radarTerms(text, item.input.kind), ...recentTerms].slice(0, 2);
-    await AssetModel.updateOne(
-      { _id: item.ticker },
-      {
-        $set: {
-          radar: {
-            factsKey: factsKey(item.facts),
-            status: text === null ? "failed" : "ok",
-            text,
-            model: result.model,
-            generatedAt: now,
-            termHistory,
-          },
-        },
-      },
-    );
+    await AssetModel.updateOne({ _id: item.ticker }, { $set: { radar: stored } });
   }
   return summary;
 }
