@@ -285,14 +285,25 @@ export function mergeSessionNews(
   return merged.sort(newestFirst);
 }
 
-/** As notícias da semana: as guardadas do ticker com tópico `ativo` dos últimos 7 dias, até 5. */
-export function weekNews(stored: readonly StoredNews[], now: Date): InsightNews[] {
+/**
+ * A seleção das notícias da semana, compartilhada pelo resumo do dia (modo semana) e pelo resumo da
+ * semana da Carteira Alvo: as guardadas do ticker com tópico `ativo` publicadas nos últimos 7 dias,
+ * da mais nova à mais velha, até 5. Devolve os próprios itens (com o id, quando houver).
+ */
+export function selectWeekNews<T extends Pick<StoredNews, "topics" | "publishedAt">>(
+  stored: readonly T[],
+  now: Date,
+): T[] {
   const from = now.getTime() - DAY_INSIGHT.maxNewsAgeDays * 86_400_000;
   return stored
     .filter((item) => item.topics.includes("ativo") && item.publishedAt.getTime() >= from)
-    .sort(newestFirst)
-    .slice(0, DAY_INSIGHT.weekItems)
-    .map(toInsightNews);
+    .sort((a, b) => b.publishedAt.getTime() - a.publishedAt.getTime())
+    .slice(0, DAY_INSIGHT.weekItems);
+}
+
+/** As notícias da semana (`selectWeekNews`) no formato do resumo, sem os campos de armazenamento. */
+export function weekNews(stored: readonly StoredNews[], now: Date): InsightNews[] {
+  return selectWeekNews(stored, now).map(toInsightNews);
 }
 
 /**
