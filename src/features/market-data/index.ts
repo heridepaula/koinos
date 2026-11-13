@@ -37,6 +37,7 @@ export {
   type HeatLevel,
 } from "./domain/asset-heat";
 export { RADAR, type RadarChip, type RadarFact, type RadarView } from "./domain/radar";
+export { THESIS, type ThesisView, type ThesisLensView } from "./domain/asset-thesis";
 export type { CatalogEntry, Quote, QuoteSource } from "./ports";
 export {
   BENCHMARK_TITLE,

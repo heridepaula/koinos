@@ -2,13 +2,21 @@ import { describe, expect, it } from "vitest";
 import type { RadarFact, RadarInput } from "./radar";
 import type { WeekSummary } from "./week-summary";
 import {
+  buildThesisPrompt,
   factNumber,
+  lensToneOf,
+  methodLensTone,
   methodSignals,
   needsThesis,
+  parseThesis,
   THESIS,
   thesisEvidence,
+  thesisFromReading,
   thesisKey,
+  thesisSchema,
+  thesisView,
   weekEvidence,
+  type ThesisEvidence,
   type ThesisTarget,
 } from "./asset-thesis";
 
@@ -328,5 +336,286 @@ describe("needsThesis", () => {
   it("ok igual depois de 20 h (o texto tem números)", () => {
     expect(needsThesis(ok({ generatedAt: at(20 * 60 - 1) }), "k", NOW)).toBe(false);
     expect(needsThesis(ok({ generatedAt: at(20 * 60) }), "k", NOW)).toBe(true);
+  });
+});
+
+const ev = (
+  id: string,
+  group: ThesisEvidence["group"],
+  tone: ThesisEvidence["tone"],
+  text = id,
+): ThesisEvidence => ({ id, group, tone, text, key: id });
+const EVIDENCE: ThesisEvidence[] = [
+  ev("metodo-rank", "metodo", "favoravel", "3º do ranking de 24 FIIs (entre os primeiros)"),
+  ev(
+    "metodo-teto",
+    "metodo",
+    "favoravel",
+    "preço 18% abaixo do teto do método (bem abaixo do teto)",
+  ),
+  ev(
+    "pvp-baixo",
+    "fundamento",
+    "favoravel",
+    "o preço na bolsa está abaixo do que os imóveis do fundo valem (P/VP de 0,82)",
+  ),
+  ev(
+    "vacancia-alta",
+    "fundamento",
+    "desfavoravel",
+    "uma parte relevante dos imóveis está vazia (vacância de 12,0%)",
+  ),
+];
+const PROMPT = buildThesisPrompt({
+  kind: "FII",
+  description: "um fundo imobiliário de galpões logísticos",
+  evidence: EVIDENCE,
+  terms: ["P/VP", "vacância"],
+});
+
+const answer = (over: Record<string, unknown> = {}) =>
+  JSON.stringify({
+    lentes: [
+      {
+        lente: "imoveis",
+        observacao: "Uma parte dos galpões está vazia.",
+        evidencias: ["vacancia-alta"],
+      },
+      {
+        lente: "metodo",
+        observacao: "O método põe o fundo entre os primeiros.",
+        evidencias: ["metodo-rank"],
+      },
+    ],
+    sintese: {
+      motivo_da_fila: ["metodo-rank", "metodo-teto"],
+      ponto_de_atencao: ["vacancia-alta"],
+    },
+    frases: [
+      {
+        texto: "O fundo está entre os primeiros do método e 18% abaixo do teto, com P/VP de 0,82.",
+        evidencias: ["metodo-teto", "pvp-baixo"],
+      },
+      {
+        texto: "O ponto de atenção é a vacância de 12,0%, com parte dos galpões vazia.",
+        evidencias: ["vacancia-alta"],
+      },
+    ],
+    ...over,
+  });
+const parse = (raw: string, finish = "STOP", evidence = EVIDENCE, prompt = PROMPT) =>
+  parseThesis(raw, finish, { kind: "FII", evidence, prompt });
+const sentence = (texto: string, evidencias: string[]) => ({ texto, evidencias });
+
+describe("buildThesisPrompt", () => {
+  it("evidências com id dentro de <dados>, lentes e passos, sem dado da carteira", () => {
+    const dados = PROMPT.slice(PROMPT.indexOf("<dados>"), PROMPT.indexOf("</dados>"));
+    expect(dados).toContain("- [metodo-teto] (favorável) preço 18% abaixo do teto do método");
+    expect(dados).toContain("- [vacancia-alta] (desfavorável)");
+    expect(PROMPT).toContain("imoveis (lente de Baroni");
+    expect(PROMPT).toContain("motivo_da_fila");
+    expect(PROMPT).toMatch(/P\/VP, vacância/);
+    for (const word of ["quantidade", "preço médio", "aporte de R$", "meta"]) {
+      expect(PROMPT.toLowerCase()).not.toContain(word);
+    }
+  });
+});
+
+describe("thesisSchema", () => {
+  it("lentes, síntese e frases, nesta ordem, com as lentes da classe", () => {
+    const schema = thesisSchema("ACAO") as {
+      properties: Record<string, { items?: { properties: { lente?: { enum: string[] } } } }>;
+    };
+    expect(Object.keys(schema.properties)).toEqual(["lentes", "sintese", "frases"]);
+    expect(schema.properties.lentes.items?.properties.lente?.enum).toEqual([
+      "dividendos",
+      "negocio",
+      "risco",
+      "metodo",
+    ]);
+  });
+});
+
+describe("parseThesis", () => {
+  it("aceita a resposta boa e descarta a lente inválida", () => {
+    const reading = parse(
+      answer({
+        lentes: [...JSON.parse(answer()).lentes, { lente: "x", observacao: "y.", evidencias: [] }],
+      }),
+    );
+    expect(reading?.sentences.map((s) => s.evidence)).toEqual([
+      ["metodo-teto", "pvp-baixo"],
+      ["vacancia-alta"],
+    ]);
+    expect(reading?.lenses.map((l) => l.id)).toEqual(["imoveis", "metodo"]);
+  });
+  it.each([
+    ["sem STOP", answer(), "MAX_TOKENS"],
+    ["JSON inválido", "{", "STOP"],
+    ["sem frases", answer({ frases: [] }), "STOP"],
+  ])("recusa %s", (_, raw, finish) => expect(parse(raw, finish)).toBeNull());
+  it("recusa 4 frases", () => {
+    const one = sentence("A vacância de 12,0% pesa.", ["vacancia-alta"]);
+    const raw = answer({
+      frases: [
+        sentence("O fundo está 18% abaixo do teto, com P/VP de 0,82.", [
+          "metodo-teto",
+          "pvp-baixo",
+        ]),
+        one,
+        one,
+        one,
+      ],
+    });
+    expect(parse(raw)).toBeNull();
+  });
+  it("recusa frase sem id válido", () => {
+    const raw = answer({
+      frases: [
+        sentence("O fundo está 18% abaixo do teto, com P/VP de 0,82.", [
+          "metodo-teto",
+          "pvp-baixo",
+        ]),
+        sentence("A vacância pesa.", ["inventado"]),
+      ],
+    });
+    expect(parse(raw)).toBeNull();
+  });
+  it("recusa veredito sem método havendo sinais, e sem fundamento", () => {
+    const noMethod = answer({
+      frases: [
+        sentence("O P/VP de 0,82 mostra desconto, mas a vacância de 12,0% pesa.", [
+          "pvp-baixo",
+          "vacancia-alta",
+        ]),
+      ],
+    });
+    expect(parse(noMethod)).toBeNull();
+    const noFundamental = answer({
+      frases: [
+        sentence("O fundo está 18% abaixo do teto, mas a vacância de 12,0% pesa.", ["metodo-teto"]),
+        sentence("A vacância pesa.", ["vacancia-alta"]),
+      ],
+    });
+    expect(parse(noFundamental)).toBeNull();
+  });
+  it("aceita veredito só com fundamento quando não há sinais do método", () => {
+    const evidence = EVIDENCE.filter((e) => e.group !== "metodo");
+    const prompt = buildThesisPrompt({ kind: "FII", description: "um fundo", evidence, terms: [] });
+    const raw = answer({
+      frases: [
+        sentence("O P/VP de 0,82 mostra desconto, mas a vacância de 12,0% pesa.", [
+          "pvp-baixo",
+          "vacancia-alta",
+        ]),
+      ],
+    });
+    expect(parse(raw, "STOP", evidence, prompt)).not.toBeNull();
+  });
+  it("recusa esconder a evidência desfavorável", () => {
+    const raw = answer({
+      frases: [
+        sentence("O fundo está 18% abaixo do teto, com P/VP de 0,82.", [
+          "metodo-teto",
+          "pvp-baixo",
+        ]),
+      ],
+    });
+    expect(parse(raw)).toBeNull();
+  });
+  it("recusa número fora dos dados, frase banida, sem acento e jargão", () => {
+    const bad = (texto: string) =>
+      parse(answer({ frases: [sentence(texto, ["metodo-teto", "pvp-baixo", "vacancia-alta"])] }));
+    expect(
+      bad("O fundo está 25% abaixo do teto, com P/VP de 0,82, mas a vacância pesa."),
+    ).toBeNull();
+    expect(
+      bad("É uma oportunidade: P/VP de 0,82 e 18% abaixo do teto, mas a vacância pesa."),
+    ).toBeNull();
+    expect(
+      bad("O fundo esta 18% abaixo do teto e o preco tem P/VP de 0,82, mas a vacância pesa."),
+    ).toBeNull();
+    expect(
+      bad("O fundo está 18% abaixo do teto, com EBITDA forte e P/VP de 0,82, mas a vacância pesa."),
+    ).toBeNull();
+  });
+  it("recusa mais de 520 caracteres", () => {
+    const long = `O fundo está 18% abaixo do teto, com P/VP de 0,82, mas a vacância pesa ${"muito ".repeat(80)}.`;
+    expect(
+      parse(answer({ frases: [sentence(long, ["metodo-teto", "pvp-baixo", "vacancia-alta"])] })),
+    ).toBeNull();
+  });
+});
+
+describe("tons das lentes", () => {
+  const evidenceById = new Map(EVIDENCE.map((e) => [e.id, e]));
+  it("pelas evidências citadas", () => {
+    expect(lensToneOf(["pvp-baixo"], evidenceById)).toBe("favoravel");
+    expect(lensToneOf(["vacancia-alta"], evidenceById)).toBe("desfavoravel");
+    expect(lensToneOf(["pvp-baixo", "vacancia-alta"], evidenceById)).toBe("misto");
+    expect(lensToneOf([], evidenceById)).toBe("neutro");
+  });
+  it("método: na fila favorável; fora ou Aguardar desfavorável; sem sinais null", () => {
+    expect(methodLensTone(EVIDENCE)).toBe("favoravel");
+    expect(methodLensTone([...EVIDENCE, ev("metodo-fora", "metodo", "desfavoravel")])).toBe(
+      "desfavoravel",
+    );
+    expect(methodLensTone([ev("metodo-vies", "metodo", "desfavoravel")])).toBe("desfavoravel");
+    expect(methodLensTone(EVIDENCE.filter((e) => e.group !== "metodo"))).toBeNull();
+  });
+});
+
+describe("thesisFromReading e thesisView", () => {
+  const reading = parse(answer())!;
+  const stored = thesisFromReading({
+    reading,
+    evidence: EVIDENCE,
+    key: "k",
+    model: "m",
+    now: NOW,
+    termHistory: [],
+  });
+
+  it("guarda v2 com texto, frases, lentes com tom do código e evidências sem key", () => {
+    expect(stored).toMatchObject({ version: 2, factsKey: "k", status: "ok", model: "m" });
+    expect(stored.text).toBe(reading.sentences.map((s) => s.text).join(" "));
+    expect(stored.lenses?.find((l) => l.id === "metodo")?.tone).toBe("favoravel");
+    expect(stored.lenses?.find((l) => l.id === "imoveis")?.tone).toBe("desfavoravel");
+    expect(stored.evidence?.[0]).toEqual({
+      id: "metodo-rank",
+      group: "metodo",
+      tone: "favoravel",
+      text: EVIDENCE[0].text,
+    });
+  });
+
+  it("view: veredito, demais frases e lentes com rótulo", () => {
+    const view = thesisView(stored, "FII", NOW);
+    expect(view?.verdict).toBe(reading.sentences[0].text);
+    expect(view?.sentences).toEqual([reading.sentences[1].text]);
+    expect(view?.lenses[0]).toMatchObject({
+      id: "imoveis",
+      label: "Imóveis e crédito",
+      persona: "Baroni",
+    });
+  });
+
+  it("view: v1 só veredito; nada com falha, sem texto ou com mais de 10 dias", () => {
+    const v1 = {
+      factsKey: "k",
+      status: "ok" as const,
+      text: "Texto antigo.",
+      model: null,
+      generatedAt: NOW,
+    };
+    expect(thesisView(v1, "FII", NOW)).toMatchObject({
+      verdict: "Texto antigo.",
+      sentences: [],
+      lenses: [],
+    });
+    expect(thesisView({ ...stored, status: "failed" }, "FII", NOW)).toBeNull();
+    expect(thesisView({ ...stored, text: null }, "FII", NOW)).toBeNull();
+    const old = new Date(NOW.getTime() - 10 * 86_400_000 - 1);
+    expect(thesisView({ ...stored, generatedAt: old }, "FII", NOW)).toBeNull();
   });
 });
