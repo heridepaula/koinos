@@ -18,6 +18,7 @@ export {
   type InsightCandidate,
   type NewsItem,
 } from "./domain/day-insight";
+export { RADAR, type RadarChip, type RadarFact, type RadarView } from "./domain/radar";
 export type { CatalogEntry, Quote, QuoteSource } from "./ports";
 export {
   BENCHMARK_TITLE,
