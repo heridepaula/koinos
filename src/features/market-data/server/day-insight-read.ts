@@ -1,23 +1,40 @@
 import "server-only";
 import { connectMongo } from "@/shared/db/mongo";
-import { withInsightDefaults, type DayInsight } from "../domain/day-insight";
+import type { AssetClass } from "../domain/asset-class";
+import {
+  crossesThreshold,
+  sameMovement,
+  withInsightDefaults,
+  type DayInsight,
+} from "../domain/day-insight";
 import { quoteSessionDate } from "../domain/market-hours";
 import { AssetModel } from "./models";
 
 /**
- * O resumo da IA do pregão da cotação atual do ativo, ou null: sem resumo, de outro pregão ou de
- * uma chamada que falhou (essa não aparece na tela). Só lê o que está guardado.
+ * O resumo da IA do movimento atual do ativo, ou null: sem resumo, de outro pregão, de uma chamada
+ * que falhou (essa não aparece na tela), de um movimento de sinal trocado ou quando a variação
+ * atual não passa mais do gatilho da classe. Só lê o que está guardado.
  */
-export async function getDayInsight(ticker: string): Promise<DayInsight | null> {
+export async function getDayInsight(
+  ticker: string,
+  assetClass: AssetClass | null,
+): Promise<DayInsight | null> {
   await connectMongo();
-  const doc = await AssetModel.findById(ticker, { quoteFetchedAt: 1, dayInsight: 1 }).lean();
-  const insight = doc?.dayInsight;
-  if (!insight || !doc.quoteFetchedAt) return null;
-  if (insight.session.getTime() !== quoteSessionDate(doc.quoteFetchedAt).getTime()) return null;
+  const doc = await AssetModel.findById(ticker, {
+    quoteFetchedAt: 1,
+    changePercent: 1,
+    dayInsight: 1,
+  }).lean();
+  if (!doc?.dayInsight || !doc.quoteFetchedAt) return null;
+  const change = doc.changePercent;
+  if (typeof change !== "number" || !crossesThreshold(assetClass, change)) return null;
+  const insight = withInsightDefaults(doc.dayInsight);
+  if (!sameMovement(insight, quoteSessionDate(doc.quoteFetchedAt), change)) return null;
   if (insight.status === "failed") return null;
-  return withInsightDefaults({
+  return {
     session: insight.session,
     changePercent: insight.changePercent,
+    kind: insight.kind,
     status: insight.status,
     text: insight.text ?? null,
     sameDay: insight.sameDay,
@@ -27,10 +44,15 @@ export async function getDayInsight(ticker: string): Promise<DayInsight | null> 
       url,
       publishedAt,
     })),
+    market: insight.market
+      ? {
+          index: insight.market.index,
+          indexChange: insight.market.indexChange,
+          reading: insight.market.reading,
+        }
+      : null,
     model: insight.model ?? null,
     generatedAt: insight.generatedAt ?? null,
     attemptedAt: insight.attemptedAt,
-    kind: insight.kind,
-    market: insight.market,
-  });
+  };
 }

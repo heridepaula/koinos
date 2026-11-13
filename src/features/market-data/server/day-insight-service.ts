@@ -9,25 +9,38 @@ import { readArticle, searchNews } from "../adapters/news";
 import {
   availableModels,
   buildInsightPrompt,
+  buildWeekPrompt,
   crossesThreshold,
+  DAY_INSIGHT,
   GEMINI_MODELS,
-  isSessionNews,
+  insightMarket,
+  insightPlan,
+  mergeSessionNews,
   nextInsightAttempt,
   prioritizeInsights,
   readFirstArticles,
-  recentNews,
+  sameMovement,
+  weekNews,
+  withInsightDefaults,
   type DayInsight,
+  type DayInsightKind,
   type GeminiModel,
   type InsightCandidate,
+  type InsightNews,
   type NewsItem,
+  type StoredNews,
 } from "../domain/day-insight";
 import { quoteSessionDate } from "../domain/market-hours";
+import type { MarketIndexId } from "../domain/market-indices";
 import { getAssetClasses } from "./catalog";
-import { AssetModel } from "./models";
+import { AssetModel, MarketIndexModel, NewsItemModel } from "./models";
 import { geminiRequestsToday, markGeminiExhausted, recordGeminiRequest } from "./usage";
 
-// Resumo da IA das variações fortes do dia (spec 2026-11-12-resumo-ia-variacao-design.md). Roda
-// em segundo plano (ao abrir o app e no cron de 30 em 30 min); a página do ativo só lê.
+// Resumo da IA das variações fortes do dia (spec 2026-11-12-resumo-ia-variacao-design.md e plano
+// 2026-11-13-resumo-dia-sem-noticia-antiga.md). Roda em segundo plano (ao abrir o app e no cron de
+// 30 em 30 min); a página do ativo só lê. Só notícia do pregão (`news_items` + Bing) explica o
+// movimento; sem ela, o resumo é da semana (só `news_items`). O índice do mesmo pregão
+// (`market_indices`) dá a leitura contra o mercado, calculada pelo código.
 
 export type DayInsightSummary = {
   status: "off" | "busy" | "done";
@@ -36,6 +49,10 @@ export type DayInsightSummary = {
   /** Os que estavam na vez (regra de horários) e foram processados nesta chamada. */
   processed: number;
   generated: number;
+  /** Resumos do dia gerados pelo Gemini. */
+  day: number;
+  /** Resumos da semana gerados pelo Gemini. */
+  week: number;
   noNews: number;
   failed: number;
   geminiCalls: number;
@@ -49,6 +66,8 @@ const empty = (status: DayInsightSummary["status"]): DayInsightSummary => ({
   eligible: 0,
   processed: 0,
   generated: 0,
+  day: 0,
+  week: 0,
   noNews: 0,
   failed: 0,
   geminiCalls: 0,
@@ -78,6 +97,72 @@ async function touchAttempt(ticker: string, now: Date): Promise<void> {
 }
 
 /**
+ * O texto de uma notícia: a página lida pelo Readability, ou, nas fontes que não podem ser lidas
+ * (Suno, `readPage: false`), o título e o resumo do RSS.
+ */
+async function readInsightNews(item: InsightNews): Promise<string | null> {
+  if (item.readPage) return readArticle(item);
+  return [item.title, item.description].filter(Boolean).join(". ");
+}
+
+/** As notícias guardadas dos últimos 7 dias de cada ticker, da mais nova à mais velha. */
+async function storedNewsByTicker(
+  tickers: readonly string[],
+  now: Date,
+): Promise<Map<string, StoredNews[]>> {
+  const from = new Date(now.getTime() - DAY_INSIGHT.maxNewsAgeDays * 86_400_000);
+  const docs = await NewsItemModel.find(
+    {
+      tickers: mongoose.trusted({ $in: tickers }),
+      publishedAt: mongoose.trusted({ $gte: from }),
+    },
+    {
+      url: 1,
+      title: 1,
+      publisher: 1,
+      publishedAt: 1,
+      description: 1,
+      tickers: 1,
+      topics: 1,
+      readPage: 1,
+    },
+  )
+    .sort({ publishedAt: -1 })
+    .lean();
+  const wanted = new Set(tickers);
+  const byTicker = new Map<string, StoredNews[]>();
+  for (const doc of docs) {
+    const item: StoredNews = {
+      title: doc.title,
+      publisher: doc.publisher,
+      url: doc.url,
+      publishedAt: doc.publishedAt,
+      description: doc.description ?? null,
+      topics: doc.topics ?? [],
+      readPage: doc.readPage !== false,
+    };
+    for (const ticker of doc.tickers ?? []) {
+      if (!wanted.has(ticker)) continue;
+      byTicker.set(ticker, [...(byTicker.get(ticker) ?? []), item]);
+    }
+  }
+  return byTicker;
+}
+
+/** A variação de cada índice guardada em `market_indices`, com o seu pregão. */
+async function storedIndices(): Promise<
+  Map<MarketIndexId, { changePercent: number; session: Date }>
+> {
+  const docs = await MarketIndexModel.find({}, { changePercent: 1, session: 1 }).lean();
+  return new Map(
+    docs.map((doc) => [
+      doc._id as MarketIndexId,
+      { changePercent: doc.changePercent, session: doc.session },
+    ]),
+  );
+}
+
+/**
  * Gera ou atualiza o resumo dos ativos que passaram do gatilho, na ordem de prioridade (posições
  * por valor, depois Carteira Alvo por rank), no máximo `maxAssets` por chamada. Sem
  * `GEMINI_API_KEY`, não faz nada.
@@ -98,6 +183,8 @@ export async function refreshDayInsights(
       "koinos.insights.eligible": summary.eligible,
       "koinos.insights.processed": summary.processed,
       "koinos.insights.generated": summary.generated,
+      "koinos.insights.day": summary.day,
+      "koinos.insights.week": summary.week,
       "koinos.insights.no_news": summary.noNews,
       "koinos.insights.failed": summary.failed,
       "koinos.insights.gemini_calls": summary.geminiCalls,
@@ -146,8 +233,9 @@ async function run(
     if (!crossesThreshold(classes.get(candidate.ticker) ?? null, asset.changePercent)) continue;
     summary.eligible += 1;
     const session = quoteSessionDate(asset.quoteFetchedAt);
-    const stored = asset.dayInsight ?? null;
-    const previous = stored && stored.session.getTime() === session.getTime() ? stored : null;
+    const stored = asset.dayInsight ? withInsightDefaults(asset.dayInsight) : null;
+    // Só conta o resumo deste movimento: mesmo pregão e mesmo sinal. Sinal trocado gera de novo.
+    const previous = sameMovement(stored, session, asset.changePercent) ? stored : null;
     if (!nextInsightAttempt(previous, session, now)) continue;
     due.push({ ticker: candidate.ticker, session, change: asset.changePercent, previous });
   }
@@ -164,61 +252,22 @@ async function run(
     return summary;
   }
 
-  for (const item of due.slice(0, maxAssets)) {
-    if (models.length === 0) {
-      summary.quotaExhausted = true;
-      break;
-    }
-    summary.processed += 1;
-    const { ticker, session, change, previous } = item;
-    const base = {
-      session,
-      changePercent: change,
-      attemptedAt: now,
-      kind: "day" as const,
-      market: null,
-    };
-    let news: NewsItem[];
-    try {
-      news = recentNews(await searchNews(ticker), now);
-    } catch (error) {
-      // A busca falhou: não grava nada, e a próxima chamada tenta de novo.
-      console.warn(`[resumo-ia] ${ticker}:`, errorMessage(error));
-      summary.failed += 1;
-      continue;
-    }
-    if (!shouldCallGemini(previous, news, session)) {
-      if (previous) await touchAttempt(ticker, now);
-      else {
-        await saveInsight(ticker, noNews(base));
-        summary.noNews += 1;
-      }
-      continue;
-    }
-    const { articles, failed } = await readFirstArticles(news, readArticle);
-    summary.pagesFailed += failed;
-    if (articles.length === 0) {
-      if (previous?.status === "ok") await touchAttempt(ticker, now);
-      else {
-        await saveInsight(ticker, noNews(base));
-        summary.noNews += 1;
-      }
-      continue;
-    }
-    const prompt = buildInsightPrompt({
-      ticker,
-      assetClass: classes.get(ticker) ?? null,
-      changePercent: change,
-      session,
-      articles,
-    });
-    let generated: { text: string; model: GeminiModel } | null = null;
+  const batch = due.slice(0, maxAssets);
+  const [newsByTicker, indices] = await Promise.all([
+    storedNewsByTicker(
+      batch.map((item) => item.ticker),
+      now,
+    ),
+    storedIndices(),
+  ]);
+
+  /** O texto do primeiro modelo da cadeia que responder, ou null. */
+  async function generate(ticker: string, prompt: string) {
     for (const model of [...models]) {
       summary.geminiCalls += 1;
       await recordGeminiRequest(model, now);
       try {
-        generated = { text: await generateText(apiKey, model, prompt), model };
-        break;
+        return { text: await generateText(apiKey, model, prompt), model };
       } catch (error) {
         console.warn(`[resumo-ia] ${ticker}:`, errorMessage(error));
         // só a cota do dia esgota o modelo; "rate" (por minuto) segue para o próximo da cadeia
@@ -228,23 +277,96 @@ async function run(
         }
       }
     }
+    return null;
+  }
+
+  for (const item of batch) {
+    if (models.length === 0) {
+      summary.quotaExhausted = true;
+      break;
+    }
+    summary.processed += 1;
+    const { ticker, session, change, previous } = item;
+    const assetClass = classes.get(ticker) ?? null;
+    const market = insightMarket(assetClass, change, indices, session);
+    const base = { session, changePercent: change, attemptedAt: now, market };
+    let bing: NewsItem[] = [];
+    try {
+      bing = await searchNews(ticker);
+    } catch (error) {
+      // Sem o Bing, seguem as notícias guardadas.
+      console.warn(`[resumo-ia] ${ticker}:`, errorMessage(error));
+    }
+    const stored = newsByTicker.get(ticker) ?? [];
+    const weekItems = weekNews(stored, now);
+    const plan = insightPlan(previous, mergeSessionNews(stored, bing, session), weekItems);
+    if (plan.mode === "none") {
+      await touchAttempt(ticker, now);
+      continue;
+    }
+
+    let kind: DayInsightKind = plan.mode;
+    let prompt = "";
+    let sources: NewsItem[] = [];
+    if (plan.mode === "day") {
+      const { articles, failed } = await readFirstArticles(plan.news, readInsightNews);
+      summary.pagesFailed += failed;
+      if (articles.length > 0) {
+        prompt = buildInsightPrompt({
+          ticker,
+          assetClass,
+          changePercent: change,
+          session,
+          articles,
+          market,
+        });
+        sources = articles.map(plainSource);
+      } else if (previous && previous.status !== "failed") {
+        await touchAttempt(ticker, now);
+        continue;
+      } else {
+        // Nenhuma página do pregão pôde ser lida: vale o resumo da semana.
+        kind = "week";
+      }
+    }
+    if (kind === "week") {
+      if (weekItems.length === 0) {
+        await saveInsight(ticker, noNews(base));
+        summary.noNews += 1;
+        continue;
+      }
+      prompt = buildWeekPrompt({
+        ticker,
+        assetClass,
+        changePercent: change,
+        session,
+        items: weekItems,
+        market,
+      });
+      sources = weekItems.map(plainSource);
+    }
+
+    const generated = await generate(ticker, prompt);
     if (generated) {
       await saveInsight(ticker, {
         ...base,
+        kind,
         status: "ok",
         text: generated.text,
-        sameDay: articles.some((article) => isSessionNews(article.publishedAt, session)),
-        sources: articles.map(plainSource),
+        sameDay: kind === "day",
+        sources,
         model: generated.model,
         generatedAt: now,
       });
       summary.generated += 1;
+      summary[kind] += 1;
     } else {
       summary.failed += 1;
       if (previous?.status === "ok") await touchAttempt(ticker, now);
       else {
         await saveInsight(ticker, {
           ...base,
+          kind,
           status: "failed",
           text: null,
           sameDay: false,
@@ -258,22 +380,15 @@ async function run(
   return summary;
 }
 
-const noNews = (
-  base: Pick<DayInsight, "session" | "changePercent" | "attemptedAt" | "kind" | "market">,
-): DayInsight => ({
-  ...base,
-  status: "no-news",
-  text: null,
-  sameDay: false,
-  sources: [],
-  model: null,
-  generatedAt: null,
-});
-
-// Provisório até o serviço usar `insightPlan` (a próxima etapa do plano).
-function shouldCallGemini(insight: DayInsight | null, news: readonly NewsItem[], session: Date) {
-  if (news.length === 0) return false;
-  if (!insight || insight.status !== "ok") return true;
-  const known = new Set(insight.sources.map((source) => source.url));
-  return news.some((item) => isSessionNews(item.publishedAt, session) && !known.has(item.url));
-}
+/** Sem notícia do pregão nem da semana: grava sem chamar o Gemini, com a leitura do mercado. */
+const noNews = (base: Pick<DayInsight, "session" | "changePercent" | "attemptedAt" | "market">) =>
+  ({
+    ...base,
+    kind: "week",
+    status: "no-news",
+    text: null,
+    sameDay: false,
+    sources: [],
+    model: null,
+    generatedAt: null,
+  }) satisfies DayInsight;

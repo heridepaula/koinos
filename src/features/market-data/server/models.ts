@@ -1,6 +1,6 @@
 import "server-only";
 import mongoose, { Schema, type Model } from "mongoose";
-import type { DayInsight } from "../domain/day-insight";
+import type { withInsightDefaults } from "../domain/day-insight";
 import type { PaySchedule } from "../domain/fundamentus";
 import type { FiiIndicators, StockIndicators } from "../domain/fundamentus-indicators";
 import type { CatalogEntry, QuoteSource } from "../ports";
@@ -55,8 +55,11 @@ export interface AssetDoc {
   dividends12m?: number | null;
   /** Quantos proventos entraram nessa soma. Mede a regularidade: um FII mensal tem 12. */
   dividendPayments12m?: number | null;
-  /** O resumo da IA da variação forte do pregão (um por pregão; o de outro pregão é ignorado). */
-  dayInsight?: DayInsight | null;
+  /**
+   * O resumo da IA da variação forte do pregão (um por pregão; o de outro pregão é ignorado). Os
+   * anteriores a 2026-11-13 não têm `kind` nem `market` (`withInsightDefaults`).
+   */
+  dayInsight?: Parameters<typeof withInsightDefaults>[0] | null;
   /** Indicadores da página `detalhes.php` do Fundamentus (Radar de fundamentos). */
   fundamentusIndicators?: ((StockIndicators | FiiIndicators) & { fetchedAt: Date }) | null;
   /** O texto do Radar de fundamentos, refeito quando os fatos mudam. */
@@ -80,10 +83,22 @@ const dayInsightSchema = new Schema(
   {
     session: Date,
     changePercent: Number,
+    kind: { type: String, enum: ["day", "week"], default: "day" },
     status: { type: String, enum: ["ok", "no-news", "failed"] },
     text: { type: String, default: null },
     sameDay: Boolean,
     sources: { type: [newsItemSchema], default: [] },
+    market: {
+      type: new Schema(
+        {
+          index: { type: String, enum: ["IFIX", "IBOV"] },
+          indexChange: Number,
+          reading: { type: String, enum: ["acompanhou", "descolou"] },
+        },
+        { _id: false },
+      ),
+      default: null,
+    },
     model: { type: String, default: null },
     generatedAt: { type: Date, default: null },
     attemptedAt: Date,

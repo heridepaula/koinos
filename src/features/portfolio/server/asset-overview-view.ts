@@ -53,7 +53,7 @@ export const getAssetOverview = cache(
         // As linhas da estratégia são da classe da tela: em "TODOS" só vêm as dos FIIs.
         getPortfolioSnapshot(assetClass ?? "TODOS"),
         getDividendsView("TODOS"),
-        getDayInsight(ticker),
+        getDayInsight(ticker, assetClass),
       ]);
       const asset = assets.get(ticker);
       const position = all.positions.find((row) => row.ticker === ticker) ?? null;
