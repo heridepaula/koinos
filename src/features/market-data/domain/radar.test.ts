@@ -266,6 +266,11 @@ describe("validateRadarText", () => {
     expect(validateRadarText(`  ${good}\n`, "STOP")).toBe(good);
   });
 
+  it("jargão por palavra inteira, sem acento nem caixa", () => {
+    expect(validateRadarText("A inflação pode corroer a renda do fundo.", "STOP")).not.toBeNull();
+    expect(validateRadarText("A VACÂNCIA do fundo subiu.", "STOP")).toBeNull();
+  });
+
   it.each([
     ["MAX_TOKENS", good],
     ["STOP", ""],

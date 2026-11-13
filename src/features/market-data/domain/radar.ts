@@ -108,7 +108,7 @@ function fiiFacts(input: FiiRadarInput): RadarFact[] {
     // Tolerância de arredondamento: 0,08 − 0,07 dá 0,00999… em ponto flutuante.
     if (premium >= RADAR.premiumHigh - 1e-9) {
       facts.push(fact("premio-alto", "paga mais que o Tesouro protegido da inflação", "good"));
-    } else if (premium < 0) {
+    } else if (premium < -1e-9) {
       facts.push(fact("premio-negativo", "paga menos que o Tesouro protegido da inflação", "bad"));
     }
   }
