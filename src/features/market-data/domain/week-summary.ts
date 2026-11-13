@@ -1,7 +1,7 @@
 import { saoPauloParts } from "@/shared/lib/time";
 import type { AssetClass } from "./asset-class";
 import type { NewsItem } from "./day-insight";
-import { weekMoveFacts, type WeekMove } from "./week-move";
+import { weekMoveFacts, type MoveBucket, type WeekMove } from "./week-move";
 
 // A leitura da semana dos ativos da Carteira Alvo (spec 2026-11-13-leitura-da-semana-design.md,
 // que substituiu o resumo de texto livre do plano 2026-11-13-resumo-semana-carteira-alvo.md). O
@@ -573,6 +573,30 @@ export function parseWeekReading(
 
 const RELEVANCE_ORDER: Record<Relevance, number> = { alta: 0, media: 1, baixa: 2 };
 
+/**
+ * O sentido da lente "fundamento ou ruído", decidido pelo código (o modelo chamou de "favorável" a
+ * queda do TRXF11 só por ter causa): com causa nas notícias (`sim` ou `parcial`), o da direção do
+ * preço (queda desfavorável, alta favorável); preço estável, ruído ou sem movimento, neutro.
+ */
+export function methodLensTone(bucket: MoveBucket | null, explainsMove: ExplainsMove): NewsTone {
+  if (!bucket || bucket === "estavel" || explainsMove === "nao") return "neutro";
+  return bucket.startsWith("queda") ? "desfavoravel" : "favoravel";
+}
+
+const MOVE_BUCKETS: readonly MoveBucket[] = [
+  "queda-forte",
+  "queda",
+  "estavel",
+  "alta",
+  "alta-forte",
+];
+
+/** A faixa guardada em `weekMoveKey` ("queda-forte:sem-indice"), ou null quando não é uma faixa. */
+const bucketOfKey = (key: string | undefined): MoveBucket | null => {
+  const bucket = key?.split(":")[0] as MoveBucket | undefined;
+  return bucket && MOVE_BUCKETS.includes(bucket) ? bucket : null;
+};
+
 /** A frase do código quando o movimento é forte e o texto não diz que as notícias não o explicam. */
 export const NOT_EXPLAINED = "As notícias encontradas não explicam o movimento.";
 
@@ -627,7 +651,10 @@ export function weekSummaryFromReading(input: {
       ? []
       : reading.lenses.map((lens) => ({
           id: lens.id,
-          tone: lens.tone,
+          tone:
+            lens.id === "metodo"
+              ? methodLensTone(input.move?.bucket ?? null, reading.explainsMove)
+              : lens.tone,
           text: lens.text,
           sources: lens.evidence.flatMap((index) => {
             const at = position.get(index);
@@ -661,7 +688,13 @@ export function weekSummaryView(
     })),
     lenses: (stored.lenses ?? []).flatMap((lens) => {
       const definition = definitions.get(lens.id);
-      return definition ? [{ ...lens, label: definition.label, persona: definition.persona }] : [];
+      if (!definition) return [];
+      // Leituras gravadas antes da regra: o sentido do método vem da chave do movimento guardada.
+      const tone =
+        lens.id === "metodo"
+          ? methodLensTone(bucketOfKey(stored.moveKey), stored.explainsMove ?? "nao")
+          : lens.tone;
+      return [{ ...lens, tone, label: definition.label, persona: definition.persona }];
     }),
     tone: stored.tone ?? null,
     updatedAt: stored.generatedAt ?? stored.attemptedAt,

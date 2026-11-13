@@ -3,6 +3,7 @@ import { selectWeekNews, weekNews, type NewsItem, type StoredNews } from "./day-
 import type { WeekMove } from "./week-move";
 import {
   buildWeekSummaryPrompt,
+  methodLensTone,
   needsWeekSummary,
   parseWeekReading,
   promptDescription,
@@ -652,6 +653,51 @@ describe("weekSummaryVisible", () => {
   });
 });
 
+describe("methodLensTone", () => {
+  it("queda com causa é desfavorável; alta com causa, favorável", () => {
+    expect(methodLensTone("queda-forte", "sim")).toBe("desfavoravel");
+    expect(methodLensTone("queda", "parcial")).toBe("desfavoravel");
+    expect(methodLensTone("alta-forte", "sim")).toBe("favoravel");
+  });
+
+  it("preço estável, movimento sem causa ou sem movimento: neutro", () => {
+    expect(methodLensTone("estavel", "sim")).toBe("neutro");
+    expect(methodLensTone("queda-forte", "nao")).toBe("neutro");
+    expect(methodLensTone(null, "sim")).toBe("neutro");
+  });
+
+  it("a lente de método do modelo é corrigida ao gerar e ao ler (TRXF11 saiu favorável)", () => {
+    const favorable: WeekReading = {
+      ...READING,
+      lenses: READING.lenses.map((lens) =>
+        lens.id === "metodo" ? { ...lens, tone: "favoravel" as const } : lens,
+      ),
+    };
+    const built = weekSummaryFromReading({
+      reading: favorable,
+      items: ITEMS,
+      move: MOVE,
+      newsKey: "k",
+      moveKey: "queda-forte:sem-indice",
+      model: "x",
+      now: hoursAgo(1),
+    });
+    expect(built.lenses?.find((lens) => lens.id === "metodo")?.tone).toBe("desfavoravel");
+    // o que já está gravado com o sentido errado aparece corrigido pela chave do movimento
+    const stored = {
+      ...built,
+      lenses: built.lenses?.map((lens) =>
+        lens.id === "metodo" ? { ...lens, tone: "favoravel" as const } : lens,
+      ),
+    };
+    const view = weekSummaryView(stored, "FII", NOW)!;
+    expect(view.lenses.find((lens) => lens.id === "metodo")?.tone).toBe("desfavoravel");
+    // chave sem faixa conhecida: neutro, nunca uma direção inventada
+    const unknown = weekSummaryView({ ...stored, moveKey: "m" }, "FII", NOW)!;
+    expect(unknown.lenses.find((lens) => lens.id === "metodo")?.tone).toBe("neutro");
+  });
+});
+
 describe("weekSummaryView", () => {
   it("as lentes com o rótulo e o investidor que a inspira", () => {
     const stored = weekSummaryFromReading({
@@ -659,7 +705,7 @@ describe("weekSummaryView", () => {
       items: ITEMS,
       move: MOVE,
       newsKey: "k",
-      moveKey: "m",
+      moveKey: "queda-forte:sem-indice",
       model: "x",
       now: hoursAgo(1),
     });
