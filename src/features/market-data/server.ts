@@ -40,3 +40,4 @@ export { syncTreasuryRates, type TreasurySyncResult } from "./server/treasury-se
 export { getRadarViews } from "./server/radar-read";
 export { collectNews, type NewsSummary } from "./server/news-service";
 export { refreshMarketIndices, type IndicesSummary } from "./server/market-indices-service";
+export { refreshWeekSummaries, type WeekSummaryRun } from "./server/week-summary-service";

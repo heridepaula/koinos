@@ -11,7 +11,6 @@ import {
   buildInsightPrompt,
   buildWeekPrompt,
   crossesThreshold,
-  DAY_INSIGHT,
   GEMINI_MODELS,
   insightMarket,
   insightPlan,
@@ -21,6 +20,7 @@ import {
   prioritizeInsights,
   readFirstArticles,
   sameMovement,
+  selectWeekNews,
   weekNews,
   withInsightDefaults,
   type DayInsight,
@@ -29,19 +29,22 @@ import {
   type InsightCandidate,
   type InsightNews,
   type NewsItem,
-  type StoredNews,
 } from "../domain/day-insight";
 import { quoteSessionDate } from "../domain/market-hours";
 import type { MarketIndexId } from "../domain/market-indices";
+import { weekNewsKey } from "../domain/week-summary";
 import { getAssetClasses } from "./catalog";
-import { AssetModel, MarketIndexModel, NewsItemModel } from "./models";
+import { AssetModel, MarketIndexModel } from "./models";
+import { storedNewsByTicker } from "./news-read";
 import { geminiRequestsToday, markGeminiExhausted, recordGeminiRequest } from "./usage";
 
 // Resumo da IA das variações fortes do dia (spec 2026-11-12-resumo-ia-variacao-design.md e plano
 // 2026-11-13-resumo-dia-sem-noticia-antiga.md). Roda em segundo plano (ao abrir o app e no cron de
 // 30 em 30 min); a página do ativo só lê. Só notícia do pregão (`news_items` + Bing) explica o
 // movimento; sem ela, o resumo é da semana (só `news_items`). O índice do mesmo pregão
-// (`market_indices`) dá a leitura contra o mercado, calculada pelo código.
+// (`market_indices`) dá a leitura contra o mercado, calculada pelo código. No modo semana, o resumo
+// da semana da Carteira Alvo com a mesma chave de notícias é reaproveitado, sem Gemini (plano
+// 2026-11-13-resumo-semana-carteira-alvo.md, W7).
 
 export type DayInsightSummary = {
   status: "off" | "busy" | "done";
@@ -54,6 +57,8 @@ export type DayInsightSummary = {
   day: number;
   /** Resumos da semana gerados pelo Gemini. */
   week: number;
+  /** Resumos da semana que reaproveitaram o resumo da semana da Carteira Alvo (mesma chave). */
+  weekReused: number;
   noNews: number;
   failed: number;
   geminiCalls: number;
@@ -69,6 +74,7 @@ const empty = (status: DayInsightSummary["status"]): DayInsightSummary => ({
   generated: 0,
   day: 0,
   week: 0,
+  weekReused: 0,
   noNews: 0,
   failed: 0,
   geminiCalls: 0,
@@ -104,50 +110,6 @@ async function touchAttempt(ticker: string, now: Date): Promise<void> {
 async function readInsightNews(item: InsightNews): Promise<string | null> {
   if (item.readPage) return readArticle(item);
   return [item.title, item.description].filter(Boolean).join(". ");
-}
-
-/** As notícias guardadas dos últimos 7 dias de cada ticker, da mais nova à mais velha. */
-async function storedNewsByTicker(
-  tickers: readonly string[],
-  now: Date,
-): Promise<Map<string, StoredNews[]>> {
-  const from = new Date(now.getTime() - DAY_INSIGHT.maxNewsAgeDays * 86_400_000);
-  const docs = await NewsItemModel.find(
-    {
-      tickers: mongoose.trusted({ $in: tickers }),
-      publishedAt: mongoose.trusted({ $gte: from }),
-    },
-    {
-      url: 1,
-      title: 1,
-      publisher: 1,
-      publishedAt: 1,
-      description: 1,
-      tickers: 1,
-      topics: 1,
-      readPage: 1,
-    },
-  )
-    .sort({ publishedAt: -1 })
-    .lean();
-  const wanted = new Set(tickers);
-  const byTicker = new Map<string, StoredNews[]>();
-  for (const doc of docs) {
-    const item: StoredNews = {
-      title: doc.title,
-      publisher: doc.publisher,
-      url: doc.url,
-      publishedAt: doc.publishedAt,
-      description: doc.description ?? null,
-      topics: doc.topics ?? [],
-      readPage: doc.readPage !== false,
-    };
-    for (const ticker of doc.tickers ?? []) {
-      if (!wanted.has(ticker)) continue;
-      byTicker.set(ticker, [...(byTicker.get(ticker) ?? []), item]);
-    }
-  }
-  return byTicker;
 }
 
 /** A variação de cada índice guardada em `market_indices`, com o seu pregão. */
@@ -186,6 +148,7 @@ export async function refreshDayInsights(
       "koinos.insights.generated": summary.generated,
       "koinos.insights.day": summary.day,
       "koinos.insights.week": summary.week,
+      "koinos.insights.week_reused": summary.weekReused,
       "koinos.insights.no_news": summary.noNews,
       "koinos.insights.failed": summary.failed,
       "koinos.insights.gemini_calls": summary.geminiCalls,
@@ -218,7 +181,7 @@ async function run(
   const [docs, classes] = await Promise.all([
     AssetModel.find(
       { _id: mongoose.trusted({ $in: tickers }) },
-      { price: 1, changePercent: 1, quoteFetchedAt: 1, dayInsight: 1 },
+      { price: 1, changePercent: 1, quoteFetchedAt: 1, dayInsight: 1, weekSummary: 1 },
     ).lean(),
     getAssetClasses(tickers),
   ]);
@@ -294,13 +257,23 @@ async function run(
     }
     const stored = newsByTicker.get(ticker) ?? [];
     const weekItems = weekNews(stored, now);
+    // O resumo da semana da Carteira Alvo com as mesmas notícias serve ao modo semana (W7).
+    const weekSummary = assets.get(ticker)?.weekSummary;
+    const reusable =
+      weekItems.length > 0 &&
+      weekSummary?.status === "ok" &&
+      weekSummary.text &&
+      weekSummary.newsKey === weekNewsKey(selectWeekNews(stored, now))
+        ? weekSummary
+        : null;
     const plan = insightPlan(previous, mergeSessionNews(stored, bing, session), weekItems);
     if (plan.mode === "none") {
       await touchAttempt(ticker, now);
       continue;
     }
-    // Sem cota, não marca tentativa do que precisaria do Gemini; o resto da semana vazia grava.
-    if (models.length === 0 && !(plan.mode === "week" && weekItems.length === 0)) {
+    // Sem cota, não marca tentativa do que precisaria do Gemini; o resto da semana vazia (ou com
+    // resumo reaproveitável) grava.
+    if (models.length === 0 && !(plan.mode === "week" && (weekItems.length === 0 || reusable))) {
       summary.quotaExhausted = true;
       continue;
     }
@@ -333,6 +306,20 @@ async function run(
       if (weekItems.length === 0) {
         await saveInsight(ticker, noNews(base));
         summary.noNews += 1;
+        continue;
+      }
+      if (reusable) {
+        await saveInsight(ticker, {
+          ...base,
+          kind,
+          status: "ok",
+          text: reusable.text,
+          sameDay: false,
+          sources: reusable.sources.map(plainSource),
+          model: reusable.model,
+          generatedAt: reusable.generatedAt ?? now,
+        });
+        summary.weekReused += 1;
         continue;
       }
       prompt = buildWeekPrompt({

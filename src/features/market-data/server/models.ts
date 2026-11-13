@@ -2,6 +2,7 @@ import "server-only";
 import mongoose, { Schema, type Model } from "mongoose";
 import type { withInsightDefaults } from "../domain/day-insight";
 import type { PaySchedule } from "../domain/fundamentus";
+import type { WeekSummary } from "../domain/week-summary";
 import type { FiiIndicators, StockIndicators } from "../domain/fundamentus-indicators";
 import type { CatalogEntry, QuoteSource } from "../ports";
 
@@ -72,6 +73,11 @@ export interface AssetDoc {
     /** Os termos do glossário (sem os comuns) dos 2 últimos textos, o mais novo primeiro. */
     termHistory?: string[][];
   } | null;
+  /**
+   * O resumo da semana dos ativos da Carteira Alvo (plano 2026-11-13-resumo-semana-carteira-alvo),
+   * refeito quando as notícias guardadas da semana mudam.
+   */
+  weekSummary?: WeekSummary | null;
 }
 
 const newsItemSchema = new Schema(
@@ -99,6 +105,19 @@ const dayInsightSchema = new Schema(
       ),
       default: null,
     },
+    model: { type: String, default: null },
+    generatedAt: { type: Date, default: null },
+    attemptedAt: Date,
+  },
+  { _id: false },
+);
+
+const weekSummarySchema = new Schema(
+  {
+    newsKey: String,
+    status: { type: String, enum: ["ok", "no-news", "failed"] },
+    text: { type: String, default: null },
+    sources: { type: [newsItemSchema], default: [] },
     model: { type: String, default: null },
     generatedAt: { type: Date, default: null },
     attemptedAt: Date,
@@ -196,6 +215,7 @@ const assetSchema = new Schema<AssetDoc>(
     dayInsight: { type: dayInsightSchema, default: null },
     fundamentusIndicators: { type: fundamentusIndicatorsSchema, default: null },
     radar: { type: radarSchema, default: null },
+    weekSummary: { type: weekSummarySchema, default: null },
   },
   { timestamps: true, versionKey: false },
 );
