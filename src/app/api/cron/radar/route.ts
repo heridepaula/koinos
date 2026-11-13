@@ -14,14 +14,17 @@ const NO_INDICATORS = { updated: 0, failed: 0, pending: 0 };
 
 /**
  * Radar de fundamentos (spec radar-fundamentos). Chamado pelo cron-job.org de 15 em 15 min, das
- * 03:00 às 06:45 (docs/operations/cron-job-org.md). Cada chamada busca até 10 páginas de
- * indicadores no Fundamentus e depois gera até 6 textos, para caber nos 30 s do cron-job.org.
+ * 03:00 às 06:45 (docs/operations/cron-job-org.md). Cada chamada busca até 6 páginas de
+ * indicadores no Fundamentus e depois gera até 6 textos, sem começar nenhuma chamada ao Gemini
+ * com menos de 21 s até o orçamento de 25 s (o cron-job.org corta em 30 s); o resto fica para a
+ * próxima chamada.
  * Responde só contagens.
  */
 export async function GET(request: Request) {
   if (!isCronAuthorized(request.headers.get("authorization"))) {
     return Response.json({ error: "Não autorizado" }, { status: 401 });
   }
+  const startedAt = Date.now();
   return withSpan("cron.radar", {}, async () => {
     const [held, targets] = await Promise.all([listHeldQuantities(), listAllTargetRanks()]);
     const candidates = [
@@ -32,7 +35,7 @@ export async function GET(request: Request) {
     // Uma falha nos indicadores nunca impede o Radar: os antigos valem até 10 dias.
     const indicators = await withSpan("cron.refresh-indicators", {}, async (span) => {
       try {
-        const result = await refreshFundamentusIndicators(tickers, { maxPages: 10 });
+        const result = await refreshFundamentusIndicators(tickers, { maxPages: 6 });
         span.setAttributes({
           "koinos.indicators.updated": result.updated,
           "koinos.indicators.failed": result.failed,
@@ -45,7 +48,10 @@ export async function GET(request: Request) {
         return NO_INDICATORS;
       }
     });
-    const radar = await refreshRadars(candidates, { maxAssets: 6 });
+    const radar = await refreshRadars(candidates, {
+      maxAssets: 6,
+      deadline: startedAt + 25_000,
+    });
     if (radar.geminiCalls > 0) await reportApiUsage();
     return Response.json({ indicators, radar }, { headers: { "Cache-Control": "no-store" } });
   });

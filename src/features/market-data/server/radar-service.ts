@@ -23,7 +23,7 @@ import {
   type RadarInput,
 } from "../domain/radar";
 import { getAssetClasses } from "./catalog";
-import { generateWithChain, geminiModelsWithQuota } from "./gemini-chain";
+import { GEMINI_BUDGET_MS, generateWithChain, geminiModelsWithQuota } from "./gemini-chain";
 import { AssetModel, type AssetDoc } from "./models";
 import { getRealRate } from "./treasury-read";
 
@@ -37,6 +37,8 @@ export type RadarSummary = {
   generated: number;
   rejected: number;
   failed: number;
+  /** Ativos que ficaram para a próxima chamada por falta de tempo. */
+  deferred: number;
   geminiCalls: number;
   quotaExhausted: boolean;
 };
@@ -48,6 +50,7 @@ const empty = (status: RadarSummary["status"]): RadarSummary => ({
   generated: 0,
   rejected: 0,
   failed: 0,
+  deferred: 0,
   geminiCalls: 0,
   quotaExhausted: false,
 });
@@ -129,15 +132,17 @@ export function radarInputOf(
 
 export async function refreshRadars(
   candidates: readonly InsightCandidate[],
-  options: { maxAssets: number; now?: Date },
+  options: { maxAssets: number; now?: Date; deadline?: number },
 ): Promise<RadarSummary> {
   const apiKey = env.GEMINI_API_KEY;
   if (!apiKey) return empty("off");
   const now = options.now ?? new Date();
+  const deadline = options.deadline ?? Date.now() + 25_000;
   return withSpan("radar.generate", {}, async (span) => {
     const summary =
-      (await withLock("radar", 120_000, () => run(apiKey, candidates, options.maxAssets, now))) ??
-      empty("busy");
+      (await withLock("radar", 120_000, () =>
+        run(apiKey, candidates, options.maxAssets, now, deadline),
+      )) ?? empty("busy");
     span.setAttributes({
       "koinos.radar.status": summary.status,
       "koinos.radar.candidates": summary.candidates,
@@ -145,6 +150,7 @@ export async function refreshRadars(
       "koinos.radar.generated": summary.generated,
       "koinos.radar.rejected": summary.rejected,
       "koinos.radar.failed": summary.failed,
+      "koinos.radar.deferred": summary.deferred,
       "koinos.radar.gemini_calls": summary.geminiCalls,
       "koinos.radar.quota_exhausted": summary.quotaExhausted,
     });
@@ -157,6 +163,7 @@ async function run(
   candidates: readonly InsightCandidate[],
   maxAssets: number,
   now: Date,
+  deadline: number,
 ): Promise<RadarSummary> {
   const summary = empty("done");
   const byTicker = new Map<string, InsightCandidate>();
@@ -198,7 +205,12 @@ async function run(
   if (due.length === 0) return summary;
 
   const models = await geminiModelsWithQuota(now);
-  for (const item of due.slice(0, maxAssets)) {
+  const batch = due.slice(0, maxAssets);
+  for (const [index, item] of batch.entries()) {
+    if (Date.now() > deadline - GEMINI_BUDGET_MS) {
+      summary.deferred = batch.length - index;
+      break;
+    }
     if (models.length === 0) {
       summary.quotaExhausted = true;
       break;
@@ -210,6 +222,7 @@ async function run(
       { temperature: 0.2, maxOutputTokens: 2048 },
       now,
       `radar ${item.ticker}`,
+      deadline,
     );
     summary.geminiCalls += calls;
     if (!result) {
