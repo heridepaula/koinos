@@ -20,8 +20,16 @@ type GenerateResponse = {
   candidates?: { content?: { parts?: { text?: string }[] }; finishReason?: string }[];
 };
 
-/** O texto que o modelo gerou para o prompt. */
-export async function generateText(apiKey: string, model: string, prompt: string): Promise<string> {
+export type GenerateOptions = { temperature?: number; maxOutputTokens?: number };
+export type Generated = { text: string; finishReason: string | null };
+
+/** O texto que o modelo gerou e por que parou ("STOP"; "MAX_TOKENS" quando cortou). */
+export async function generateContent(
+  apiKey: string,
+  model: string,
+  prompt: string,
+  options: GenerateOptions = {},
+): Promise<Generated> {
   let response: Response;
   try {
     response = await fetch(`${BASE_URL}/${encodeURIComponent(model)}:generateContent`, {
@@ -29,7 +37,7 @@ export async function generateText(apiKey: string, model: string, prompt: string
       headers: { "Content-Type": "application/json", "X-goog-api-key": apiKey },
       body: JSON.stringify({
         contents: [{ parts: [{ text: prompt }] }],
-        generationConfig: { temperature: 0.3 },
+        generationConfig: options,
       }),
       signal: AbortSignal.timeout(TIMEOUT_MS),
       cache: "no-store",
@@ -47,10 +55,16 @@ export async function generateText(apiKey: string, model: string, prompt: string
   if (!response.ok)
     throw new GeminiError(`Gemini (${model}) respondeu ${response.status}`, "other");
   const body = (await response.json()) as GenerateResponse;
-  const text = body.candidates?.[0]?.content?.parts
+  const candidate = body.candidates?.[0];
+  const text = candidate?.content?.parts
     ?.map((part) => part.text ?? "")
     .join("")
     .trim();
   if (!text) throw new GeminiError(`Gemini (${model}) respondeu sem texto`, "unavailable");
-  return text;
+  return { text, finishReason: candidate?.finishReason ?? null };
+}
+
+/** O texto do resumo do dia (temperatura 0,3, sem limite de tokens). */
+export async function generateText(apiKey: string, model: string, prompt: string): Promise<string> {
+  return (await generateContent(apiKey, model, prompt, { temperature: 0.3 })).text;
 }
