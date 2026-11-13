@@ -1,0 +1,60 @@
+{
+  "planPath": "docs/superpowers/plans/2026-11-12-radar-fundamentos.md",
+  "tasks": [
+    {
+      "id": 1,
+      "subject": "Task 1: Parsers das páginas detalhes.php",
+      "status": "pending",
+      "description": "**Goal:** Ler os indicadores de uma ação e de um FII do HTML do Fundamentus, com os zeros de banco e margens acima de 100% como ausentes.\n\n**Files:**\n- Create: src/features/market-data/domain/fundamentus-indicators.ts\n- Test: src/features/market-data/domain/fundamentus-indicators.test.ts\n\n**Acceptance Criteria:** ver Task 1 do plano\n\n**Verify:** npx vitest run src/features/market-data/domain/fundamentus-indicators.test.ts\n\n```json:metadata\n{\"files\": [\"src/features/market-data/domain/fundamentus-indicators.ts\", \"src/features/market-data/domain/fundamentus-indicators.test.ts\"], \"verifyCommand\": \"npx vitest run src/features/market-data/domain/fundamentus-indicators.test.ts\", \"acceptanceCriteria\": [\"parseStockDetails devolve setor, data do balanço e indicadores em fração\", \"zeros de banco e margem acima de 100% viram null\", \"parseFiiDetails devolve FFO Yield, Cap Rate, imóveis e informe\", \"página sem os rótulos lança erro\"]}\n```"
+    },
+    {
+      "id": 2,
+      "subject": "Task 2: Domínio do Radar",
+      "status": "pending",
+      "blockedBy": [1],
+      "description": "**Goal:** radar.ts puro: fatos, chave, quando regerar, prompt com 4 exemplos, validação e chips.\n\n**Files:**\n- Create: src/features/market-data/domain/radar.ts\n- Test: src/features/market-data/domain/radar.test.ts\n- Modify: src/features/market-data/index.ts\n\n**Acceptance Criteria:** ver Task 2 do plano\n\n**Verify:** npx vitest run src/features/market-data/domain/radar.test.ts\n\n```json:metadata\n{\"files\": [\"src/features/market-data/domain/radar.ts\", \"src/features/market-data/domain/radar.test.ts\", \"src/features/market-data/index.ts\"], \"verifyCommand\": \"npx vitest run src/features/market-data/domain/radar.test.ts\", \"acceptanceCriteria\": [\"cada limite nos dois lados\", \"casos do conselho\", \"fatos fortes primeiro\", \"prompt sem dígitos\", \"exemplos passam na validação\", \"validação recusa MAX_TOKENS, dígito, jargão, 3 frases, longo\", \"regras de needsRadar\", \"assumedInflation igual ao CEILING_CHECK\"]}\n```"
+    },
+    {
+      "id": 3,
+      "subject": "Task 3: Gemini com limite de tokens e finishReason",
+      "status": "pending",
+      "description": "**Goal:** generateContent com opções e finishReason; generateText inalterado.\n\n**Files:**\n- Modify: src/features/market-data/adapters/gemini.ts\n\n**Acceptance Criteria:** ver Task 3 do plano\n\n**Verify:** npm run typecheck\n\n```json:metadata\n{\"files\": [\"src/features/market-data/adapters/gemini.ts\"], \"verifyCommand\": \"npm run typecheck\", \"acceptanceCriteria\": [\"generateContent devolve text e finishReason\", \"generateText inalterado\", \"erros inalterados\"]}\n```"
+    },
+    {
+      "id": 4,
+      "subject": "Task 4: Indicadores do Fundamentus no job diário",
+      "status": "pending",
+      "blockedBy": [1],
+      "description": "**Goal:** Etapa cron.refresh-indicators grava fundamentusIndicators para posições e Carteira Alvo.\n\n**Files:**\n- Modify: src/features/market-data/adapters/fundamentus.ts\n- Modify: src/features/market-data/server/models.ts\n- Create: src/features/market-data/server/indicators-service.ts\n- Modify: src/features/market-data/server/daily-job.ts\n- Modify: src/app/api/cron/daily/route.ts\n\n**Acceptance Criteria:** ver Task 4 do plano\n\n**Verify:** npm run typecheck && npm run lint\n\n```json:metadata\n{\"files\": [\"src/features/market-data/adapters/fundamentus.ts\", \"src/features/market-data/server/models.ts\", \"src/features/market-data/server/indicators-service.ts\", \"src/features/market-data/server/daily-job.ts\", \"src/app/api/cron/daily/route.ts\"], \"verifyCommand\": \"npm run typecheck && npm run lint\", \"acceptanceCriteria\": [\"detalhes usa o mesmo semáforo e reuso\", \"AssetDoc com fundamentusIndicators e radar\", \"pula 20 h, falha não grava\", \"span e resumo da etapa\", \"só posições + Carteira Alvo\"]}\n```"
+    },
+    {
+      "id": 5,
+      "subject": "Task 5: Geração do Radar e a rota do cron",
+      "status": "pending",
+      "blockedBy": [2, 3, 4],
+      "description": "**Goal:** refreshRadars + /api/cron/radar (8 ativos por chamada).\n\n**Files:**\n- Modify: src/features/smart-buy/domain/fii-cascade.ts, src/features/smart-buy/index.ts\n- Create: src/features/market-data/server/gemini-chain.ts, src/features/market-data/server/radar-service.ts, src/app/api/cron/radar/route.ts\n- Modify: src/features/market-data/server.ts\n\n**Acceptance Criteria:** ver Task 5 do plano\n\n**Verify:** npm run typecheck && npm run lint && npm test\n\n```json:metadata\n{\"files\": [\"src/features/market-data/server/gemini-chain.ts\", \"src/features/market-data/server/radar-service.ts\", \"src/app/api/cron/radar/route.ts\"], \"verifyCommand\": \"npm run typecheck && npm run lint && npm test\", \"acceptanceCriteria\": [\"off sem chave\", \"lock radar com busy\", \"prioridade e maxAssets\", \"dado velho ignorado\", \"prompt só com fatos, temp 0,2, 2048 tokens\", \"recusado grava failed\", \"spans só com contagens\"]}\n```"
+    },
+    {
+      "id": 6,
+      "subject": "Task 6: O Radar na tela de Recomendações",
+      "status": "pending",
+      "blockedBy": [5],
+      "description": "**Goal:** Popover na tabela e grupo na sheet com chips e texto.\n\n**Files:**\n- Create: src/features/market-data/server/radar-read.ts, src/features/smart-buy/components/aporte/radar-block.tsx\n- Modify: src/features/market-data/server.ts, src/features/smart-buy/components/aporte/orders.tsx, src/app/(app)/recomendacoes/page.tsx\n\n**Acceptance Criteria:** ver Task 6 do plano\n\n**Verify:** npm run typecheck && npm run lint\n\n```json:metadata\n{\"files\": [\"src/features/market-data/server/radar-read.ts\", \"src/features/smart-buy/components/aporte/radar-block.tsx\", \"src/features/smart-buy/components/aporte/orders.tsx\"], \"verifyCommand\": \"npm run typecheck && npm run lint\", \"acceptanceCriteria\": [\"getRadarViews só com texto ok\", \"AssetMeta.radar opcional\", \"botão de 44 px no toque com aria-label\", \"grupo da sheet depois do impacto\", \"rodapé da IA\", \"componentes sem import de server\"]}\n```"
+    },
+    {
+      "id": 7,
+      "subject": "Task 7: Documentação",
+      "status": "pending",
+      "blockedBy": [6],
+      "description": "**Goal:** CLAUDE.md, cron-job-org.md e new-relic.md.\n\n**Files:**\n- Modify: CLAUDE.md, docs/operations/cron-job-org.md, docs/observability/new-relic.md\n\n**Acceptance Criteria:** ver Task 7 do plano\n\n**Verify:** npm run format:check\n\n```json:metadata\n{\"files\": [\"CLAUDE.md\", \"docs/operations/cron-job-org.md\", \"docs/observability/new-relic.md\"], \"verifyCommand\": \"npm run format:check\", \"acceptanceCriteria\": [\"linha do cron-job.org\", \"bullet e testes no CLAUDE.md\", \"lista de spans\"]}\n```"
+    },
+    {
+      "id": 8,
+      "subject": "Task 8: Verificação completa e dry-run",
+      "status": "pending",
+      "blockedBy": [7],
+      "description": "**Goal:** Checks verdes e dry-run só leitura sobre a carteira real.\n\n**Files:**\n- Create (temporário): _radar-dry-run.mts\n\n**Acceptance Criteria:** ver Task 8 do plano\n\n**Verify:** npm run format:check && npm run lint && npm run typecheck && npm test && npm run build\n\n```json:metadata\n{\"files\": [], \"verifyCommand\": \"npm run format:check && npm run lint && npm run typecheck && npm test && npm run build\", \"acceptanceCriteria\": [\"todos os checks passam\", \"textos do dry-run sem dígito nem sigla; BBAS3/BBSE3/TUPY3/EGIE3 como esperado\", \"script apagado, árvore limpa\"]}\n```"
+    }
+  ],
+  "lastUpdated": "2026-11-12T00:00:00Z"
+}

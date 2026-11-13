@@ -46,7 +46,7 @@ fundamentusIndicators: {
   fetchedAt: Date,
 } | null
 radar: {
-  inputHash: string,         // hash da entrada do prompt
+  factsKey: string,          // os ids dos fatos, em ordem, separados por "|"
   status: "ok" | "failed",   // "failed" não aparece na tela
   text: string | null,
   model: string | null,
@@ -113,7 +113,7 @@ O texto é para quem nunca investiu: sem siglas, sem jargão, em português do d
 - O teste com jargão proibido (antes desta tabela) deu 4 de 4 respostas sem sigla e sem número, em ~1 s no 3.5 Flash-Lite.
 - `validateRadarText(text, finishReason)`: aparado; recusa `finishReason` diferente de `STOP`, vazio, sem ponto final, algum dígito, algum termo de `RADAR_JARGON` (a lista proibida acima, sem diferenciar maiúsculas), mais de 2 frases ou mais de 320 caracteres. Recusado = `status: "failed"`, sem nova chamada no mesmo dia. O `finishReason` e o ponto final são obrigatórios: no teste, os Flash com `maxOutputTokens: 400` gastaram quase tudo raciocinando e devolveram meia frase ("A empresa é negociada acima do"), que passaria nas outras regras.
 - Mesma cadeia `GEMINI_MODELS` e contadores do resumo do dia (Flash-Lite primeiro), temperatura 0,2, `maxOutputTokens: 2048` (os Flash raciocinam 850 a 1.150 tokens antes de responder ~60). O tamanho do texto é garantido pela validação, não pelo limite de tokens.
-- `needsRadar(asset, now)`: sem radar, ou `inputHash` diferente do da entrada atual e o último texto com mais de 20 h. O P/VP dos FIIs muda todo dia, então o FII costuma ser regerado uma vez por dia; uma ação só quando sai balanço novo ou o DY muda.
+- `needsRadar(radar, factsKey, now)`: sem radar, ou `factsKey` diferente do guardado e o último texto com mais de 20 h. Como a IA recebe só os fatos (qualitativos), o texto só é refeito quando um fato muda (o P/VP sair da faixa, a vacância passar de 10%…), não a cada P/VP diário.
 
 ## Execução
 
@@ -147,7 +147,7 @@ O texto é para quem nunca investiu: sem siglas, sem jargão, em português do d
   - `buildRadarPrompt` sem números nem siglas (recebe só os fatos), com os 4 exemplos;
   - cada texto de `RADAR_EXAMPLES` passa em `validateRadarText` (sem dígito, sem jargão, até 2 frases);
   - `validateRadarText`: dígito, jargão (inclusive "p/vp" minúsculo), sem ponto final, `finishReason` `MAX_TOKENS`, 3 frases, vazio, longo demais, texto válido;
-  - `needsRadar`: sem radar, mesmo hash, hash novo antes e depois de 20 h;
+  - `needsRadar`: sem radar, mesma chave, chave nova antes e depois de 20 h;
   - os chips por classe, ausentes fora.
 
 ## Fora do escopo
