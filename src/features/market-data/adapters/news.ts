@@ -24,6 +24,22 @@ export async function searchNews(ticker: string): Promise<NewsItem[]> {
   return parseBingNews(await response.text());
 }
 
+/** O XML de um feed RSS. Lança com o host na mensagem quando não dá para ler. */
+export async function fetchFeed(url: string): Promise<string> {
+  const host = new URL(url).hostname;
+  const response = await fetch(url, {
+    headers: { "User-Agent": USER_AGENT, Accept: "application/rss+xml, application/xml, text/xml" },
+    signal: AbortSignal.timeout(SEARCH_TIMEOUT_MS),
+    cache: "no-store",
+  });
+  if (!response.ok) throw new Error(`${host} respondeu ${response.status}`);
+  const length = Number(response.headers.get("content-length") ?? 0);
+  if (length > MAX_PAGE_BYTES) throw new Error(`${host}: feed grande demais`);
+  const xml = await response.text();
+  if (xml.length > MAX_PAGE_BYTES) throw new Error(`${host}: feed grande demais`);
+  return xml;
+}
+
 /**
  * O texto principal da página da notícia (Readability), ou null quando não dá para ler: status
  * diferente de 200, conteúdo que não é HTML, página grande demais ou sem texto.

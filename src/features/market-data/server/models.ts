@@ -342,3 +342,64 @@ const marketIndexSchema = new Schema<MarketIndexDoc>(
 export const MarketIndexModel: Model<MarketIndexDoc> =
   (mongoose.models.MarketIndex as Model<MarketIndexDoc> | undefined) ??
   mongoose.model<MarketIndexDoc>("MarketIndex", marketIndexSchema, "market_indices");
+
+export interface NewsItemDoc {
+  _id: string; // sha256 da URL normalizada, 24 hex
+  url: string;
+  title: string;
+  publisher: string;
+  source: string;
+  publishedAt: Date;
+  description: string | null;
+  tickers: string[];
+  topics: string[];
+  readPage: boolean;
+  fetchedAt: Date;
+}
+
+const storedNewsSchema = new Schema<NewsItemDoc>(
+  {
+    _id: { type: String, required: true },
+    url: { type: String, required: true },
+    title: { type: String, required: true },
+    publisher: { type: String, required: true },
+    source: { type: String, required: true },
+    publishedAt: { type: Date, required: true },
+    description: { type: String, default: null },
+    tickers: { type: [String], default: [] },
+    topics: { type: [String], default: [] },
+    readPage: { type: Boolean, default: true },
+    fetchedAt: { type: Date, required: true },
+  },
+  { versionKey: false },
+);
+// Notícias com mais de 14 dias somem sozinhas (NEWS.keepDays).
+storedNewsSchema.index({ publishedAt: 1 }, { expireAfterSeconds: 14 * 86_400 });
+storedNewsSchema.index({ tickers: 1, publishedAt: -1 });
+
+export const NewsItemModel: Model<NewsItemDoc> =
+  (mongoose.models.NewsItem as Model<NewsItemDoc> | undefined) ??
+  mongoose.model<NewsItemDoc>("NewsItem", storedNewsSchema, "news_items");
+
+export interface NewsFeedDoc {
+  _id: string; // URL do feed
+  fetchedAt: Date;
+  ok: boolean;
+  error: string | null;
+  items: number;
+}
+
+const newsFeedSchema = new Schema<NewsFeedDoc>(
+  {
+    _id: { type: String, required: true },
+    fetchedAt: { type: Date, required: true },
+    ok: { type: Boolean, required: true },
+    error: { type: String, default: null },
+    items: { type: Number, default: 0 },
+  },
+  { versionKey: false },
+);
+
+export const NewsFeedModel: Model<NewsFeedDoc> =
+  (mongoose.models.NewsFeed as Model<NewsFeedDoc> | undefined) ??
+  mongoose.model<NewsFeedDoc>("NewsFeed", newsFeedSchema, "news_feeds");
