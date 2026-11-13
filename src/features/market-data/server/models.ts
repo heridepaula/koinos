@@ -112,15 +112,45 @@ const dayInsightSchema = new Schema(
   { _id: false },
 );
 
+const NEWS_TONE_VALUES = ["favoravel", "desfavoravel", "neutro", "misto"];
+
+// A leitura da semana, versão 2 (spec 2026-11-13-leitura-da-semana-design.md): as fontes levam o
+// sentido da triagem, e as lentes, as posições das fontes que as sustentam.
+const weekSourceSchema = new Schema(
+  {
+    title: String,
+    publisher: String,
+    url: String,
+    publishedAt: Date,
+    tone: { type: String, enum: [...NEWS_TONE_VALUES, null], default: null },
+  },
+  { _id: false },
+);
+
+const weekLensSchema = new Schema(
+  {
+    id: { type: String, enum: ["renda", "imoveis", "risco", "metodo", "dividendos", "negocio"] },
+    tone: { type: String, enum: NEWS_TONE_VALUES },
+    text: String,
+    sources: { type: [Number], default: [] },
+  },
+  { _id: false },
+);
+
 const weekSummarySchema = new Schema(
   {
     newsKey: String,
     status: { type: String, enum: ["ok", "no-news", "failed"] },
     text: { type: String, default: null },
-    sources: { type: [newsItemSchema], default: [] },
+    sources: { type: [weekSourceSchema], default: [] },
     model: { type: String, default: null },
     generatedAt: { type: Date, default: null },
     attemptedAt: Date,
+    version: { type: Number, default: 1 },
+    moveKey: { type: String, default: "" },
+    tone: { type: String, enum: [...NEWS_TONE_VALUES, "sem_fato", null], default: null },
+    explainsMove: { type: String, enum: ["sim", "parcial", "nao", null], default: null },
+    lenses: { type: [weekLensSchema], default: [] },
   },
   { _id: false },
 );
@@ -360,6 +390,8 @@ export interface MarketIndexDoc {
   changePercent: number;
   session: Date;
   fetchedAt: Date;
+  /** A última leitura de cada pregão (até 40), para a variação da semana (`nextIndexCloses`). */
+  closes?: { session: Date; close: number }[];
 }
 
 const marketIndexSchema = new Schema<MarketIndexDoc>(
@@ -370,6 +402,10 @@ const marketIndexSchema = new Schema<MarketIndexDoc>(
     changePercent: { type: Number, required: true },
     session: { type: Date, required: true },
     fetchedAt: { type: Date, required: true },
+    closes: {
+      type: [new Schema({ session: Date, close: Number }, { _id: false })],
+      default: [],
+    },
   },
   { versionKey: false },
 );

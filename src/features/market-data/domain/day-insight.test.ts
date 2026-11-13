@@ -4,7 +4,6 @@ import {
   buildInsightPrompt,
   crossesThreshold,
   GEMINI_MODELS,
-  buildWeekPrompt,
   geminiLimitScope,
   insightMarket,
   insightPlan,
@@ -100,6 +99,12 @@ describe("parseBingNews", () => {
     expect(older.publisher).toBe("Valor Investe");
     expect(older.publishedAt.toISOString()).toBe("2026-11-11T05:33:00.000Z");
     expect(recent.publisher).toBe("fiis.com.br");
+  });
+
+  it("guarda o resumo do Bing, limpo; sem resumo, null", () => {
+    const [recent, older] = parseBingNews(RSS);
+    expect(older.description).toBe("Lucro de R$ 39,7 bi");
+    expect(recent.description).toBeNull();
   });
 
   it("deixa de fora URL repetida, link que não é http(s) e data inválida", () => {
@@ -444,27 +449,44 @@ describe("mergeSessionNews", () => {
       description: null,
     });
   });
+
+  it("do Bing: guarda o resumo e nunca lê a página da Suno", () => {
+    const merged = mergeSessionNews(
+      [],
+      [
+        { ...news("x", sp(11)), url: "https://www.suno.com.br/noticias/x/", description: "Trecho" },
+        { ...news("y", sp(12)), description: "Outro" },
+      ],
+      SESSION,
+    );
+    expect(merged).toMatchObject([
+      { url: "https://portal.com.br/y", readPage: true, description: "Outro" },
+      { url: "https://www.suno.com.br/noticias/x/", readPage: false, description: "Trecho" },
+    ]);
+  });
 });
 
 describe("weekNews", () => {
-  it("tópico ativo dos últimos 7 dias, até 5, da mais nova à mais velha", () => {
+  it("tópico ativo dos últimos 7 dias, até 10, da mais nova à mais velha", () => {
     const now = sp(14);
     const items = [
-      stored("1", sp(9, 0, 6)),
-      stored("2", sp(10, 0, 7)),
-      stored("3", sp(10, 0, 8)),
-      stored("4", sp(10, 0, 9)),
-      stored("5", sp(10, 0, 10)),
-      stored("6", sp(10, 0, 11)),
+      ...Array.from({ length: 11 }, (_, index) =>
+        stored(`n${String(index).padStart(2, "0")}`, sp(8 + index, 0, 10)),
+      ),
       stored("cenario", sp(11), { topics: ["cenario"] }),
       stored("velha", sp(13, 0, 5)),
     ];
-    expect(weekNews(items, now).map((item) => item.url.slice(-1))).toEqual([
-      "6",
-      "5",
-      "4",
-      "3",
-      "2",
+    expect(weekNews(items, now).map((item) => item.url.slice(-3))).toEqual([
+      "n10",
+      "n09",
+      "n08",
+      "n07",
+      "n06",
+      "n05",
+      "n04",
+      "n03",
+      "n02",
+      "n01",
     ]);
   });
 });
@@ -532,6 +554,12 @@ describe("marketReading", () => {
     expect(marketReading(0.005, -0.002)).toBe("descolou");
     expect(marketReading(0.02, 0)).toBe("descolou");
   });
+
+  it("o piso é parâmetro: 2 p.p. na semana", () => {
+    expect(marketReading(-0.0339, -0.014, 0.02)).toBe("acompanhou");
+    expect(marketReading(-0.034, -0.014, 0.02)).toBe("descolou");
+    expect(marketReading(-0.127, -0.014, 0.02)).toBe("descolou");
+  });
 });
 
 describe("insightMarket", () => {
@@ -589,36 +617,6 @@ describe("marketReadingText", () => {
         reading: "descolou",
       }),
     ).toBe("O IFIX ficou estável neste pregão e o HGLG11 subiu 2,10%, bem diferente do mercado.");
-  });
-});
-
-describe("buildWeekPrompt", () => {
-  const prompt = buildWeekPrompt({
-    ticker: "TRXF11",
-    assetClass: "FII",
-    changePercent: 0.0173,
-    session: SESSION,
-    items: [
-      { ...news("a", sp(10, 0, 10), "TRXF11 compra galpão"), description: "Aquisição de imóvel." },
-      { ...news("b", sp(16, 0, 9), "Relatório do fundo"), description: null },
-    ],
-    market: { index: "IFIX", indexChange: 0.0082, reading: "acompanhou" },
-  });
-
-  it("cada notícia com título, portal, data e resumo", () => {
-    expect(prompt).toContain('"TRXF11 compra galpão" (Portal, 10/11) — Aquisição de imóvel.');
-    expect(prompt).toContain('"Relatório do fundo" (Portal, 09/11)');
-    expect(prompt).toContain("nesta semana");
-  });
-
-  it("proíbe explicar a variação de hoje e recomendar", () => {
-    expect(prompt).toContain("Não diga que essas notícias explicam a variação de hoje");
-    expect(prompt).toContain("Não recomende comprar, vender ou manter.");
-    expect(prompt).toContain("acompanhando o mercado");
-  });
-
-  it("não leva nenhum dado da carteira", () => {
-    expect(prompt).not.toMatch(/R\$|cotas na carteira|preço médio|posição|quantidade/i);
   });
 });
 

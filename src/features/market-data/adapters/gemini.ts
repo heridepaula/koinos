@@ -25,11 +25,18 @@ type GenerateResponse = {
   candidates?: { content?: { parts?: { text?: string }[] }; finishReason?: string }[];
 };
 
-/** `timeoutMs` é só do cliente (padrão 20 s); não vai para a API. */
+/**
+ * `timeoutMs` é só do cliente (padrão 20 s); não vai para a API. Com `responseMimeType`
+ * "application/json" e `responseJsonSchema`, o modelo responde um JSON nesse esquema, na ordem das
+ * chaves (saída estruturada, documentação do Gemini conferida em 2026-11-13); o texto devolvido é o
+ * JSON, que quem chama valida.
+ */
 export type GenerateOptions = {
   temperature?: number;
   maxOutputTokens?: number;
   timeoutMs?: number;
+  responseMimeType?: "application/json";
+  responseJsonSchema?: object;
 };
 export type Generated = { text: string; finishReason: string | null };
 

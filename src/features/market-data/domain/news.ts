@@ -1,5 +1,8 @@
+import type { NewsItem } from "./day-insight";
+
 // Notícias da semana (spec 2026-11-13-noticias-e-cenario-design.md, Camada 2): leitura dos
-// feeds RSS, URL normalizada e ligação da notícia aos ativos acompanhados. Puro.
+// feeds RSS, URL normalizada e ligação da notícia aos ativos acompanhados. Desde 2026-11-13 (spec
+// 2026-11-13-leitura-da-semana-design.md), também a busca do Bing por ativo da Carteira Alvo. Puro.
 
 export const NEWS = {
   maxDescriptionChars: 400,
@@ -10,6 +13,9 @@ export const NEWS = {
   /** Cada feed por empresa é lido no máximo a cada 2 h, até 4 por chamada. */
   companyFeedEveryHours: 2,
   companyFeedsPerCall: 4,
+  /** A busca do Bing de cada ativo da Carteira Alvo: a cada 6 h por ticker, até 4 por chamada. */
+  bingEveryHours: 6,
+  bingPerCall: 4,
   /** Feeds lidos ao mesmo tempo. */
   feedConcurrency: 3,
 } as const;
@@ -63,8 +69,12 @@ export function normalizeNewsUrl(link: string): string | null {
   return url.toString();
 }
 
-/** Tags HTML de verdade: `<` seguido de letra, `/` ou `!`. Um "< 10%" no texto não é tag. */
-const HTML_TAG = /<\/?[a-z!][^>]*>/gi;
+/**
+ * Tags HTML de verdade: `<` seguido de letra, `/` ou `!`. Um "< 10%" no texto não é tag. Os valores
+ * entre aspas são pulados inteiros: a InfoMoney põe HTML dentro de `data-image-caption`, e o `>` de
+ * dentro dele cortava a tag no meio (sobrava `" data-large-file="…" />` no resumo).
+ */
+const HTML_TAG = /<\/?[a-z!](?:[^>"']|"[^"]*"|'[^']*')*>/gi;
 
 // Sem a flag `i` e com o início ou um espaço antes: "no post do Instagram" e "compost" não cortam.
 const FOOTER_START = /(?:^|\s)(?:The post|O post)\s/g;
@@ -129,7 +139,13 @@ export function parseRssFeed(xml: string): FeedItem[] {
 
 export type NewsTopic = "ativo" | "cenario";
 export type NewsSourceId =
-  "suno" | "fiis" | "infomoney" | "infomoney-empresa" | "moneytimes" | "moneytimes-politica";
+  | "suno"
+  | "fiis"
+  | "infomoney"
+  | "infomoney-empresa"
+  | "moneytimes"
+  | "moneytimes-politica"
+  | "bing";
 
 export type NewsSource = {
   id: NewsSourceId;
@@ -187,6 +203,46 @@ export const COMPANY_FEED_SOURCE: NewsSource = {
   topics: ["ativo"],
   readPage: true,
 };
+
+/**
+ * A busca do Bing Notícias por ticker (só ativos da Carteira Alvo). O portal de cada item vem do
+ * próprio Bing, e quem pode ter a página lida é decidido pelo host (`canReadPage`).
+ */
+export const BING_SOURCE: NewsSource = {
+  id: "bing",
+  url: "",
+  publisher: "Bing Notícias",
+  topics: ["ativo"],
+  readPage: true,
+};
+
+/** A busca do ticker no RSS do Bing Notícias, em pt-BR. É também a chave do rodízio. */
+export const bingSearchUrl = (ticker: string) =>
+  `https://www.bing.com/news/search?q=${encodeURIComponent(ticker)}&format=rss&setlang=pt-BR&cc=BR`;
+
+const hostOf = (url: string) => {
+  try {
+    return new URL(url).hostname.toLowerCase().replace(/^www\./, "");
+  } catch {
+    return null;
+  }
+};
+
+/** Os hosts das fontes que nunca têm a página lida (a Suno: `robots.txt` bloqueia robôs de IA). */
+const NO_READ_HOSTS = NEWS_SOURCES.filter((source) => !source.readPage).flatMap((source) => {
+  const host = hostOf(source.url);
+  return host ? [host] : [];
+});
+
+/** A página pode ser lida? Não nos hosts sem leitura (e subdomínios) nem numa URL inválida. */
+export function canReadPage(url: string): boolean {
+  const host = hostOf(url);
+  if (!host) return false;
+  return !NO_READ_HOSTS.some((blocked) => host === blocked || host.endsWith(`.${blocked}`));
+}
+
+/** Uma notícia do RSS do Bing, com o resumo (`<description>`) limpo. */
+export type BingNewsItem = NewsItem & { description: string | null };
 
 /** Slugs de `infomoney.com.br/tudo-sobre/<slug>/feed/`, testados em 2026-11-13 (SEER3 dá 404). */
 export const INFOMONEY_SLUGS: Readonly<Record<string, string>> = {
@@ -302,16 +358,50 @@ export function newsItemFromFeed(
   };
 }
 
-/** Os feeds por empresa a ler agora: nunca lidos ou lidos há 2 h ou mais, os mais antigos primeiro. */
-export function companyFeedsDue<T extends { url: string }>(
+/**
+ * O item do Bing a guardar, ou null: velho demais, no futuro, ou sem citar o ticker buscado (um
+ * resultado sem relação). Os outros acompanhados citados também são ligados; a página só é lida
+ * quando o host permite (a Suno vinda do Bing, não).
+ */
+export function newsItemFromBing(
+  item: BingNewsItem,
+  ticker: string,
+  tracked: readonly string[],
+  now: Date,
+): NewsItemInput | null {
+  const age = now.getTime() - item.publishedAt.getTime();
+  if (age > NEWS.keepDays * DAY_MS || -age > NEWS.futureToleranceMs) return null;
+  const tickers = matchTickers(`${item.title} ${item.description ?? ""}`, [
+    ...new Set([...tracked, ticker]),
+  ]);
+  if (!tickers.includes(ticker)) return null;
+  return {
+    url: item.url,
+    title: item.title,
+    publisher: item.publisher,
+    source: BING_SOURCE.id,
+    publishedAt: item.publishedAt,
+    description: item.description,
+    tickers,
+    topics: ["ativo"],
+    readPage: canReadPage(item.url),
+  };
+}
+
+/**
+ * Os feeds a ler agora, num rodízio: nunca lidos ou lidos há `everyHours` ou mais, os mais antigos
+ * primeiro, até `perCall`. Serve aos feeds por empresa (2 h, 4) e à busca do Bing (6 h, 4).
+ */
+export function feedsDue<T extends { url: string }>(
   feeds: readonly T[],
   lastFetched: ReadonlyMap<string, Date>,
   now: Date,
+  rule: { everyHours: number; perCall: number },
 ): T[] {
-  const limit = now.getTime() - NEWS.companyFeedEveryHours * 3_600_000;
+  const limit = now.getTime() - rule.everyHours * 3_600_000;
   const time = (feed: T) => lastFetched.get(feed.url)?.getTime() ?? Number.NEGATIVE_INFINITY;
   return feeds
     .filter((feed) => time(feed) <= limit)
     .sort((a, b) => time(a) - time(b))
-    .slice(0, NEWS.companyFeedsPerCall);
+    .slice(0, rule.perCall);
 }

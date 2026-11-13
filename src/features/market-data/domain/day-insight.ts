@@ -1,7 +1,7 @@
 import { saoPauloParts, saoPauloToUtc } from "@/shared/lib/time";
 import type { AssetClass } from "./asset-class";
 import type { MarketIndexId } from "./market-indices";
-import { normalizeNewsUrl, rssTag } from "./news";
+import { canReadPage, cleanDescription, normalizeNewsUrl, rssTag, type BingNewsItem } from "./news";
 
 // Resumo da IA para variações fortes do dia (spec 2026-11-12-resumo-ia-variacao-design.md).
 // Regras puras: gatilho, leitura do RSS do Bing, horários das novas tentativas e o prompt. Só
@@ -28,8 +28,11 @@ export const DAY_INSIGHT = {
   articleChars: 4000,
   /** Notícias de até 7 dias entram na lista. */
   maxNewsAgeDays: 7,
-  /** Notícias usadas no resumo da semana. */
-  weekItems: 5,
+  /**
+   * Notícias candidatas à leitura da semana: a IA faz a triagem e só as que falam do ativo viram
+   * fonte (spec 2026-11-13-leitura-da-semana-design.md).
+   */
+  weekItems: 10,
   /** Uma variação abaixo disso (fração, 0,005%) "ficou estável". */
   stableBelow: 0.00005,
 } as const;
@@ -89,7 +92,7 @@ export function geminiLimitScope(body: unknown): "day" | "minute" | "unknown" {
   return "unknown";
 }
 
-/** Uma notícia do RSS do Bing. */
+/** Uma notícia: título, portal, URL do portal e data. */
 export type NewsItem = {
   title: string;
   publisher: string;
@@ -193,11 +196,12 @@ function portalUrl(link: string): string | null {
 }
 
 /**
- * As notícias do RSS do Bing (`format=rss`), da mais recente para a mais antiga. Itens sem
- * título, sem URL http(s) ou sem data válida ficam de fora; URLs repetidas, também.
+ * As notícias do RSS do Bing (`format=rss`), da mais recente para a mais antiga, com o resumo do
+ * `<description>` limpo. Itens sem título, sem URL http(s) ou sem data válida ficam de fora; URLs
+ * repetidas, também.
  */
-export function parseBingNews(xml: string): NewsItem[] {
-  const items: NewsItem[] = [];
+export function parseBingNews(xml: string): BingNewsItem[] {
+  const items: BingNewsItem[] = [];
   const seen = new Set<string>();
   for (const match of xml.matchAll(/<item>([\s\S]*?)<\/item>/gi)) {
     const body = match[1];
@@ -210,7 +214,8 @@ export function parseBingNews(xml: string): NewsItem[] {
     if (seen.has(url)) continue;
     seen.add(url);
     const publisher = rssTag(body, "News:Source") ?? new URL(url).hostname.replace(/^www\./, "");
-    items.push({ title, publisher, url, publishedAt });
+    const description = cleanDescription(rssTag(body, "description"));
+    items.push({ title, publisher, url, publishedAt, description });
   }
   return items.sort((a, b) => b.publishedAt.getTime() - a.publishedAt.getTime());
 }
@@ -262,18 +267,26 @@ const toInsightNews = ({
 
 /**
  * As notícias do pregão: as guardadas do ticker e as do Bing que passam em `isSessionNews`, sem URL
- * repetida (a guardada vence, porque sabe se a página pode ser lida), da mais nova à mais velha.
+ * repetida (a guardada vence), da mais nova à mais velha. A do Bing leva o resumo e só tem a página
+ * lida quando o host permite (`canReadPage`: a Suno, nunca).
  */
 export function mergeSessionNews(
   stored: readonly StoredNews[],
-  bing: readonly NewsItem[],
+  bing: readonly (NewsItem & { description?: string | null })[],
   session: Date,
 ): InsightNews[] {
   const seen = new Set<string>();
   const merged: InsightNews[] = [];
   const candidates: InsightNews[] = [
     ...stored.map(toInsightNews),
-    ...bing.map((item) => ({ ...item, description: null, readPage: true })),
+    ...bing.map(({ title, publisher, url, publishedAt, description }) => ({
+      title,
+      publisher,
+      url,
+      publishedAt,
+      description: description ?? null,
+      readPage: canReadPage(url),
+    })),
   ];
   for (const item of candidates) {
     if (!isSessionNews(item.publishedAt, session)) continue;
@@ -417,13 +430,18 @@ export const marketIndexFor = (assetClass: AssetClass | null): MarketIndexId =>
 const roundFraction = (value: number) => Math.round(value * 1e9) / 1e9;
 
 /**
- * O ativo acompanhou o mercado: mesmo sinal e |ativo − índice| < max(1 p.p., metade do índice).
- * Senão (inclusive sinais opostos e índice parado), descolou.
+ * O ativo acompanhou o mercado: mesmo sinal e |ativo − índice| < max(piso, metade do índice). O
+ * piso é 1 p.p. no pregão e 2 p.p. na semana (`WEEK_MOVE.readingFloor`). Senão (inclusive sinais
+ * opostos e índice parado), descolou.
  */
-export function marketReading(assetChange: number, indexChange: number): MarketReadingKind {
+export function marketReading(
+  assetChange: number,
+  indexChange: number,
+  floor = 0.01,
+): MarketReadingKind {
   if (Math.sign(assetChange) !== Math.sign(indexChange)) return "descolou";
   const gap = roundFraction(Math.abs(assetChange - indexChange));
-  const limit = roundFraction(Math.max(0.01, 0.5 * Math.abs(indexChange)));
+  const limit = roundFraction(Math.max(floor, 0.5 * Math.abs(indexChange)));
   return gap < limit ? "acompanhou" : "descolou";
 }
 
@@ -445,7 +463,7 @@ export function insightMarket(
   };
 }
 
-const INDEX_NAMES: Record<MarketIndexId, string> = { IFIX: "IFIX", IBOV: "Ibovespa" };
+export const INDEX_NAMES: Record<MarketIndexId, string> = { IFIX: "IFIX", IBOV: "Ibovespa" };
 
 const formatPercent = (fraction: number) =>
   `${Math.abs(fraction * 100).toLocaleString("pt-BR", {
@@ -453,10 +471,13 @@ const formatPercent = (fraction: number) =>
     maximumFractionDigits: 2,
   })}%`;
 
-const movement = (fraction: number) =>
+/** "subiu 1,73%", "caiu 12,70%" ou "ficou estável" (abaixo de 0,005%). */
+export const movementText = (fraction: number) =>
   Math.abs(fraction) < DAY_INSIGHT.stableBelow
     ? "ficou estável"
     : `${fraction > 0 ? "subiu" : "caiu"} ${formatPercent(fraction)}`;
+
+const movement = movementText;
 
 /** "O IFIX subiu 0,82% neste pregão e o TRXF11 subiu 1,73%, acompanhando o mercado." */
 export function marketReadingText(
@@ -553,37 +574,5 @@ export function buildInsightPrompt(input: {
       : "- Se não trouxerem, diga apenas que as notícias não explicam o movimento.",
     "- Não recomende comprar, vender ou manter o ativo.",
     "- Responda só com o parágrafo, sem título e sem listar as fontes.",
-  ].join("\n");
-}
-
-/**
- * O prompt do resumo da semana: sem notícia do pregão, o que aconteceu com o ativo nos últimos
- * dias, só com título, portal, data e resumo de cada notícia (sem ler páginas). Nunca diz que as
- * notícias explicam a variação de hoje. Sem dados da carteira.
- */
-export function buildWeekPrompt(input: {
-  ticker: string;
-  assetClass: AssetClass | null;
-  changePercent: number;
-  session: Date;
-  items: readonly (NewsItem & { description: string | null })[];
-  market?: MarketReading | null;
-}): string {
-  const sessionDay = formatDay(input.session).slice(0, 10);
-  const news = input.items
-    .map((item) => {
-      const head = `"${item.title}" (${item.publisher}, ${formatDay(item.publishedAt).slice(0, 5)})`;
-      return item.description ? `${head} — ${item.description}` : head;
-    })
-    .join("\n");
-  return [
-    `${input.ticker} é ${assetKind(input.assetClass)} negociado na bolsa brasileira. No pregão de ${sessionDay}, a cotação variou ${formatSigned(input.changePercent)}.`,
-    ...marketLine(input.ticker, input.changePercent, input.market),
-    "",
-    `Escreva um parágrafo de até 4 frases curtas, para leigos, resumindo o que aconteceu com ${input.ticker} nesta semana segundo as notícias abaixo (cada uma com a data). Não diga que essas notícias explicam a variação de hoje: nenhuma é do pregão de hoje. Não recomende comprar, vender ou manter. Responda só com o parágrafo.`,
-    "",
-    "Notícias da semana sobre o ativo:",
-    "",
-    news,
   ].join("\n");
 }

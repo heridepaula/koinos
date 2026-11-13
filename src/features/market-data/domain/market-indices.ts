@@ -27,6 +27,31 @@ export type MarketIndexValue = {
   session: Date;
 };
 
+/** O fechamento de um índice num pregão: a última leitura daquele pregão. */
+export type IndexClose = { session: Date; close: number };
+
+/**
+ * Pregões guardados por índice: o Yahoo não tem histórico do `IFIX.SA`, então a variação da semana
+ * (spec 2026-11-13-leitura-da-semana-design.md) vem de guardar a última leitura de cada pregão.
+ */
+export const INDEX_CLOSES_KEPT = 40;
+
+/**
+ * Os fechamentos com a leitura atual: ela vira (ou substitui) o fechamento do seu pregão, em ordem
+ * de data, só os `INDEX_CLOSES_KEPT` mais recentes.
+ */
+export function nextIndexCloses(
+  stored: readonly IndexClose[] | null | undefined,
+  value: { session: Date; price: number },
+): IndexClose[] {
+  const others = (stored ?? []).filter(
+    (item) => item.session.getTime() !== value.session.getTime(),
+  );
+  return [...others, { session: value.session, close: value.price }]
+    .sort((a, b) => a.session.getTime() - b.session.getTime())
+    .slice(-INDEX_CLOSES_KEPT);
+}
+
 /** O cron roda a cada 30 min; com 25 a chamada um pouco adiantada também atualiza. */
 export const INDEX_REFRESH_MS = 25 * 60_000;
 

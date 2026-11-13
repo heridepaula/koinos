@@ -1,15 +1,14 @@
 import "server-only";
 import { connectMongo } from "@/shared/db/mongo";
 import type { AssetClass } from "../domain/asset-class";
-import { quoteSessionDate } from "../domain/market-hours";
-import { weekSummaryVisible, type WeekSummaryView } from "../domain/week-summary";
-import { currentMarketReading } from "./market-reading";
+import { weekSummaryView, type WeekSummaryView } from "../domain/week-summary";
 import { AssetModel } from "./models";
 
 /**
- * O resumo da semana guardado do ativo, com a variação e a linha do mercado atuais, ou null: sem
- * resumo, com `failed` ou com a geração há mais de 48 h (um ativo que saiu da Carteira
- * Alvo perde o card quando o texto envelhece). Só lê o que está guardado.
+ * A leitura da semana guardada do ativo, com as lentes rotuladas, ou null: sem resumo, com
+ * `failed` ou com a geração há mais de 48 h (um ativo que saiu da Carteira Alvo perde o card
+ * quando o texto envelhece). Só lê o que está guardado; o movimento em 7 dias e o termômetro vêm
+ * de `getAssetPulse`.
  */
 export async function getWeekSummary(
   ticker: string,
@@ -17,32 +16,6 @@ export async function getWeekSummary(
   now: Date = new Date(),
 ): Promise<WeekSummaryView | null> {
   await connectMongo();
-  const doc = await AssetModel.findById(ticker, {
-    quoteFetchedAt: 1,
-    changePercent: 1,
-    weekSummary: 1,
-  }).lean();
-  const stored = doc?.weekSummary;
-  if (!stored || stored.status === "failed" || !weekSummaryVisible(stored, now)) return null;
-  const change =
-    typeof doc.changePercent === "number" && Number.isFinite(doc.changePercent)
-      ? doc.changePercent
-      : null;
-  const market =
-    change !== null && doc.quoteFetchedAt
-      ? await currentMarketReading(assetClass, quoteSessionDate(doc.quoteFetchedAt), change)
-      : null;
-  return {
-    status: stored.status,
-    text: stored.status === "ok" ? (stored.text ?? null) : null,
-    sources: (stored.sources ?? []).map(({ title, publisher, url, publishedAt }) => ({
-      title,
-      publisher,
-      url,
-      publishedAt,
-    })),
-    updatedAt: stored.generatedAt ?? stored.attemptedAt,
-    changePercent: change,
-    market,
-  };
+  const doc = await AssetModel.findById(ticker, { weekSummary: 1 }).lean();
+  return weekSummaryView(doc?.weekSummary ?? null, assetClass, now);
 }

@@ -2,6 +2,7 @@ import "server-only";
 import { Readability } from "@mozilla/readability";
 import { parseHTML } from "linkedom";
 import { parseBingNews, type NewsItem } from "../domain/day-insight";
+import { bingSearchUrl, type BingNewsItem } from "../domain/news";
 
 // Notícias para o resumo da IA: a busca no RSS do Bing Notícias e a leitura das páginas dos
 // portais. O cliente se identifica como é (sem se passar por navegador), como no Fundamentus. O
@@ -12,10 +13,9 @@ const PAGE_TIMEOUT_MS = 8_000;
 /** Páginas maiores que isso não são lidas (texto de notícia cabe com folga). */
 const MAX_PAGE_BYTES = 3 * 1024 * 1024;
 
-/** As notícias do ativo no Bing (pt-BR), da mais recente para a mais antiga. */
-export async function searchNews(ticker: string): Promise<NewsItem[]> {
-  const url = `https://www.bing.com/news/search?q=${encodeURIComponent(ticker)}&format=rss&setlang=pt-BR&cc=BR`;
-  const response = await fetch(url, {
+/** As notícias do ativo no Bing (pt-BR), da mais recente para a mais antiga, com o resumo. */
+export async function searchNews(ticker: string): Promise<BingNewsItem[]> {
+  const response = await fetch(bingSearchUrl(ticker), {
     headers: { "User-Agent": USER_AGENT, Accept: "application/rss+xml, application/xml" },
     signal: AbortSignal.timeout(SEARCH_TIMEOUT_MS),
     cache: "no-store",

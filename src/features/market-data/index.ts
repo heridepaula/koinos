@@ -21,7 +21,21 @@ export {
   type InsightCandidate,
   type NewsItem,
 } from "./domain/day-insight";
-export type { WeekSummaryView } from "./domain/week-summary";
+export type {
+  NewsTone,
+  WeekLensView,
+  WeekSource,
+  WeekSummaryView,
+  WeekTone,
+} from "./domain/week-summary";
+export { weekMoveText, type WeekMove } from "./domain/week-move";
+export {
+  HEAT_LABELS,
+  type AssetHeat,
+  type AssetPulse,
+  type HeatFactor,
+  type HeatLevel,
+} from "./domain/asset-heat";
 export { RADAR, type RadarChip, type RadarFact, type RadarView } from "./domain/radar";
 export type { CatalogEntry, Quote, QuoteSource } from "./ports";
 export {

@@ -9,7 +9,6 @@ import { readArticle, searchNews } from "../adapters/news";
 import {
   availableModels,
   buildInsightPrompt,
-  buildWeekPrompt,
   crossesThreshold,
   GEMINI_MODELS,
   insightMarket,
@@ -32,19 +31,25 @@ import {
 } from "../domain/day-insight";
 import { quoteSessionDate } from "../domain/market-hours";
 import type { MarketIndexId } from "../domain/market-indices";
-import { weekNewsKey } from "../domain/week-summary";
+import type { BingNewsItem } from "../domain/news";
+import { WEEK_SUMMARY, weekNewsKey } from "../domain/week-summary";
 import { getAssetClasses } from "./catalog";
 import { AssetModel, MarketIndexModel } from "./models";
 import { storedNewsByTicker } from "./news-read";
 import { geminiRequestsToday, markGeminiExhausted, recordGeminiRequest } from "./usage";
+import { generateWeekReading, storedIndexCloses } from "./week-reading";
 
 // Resumo da IA das variações fortes do dia (spec 2026-11-12-resumo-ia-variacao-design.md e plano
 // 2026-11-13-resumo-dia-sem-noticia-antiga.md). Roda em segundo plano (ao abrir o app e no cron de
 // 30 em 30 min); a página do ativo só lê. Só notícia do pregão (`news_items` + Bing) explica o
 // movimento; sem ela, o resumo é da semana (só `news_items`). O índice do mesmo pregão
-// (`market_indices`) dá a leitura contra o mercado, calculada pelo código. No modo semana, o resumo
-// da semana da Carteira Alvo com a mesma chave de notícias é reaproveitado, sem Gemini (plano
-// 2026-11-13-resumo-semana-carteira-alvo.md, W7).
+// (`market_indices`) dá a leitura contra o mercado, calculada pelo código. No modo semana, a
+// leitura da semana da Carteira Alvo com a mesma chave de notícias é reaproveitada, sem Gemini
+// (plano 2026-11-13-resumo-semana-carteira-alvo.md, W7); sem ela, a mesma leitura é gerada aqui
+// (spec 2026-11-13-leitura-da-semana-design.md).
+
+/** O prazo de uma execução: o cron-job.org corta a requisição em 30 s. */
+const RUN_BUDGET_MS = 25_000;
 
 export type DayInsightSummary = {
   status: "off" | "busy" | "done";
@@ -166,6 +171,7 @@ async function run(
   now: Date,
 ): Promise<DayInsightSummary> {
   const summary = empty("done");
+  const deadline = Date.now() + RUN_BUDGET_MS;
   const byTicker = new Map<string, InsightCandidate>();
   for (const candidate of candidates) {
     const known = byTicker.get(candidate.ticker);
@@ -178,11 +184,9 @@ async function run(
   const tickers = [...byTicker.keys()];
   if (tickers.length === 0) return summary;
   await connectMongo();
+  // O documento inteiro: o modo semana monta a leitura com os fechamentos e os proventos.
   const [docs, classes] = await Promise.all([
-    AssetModel.find(
-      { _id: mongoose.trusted({ $in: tickers }) },
-      { price: 1, changePercent: 1, quoteFetchedAt: 1, dayInsight: 1, weekSummary: 1 },
-    ).lean(),
+    AssetModel.find({ _id: mongoose.trusted({ $in: tickers }) }).lean(),
     getAssetClasses(tickers),
   ]);
   const assets = new Map(docs.map((doc) => [doc._id, doc]));
@@ -215,12 +219,13 @@ async function run(
   // Sem cota, só o que não precisa do Gemini segue (o "no-news" da semana vazia).
 
   const batch = due.slice(0, maxAssets);
-  const [newsByTicker, indices] = await Promise.all([
+  const [newsByTicker, indices, indexCloses] = await Promise.all([
     storedNewsByTicker(
       batch.map((item) => item.ticker),
       now,
     ),
     storedIndices(),
+    storedIndexCloses(),
   ]);
 
   /** O texto do primeiro modelo da cadeia que responder, ou null. */
@@ -248,7 +253,7 @@ async function run(
     const assetClass = classes.get(ticker) ?? null;
     const market = insightMarket(assetClass, change, indices, session);
     const base = { session, changePercent: change, attemptedAt: now, market };
-    let bing: NewsItem[] = [];
+    let bing: BingNewsItem[] = [];
     try {
       bing = await searchNews(ticker);
     } catch (error) {
@@ -257,12 +262,14 @@ async function run(
     }
     const stored = newsByTicker.get(ticker) ?? [];
     const weekItems = weekNews(stored, now);
-    // O resumo da semana da Carteira Alvo com as mesmas notícias serve ao modo semana (W7).
+    // A leitura da semana da Carteira Alvo com as mesmas notícias, da versão atual, serve ao modo
+    // semana (W7).
     const weekSummary = assets.get(ticker)?.weekSummary;
     const reusable =
       weekItems.length > 0 &&
       weekSummary?.status === "ok" &&
       weekSummary.text &&
+      (weekSummary.version ?? 1) === WEEK_SUMMARY.version &&
       weekSummary.newsKey === weekNewsKey(selectWeekNews(stored, now))
         ? weekSummary
         : null;
@@ -322,15 +329,60 @@ async function run(
         summary.weekReused += 1;
         continue;
       }
-      prompt = buildWeekPrompt({
+      // A mesma leitura da semana da Carteira Alvo: triagem, lentes e veredito validados.
+      const selection = selectWeekNews(stored, now);
+      const reading = await generateWeekReading({
+        apiKey,
+        models,
         ticker,
         assetClass,
-        changePercent: change,
-        session,
-        items: weekItems,
-        market,
+        doc: assets.get(ticker),
+        indexCloses,
+        items: selection,
+        newsKey: weekNewsKey(selection),
+        now,
+        deadline,
+        label: `resumo-ia ${ticker}`,
       });
-      sources = weekItems.map(plainSource);
+      summary.geminiCalls += reading.calls;
+      // Sem tempo para começar a chamada: fica para a próxima execução, sem marcar tentativa.
+      if (!reading.summary && reading.calls === 0) continue;
+      if (reading.summary?.text) {
+        await saveInsight(ticker, {
+          ...base,
+          kind,
+          status: "ok",
+          text: reading.summary.text,
+          sameDay: false,
+          sources: reading.summary.sources.map(plainSource),
+          model: reading.summary.model,
+          generatedAt: now,
+        });
+        summary.generated += 1;
+        summary.week += 1;
+        continue;
+      }
+      if (reading.summary) {
+        // Nenhuma notícia da semana fala do ativo (só listas e mercado).
+        await saveInsight(ticker, noNews(base));
+        summary.noNews += 1;
+        continue;
+      }
+      summary.failed += 1;
+      if (previous && previous.status !== "failed") await touchAttempt(ticker, now);
+      else {
+        await saveInsight(ticker, {
+          ...base,
+          kind,
+          status: "failed",
+          text: null,
+          sameDay: false,
+          sources: [],
+          model: reading.model,
+          generatedAt: null,
+        });
+      }
+      continue;
     }
 
     const generated = await generate(ticker, prompt);

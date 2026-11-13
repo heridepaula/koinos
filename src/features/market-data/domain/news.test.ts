@@ -1,13 +1,18 @@
 import { describe, expect, it } from "vitest";
 import {
+  bingSearchUrl,
+  canReadPage,
   cleanDescription,
   COMPANY_FEED_SOURCE,
-  companyFeedsDue,
+  feedsDue,
   matchTickers,
+  NEWS,
   NEWS_SOURCES,
+  newsItemFromBing,
   newsItemFromFeed,
   normalizeNewsUrl,
   parseRssFeed,
+  type BingNewsItem,
   type FeedItem,
 } from "./news";
 
@@ -129,6 +134,12 @@ describe("cleanDescription", () => {
     expect(
       cleanDescription("<p>Um   texto</p>\n<p>O post X apareceu primeiro em Money Times.</p>"),
     ).toBe("Um texto");
+  });
+
+  it("tira a imagem da InfoMoney mesmo com HTML dentro de um atributo", () => {
+    const raw =
+      '<p><img width="300" alt="" data-image-caption="<p>Petrobras X Vale (Imagem feita com IA)</p>" data-large-file="https://x/y.png?fit=1280%2C853" /></p><p>Recuperação do minério mudou o jogo.</p>';
+    expect(cleanDescription(raw)).toBe("Recuperação do minério mudou o jogo.");
   });
 
   it("vazio vira null", () => {
@@ -258,18 +269,101 @@ describe("newsItemFromFeed", () => {
   });
 });
 
-describe("companyFeedsDue", () => {
+describe("feedsDue", () => {
   const now = new Date("2026-11-13T15:00:00Z");
   const hoursAgo = (h: number) => new Date(now.getTime() - h * 3_600_000);
   const feeds = ["A", "B", "C", "D", "E", "F"].map((t) => ({ ticker: t, url: `u/${t}` }));
+  const last = new Map([
+    ["u/A", hoursAgo(1)],
+    ["u/B", hoursAgo(5)],
+    ["u/C", hoursAgo(3)],
+    ["u/D", hoursAgo(2)],
+  ]);
 
-  it("nunca lidos primeiro, depois os mais antigos; respeita 2 h e o máximo de 4", () => {
-    const last = new Map([
-      ["u/A", hoursAgo(1)],
-      ["u/B", hoursAgo(5)],
-      ["u/C", hoursAgo(3)],
-      ["u/D", hoursAgo(2)],
-    ]);
-    expect(companyFeedsDue(feeds, last, now).map((f) => f.ticker)).toEqual(["E", "F", "B", "C"]);
+  it("feeds por empresa: nunca lidos primeiro, depois os mais antigos; 2 h e no máximo 4", () => {
+    const rule = { everyHours: NEWS.companyFeedEveryHours, perCall: NEWS.companyFeedsPerCall };
+    expect(feedsDue(feeds, last, now, rule).map((f) => f.ticker)).toEqual(["E", "F", "B", "C"]);
+  });
+
+  it("busca do Bing: a cada 6 h por ticker", () => {
+    const rule = { everyHours: NEWS.bingEveryHours, perCall: NEWS.bingPerCall };
+    const bing = new Map([...last, ["u/E", hoursAgo(6)], ["u/F", hoursAgo(5.9)]]);
+    expect(feedsDue(feeds, bing, now, rule).map((f) => f.ticker)).toEqual(["E"]);
+  });
+});
+
+describe("bingSearchUrl", () => {
+  it("busca o ticker no Bing Notícias em RSS, em pt-BR", () => {
+    expect(bingSearchUrl("TRXF11")).toBe(
+      "https://www.bing.com/news/search?q=TRXF11&format=rss&setlang=pt-BR&cc=BR",
+    );
+  });
+});
+
+describe("canReadPage", () => {
+  it("a Suno (com subdomínios) nunca tem a página lida; os outros portais, sim", () => {
+    expect(canReadPage("https://www.suno.com.br/noticias/a/")).toBe(false);
+    expect(canReadPage("https://suno.com.br/noticias/a/")).toBe(false);
+    expect(canReadPage("https://conteudo.suno.com.br/a")).toBe(false);
+    expect(canReadPage("https://fiis.com.br/noticias/a/")).toBe(true);
+    expect(canReadPage("https://naosuno.com.br/a")).toBe(true);
+  });
+
+  it("URL inválida não é lida", () => {
+    expect(canReadPage("não é url")).toBe(false);
+  });
+});
+
+describe("newsItemFromBing", () => {
+  const now = new Date("2026-11-13T15:00:00Z");
+  const fiis = ["TRXF11", "VRTA11", "HGLG11"];
+  const bingItem = (over: Partial<BingNewsItem> = {}): BingNewsItem => ({
+    title: "TRXF11: O resultado de outubro foi ruim? Veja o que diz a gestora",
+    publisher: "FIIs",
+    url: "https://fiis.com.br/noticias/trxf11-resultado-outubro-gestora/",
+    publishedAt: new Date("2026-11-12T06:40:00Z"),
+    description: "O TRX Real Estate (TRXF11) registrou resultado recorrente de R$ 0,63 por cota.",
+    ...over,
+  });
+
+  it("guarda com o portal, o resumo, o tópico ativo e a fonte bing", () => {
+    expect(newsItemFromBing(bingItem(), "TRXF11", fiis, now)).toEqual({
+      url: "https://fiis.com.br/noticias/trxf11-resultado-outubro-gestora/",
+      title: "TRXF11: O resultado de outubro foi ruim? Veja o que diz a gestora",
+      publisher: "FIIs",
+      source: "bing",
+      publishedAt: new Date("2026-11-12T06:40:00Z"),
+      description: "O TRX Real Estate (TRXF11) registrou resultado recorrente de R$ 0,63 por cota.",
+      tickers: ["TRXF11"],
+      topics: ["ativo"],
+      readPage: true,
+    });
+  });
+
+  it("liga os outros acompanhados citados; a Suno vinda do Bing não tem a página lida", () => {
+    const item = newsItemFromBing(
+      bingItem({
+        title: "VRTA11 e TRXF11 pagam hoje",
+        url: "https://www.suno.com.br/noticias/a/",
+        description: null,
+      }),
+      "TRXF11",
+      fiis,
+      now,
+    );
+    expect(item).toMatchObject({ tickers: ["TRXF11", "VRTA11"], readPage: false });
+  });
+
+  it("resultado que não cita o ticker buscado fica de fora", () => {
+    const item = bingItem({ title: "IFIX fecha em queda", description: "O índice recuou." });
+    expect(newsItemFromBing(item, "TRXF11", fiis, now)).toBeNull();
+  });
+
+  it("idade: até 14 dias e no máximo 1 h no futuro", () => {
+    const day = 86_400_000;
+    const old = bingItem({ publishedAt: new Date(now.getTime() - 15 * day) });
+    const future = bingItem({ publishedAt: new Date(now.getTime() + 2 * 3_600_000) });
+    expect(newsItemFromBing(old, "TRXF11", fiis, now)).toBeNull();
+    expect(newsItemFromBing(future, "TRXF11", fiis, now)).toBeNull();
   });
 });

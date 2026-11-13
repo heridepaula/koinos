@@ -1,8 +1,54 @@
 import { describe, expect, it } from "vitest";
 import { isQuoteStale, quoteSessionDate } from "./market-hours";
-import { isIndexStale, MARKET_INDICES, marketIndexFromQuote } from "./market-indices";
+import {
+  INDEX_CLOSES_KEPT,
+  isIndexStale,
+  MARKET_INDICES,
+  marketIndexFromQuote,
+  nextIndexCloses,
+} from "./market-indices";
 
 const now = new Date("2026-11-13T15:00:00Z");
+
+describe("nextIndexCloses", () => {
+  const day = (d: number) => new Date(Date.UTC(2026, 10, d));
+
+  it("acrescenta o pregão novo e mantém a ordem", () => {
+    const stored = [
+      { session: day(11), close: 3598.12 },
+      { session: day(12), close: 3567.01 },
+    ];
+    expect(nextIndexCloses(stored, { session: day(13), price: 3600.7 })).toEqual([
+      ...stored,
+      { session: day(13), close: 3600.7 },
+    ]);
+  });
+
+  it("a leitura do mesmo pregão substitui o fechamento dele; sem histórico, começa", () => {
+    const stored = [
+      { session: day(12), close: 3567.01 },
+      { session: day(13), close: 3590 },
+    ];
+    expect(nextIndexCloses(stored, { session: day(13), price: 3600.7 })).toEqual([
+      { session: day(12), close: 3567.01 },
+      { session: day(13), close: 3600.7 },
+    ]);
+    expect(nextIndexCloses(undefined, { session: day(13), price: 1 })).toEqual([
+      { session: day(13), close: 1 },
+    ]);
+  });
+
+  it(`guarda só os ${INDEX_CLOSES_KEPT} pregões mais recentes`, () => {
+    const stored = Array.from({ length: INDEX_CLOSES_KEPT }, (_, i) => ({
+      session: new Date(Date.UTC(2026, 8, 1 + i)),
+      close: i,
+    }));
+    const next = nextIndexCloses(stored, { session: day(13), price: 99 });
+    expect(next).toHaveLength(INDEX_CLOSES_KEPT);
+    expect(next[0].close).toBe(1);
+    expect(next.at(-1)).toEqual({ session: day(13), close: 99 });
+  });
+});
 
 describe("marketIndexFromQuote", () => {
   it("usa a variação do Yahoo e o pregão do horário da cotação", () => {

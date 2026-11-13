@@ -4,30 +4,24 @@ import { withLock } from "@/shared/db/lock";
 import { connectMongo } from "@/shared/db/mongo";
 import { env } from "@/shared/env";
 import { withSpan } from "@/shared/lib/tracing";
+import { prioritizeInsights, selectWeekNews, type InsightCandidate } from "../domain/day-insight";
+import { weekMoveKey } from "../domain/week-move";
 import {
-  prioritizeInsights,
-  selectWeekNews,
-  type InsightCandidate,
-  type NewsItem,
-} from "../domain/day-insight";
-import { describeAsset } from "../domain/radar";
-import {
-  buildWeekSummaryPrompt,
   needsWeekSummary,
-  validateWeekSummary,
   WEEK_SUMMARY,
   weekNewsKey,
   type WeekSummary,
 } from "../domain/week-summary";
 import { getAssetClasses } from "./catalog";
-import { GEMINI_BUDGET_MS, generateWithChain, geminiModelsWithQuota } from "./gemini-chain";
+import { GEMINI_BUDGET_MS, geminiModelsWithQuota } from "./gemini-chain";
 import { AssetModel } from "./models";
 import { storedNewsByTicker, type StoredNewsWithId } from "./news-read";
-import { radarInputOf } from "./radar-service";
+import { generateWeekReading, storedIndexCloses, weekMoveOfDoc } from "./week-reading";
 
-// Resumo da semana dos ativos da Carteira Alvo (plano 2026-11-13-resumo-semana-carteira-alvo.md):
-// chamado pelo /api/cron/news depois da coleta, só com as notícias guardadas (nenhum Bing, nenhuma
-// página lida). Refeito só quando as notícias da semana mudam; a página do ativo só lê.
+// A leitura da semana dos ativos da Carteira Alvo (spec 2026-11-13-leitura-da-semana-design.md):
+// chamada pelo /api/cron/news depois da coleta (que já trouxe o Bing de cada ativo), com as
+// notícias guardadas e o movimento em 7 dias. Refeita quando as notícias, a faixa do movimento ou
+// a versão do prompt mudam; a página do ativo só lê.
 
 export type WeekSummaryRun = {
   status: "off" | "busy" | "done";
@@ -37,8 +31,10 @@ export type WeekSummaryRun = {
   generated: number;
   /** Gravados sem notícias da semana, sem Gemini. */
   noNews: number;
-  /** Respostas recusadas pela validação ou cadeia sem resposta. */
+  /** Respostas recusadas por todos os modelos tentados ou cadeia sem resposta. */
   failed: number;
+  /** Respostas recusadas pela validação (cada uma, mesmo quando o modelo seguinte acertou). */
+  rejected: number;
   /** Ativos que ficaram para a próxima chamada (tempo ou `maxAssets`). */
   deferred: number;
   geminiCalls: number;
@@ -52,16 +48,10 @@ const empty = (status: WeekSummaryRun["status"]): WeekSummaryRun => ({
   generated: 0,
   noNews: 0,
   failed: 0,
+  rejected: 0,
   deferred: 0,
   geminiCalls: 0,
   quotaExhausted: false,
-});
-
-const plainSource = ({ title, publisher, url, publishedAt }: NewsItem): NewsItem => ({
-  title,
-  publisher,
-  url,
-  publishedAt,
 });
 
 async function save(ticker: string, summary: WeekSummary): Promise<void> {
@@ -69,11 +59,11 @@ async function save(ticker: string, summary: WeekSummary): Promise<void> {
 }
 
 /**
- * Gera ou atualiza o resumo da semana dos ativos da Carteira Alvo (`candidates`: só eles, com a
+ * Gera ou atualiza a leitura da semana dos ativos da Carteira Alvo (`candidates`: só eles, com a
  * quantidade quando houver posição), na ordem de `prioritizeInsights`, no máximo `maxAssets`
- * chamadas ao Gemini por execução e nenhuma começando com menos de `GEMINI_BUDGET_MS` até o prazo.
- * Sem notícias na semana grava "no-news" sem Gemini. Sem `GEMINI_API_KEY`, grava só esses e
- * devolve `status: "off"`.
+ * ativos com Gemini por execução e nenhuma chamada começando com menos de `GEMINI_BUDGET_MS` até
+ * o prazo. Sem notícias na semana grava "no-news" sem Gemini. Sem `GEMINI_API_KEY`, grava só esses
+ * e devolve `status: "off"`.
  */
 export async function refreshWeekSummaries(
   candidates: readonly InsightCandidate[],
@@ -94,6 +84,7 @@ export async function refreshWeekSummaries(
       "koinos.week.generated": summary.generated,
       "koinos.week.no_news": summary.noNews,
       "koinos.week.failed": summary.failed,
+      "koinos.week.rejected": summary.rejected,
       "koinos.week.deferred": summary.deferred,
       "koinos.week.gemini_calls": summary.geminiCalls,
       "koinos.week.quota_exhausted": summary.quotaExhausted,
@@ -123,20 +114,23 @@ async function run(
   summary.candidates = tickers.length;
   if (tickers.length === 0) return summary;
   await connectMongo();
-  const [docs, classes, newsByTicker] = await Promise.all([
+  const [docs, classes, newsByTicker, indexCloses] = await Promise.all([
     AssetModel.find({ _id: mongoose.trusted({ $in: tickers }) }).lean(),
     getAssetClasses(tickers),
     storedNewsByTicker(tickers, now),
+    storedIndexCloses(),
   ]);
   const assets = new Map(docs.map((doc) => [doc._id, doc]));
   const ordered = prioritizeInsights([...byTicker.values()], (t) => assets.get(t)?.price ?? null);
 
-  const due: { ticker: string; key: string; items: StoredNewsWithId[] }[] = [];
+  const due: { ticker: string; key: string; moveKey: string; items: StoredNewsWithId[] }[] = [];
   for (const { ticker } of ordered) {
     const items = selectWeekNews(newsByTicker.get(ticker) ?? [], now);
     const key = weekNewsKey(items);
-    if (!needsWeekSummary(assets.get(ticker)?.weekSummary ?? null, key, now)) continue;
-    due.push({ ticker, key, items });
+    const move = weekMoveOfDoc(assets.get(ticker), classes.get(ticker) ?? null, indexCloses);
+    const moveKey = weekMoveKey(move);
+    if (!needsWeekSummary(assets.get(ticker)?.weekSummary ?? null, key, moveKey, now)) continue;
+    due.push({ ticker, key, moveKey, items });
   }
   summary.due = due.length;
 
@@ -156,6 +150,11 @@ async function run(
       model: null,
       generatedAt: now,
       attemptedAt: now,
+      version: WEEK_SUMMARY.version,
+      moveKey: item.moveKey,
+      tone: "sem_fato",
+      explainsMove: null,
+      lenses: [],
     };
     noNewsWrites.push({
       updateOne: { filter: { _id: item.ticker }, update: { $set: { weekSummary: noNews } } },
@@ -167,17 +166,12 @@ async function run(
     summary.noNews += noNewsWrites.length;
   }
   if (withNews.length === 0) return summary;
-  if (!apiKey) {
-    summary.deferred = withNews.length;
-    return summary;
-  }
-  if (Date.now() > deadline - GEMINI_BUDGET_MS) {
+  if (!apiKey || Date.now() > deadline - GEMINI_BUDGET_MS) {
     summary.deferred = withNews.length;
     return summary;
   }
 
   const models = await geminiModelsWithQuota(now);
-  const options = { temperature: 0.4, maxOutputTokens: 1024, timeoutMs: 8_000 };
   for (const [index, item] of withNews.entries()) {
     if (index >= maxAssets || Date.now() > deadline - GEMINI_BUDGET_MS) {
       summary.deferred = withNews.length - index;
@@ -189,50 +183,35 @@ async function run(
       break;
     }
     const doc = assets.get(item.ticker);
-    const assetClass = classes.get(item.ticker) ?? null;
-    const input = doc && assetClass ? radarInputOf(doc, assetClass, null, now) : null;
-    const prompt = buildWeekSummaryPrompt({
-      ticker: item.ticker,
-      description: input
-        ? describeAsset(input)
-        : assetClass === "FII"
-          ? "um fundo imobiliário"
-          : "uma empresa da bolsa",
-      items: item.items,
-    });
-    const { result, calls } = await generateWithChain(
+    const reading = await generateWeekReading({
       apiKey,
       models,
-      prompt,
-      options,
+      ticker: item.ticker,
+      assetClass: classes.get(item.ticker) ?? null,
+      doc,
+      indexCloses,
+      items: item.items,
+      newsKey: item.key,
       now,
-      `semana ${item.ticker}`,
       deadline,
-    );
-    summary.geminiCalls += calls;
+      label: `semana ${item.ticker}`,
+    });
+    summary.geminiCalls += reading.calls;
+    summary.rejected += reading.rejected;
     // Nenhuma chamada começou (prazo): fica para a próxima execução, sem marcar tentativa.
-    if (!result && calls === 0) {
+    if (!reading.summary && reading.calls === 0) {
       summary.deferred = withNews.length - index;
       break;
     }
-    const text = result ? validateWeekSummary(result.text, result.finishReason) : null;
-    if (result && text !== null) {
-      await save(item.ticker, {
-        newsKey: item.key,
-        status: "ok",
-        text,
-        sources: item.items.map(plainSource),
-        model: result.model,
-        generatedAt: now,
-        attemptedAt: now,
-      });
+    if (reading.summary) {
+      await save(item.ticker, reading.summary);
       summary.generated += 1;
       continue;
     }
     summary.failed += 1;
     const previous = doc?.weekSummary;
     if (previous?.status === "ok") {
-      // Um resumo válido não é apagado por uma falha: só marca a tentativa (espera 6 h).
+      // Uma leitura válida não é apagada por uma falha: só marca a tentativa.
       await AssetModel.updateOne(
         { _id: item.ticker },
         { $set: { "weekSummary.attemptedAt": now } },
@@ -243,9 +222,11 @@ async function run(
         status: "failed",
         text: null,
         sources: [],
-        model: result?.model ?? null,
+        model: reading.model,
         generatedAt: null,
         attemptedAt: now,
+        version: WEEK_SUMMARY.version,
+        moveKey: item.moveKey,
       });
     }
   }
