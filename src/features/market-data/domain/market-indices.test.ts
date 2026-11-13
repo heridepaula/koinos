@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { quoteSessionDate } from "./market-hours";
-import { MARKET_INDICES, marketIndexFromQuote } from "./market-indices";
+import { isQuoteStale, quoteSessionDate } from "./market-hours";
+import { isIndexStale, MARKET_INDICES, marketIndexFromQuote } from "./market-indices";
 
 const now = new Date("2026-11-13T15:00:00Z");
 
@@ -42,5 +42,29 @@ describe("marketIndexFromQuote", () => {
       "IBOV=^BVSP",
       "IFIX=IFIX.SA",
     ]);
+  });
+});
+
+describe("isIndexStale", () => {
+  const session = new Date("2026-11-13T15:00:00Z"); // sexta, 12:00 em São Paulo
+  const ago = (min: number) => new Date(session.getTime() - min * 60_000);
+
+  it("no pregão, atualiza a partir de 25 min", () => {
+    expect(isIndexStale(ago(24), session)).toBe(false);
+    expect(isIndexStale(ago(25), session)).toBe(true);
+    expect(isIndexStale(ago(30), session)).toBe(true);
+    expect(isQuoteStale(ago(25), session)).toBe(false);
+  });
+
+  it("sem leitura, está vencido", () => {
+    expect(isIndexStale(null, session)).toBe(true);
+    expect(isIndexStale(undefined, session)).toBe(true);
+  });
+
+  it("fora do pregão, segue o isQuoteStale", () => {
+    const night = new Date("2026-11-13T23:00:00Z"); // 20:00 em São Paulo
+    for (const fetchedAt of [new Date("2026-11-13T20:00:00Z"), new Date("2026-11-13T21:40:00Z")]) {
+      expect(isIndexStale(fetchedAt, night)).toBe(isQuoteStale(fetchedAt, night));
+    }
   });
 });

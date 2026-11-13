@@ -38,9 +38,12 @@ export function decodeEntities(text: string): string {
 
 /** O conteúdo de `<name>` dentro de um item, sem CDATA e com as entidades decodificadas. */
 export const rssTag = (item: string, name: string): string | null => {
-  const match = item.match(new RegExp(`<${name}>([\\s\\S]*?)</${name}>`, "i"));
+  // Aceita atributos na abertura (`<guid isPermaLink="true">`).
+  const match = item.match(new RegExp(`<${name}(?:\\s[^>]*)?>([\\s\\S]*?)</${name}>`, "i"));
   if (!match) return null;
-  const raw = match[1].replace(/^<!\[CDATA\[([\s\S]*)\]\]>$/, "$1");
+  // Desembrulha todos os CDATA (um "]]>" no texto faz o feed dividir em vários) e ignora os
+  // espaços e quebras de linha em volta deles.
+  const raw = match[1].trim().replace(/<!\[CDATA\[([\s\S]*?)\]\]>/g, "$1");
   return decodeEntities(raw).trim();
 };
 
@@ -60,16 +63,28 @@ export function normalizeNewsUrl(link: string): string | null {
   return url.toString();
 }
 
-const WORDPRESS_FOOTER =
-  /\s*(The post|O post)\s[\s\S]*?(appeared first on|apareceu primeiro em)[\s\S]*$/i;
+/** Tags HTML de verdade: `<` seguido de letra, `/` ou `!`. Um "< 10%" no texto não é tag. */
+const HTML_TAG = /<\/?[a-z!][^>]*>/gi;
+
+// Sem a flag `i` e com o início ou um espaço antes: "no post do Instagram" e "compost" não cortam.
+const FOOTER_START = /(?:^|\s)(?:The post|O post)\s/g;
+const FOOTER_END = /appeared first on|apareceu primeiro em/;
+
+/** Corta o rodapé do WordPress a partir do ÚLTIMO "The post …" que chega a "appeared first on …". */
+function stripWordPressFooter(text: string): string {
+  const starts = [...text.matchAll(FOOTER_START)].map((match) => match.index);
+  for (let i = starts.length - 1; i >= 0; i -= 1) {
+    if (FOOTER_END.test(text.slice(starts[i]))) return text.slice(0, starts[i]);
+  }
+  return text;
+}
 
 /** O resumo sem HTML nem o rodapé do WordPress, até 400 caracteres; null quando vazio. */
 export function cleanDescription(raw: string | null): string | null {
   if (!raw) return null;
-  const text = decodeEntities(raw.replace(/<[^>]*>/g, " "))
-    .replace(/\s+/g, " ")
-    .replace(WORDPRESS_FOOTER, "")
-    .trim();
+  const text = stripWordPressFooter(
+    decodeEntities(raw.replace(HTML_TAG, " ")).replace(/\s+/g, " "),
+  ).trim();
   if (!text) return null;
   const max = NEWS.maxDescriptionChars;
   if (text.length <= max) return text;
@@ -94,9 +109,7 @@ export function parseRssFeed(xml: string): FeedItem[] {
   const seen = new Set<string>();
   for (const match of xml.matchAll(/<item\b[^>]*>([\s\S]*?)<\/item>/gi)) {
     const body = match[1];
-    const title = rssTag(body, "title")
-      ?.replace(/<[^>]*>/g, "")
-      .trim();
+    const title = rssTag(body, "title")?.replace(HTML_TAG, "").trim();
     const link = rssTag(body, "link") || rssTag(body, "guid");
     const date = rssTag(body, "pubDate");
     const url = link ? normalizeNewsUrl(link) : null;

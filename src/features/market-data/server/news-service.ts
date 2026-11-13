@@ -109,7 +109,10 @@ export async function collectNews(
           const input = newsItemFromFeed(item, job.source, tracked, now, job.ticker);
           return input ? [input] : [];
         });
-        summary.itemsNew += await upsertNews(items, now);
+        // Guarda o resultado antes de somar: `+= await` lê o total antes da espera e perde contagens
+        // dos outros workers.
+        const inserted = await upsertNews(items, now);
+        summary.itemsNew += inserted;
         summary.itemsMatched += items.filter((item) => item.tickers.length > 0).length;
         await NewsFeedModel.updateOne(
           { _id: job.url },

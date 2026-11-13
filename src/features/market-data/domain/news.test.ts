@@ -61,7 +61,70 @@ describe("parseRssFeed", () => {
   });
 });
 
+describe("parseRssFeed, casos de borda", () => {
+  const pub = "<pubDate>Fri, 13 Nov 2026 13:41:19 +0000</pubDate>";
+
+  it("mantém < e > do texto do título", () => {
+    const [first] = parseRssFeed(
+      feed(item(`<title>Selic &lt; 10% e IPCA &gt; 4%</title><link>https://x.com/a</link>${pub}`)),
+    );
+    expect(first.title).toBe("Selic < 10% e IPCA > 4%");
+  });
+
+  it("usa o guid com atributo quando não há link", () => {
+    const [first] = parseRssFeed(
+      feed(item(`<title>T</title><guid isPermaLink="true">https://x.com/g</guid>${pub}`)),
+    );
+    expect(first.url).toBe("https://x.com/g");
+  });
+
+  it("ignora quebras de linha em volta do CDATA", () => {
+    const [first] = parseRssFeed(
+      feed(
+        item(`<title>
+<![CDATA[Título]]>
+</title><link>https://x.com/b</link>${pub}`),
+      ),
+    );
+    expect(first.title).toBe("Título");
+  });
+
+  it("junta CDATA dividido", () => {
+    const [first] = parseRssFeed(
+      feed(
+        item(`<title><![CDATA[a ]]]]><![CDATA[> b]]></title><link>https://x.com/c</link>${pub}`),
+      ),
+    );
+    expect(first.title).toBe("a ]]> b");
+  });
+});
+
 describe("cleanDescription", () => {
+  it("não corta em 'no post do Instagram' e tira só o rodapé final", () => {
+    expect(
+      cleanDescription(
+        "Ele disse no post do Instagram que a Petrobras subiu. O post X apareceu primeiro em Money Times.",
+      ),
+    ).toBe("Ele disse no post do Instagram que a Petrobras subiu.");
+  });
+
+  it("não mexe em 'compost' nem em 'post' em minúsculas", () => {
+    expect(cleanDescription("O compost post apareceu primeiro em casa")).toBe(
+      "O compost post apareceu primeiro em casa",
+    );
+  });
+
+  it("corta no último rodapé", () => {
+    expect(
+      cleanDescription("A. The post A appeared first on X. The post B appeared first on Y."),
+    ).toBe("A. The post A appeared first on X.");
+  });
+
+  it("não confunde < e > do texto com tags", () => {
+    expect(cleanDescription("Selic &lt; 10% e IPCA &gt; 4%")).toBe("Selic < 10% e IPCA > 4%");
+    expect(cleanDescription("Selic < 10% e <b>IPCA</b> > 4%")).toBe("Selic < 10% e IPCA > 4%");
+  });
+
   it("tira HTML, rodapé em pt e junta espaços", () => {
     expect(
       cleanDescription("<p>Um   texto</p>\n<p>O post X apareceu primeiro em Money Times.</p>"),

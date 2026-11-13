@@ -27,15 +27,29 @@ export async function searchNews(ticker: string): Promise<NewsItem[]> {
 /** O XML de um feed RSS. Lança com o host na mensagem quando não dá para ler. */
 export async function fetchFeed(url: string): Promise<string> {
   const host = new URL(url).hostname;
-  const response = await fetch(url, {
-    headers: { "User-Agent": USER_AGENT, Accept: "application/rss+xml, application/xml, text/xml" },
-    signal: AbortSignal.timeout(SEARCH_TIMEOUT_MS),
-    cache: "no-store",
-  });
+  let response: Response;
+  try {
+    response = await fetch(url, {
+      headers: {
+        "User-Agent": USER_AGENT,
+        Accept: "application/rss+xml, application/xml, text/xml",
+      },
+      signal: AbortSignal.timeout(SEARCH_TIMEOUT_MS),
+      cache: "no-store",
+    });
+  } catch (error) {
+    // Erro de rede ou tempo esgotado: a mensagem precisa dizer de qual feed veio.
+    throw new Error(`${host}: ${error instanceof Error ? error.message : String(error)}`);
+  }
   if (!response.ok) throw new Error(`${host} respondeu ${response.status}`);
   const length = Number(response.headers.get("content-length") ?? 0);
   if (length > MAX_PAGE_BYTES) throw new Error(`${host}: feed grande demais`);
-  const xml = await response.text();
+  let xml: string;
+  try {
+    xml = await response.text();
+  } catch (error) {
+    throw new Error(`${host}: ${error instanceof Error ? error.message : String(error)}`);
+  }
   if (xml.length > MAX_PAGE_BYTES) throw new Error(`${host}: feed grande demais`);
   return xml;
 }
