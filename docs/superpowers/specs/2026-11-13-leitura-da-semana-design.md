@@ -173,6 +173,7 @@ Pedido: o resumo é o que mais chama a atenção; as notícias ficam em segundo 
 3. **O veredito:** a primeira frase em Headline e o resto em texto normal, com `GlossaryText`.
 4. **A linha do mercado da semana:** Subheadline, só com índice.
 5. **"Pelas lentes do conselho"** recolhido: cada lente com o rótulo, o investidor que a inspira, o sentido em cápsula e a observação. Uma linha avisa: "Lentes inspiradas no que cada investidor defende publicamente; não são falas deles."
+> Alterado em 2026-11-14: as lentes viram "A favor"/"Atenção" com contagem no resumo (`2026-11-14-lentes-da-semana-design.md`).
 6. **"Fontes (N)"** recolhido: lista compacta em Footnote, sem fundo, com o portal, a data e o sentido.
 7. **A nota da IA.**
 

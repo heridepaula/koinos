@@ -5,6 +5,7 @@ import {
   buildThesisPrompt,
   factNumber,
   groupLenses,
+  lensCounts,
   lensToneOf,
   methodLensTone,
   methodSignals,
@@ -673,6 +674,21 @@ describe("thesisFromReading e thesisView", () => {
     expect(thesisView({ ...stored, text: null }, "FII", NOW)).toBeNull();
     const old = new Date(NOW.getTime() - 10 * 86_400_000 - 1);
     expect(thesisView({ ...stored, generatedAt: old }, "FII", NOW)).toBeNull();
+  });
+});
+
+describe("lensCounts", () => {
+  it("conta A favor e Atenção como groupLenses: neutro fora, vazio dá zero", () => {
+    expect(
+      lensCounts([
+        { tone: "favoravel" },
+        { tone: "desfavoravel" },
+        { tone: "misto" },
+        { tone: "neutro" },
+      ]),
+    ).toEqual({ favor: 1, attention: 2 });
+    expect(lensCounts([{ tone: "neutro" }])).toEqual({ favor: 0, attention: 0 });
+    expect(lensCounts([])).toEqual({ favor: 0, attention: 0 });
   });
 });
 

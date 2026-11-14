@@ -7,7 +7,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/sha
 import type { AssetOverview } from "../../domain/types";
 import { AssetHeatMeter } from "./asset-heat-meter";
 import { NewsSources } from "./news-sources";
-import { CouncilLenses } from "@/features/market-data/ui";
+import { LensPointsDisclosure } from "@/features/market-data/ui";
 
 /** O veredito: a primeira frase em Headline, o resto em texto normal. */
 function Verdict({ text, assetClass }: { text: string; assetClass: AssetClass | null }) {
@@ -29,7 +29,8 @@ function Verdict({ text, assetClass }: { text: string; assetClass: AssetClass | 
 /**
  * "O que aconteceu nesta semana" (spec 2026-11-13-leitura-da-semana-design.md, parte 8): o chip é a
  * variação em 7 dias; o veredito da leitura da semana vem primeiro e é o que mais aparece; depois a
- * comparação com o índice, o termômetro do momento, as lentes do conselho e as fontes, recolhidas.
+ * comparação com o índice, o termômetro do momento, as lentes (contagem a favor e de atenção) e as
+ * fontes, recolhidas.
  * Sem leitura (ativo fora da Carteira Alvo), o card mostra só o movimento e o termômetro; sem os
  * dois, não aparece.
  */
@@ -75,7 +76,7 @@ export function WeekSummaryCard({
         {heat ? <AssetHeatMeter heat={heat} /> : null}
         {summary && (summary.lenses.length > 0 || summary.sources.length > 0) ? (
           <div className="grid gap-3">
-            <CouncilLenses lenses={summary.lenses} assetClass={overview.assetClass} />
+            <LensPointsDisclosure lenses={summary.lenses} assetClass={overview.assetClass} />
             <NewsSources sources={summary.sources} />
           </div>
         ) : null}

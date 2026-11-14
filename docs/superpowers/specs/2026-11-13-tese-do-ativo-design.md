@@ -171,6 +171,7 @@ A geração continua no cron do Radar (`/api/cron/radar`, mesmo horário e orça
 1. A linha do código deste aporte (`shortReason` / `shortStockReason`), em Subheadline, com o rótulo "Neste aporte". Ela muda com o valor.
 2. O veredito em Headline e as outras frases em Subheadline, com `GlossaryText`.
 3. "Pelas lentes do conselho": cada lente com o chip de tom (`NewsToneChip`) e a observação.
+> Alterado em 2026-11-14: as lentes viram "A favor"/"Atenção" com contagem no resumo (`2026-11-14-lentes-da-semana-design.md`).
 4. Os chips de indicadores (os de hoje).
 5. A nota: "Texto gerado por IA (Gemini) a partir dos sinais do método da sua Carteira Alvo e dos indicadores públicos, em dd/mm. Pode conter erros e não é recomendação. Fonte: Fundamentus."
 

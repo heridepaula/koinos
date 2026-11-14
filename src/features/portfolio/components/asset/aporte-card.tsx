@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
 import { TargetIcon } from "lucide-react";
-import { CouncilLenses } from "@/features/market-data/ui";
+import { ThesisPoints } from "@/features/market-data/ui";
 import { reasonHelp } from "@/features/smart-buy/ui";
 import { EXCLUSION_LABELS } from "@/features/smart-buy";
 import { BIAS_LABELS, marginToCeiling } from "@/features/strategy";
@@ -146,14 +146,14 @@ export function AporteCard({
           <p className="text-subheadline text-pretty">
             <GlossaryText text={thesis.verdict} assetClass={radar.kind} />
           </p>
-          <Disclosure summary="Lentes e indicadores" summaryClassName="text-subheadline">
+          <Disclosure summary="Pontos e indicadores" summaryClassName="text-subheadline">
             <div className="grid gap-3">
               {thesis.sentences.map((sentence) => (
                 <p key={sentence} className="text-subheadline text-pretty">
                   <GlossaryText text={sentence} assetClass={radar.kind} />
                 </p>
               ))}
-              <CouncilLenses lenses={thesis.lenses} assetClass={radar.kind} />
+              <ThesisPoints lenses={thesis.lenses} assetClass={radar.kind} />
               {radar.chips.length > 0 ? (
                 <p className="text-footnote text-muted-foreground tabular-nums">
                   {radar.chips.map((chip) => `${chip.label} ${chip.value}`).join(" · ")}
