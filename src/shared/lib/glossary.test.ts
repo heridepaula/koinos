@@ -90,16 +90,25 @@ describe("glossaryIdsIn e stripGlossary", () => {
 });
 
 describe("termos do método", () => {
-  it("meta, teto e lista do método, como palavra inteira", () => {
-    expect(glossaryIdsIn("Faltava para a meta", "FII")).toContain("meta-carteira");
-    expect(glossaryIdsIn("Margem até o teto", "ACAO")).toContain("teto-metodo");
-    expect(glossaryIdsIn("Posição na lista do método", "FII")).toContain("lista-metodo");
-    expect(glossaryIdsIn("6º do ranking", "FII")).toContain("lista-metodo");
-    expect(glossaryIdsIn("Pagou metade do normal", "FII")).not.toContain("meta-carteira");
+  const on = { method: true };
+  it("por padrão não casam (textos de IA falam de meta de inflação, teto de gastos)", () => {
+    expect(glossaryIdsIn("Faltava para a meta", "FII")).not.toContain("meta-carteira");
+    expect(glossaryIdsIn("a meta de inflação", null)).toEqual([]);
+    expect(glossaryIdsIn("o teto de gastos", "ACAO")).toEqual([]);
+    expect(glossaryIdsIn("o ranking", null)).toEqual([]);
   });
-  it("comuns: não contam no limite do Radar", () => {
+  it("com method: true, meta, teto e lista do método como palavra inteira", () => {
+    expect(glossaryIdsIn("Faltava para a meta", "FII", on)).toContain("meta-carteira");
+    expect(glossaryIdsIn("As metas", "FII", on)).toContain("meta-carteira");
+    expect(glossaryIdsIn("Margem até o teto", "ACAO", on)).toContain("teto-metodo");
+    expect(glossaryIdsIn("Posição na lista do método", "FII", on)).toContain("lista-metodo");
+    expect(glossaryIdsIn("6º do ranking", "FII", on)).toContain("lista-metodo");
+    expect(glossaryIdsIn("Pagou metade do normal", "FII", on)).not.toContain("meta-carteira");
+  });
+  it("são comuns e do escopo do método", () => {
     for (const id of ["meta-carteira", "teto-metodo", "lista-metodo"]) {
       expect(glossaryEntry(id)?.common).toBe(true);
+      expect(glossaryEntry(id)?.scope).toBe("metodo");
     }
   });
 });

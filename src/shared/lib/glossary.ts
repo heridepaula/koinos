@@ -2,7 +2,7 @@
 // os textos da IA podem usar estes termos, e a tela mostra o significado num tooltip. Termo fora
 // daqui continua proibido na validação do Radar. Puro: serve ao domínio e à tela.
 
-export type GlossaryScope = "FII" | "ACAO" | "cenario" | "geral";
+export type GlossaryScope = "FII" | "ACAO" | "cenario" | "geral" | "metodo";
 export type GlossaryClass = "FII" | "ACAO";
 
 export type GlossaryEntry = {
@@ -283,8 +283,8 @@ export const GLOSSARY: readonly GlossaryEntry[] = [
   {
     id: "meta-carteira",
     term: "meta",
-    aliases: ["% meta"],
-    scope: "geral",
+    aliases: ["% meta", "metas"],
+    scope: "metodo",
     common: true,
     definition:
       "Quanto este ativo deveria pesar na sua carteira, pela % sugerida que você definiu na Carteira Alvo. Abaixo da meta, o método compra mais dele.",
@@ -293,7 +293,7 @@ export const GLOSSARY: readonly GlossaryEntry[] = [
     id: "teto-metodo",
     term: "teto",
     aliases: ["preço teto"],
-    scope: "geral",
+    scope: "metodo",
     common: true,
     definition:
       "O preço máximo que o método aceita pagar, cadastrado na sua Carteira Alvo. No teto ou acima dele, o ativo não recebe aporte.",
@@ -302,7 +302,7 @@ export const GLOSSARY: readonly GlossaryEntry[] = [
     id: "lista-metodo",
     term: "lista do método",
     aliases: ["ranking"],
-    scope: "geral",
+    scope: "metodo",
     common: true,
     definition:
       "A ordem de preferência dos ativos na sua Carteira Alvo (o rank). O método atende primeiro os mais bem colocados.",
@@ -332,12 +332,17 @@ function folded(text: string): { value: string; origin: number[] } {
   return { value, origin };
 }
 
-const inScope = (entry: GlossaryEntry, cls: GlossaryClass | null) =>
-  cls === null || entry.scope === "geral" || entry.scope === "cenario" || entry.scope === cls;
+/** `method`: inclui os termos do método (escopo "metodo"), só onde a tela os pede. */
+export type GlossaryOptions = { method?: boolean };
+
+const inScope = (entry: GlossaryEntry, cls: GlossaryClass | null, options?: GlossaryOptions) =>
+  entry.scope === "metodo"
+    ? options?.method === true
+    : cls === null || entry.scope === "geral" || entry.scope === "cenario" || entry.scope === cls;
 
 /** Os apelidos do escopo, dobrados, do mais longo ao mais curto. */
-function aliasesFor(cls: GlossaryClass | null) {
-  return GLOSSARY.filter((entry) => inScope(entry, cls))
+function aliasesFor(cls: GlossaryClass | null, options?: GlossaryOptions) {
+  return GLOSSARY.filter((entry) => inScope(entry, cls, options))
     .flatMap((entry) =>
       [entry.term, ...entry.aliases].map((alias) => ({ alias: fold(alias), id: entry.id })),
     )
@@ -345,9 +350,9 @@ function aliasesFor(cls: GlossaryClass | null) {
 }
 
 /** Todas as ocorrências (início e fim no texto original), sem sobreposição. */
-function matches(text: string, cls: GlossaryClass | null) {
+function matches(text: string, cls: GlossaryClass | null, options?: GlossaryOptions) {
   const { value, origin } = folded(text);
-  const aliases = aliasesFor(cls);
+  const aliases = aliasesFor(cls, options);
   const found: { start: number; end: number; id: string }[] = [];
   let i = 0;
   while (i < value.length) {
@@ -373,7 +378,11 @@ function matches(text: string, cls: GlossaryClass | null) {
  * O texto em pedaços: os termos do glossário (só a primeira ocorrência de cada um, só do escopo
  * da classe; null aceita todos) e o resto como texto. Juntar os `value` devolve o texto.
  */
-export function glossarySegments(text: string, cls: GlossaryClass | null): GlossarySegment[] {
+export function glossarySegments(
+  text: string,
+  cls: GlossaryClass | null,
+  options?: GlossaryOptions,
+): GlossarySegment[] {
   const segments: GlossarySegment[] = [];
   const pushText = (value: string) => {
     if (!value) return;
@@ -383,7 +392,7 @@ export function glossarySegments(text: string, cls: GlossaryClass | null): Gloss
   };
   const seen = new Set<string>();
   let cursor = 0;
-  for (const match of matches(text, cls)) {
+  for (const match of matches(text, cls, options)) {
     pushText(text.slice(cursor, match.start));
     const value = text.slice(match.start, match.end);
     if (seen.has(match.id)) pushText(value);
@@ -398,14 +407,22 @@ export function glossarySegments(text: string, cls: GlossaryClass | null): Gloss
 }
 
 /** Os ids dos termos do texto, distintos, na ordem em que aparecem. */
-export const glossaryIdsIn = (text: string, cls: GlossaryClass | null): string[] =>
-  glossarySegments(text, cls).flatMap((s) => (s.kind === "term" ? [s.id] : []));
+export const glossaryIdsIn = (
+  text: string,
+  cls: GlossaryClass | null,
+  options?: GlossaryOptions,
+): string[] =>
+  glossarySegments(text, cls, options).flatMap((s) => (s.kind === "term" ? [s.id] : []));
 
 /** O texto com cada termo do glossário (todas as ocorrências) trocado por espaços. */
-export function stripGlossary(text: string, cls: GlossaryClass | null): string {
+export function stripGlossary(
+  text: string,
+  cls: GlossaryClass | null,
+  options?: GlossaryOptions,
+): string {
   let result = "";
   let cursor = 0;
-  for (const match of matches(text, cls)) {
+  for (const match of matches(text, cls, options)) {
     result += text.slice(cursor, match.start) + " ".repeat(match.end - match.start);
     cursor = match.end;
   }

@@ -35,20 +35,24 @@ export function GlossaryTerm({ id, children }: { id: string; children: string })
 export function GlossaryText({
   text,
   assetClass,
+  methodTerms = false,
 }: {
   text: string;
   assetClass: GlossaryClass | null;
+  /** Inclui meta, teto e lista do método: só onde a tela os pede (nunca em texto de IA). */
+  methodTerms?: boolean;
 }) {
   return (
     <>
-      {glossarySegments(text, assetClass).map((segment, index) =>
-        segment.kind === "term" ? (
-          <GlossaryTerm key={index} id={segment.id}>
-            {segment.value}
-          </GlossaryTerm>
-        ) : (
-          <Fragment key={index}>{segment.value}</Fragment>
-        ),
+      {glossarySegments(text, assetClass, methodTerms ? { method: true } : undefined).map(
+        (segment, index) =>
+          segment.kind === "term" ? (
+            <GlossaryTerm key={index} id={segment.id}>
+              {segment.value}
+            </GlossaryTerm>
+          ) : (
+            <Fragment key={index}>{segment.value}</Fragment>
+          ),
       )}
     </>
   );
