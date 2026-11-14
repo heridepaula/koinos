@@ -842,7 +842,7 @@ function StepRow({ step, kind }: { step: CalcStep; kind: MergedOrder["kind"] }) 
   return (
     <div className="flex justify-between gap-4" title={step.exact ?? undefined}>
       <dt className="text-muted-foreground">
-        <GlossaryText text={step.label} assetClass={kind} />
+        <GlossaryText text={step.label} assetClass={kind} methodTerms />
       </dt>
       <dd className="text-right tabular-nums">
         {step.value}
@@ -939,7 +939,7 @@ export function CalcSheetGroup({ row }: { row: MergedOrder }) {
       {stepsOf(row).map((step) => (
         <InsetValueRow
           key={step.label}
-          label={<GlossaryText text={step.label} assetClass={row.kind} />}
+          label={<GlossaryText text={step.label} assetClass={row.kind} methodTerms />}
           value={
             <span className="text-right">
               {step.value}
@@ -953,7 +953,7 @@ export function CalcSheetGroup({ row }: { row: MergedOrder }) {
       <InsetValueRow label="Peso antes" value={formatPercent(order.weightBefore, 1)} />
       <InsetValueRow label="Peso depois" value={formatPercent(order.weightAfter, 1)} />
       <InsetValueRow
-        label={<GlossaryText text="Peso da meta" assetClass={row.kind} />}
+        label={<GlossaryText text="Peso da meta" assetClass={row.kind} methodTerms />}
         value={formatPercent(order.targetWeight, 1)}
       />
     </InsetGroup>

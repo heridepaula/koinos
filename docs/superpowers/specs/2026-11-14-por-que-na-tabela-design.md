@@ -1,6 +1,6 @@
 # "Por quê" único na tabela de ordens
 
-Data: 2026-11-14. Pedido do dono, com dois prints de `/recomendacoes`: a coluna "Por quê" da tabela e o popover ✨ "Por que este ativo" repetem a mesma informação. A tela deve juntar as duas num lugar só, na tabela, com o conteúdo mais completo, que é o do popover. Status: **proposta**, ainda sem plano nem código.
+Data: 2026-11-14. Pedido do dono, com dois prints de `/recomendacoes`: a coluna "Por quê" da tabela e o popover ✨ "Por que este ativo" repetem a mesma informação. A tela deve juntar as duas num lugar só, na tabela, com o conteúdo mais completo, que é o do popover. Status: implementado em 2026-11-14 (plano `2026-11-14-por-que-na-tabela.md`).
 
 ## 1. Diagnóstico (como está hoje)
 
@@ -211,6 +211,9 @@ O que muda em relação à §2:
    - linha 2: o veredito da IA, em Subheadline na cor do texto, até 2 linhas.
 
    O "porquê comprar" vem primeiro e a ressalva da IA depois. A tese continua à vista sem abrir a linha. Com tese v1 vale o mesmo, porque o código abre a linha.
+   - Na implementação, a linha 1 mantém o terceiro sinal de `shortReason` em palavras ("rendimento caiu", "desconto no preço", "bem abaixo do teto"), para não perder o sinal quando não há tese.
+   - Achado da revisão: os verbetes do método ("meta", "teto", "lista do método", apelidos "ranking"/"metas") têm escopo `metodo` e só valem nos rótulos do cálculo (`glossarySegments(…, { method: true })`, `<GlossaryText methodTerms>`), nunca nos textos da IA ou das notícias.
+   - O cálculo mascara no modo de privacidade os valores da carteira (R$ e quantidades), com `Sensitive` em `CalcSentence` e `CalcStep.sensitive`.
 2. **"Cálculo do Koinos" em frases, sem tensores crus.** Cada linha diz o efeito em palavras e uma seta:
    - "Desconto no preço (P/VP 0,77) ↑ compra mais";
    - "Último rendimento 14% abaixo da média ↓ compra menos";
