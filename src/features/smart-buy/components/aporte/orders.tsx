@@ -1,12 +1,12 @@
 "use client";
 
 import { ChevronDownIcon, ChevronRightIcon } from "lucide-react";
-import { Fragment, useState, type ReactNode } from "react";
+import { Fragment, useState } from "react";
 import type { RadarView } from "@/features/market-data";
 import type { CeilingCheck } from "@/features/strategy";
 import { CeilingCheckBody, CeilingCheckIcon } from "@/features/strategy/ui";
 import { AssetLabel } from "@/shared/components/asset-label";
-import { InsetGroup, InsetValueRow } from "@/shared/components/inset-list";
+import { InsetGroup } from "@/shared/components/inset-list";
 import { QUANTITY_MASK, Sensitive } from "@/shared/components/sensitive";
 import { cn } from "@/shared/lib/utils";
 import { formatBRL, formatPercent, formatQuantity } from "@/shared/lib/format";
@@ -22,20 +22,17 @@ import {
 } from "@/shared/ui/drawer";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/shared/ui/table";
 import type { MergedOrder } from "../../domain/merge-orders";
-import type { StockBuyOrder } from "../../domain/stock-buy";
-import type { CascadeOrder } from "../../domain/fii-cascade";
 import type { OrderImpact } from "../../domain/aporte-impact";
-import {
-  explain,
-  explainStock,
-  shortReason,
-  shortStockReason,
-  unitOf,
-  type OrderKind,
-} from "./explain";
+import { unitOf, type OrderKind } from "./explain";
 import { ImpactGroup, IncomeBadge, impactKey } from "./impact";
-import { OrderDetail, WhyCell } from "./order-why";
-import { RadarSheetGroup } from "./radar-block";
+import {
+  AiSheetGroup,
+  CalcSheetGroup,
+  OrderDetail,
+  WhyCell,
+  thesisTerms,
+  whyOf,
+} from "./order-why";
 
 export type AssetMeta = {
   ticker: string;
@@ -57,13 +54,7 @@ type OrdersProps = {
   impacts: ReadonlyMap<string, OrderImpact>;
 };
 
-const capitalize = (text: string) => text.charAt(0).toUpperCase() + text.slice(1);
-
 const rowKey = (row: MergedOrder) => impactKey(row.kind, row.order.ticker);
-
-/** O porquê em poucas palavras, conforme a classe. */
-const shortOf = (row: MergedOrder) =>
-  row.kind === "FII" ? shortReason(row.order) : shortStockReason(row.order);
 
 /** "Cotas" só com FIIs, "Ações" só com ações e "Qtd." com as duas. */
 function quantityHeader(rows: readonly MergedOrder[]) {
@@ -198,8 +189,8 @@ export function OrdersTable({ rows, meta, showClass, impacts }: OrdersProps) {
 
 /**
  * Celular: cada ordem numa célula, como uma tabela do iOS: o ativo e o total; as cotas (ou ações)
- * × preço e o peso antes → depois; e, discreto, o porquê em poucas palavras. A conta inteira abre
- * numa folha ao tocar, a da classe da ordem, com o chevron dizendo que há mais.
+ * × preço e o peso antes → depois com a renda; a decisão do método em palavras e o veredito da
+ * tese. A leitura da IA e o cálculo abrem numa folha ao tocar, com o chevron dizendo que há mais.
  */
 export function OrdersList({ rows, meta, showClass, impacts }: OrdersProps) {
   const [sheet] = useState(() => createDrawerHandle<MergedOrder>());
@@ -240,14 +231,17 @@ export function OrdersList({ rows, meta, showClass, impacts }: OrdersProps) {
                       <Sensitive mask={QUANTITY_MASK}>{formatQuantity(order.quantity)}</Sensitive>{" "}
                       {unitOf(row.kind, order.quantity)} × {formatBRL(order.price)}
                     </span>
-                    <span className="whitespace-nowrap">
+                    <span className="flex items-center gap-1.5 whitespace-nowrap">
                       {formatPercent(order.weightBefore, 1)} → {formatPercent(order.weightAfter, 1)}
+                      <IncomeBadge impact={impact} />
                     </span>
                   </p>
-                  <p className="flex justify-between gap-3 text-caption text-muted-foreground">
-                    <span>{shortOf(row)}</span>
-                    <IncomeBadge impact={impact} />
-                  </p>
+                  <p className="text-caption">{whyOf(row)}</p>
+                  {info?.radar?.thesis ? (
+                    <p className="line-clamp-2 text-caption text-muted-foreground">
+                      {info.radar.thesis.verdict}
+                    </p>
+                  ) : null}
                 </div>
                 <ChevronRightIcon
                   className="size-4 shrink-0 text-muted-foreground"
@@ -276,48 +270,19 @@ export function OrdersList({ rows, meta, showClass, impacts }: OrdersProps) {
 type SheetExtras = { info: AssetMeta | undefined; impact: OrderImpact | undefined };
 
 function RowSheet({ row, ...extras }: { row: MergedOrder } & SheetExtras) {
-  return row.kind === "FII" ? (
-    <OrderSheet order={row.order} {...extras} />
-  ) : (
-    <StockOrderSheet order={row.order} {...extras} />
-  );
+  return <OrderSheetFrame row={row} {...extras} />;
 }
 
-/** O detalhe de uma ordem de FII: o porquê em partes (ranking, meta, cada tensor, a trava). */
-function OrderSheet({ order, ...extras }: { order: CascadeOrder } & SheetExtras) {
-  return (
-    <OrderSheetFrame row={{ kind: "FII", order }} {...extras}>
-      {explain(order).map((reason) => (
-        <ReasonRow key={reason}>{capitalize(reason)}</ReasonRow>
-      ))}
-    </OrderSheetFrame>
-  );
-}
-
-/** O detalhe de uma ordem de ação: a margem de segurança e o que faltava para a meta. */
-function StockOrderSheet({ order, ...extras }: { order: StockBuyOrder } & SheetExtras) {
-  return (
-    <OrderSheetFrame row={{ kind: "ACAO", order }} {...extras}>
-      <ReasonRow>{explainStock(order)}</ReasonRow>
-    </OrderSheetFrame>
-  );
-}
-
-function ReasonRow({ children }: { children: ReactNode }) {
-  return <div className="flex min-h-11 items-center px-4 py-2 text-subheadline">{children}</div>;
-}
-
-/** A folha de uma ordem: o ativo, o que comprar e o peso na carteira da classe; o porquê vem de fora. */
+/** A folha de uma ordem: o que comprar, por que o ativo, por que esta quantidade, o efeito, o aviso e os termos. */
 function OrderSheetFrame({
   row,
   info,
   impact,
-  children,
 }: {
   row: MergedOrder;
-  children: ReactNode;
 } & SheetExtras) {
   const { order } = row;
+  const terms = thesisTerms(info?.radar);
   return (
     <DrawerContent>
       <DrawerHeader className="justify-items-start pr-16 pl-5 text-left">
@@ -336,16 +301,9 @@ function OrderSheetFrame({
             {unitOf(row.kind, order.quantity)} × ~{formatBRL(order.price)}
           </p>
         </div>
-        <InsetGroup
-          title={row.kind === "FII" ? "Peso na carteira de FIIs" : "Peso na carteira de ações"}
-        >
-          <InsetValueRow label="Antes" value={formatPercent(order.weightBefore, 1)} />
-          <InsetValueRow label="Depois" value={formatPercent(order.weightAfter, 1)} />
-          <InsetValueRow label="Meta" value={formatPercent(order.targetWeight, 1)} />
-        </InsetGroup>
-        <InsetGroup title="Por quê">{children}</InsetGroup>
+        {info?.radar ? <AiSheetGroup radar={info.radar} /> : null}
+        <CalcSheetGroup row={row} />
         {impact ? <ImpactGroup impact={impact} /> : null}
-        {info?.radar ? <RadarSheetGroup radar={info.radar} /> : null}
         {info?.ceilingWarning ? (
           <InsetGroup title="Aviso">
             <div className="px-4 py-3 text-footnote">
@@ -355,6 +313,16 @@ function OrderSheetFrame({
                 price={order.price}
               />
             </div>
+          </InsetGroup>
+        ) : null}
+        {terms.length > 0 ? (
+          <InsetGroup title="Termos deste texto">
+            {terms.map((entry) => (
+              <div key={entry.id} className="grid gap-0.5 px-4 py-2">
+                <p className="text-subheadline font-medium">{entry.term}</p>
+                <p className="text-footnote text-muted-foreground">{entry.definition}</p>
+              </div>
+            ))}
           </InsetGroup>
         ) : null}
       </DrawerBody>

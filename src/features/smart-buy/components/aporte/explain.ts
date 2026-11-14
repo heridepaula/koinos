@@ -120,10 +120,6 @@ export function groupExcluded(
   return byReason;
 }
 
-/** " (×1,16)" quando o tensor mexe no pedido; nada quando é neutro. */
-const times = (tensor: number) =>
-  Math.abs(tensor - 1) < 0.005 ? "" : ` (×${formatQuantity(tensor)})`;
-
 const onlyLeftover = (order: CascadeOrder) => order.fromLeftover === order.quantity;
 
 function limitText(order: CascadeOrder): string | null {
@@ -141,95 +137,9 @@ function limitText(order: CascadeOrder): string | null {
   }
 }
 
-/**
- * O porquê completo de uma ordem, em partes: ranking, distância da meta, cada tensor que mexeu no
- * pedido, o pedido, a trava que o cortou e as cotas da sobra. Vai para a folha do celular e para
- * a dica da tabela.
- */
-export function explain(order: CascadeOrder): string[] {
-  const { tensors } = order;
-  const parts = [`${order.rank}º do ranking`];
-  parts.push(
-    order.gapBefore > 0
-      ? `faltavam ${formatBRL(order.gapBefore)} (${formatPercent(1 - order.fillBefore, 0)}) para a meta`
-      : "já na meta",
-  );
-  // Os tensores só mexem no pedido de quem está abaixo da meta: na meta, a compra veio da sobra.
-  if (order.gapBefore > 0) {
-    if (order.priceToBook !== null) {
-      parts.push(`P/VP ${formatQuantity(order.priceToBook)}${times(tensors.valuation)}`);
-    }
-    parts.push(`${formatPercent(order.marginToCeiling, 1)} abaixo do teto${times(tensors.safety)}`);
-    if (order.dividendRatio !== null && tensors.dividends < 1) {
-      parts.push(
-        `último provento ${formatPercent(order.dividendRatio, 0)} da média de 12 meses${times(tensors.dividends)}`,
-      );
-    }
-    if (order.macro === "Tijolo" && order.vacancy !== null && order.vacancy > 0) {
-      parts.push(`vacância de ${formatPercent(order.vacancy, 1)}${times(tensors.vacancy)}`);
-    }
-    parts.push(`pediu ${formatBRL(order.need)}`);
-  }
-  const limit = limitText(order);
-  if (limit) parts.push(limit);
-  if (order.fromLeftover > 0) parts.push(`${order.fromLeftover} cota(s) da sobra`);
-  return parts;
-}
-
-/**
- * Um comentário curto do porquê da recomendação: a posição no ranking e a distância da meta, mais
- * o sinal que mais pesou (uma trava, um freio ou o desconto).
- */
-export function shortReason(order: CascadeOrder): string {
-  const shortfall = 1 - order.fillBefore;
-  const distance =
-    order.gapBefore <= 0
-      ? "já na meta"
-      : shortfall < 0.005
-        ? "quase na meta"
-        : `${formatPercent(shortfall, 0)} abaixo da meta`;
-  if (onlyLeftover(order)) return `Sobra do aporte · ${distance}`;
-  const { tensors } = order;
-  const parts = [`${order.rank}º do ranking`, distance];
-  if (order.limitedBy === "setor" || order.limitedBy === "macro") {
-    parts.push(
-      order.limitedBy === "setor" ? "limite do setor" : `limite de ${order.macro.toLowerCase()}`,
-    );
-  } else if (tensors.dividends < 0.95) {
-    parts.push("provento caiu");
-  } else if (tensors.vacancy < 0.9) {
-    parts.push(`vacância de ${formatPercent(order.vacancy ?? 0, 0)}`);
-  } else if (order.priceToBook !== null && tensors.valuation >= 1.05) {
-    parts.push(`P/VP ${formatQuantity(order.priceToBook)}`);
-  } else if (tensors.safety >= 1.1) {
-    parts.push(`${formatPercent(order.marginToCeiling, 0)} abaixo do teto`);
-  }
-  return parts.join(" · ");
-}
-
 /** Os lotes que vieram do passo de sobra (a 3.1); vazio quando a ordem não teve sobra. */
 function leftoverText(order: StockBuyOrder): string {
   return order.fromLeftover > 0 ? ` · ${order.fromLeftover / order.lot} lote(s) pela sobra` : "";
-}
-
-/** "faltavam R$ X", ou "já estava na meta" quando a compra veio da sobra (déficit zero). */
-function missingText(order: StockBuyOrder): string {
-  if (order.deficitBefore <= 0) return "já estava na meta";
-  return `faltavam ${formatBRL(order.deficitBefore)}`;
-}
-
-/** O porquê completo de uma ordem de ação: a margem de segurança e o que faltava para a meta. */
-export function explainStock(order: StockBuyOrder): string {
-  const ceiling = order.price * (1 + order.marginOfSafety);
-  return `Margem de segurança de ${formatPercent(order.marginOfSafety, 0)} (teto ${formatBRL(ceiling)}, preço ${formatBRL(order.price)}) · ${missingText(order)} para a meta de ${formatPercent(order.targetWeight, 1)}${leftoverText(order)}`;
-}
-
-/**
- * A linha curta de uma ordem de ação. A margem de segurança (teto ÷ preço − 1) não é o quanto o
- * preço está abaixo do teto, a conta dos FIIs: por isso vai com o nome.
- */
-export function shortStockReason(order: StockBuyOrder): string {
-  return `margem de segurança de ${formatPercent(order.marginOfSafety, 0)} · ${missingText(order)}${leftoverText(order)}`;
 }
 
 /** "faltam 5% para a meta", "quase na meta" ou "já na meta". */
@@ -242,7 +152,7 @@ function distanceWords(order: CascadeOrder): string {
 
 /**
  * A linha 1 do "Por quê" (spec por-que-na-tabela §7): a decisão do método em palavras, sem siglas
- * nem tensores. O sinal que mais pesou na mesma ordem de `shortReason`.
+ * nem tensores. O sinal que mais pesou vem de uma trava, um freio ou do desconto.
  */
 export function plainReason(order: CascadeOrder): string {
   if (onlyLeftover(order)) return `Sobra do aporte · ${distanceWords(order)}`;

@@ -4,16 +4,12 @@ import type { StockBuyOrder, StockExclusionReason } from "../../domain/stock-buy
 import {
   calcSteps,
   calcSummary,
-  explain,
-  explainStock,
   groupExcluded,
   NEUTRAL_REASON_HELP,
   plainReason,
   plainStockReason,
   REASON_HELP,
   reasonHelp,
-  shortReason,
-  shortStockReason,
   STOCK_REASON_HELP,
   stockCalcSteps,
   stockCalcSummary,
@@ -48,53 +44,6 @@ function order(overrides: Partial<CascadeOrder> = {}): CascadeOrder {
     ...overrides,
   };
 }
-
-describe("shortReason", () => {
-  it("ranking, distância da meta e o sinal que mais pesou", () => {
-    expect(
-      shortReason(order({ priceToBook: 0.84, tensors: { ...neutral, valuation: 1.16 } })),
-    ).toBe("3º do ranking · 20% abaixo da meta · P/VP 0,84");
-  });
-
-  it("um freio ou uma trava aparece antes do desconto", () => {
-    expect(
-      shortReason(
-        order({ priceToBook: 0.7, tensors: { ...neutral, valuation: 1.3, dividends: 0.6 } }),
-      ),
-    ).toBe("3º do ranking · 20% abaixo da meta · provento caiu");
-    expect(shortReason(order({ limitedBy: "setor", sector: "Shoppings" }))).toBe(
-      "3º do ranking · 20% abaixo da meta · limite do setor",
-    );
-  });
-
-  it("só da sobra: diz isso e onde o FII está em relação à meta", () => {
-    expect(shortReason(order({ fromLeftover: 10, gapBefore: -50, fillBefore: 1.01 }))).toBe(
-      "Sobra do aporte · já na meta",
-    );
-  });
-
-  it("falta quase nada: não mostra 0%", () => {
-    expect(shortReason(order({ fillBefore: 0.998 }))).toBe("3º do ranking · quase na meta");
-  });
-});
-
-describe("explain", () => {
-  it("lista cada tensor que mexeu no pedido, o pedido e a trava", () => {
-    const parts = explain(
-      order({
-        priceToBook: 0.9,
-        vacancy: 0.1,
-        dividendRatio: 0.5,
-        tensors: { valuation: 1.1, dividends: 0.5, safety: 1.05, vacancy: 0.9 },
-        limitedBy: "ativo",
-      }),
-    );
-    expect(parts).toContain("P/VP 0,9 (×1,1)");
-    expect(parts).toContain("último provento 50% da média de 12 meses (×0,5)");
-    expect(parts).toContain("vacância de 10,0% (×0,9)");
-    expect(parts).toContain("limite de 25% do aporte por FII");
-  });
-});
 
 // O RECR11 do `lab recomendar --valor 10000` de 2026-11-14.
 const recr = () =>
@@ -209,12 +158,6 @@ describe("ações", () => {
   };
   const plain = (text: string) => text.replace(/ /g, " ");
 
-  it("a margem de segurança e o que faltava para a meta", () => {
-    expect(plain(explainStock(stock))).toBe(
-      "Margem de segurança de 37% (teto R$ 70,00, preço R$ 51,00) · faltavam R$ 1.200,00 para a meta de 20,0%",
-    );
-  });
-
   it("as versões em palavras", () => {
     expect(plain(plainStockReason(stock))).toBe(
       "Margem de segurança de 37% · faltavam R$ 1.200,00 para a meta",
@@ -231,32 +174,6 @@ describe("ações", () => {
       "Faltavam R$ 1.200,00 para a meta de 20,0%. Comprou R$ 15.300,00 (300 ações, em lotes de 100). 2 lote(s) vieram da sobra.",
     );
     expect(plain(plainStockReason(lots))).toContain("2 lote(s) pela sobra");
-  });
-
-  it("a linha curta", () => {
-    expect(plain(shortStockReason(stock))).toBe(
-      "margem de segurança de 37% · faltavam R$ 1.200,00",
-    );
-  });
-
-  it("sem déficit (compra da sobra), diz que já estava na meta, sem valor negativo", () => {
-    const onTarget = { ...stock, deficitBefore: -300, fromLeftover: 10 };
-    expect(plain(explainStock(onTarget))).toContain("já estava na meta");
-    expect(plain(shortStockReason(onTarget))).toContain("já estava na meta");
-    expect(explainStock(onTarget)).not.toContain("faltavam");
-    expect(shortStockReason(onTarget)).not.toContain("-");
-  });
-
-  it("com sobra, diz quantos lotes vieram dela; sem sobra, o texto é o de antes", () => {
-    const leftover = { ...stock, quantity: 300, fromLeftover: 200, lot: 100 };
-    expect(shortStockReason(leftover)).toContain("2 lote(s) pela sobra");
-    expect(plain(shortStockReason(leftover))).toBe(
-      "margem de segurança de 37% · faltavam R$ 1.200,00 · 2 lote(s) pela sobra",
-    );
-    expect(explainStock(leftover)).toContain(" · 2 lote(s) pela sobra");
-    expect(explainStock(leftover).startsWith(explainStock(stock))).toBe(true);
-    expect(shortStockReason(stock)).not.toContain("sobra");
-    expect(explainStock(stock)).not.toContain("sobra");
   });
 });
 
