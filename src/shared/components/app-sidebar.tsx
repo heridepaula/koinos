@@ -5,7 +5,7 @@ import { CoinsIcon } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import type { ReactNode } from "react";
-import { NAV_ITEMS, isWithin } from "./nav-items";
+import { isWithin, navGroups } from "./nav-items";
 import {
   Sidebar,
   SidebarContent,
@@ -57,56 +57,60 @@ export function AppSidebar({ footer }: { footer: ReactNode }) {
       </SidebarHeader>
 
       <SidebarContent>
-        <SidebarGroup>
-          <SidebarGroupLabel className="text-[var(--sidebar-muted)]">Carteira</SidebarGroupLabel>
-          <SidebarGroupContent>
-            <SidebarMenu>
-              {NAV_ITEMS.map((item) => {
-                const childActive =
-                  item.children?.some((child) => pathname === child.href) ?? false;
-                const active = isWithin(item.href, pathname) && !childActive;
-                return (
-                  <SidebarMenuItem key={item.href}>
-                    <SidebarMenuButton
-                      render={<Link href={item.href} onClick={closeMobile} />}
-                      isActive={active}
-                      tooltip={item.label}
-                      // Recolhida, a sidebar tem botões de 32 px: o azulejo de 24 px pede padding menor.
-                      className={cn(
-                        ACTIVE_ITEM,
-                        "group-data-[collapsible=icon]:p-1!",
-                        active && "metal-ring",
-                        childActive && ANCESTOR_COLLAPSED,
-                      )}
-                    >
-                      {/* Azulejo colorido, como os Ajustes do iPhone. */}
-                      <span className={cn("tile size-6 rounded-sm", item.tile)}>
-                        <item.icon />
-                      </span>
-                      <span>{item.label}</span>
-                    </SidebarMenuButton>
-                    {item.children ? (
-                      <SidebarMenuSub>
-                        {item.children.map((child) => (
-                          <SidebarMenuSubItem key={child.href}>
-                            <SidebarMenuSubButton
-                              render={<Link href={child.href} onClick={closeMobile} />}
-                              isActive={pathname === child.href}
-                              className={cn(ACTIVE_ITEM, pathname === child.href && "metal-ring")}
-                            >
-                              <child.icon />
-                              <span>{child.label}</span>
-                            </SidebarMenuSubButton>
-                          </SidebarMenuSubItem>
-                        ))}
-                      </SidebarMenuSub>
-                    ) : null}
-                  </SidebarMenuItem>
-                );
-              })}
-            </SidebarMenu>
-          </SidebarGroupContent>
-        </SidebarGroup>
+        {navGroups().map((group) => (
+          <SidebarGroup key={group.id}>
+            <SidebarGroupLabel className="text-[var(--sidebar-muted)]">
+              {group.label}
+            </SidebarGroupLabel>
+            <SidebarGroupContent>
+              <SidebarMenu>
+                {group.items.map((item) => {
+                  const childActive =
+                    item.children?.some((child) => pathname === child.href) ?? false;
+                  const active = isWithin(item.href, pathname) && !childActive;
+                  return (
+                    <SidebarMenuItem key={item.href}>
+                      <SidebarMenuButton
+                        render={<Link href={item.href} onClick={closeMobile} />}
+                        isActive={active}
+                        tooltip={item.label}
+                        // Recolhida, a sidebar tem botões de 32 px: o azulejo de 24 px pede padding menor.
+                        className={cn(
+                          ACTIVE_ITEM,
+                          "group-data-[collapsible=icon]:p-1!",
+                          active && "metal-ring",
+                          childActive && ANCESTOR_COLLAPSED,
+                        )}
+                      >
+                        {/* Azulejo colorido, como os Ajustes do iPhone. */}
+                        <span className={cn("tile size-6 rounded-sm", item.tile)}>
+                          <item.icon />
+                        </span>
+                        <span>{item.label}</span>
+                      </SidebarMenuButton>
+                      {item.children ? (
+                        <SidebarMenuSub>
+                          {item.children.map((child) => (
+                            <SidebarMenuSubItem key={child.href}>
+                              <SidebarMenuSubButton
+                                render={<Link href={child.href} onClick={closeMobile} />}
+                                isActive={pathname === child.href}
+                                className={cn(ACTIVE_ITEM, pathname === child.href && "metal-ring")}
+                              >
+                                <child.icon />
+                                <span>{child.label}</span>
+                              </SidebarMenuSubButton>
+                            </SidebarMenuSubItem>
+                          ))}
+                        </SidebarMenuSub>
+                      ) : null}
+                    </SidebarMenuItem>
+                  );
+                })}
+              </SidebarMenu>
+            </SidebarGroupContent>
+          </SidebarGroup>
+        ))}
       </SidebarContent>
 
       <SidebarFooter>{footer}</SidebarFooter>

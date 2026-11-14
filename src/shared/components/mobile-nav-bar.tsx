@@ -46,13 +46,13 @@ export function MobileNavBar({ trailing }: { trailing?: ReactNode }) {
     <header
       ref={bar}
       data-scrolled={scrolled || undefined}
-      className="group/nav sticky top-0 z-20 grid h-(--nav-bar-height) grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-2 pt-(--safe-top) pr-[max(1rem,var(--safe-right))] pl-[max(1rem,var(--safe-left))] md:hidden"
+      className="group/nav sticky top-0 z-20 grid h-(--nav-bar-height) grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-2 pt-(--safe-top) pr-[max(1rem,var(--safe-right))] pl-[max(1rem,var(--safe-left))] md:hidden"
     >
       <div
         aria-hidden="true"
         className="pointer-events-none absolute inset-x-0 top-0 -bottom-6 -z-10 bg-linear-to-b from-background/90 via-background/70 to-background/0 [mask-image:linear-gradient(to_bottom,#000_65%,transparent)] opacity-0 backdrop-blur-xl transition-opacity duration-300 group-data-scrolled/nav:opacity-100 motion-reduce:transition-none"
       />
-      <div className="justify-self-start">
+      <div className="min-w-0 justify-self-start">
         {parent ? (
           <Link
             href={parent.href}
@@ -71,15 +71,15 @@ export function MobileNavBar({ trailing }: { trailing?: ReactNode }) {
       <p
         aria-hidden={!underBar}
         className={cn(
-          "max-w-[60vw] truncate text-headline transition-[opacity,translate] duration-300 ease-snappy motion-reduce:transition-none",
+          "min-w-0 truncate text-center text-headline transition-[opacity,translate] duration-300 ease-snappy motion-reduce:transition-none",
           underBar ? "translate-y-0 opacity-100" : "translate-y-1 opacity-0",
         )}
       >
         {text}
       </p>
-      {/* À direita, as ações da barra (o sino dos alertas), num círculo de vidro como o voltar. */}
+      {/* À direita, as ações da barra (o olho dos valores e o sino), numa cápsula de vidro. */}
       {trailing ? (
-        <div className="grid size-11 place-items-center justify-self-end rounded-full glass-strong">
+        <div className="flex h-11 min-w-11 items-center justify-self-end rounded-full glass-strong">
           {trailing}
         </div>
       ) : null}

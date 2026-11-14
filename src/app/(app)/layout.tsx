@@ -66,9 +66,14 @@ export default function AppLayout({ children }: { children: ReactNode }) {
             {/* iPhone: barra de navegação do iOS em cima e tab bar embaixo (fora deste bloco). */}
             <MobileNavBar
               trailing={
-                <Suspense fallback={null}>
-                  <CurrentAlerts sheet />
-                </Suspense>
+                <>
+                  <PrivacyToggle />
+                  <Suspense
+                    fallback={<span aria-hidden="true" className="size-9 pointer-coarse:size-11" />}
+                  >
+                    <CurrentAlerts sheet />
+                  </Suspense>
+                </>
               }
             />
             {/*
