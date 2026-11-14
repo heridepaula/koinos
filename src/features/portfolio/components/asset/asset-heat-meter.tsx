@@ -25,7 +25,16 @@ const ZONES = [
  * 0 a 100 e a barra de medo extremo a euforia com o marcador; "Como medimos" abre cada componente
  * com a sua explicação. Calculado pelo código com o preço e o sentido das notícias.
  */
-export function AssetHeatMeter({ heat, className }: { heat: AssetHeat; className?: string }) {
+export function AssetHeatMeter({
+  heat,
+  className,
+  withMethod = true,
+}: {
+  heat: AssetHeat;
+  className?: string;
+  /** false: o "Como medimos" não vem junto, e quem usa o põe com `HeatMethod` onde quiser. */
+  withMethod?: boolean;
+}) {
   return (
     <section aria-label="Termômetro do ativo" className={cn("grid gap-2", className)}>
       <div className="flex items-baseline justify-between gap-3">
@@ -58,26 +67,33 @@ export function AssetHeatMeter({ heat, className }: { heat: AssetHeat; className
         <span>Neutro</span>
         <span>Euforia</span>
       </div>
-      <Disclosure
-        summary="Como medimos"
-        summaryClassName="text-footnote font-normal text-muted-foreground"
-      >
-        <ul className="grid gap-3">
-          {heat.factors.map((factor) => (
-            <li key={factor.id} className="grid gap-0.5 text-footnote">
-              <span className="flex items-baseline justify-between gap-3">
-                <span className="font-medium">{factor.label}</span>
-                <span className="text-muted-foreground tabular-nums">{factor.score}</span>
-              </span>
-              <span className="text-pretty text-muted-foreground">{factor.detail}</span>
-            </li>
-          ))}
-        </ul>
-        <p className="mt-3 text-footnote text-pretty text-muted-foreground">
-          Média ponderada de 0 (medo extremo) a 100 (euforia), calculada pelo painel com o preço e o
-          tom das notícias. Retrato do momento, não é recomendação.
-        </p>
-      </Disclosure>
+      {withMethod ? <HeatMethod heat={heat} /> : null}
     </section>
+  );
+}
+
+/** "Como medimos" do termômetro: cada componente com a sua explicação, recolhido. */
+export function HeatMethod({ heat }: { heat: AssetHeat }) {
+  return (
+    <Disclosure
+      summary="Como medimos"
+      summaryClassName="text-footnote font-normal text-muted-foreground"
+    >
+      <ul className="grid gap-3">
+        {heat.factors.map((factor) => (
+          <li key={factor.id} className="grid gap-0.5 text-footnote">
+            <span className="flex items-baseline justify-between gap-3">
+              <span className="font-medium">{factor.label}</span>
+              <span className="text-muted-foreground tabular-nums">{factor.score}</span>
+            </span>
+            <span className="text-pretty text-muted-foreground">{factor.detail}</span>
+          </li>
+        ))}
+      </ul>
+      <p className="mt-3 text-footnote text-pretty text-muted-foreground">
+        Média ponderada de 0 (medo extremo) a 100 (euforia), calculada pelo painel com o preço e o
+        tom das notícias. Retrato do momento, não é recomendação.
+      </p>
+    </Disclosure>
   );
 }

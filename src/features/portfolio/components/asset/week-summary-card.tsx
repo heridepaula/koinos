@@ -5,9 +5,9 @@ import { GlossaryText } from "@/shared/components/glossary-text";
 import { formatDateTime } from "@/shared/lib/format";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/shared/ui/card";
 import type { AssetOverview } from "../../domain/types";
-import { AssetHeatMeter } from "./asset-heat-meter";
+import { AssetHeatMeter, HeatMethod } from "./asset-heat-meter";
 import { NewsSources } from "./news-sources";
-import { LensPointsDisclosure } from "@/features/market-data/ui";
+import { ThesisPoints } from "@/features/market-data/ui";
 
 /** O veredito: a primeira frase em Headline, o resto em texto normal. */
 function Verdict({ text, assetClass }: { text: string; assetClass: AssetClass | null }) {
@@ -29,8 +29,8 @@ function Verdict({ text, assetClass }: { text: string; assetClass: AssetClass | 
 /**
  * "O que aconteceu nesta semana" (spec 2026-11-13-leitura-da-semana-design.md, parte 8): o chip é a
  * variação em 7 dias; o veredito da leitura da semana vem primeiro e é o que mais aparece; depois a
- * comparação com o índice, o termômetro do momento, as lentes (contagem a favor e de atenção) e as
- * fontes, recolhidas.
+ * comparação com o índice, o termômetro do momento, os pontos a favor e de atenção (sempre à vista), o "Como medimos" do termômetro e as fontes,
+ * recolhidos.
  * Sem leitura (ativo fora da Carteira Alvo), o card mostra só o movimento e o termômetro; sem os
  * dois, não aparece.
  */
@@ -73,11 +73,12 @@ export function WeekSummaryCard({
             {weekMoveText(overview.ticker, move)}
           </p>
         ) : null}
-        {heat ? <AssetHeatMeter heat={heat} /> : null}
-        {summary && (summary.lenses.length > 0 || summary.sources.length > 0) ? (
-          <div className="grid gap-3">
-            <LensPointsDisclosure lenses={summary.lenses} assetClass={overview.assetClass} />
-            <NewsSources sources={summary.sources} />
+        {heat ? <AssetHeatMeter heat={heat} withMethod={false} /> : null}
+        {summary ? <ThesisPoints lenses={summary.lenses} assetClass={overview.assetClass} /> : null}
+        {heat || (summary && summary.sources.length > 0) ? (
+          <div className="grid gap-1">
+            {heat ? <HeatMethod heat={heat} /> : null}
+            {summary ? <NewsSources sources={summary.sources} /> : null}
           </div>
         ) : null}
         {text ? (

@@ -652,12 +652,6 @@ export function groupLenses<T extends { tone: NewsTone }>(lenses: readonly T[]) 
   };
 }
 
-/** Quantas lentes há em "A favor" e em "Atenção" (o mesmo agrupamento de `groupLenses`). */
-export function lensCounts(lenses: readonly { tone: NewsTone }[]) {
-  const { favor, attention } = groupLenses(lenses);
-  return { favor: favor.length, attention: attention.length };
-}
-
 /** O que a tela mostra; null sem texto, com falha ou com mais de `RADAR.staleDays` dias. A v1 vira só veredito. */
 export function thesisView(
   stored: StoredThesis | null | undefined,

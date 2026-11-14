@@ -105,3 +105,12 @@ Puro, em `market-data/domain/asset-thesis.test.ts`:
 
 - `CLAUDE.md`: no parágrafo do card da semana, trocar `"Pelas lentes do conselho" (WeekLenses, with NewsToneChip)` pelo recolhível com a contagem e `ThesisPoints`; no `AporteCard`, "Lentes e indicadores" → "Pontos e indicadores"; na lista de testes, `lensCounts`.
 - Uma linha em `2026-11-13-leitura-da-semana-design.md` (parte 8, item 5) e em `2026-11-13-tese-do-ativo-design.md` apontando para este spec.
+
+## 8. Revisão (2026-11-14, depois do deploy)
+
+O dono pediu: "Deixe os 3 pontos de atenção abertos, passe o como medimos para baixo dos 3 pontos de atenção". Isso substitui o recolhível com contagem da §2.1 e o que a §3 e a §5 dizem dele.
+
+- **Os pontos ficam sempre à vista** no card da semana: `ThesisPoints` direto, sem recolhível e sem contagem. Saem `LensPointsDisclosure` e `lensCounts` (e o teste dele).
+- **Nova ordem do card:** veredito, linha do índice, termômetro (a barra), "A favor" e "Atenção", "Como medimos", "Fontes (N)", nota da IA.
+- **`AssetHeatMeter`** ganha `withMethod` (padrão `true`, então o resumo do dia não muda) e o "Como medimos" passa a ser o componente `HeatMethod`, que o card da semana põe depois dos pontos.
+- O `AporteCard` fica como na §2.2.
