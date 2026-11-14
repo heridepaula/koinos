@@ -1,15 +1,19 @@
 "use client";
 
 import { SparklesIcon } from "lucide-react";
-import type { RadarChip, RadarView } from "@/features/market-data";
+import type { RadarChip, RadarView, ThesisView } from "@/features/market-data";
+import { CouncilLenses } from "@/features/market-data/ui";
 import { GlossaryText } from "@/shared/components/glossary-text";
 import { InsetGroup, InsetValueRow } from "@/shared/components/inset-list";
+import { formatTradeDate } from "@/shared/lib/format";
 import { glossaryEntry, glossaryIdsIn } from "@/shared/lib/glossary";
 import { Button } from "@/shared/ui/button";
 import { Popover, PopoverContent, PopoverTrigger } from "@/shared/ui/popover";
 
-export const RADAR_NOTE =
-  "Texto gerado por IA (Gemini) a partir dos indicadores públicos. Pode conter erros e não é recomendação. Fonte: Fundamentus.";
+const thesisNote = (date: Date) =>
+  `Texto gerado por IA (Gemini) em ${formatTradeDate(date)} a partir dos sinais do método da sua Carteira Alvo e dos indicadores públicos. Pode conter erros e não é recomendação. Fonte: Fundamentus.`;
+
+const fullText = (thesis: ThesisView) => [thesis.verdict, ...thesis.sentences].join(" ");
 
 /** Um indicador no popover: a sigla e o valor; a explicação aparece ao passar o mouse e vai aos leitores de tela. */
 function Chip({ chip }: { chip: RadarChip }) {
@@ -25,19 +29,34 @@ function Chip({ chip }: { chip: RadarChip }) {
   );
 }
 
-function RadarText({ radar }: { radar: RadarView }) {
-  return radar.text ? (
-    <>
-      <p className="text-subheadline text-pretty">
-        <GlossaryText text={radar.text} assetClass={radar.kind} />
+/** O veredito em destaque, as outras frases e as lentes; a nota fica com quem chama. */
+function ThesisBody({ thesis, kind }: { thesis: ThesisView; kind: RadarView["kind"] }) {
+  return (
+    <div className="grid gap-2">
+      <p className="text-headline text-pretty">
+        <GlossaryText text={thesis.verdict} assetClass={kind} />
       </p>
-      <p className="text-footnote text-muted-foreground">{RADAR_NOTE}</p>
-    </>
-  ) : null;
+      {thesis.sentences.map((sentence) => (
+        <p key={sentence} className="text-subheadline text-pretty">
+          <GlossaryText text={sentence} assetClass={kind} />
+        </p>
+      ))}
+      <CouncilLenses lenses={thesis.lenses} assetClass={kind} />
+    </div>
+  );
 }
 
-/** Tabela (desktop): o ✨ ao lado do ativo abre o Radar num popover. */
-export function RadarPopover({ ticker, radar }: { ticker: string; radar: RadarView }) {
+/** Tabela (desktop): o ✨ ao lado do ativo abre a tese num popover. */
+export function RadarPopover({
+  ticker,
+  radar,
+  reason,
+}: {
+  ticker: string;
+  radar: RadarView;
+  /** O porquê deste aporte, do código (`shortReason`/`shortStockReason`). */
+  reason: string;
+}) {
   return (
     <Popover>
       <PopoverTrigger
@@ -45,19 +64,24 @@ export function RadarPopover({ ticker, radar }: { ticker: string; radar: RadarVi
           <Button
             variant="ghost"
             size="icon-xs"
-            aria-label={`Radar de fundamentos de ${ticker}`}
+            aria-label={`Por que comprar ${ticker}: tese e indicadores`}
             className="text-muted-foreground pointer-coarse:size-11"
           />
         }
       >
         <SparklesIcon aria-hidden="true" />
       </PopoverTrigger>
-      <PopoverContent align="start" className="w-80">
+      <PopoverContent align="start" className="w-88">
         <p className="flex items-center gap-1.5 text-headline">
           <SparklesIcon className="size-4 text-muted-foreground" aria-hidden="true" />
-          Radar de fundamentos
+          Por que este ativo
         </p>
-        <div className="grid gap-3">
+        <div className="grid gap-4">
+          <div className="grid gap-0.5">
+            <p className="text-footnote text-muted-foreground">Neste aporte</p>
+            <p className="text-subheadline">{reason}</p>
+          </div>
+          {radar.thesis ? <ThesisBody thesis={radar.thesis} kind={radar.kind} /> : null}
           {radar.chips.length > 0 ? (
             <div className="flex flex-wrap gap-1.5">
               {radar.chips.map((chip) => (
@@ -65,31 +89,41 @@ export function RadarPopover({ ticker, radar }: { ticker: string; radar: RadarVi
               ))}
             </div>
           ) : null}
-          <RadarText radar={radar} />
+          {radar.thesis ? (
+            <p className="text-footnote text-muted-foreground">
+              {thesisNote(radar.thesis.generatedAt)}
+            </p>
+          ) : null}
         </div>
       </PopoverContent>
     </Popover>
   );
 }
 
-/** Sheet (iPhone): cada indicador com o valor e a explicação, sem popover dentro da folha. */
+/**
+ * Sheet (iPhone): a tese, cada indicador com o valor e a explicação, e os termos do texto.
+ * A folha já tem "Por quê" com a conta do código logo acima, por isso não repete "Neste aporte".
+ */
 export function RadarSheetGroup({ radar }: { radar: RadarView }) {
-  const terms = radar.text
-    ? glossaryIdsIn(radar.text, radar.kind).flatMap((id) => glossaryEntry(id) ?? [])
+  const terms = radar.thesis
+    ? glossaryIdsIn(fullText(radar.thesis), radar.kind).flatMap((id) => glossaryEntry(id) ?? [])
     : [];
   return (
-    <InsetGroup title="Radar de fundamentos">
+    <InsetGroup title="Por que este ativo">
+      {radar.thesis ? (
+        <div className="grid gap-3 px-4 py-3">
+          <ThesisBody thesis={radar.thesis} kind={radar.kind} />
+          <p className="text-footnote text-muted-foreground">
+            {thesisNote(radar.thesis.generatedAt)}
+          </p>
+        </div>
+      ) : null}
       {radar.chips.map((chip) => (
         <div key={chip.label} className="pb-3">
           <InsetValueRow label={chip.label} value={chip.value} />
           <p className="px-4 text-footnote text-muted-foreground">{chip.help}</p>
         </div>
       ))}
-      {radar.text ? (
-        <div className="grid gap-3 px-4 py-3">
-          <RadarText radar={radar} />
-        </div>
-      ) : null}
       {terms.length > 0 ? (
         <>
           <p className="px-4 pt-2 text-footnote font-medium text-muted-foreground">

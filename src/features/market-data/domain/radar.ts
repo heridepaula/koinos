@@ -6,6 +6,7 @@ import {
   stripGlossary,
   type GlossaryClass,
 } from "@/shared/lib/glossary";
+import type { ThesisView } from "./asset-thesis";
 import type { FiiIndicators, StockIndicators } from "./fundamentus-indicators";
 
 // Radar de fundamentos (spec 2026-11-12-radar-fundamentos-design.md): o código decide o que cada
@@ -431,7 +432,11 @@ export function promptTerms(
 }
 
 export type RadarChip = { label: string; value: string; help: string };
-export type RadarView = { kind: GlossaryClass | null; chips: RadarChip[]; text: string | null };
+export type RadarView = {
+  kind: GlossaryClass | null;
+  chips: RadarChip[];
+  thesis: ThesisView | null;
+};
 
 const help = (id: string) => glossaryEntry(id)?.definition ?? "";
 

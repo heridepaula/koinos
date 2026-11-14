@@ -127,7 +127,13 @@ export function OrdersTable({ rows, meta, showClass, impacts }: OrdersProps) {
                         price={order.price}
                       />
                     ) : null}
-                    {info?.radar ? <RadarPopover ticker={order.ticker} radar={info.radar} /> : null}
+                    {info?.radar ? (
+                      <RadarPopover
+                        ticker={order.ticker}
+                        radar={info.radar}
+                        reason={shortOf(row)}
+                      />
+                    ) : null}
                   </div>
                   {showClass ? <ClassBadge kind={row.kind} /> : null}
                 </div>
