@@ -8,6 +8,7 @@ import {
   methodLensTone,
   methodSignals,
   needsThesis,
+  checkThesis,
   parseThesis,
   THESIS,
   thesisEvidence,
@@ -544,6 +545,60 @@ describe("parseThesis", () => {
     expect(
       parse(answer({ frases: [sentence(long, ["metodo-teto", "pvp-baixo", "vacancia-alta"])] })),
     ).toBeNull();
+  });
+});
+
+describe("checkThesis", () => {
+  const reason = (raw: string, finish = "STOP") => {
+    const result = checkThesis(raw, finish, { kind: "FII", evidence: EVIDENCE, prompt: PROMPT });
+    return "rejection" in result ? result.rejection : null;
+  };
+  const one = (texto: string, evidencias: string[]) =>
+    reason(answer({ frases: [sentence(texto, evidencias)] }));
+  const all = ["metodo-teto", "pvp-baixo", "vacancia-alta"];
+  it("devolve a resposta boa sem motivo", () => expect(reason(answer())).toBeNull());
+  it.each([
+    ["corte", answer(), "MAX_TOKENS"],
+    ["json", "{", "STOP"],
+    ["frases", answer({ frases: [] }), "STOP"],
+  ])("motivo %s", (expected, raw, finish) => expect(reason(raw, finish)).toBe(expected));
+  it("motivo de cada regra das frases", () => {
+    expect(one("O fundo está 18% abaixo do teto", all)).toBe("sem-pontuacao");
+    expect(one("O fundo está 18% abaixo do teto, com P/VP de 0,82.", ["inventado"])).toBe(
+      "sem-evidencia",
+    );
+    expect(
+      one("O fundo está 25% abaixo do teto, com P/VP de 0,82, mas a vacância pesa.", all),
+    ).toBe("numero-fora");
+    expect(
+      one("É uma oportunidade: P/VP de 0,82 e 18% abaixo do teto, mas a vacância pesa.", all),
+    ).toBe("banida");
+    expect(
+      one(
+        "O fundo está 18% abaixo do teto, com EBITDA forte e P/VP de 0,82, mas a vacância pesa.",
+        all,
+      ),
+    ).toBe("jargao");
+    expect(
+      one(
+        `O fundo está 18% abaixo do teto, com P/VP de 0,82, mas a vacância pesa ${"muito ".repeat(80)}.`,
+        all,
+      ),
+    ).toBe("longo");
+  });
+  it("motivo do veredito e da evidência desfavorável", () => {
+    expect(
+      one("O P/VP de 0,82 mostra desconto, mas a vacância de 12,0% pesa.", [
+        "pvp-baixo",
+        "vacancia-alta",
+      ]),
+    ).toBe("veredito-sem-metodo");
+    expect(
+      one("O fundo está 18% abaixo do teto, mas a vacância de 12,0% pesa.", ["metodo-teto"]),
+    ).toBe("veredito-sem-fundamento");
+    expect(
+      one("O fundo está 18% abaixo do teto, com P/VP de 0,82.", ["metodo-teto", "pvp-baixo"]),
+    ).toBe("desfavoravel-ausente");
   });
 });
 

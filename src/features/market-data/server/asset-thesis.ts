@@ -2,7 +2,7 @@ import "server-only";
 import type { AssetClass } from "../domain/asset-class";
 import {
   buildThesisPrompt,
-  parseThesis,
+  checkThesis,
   THESIS,
   thesisFromReading,
   thesisSchema,
@@ -87,11 +87,12 @@ export async function generateThesis(args: {
     if (!out.result) break;
     result.model = out.result.model;
     tried.add(out.result.model);
-    const reading = parseThesis(out.result.text, out.result.finishReason, {
+    const checked = checkThesis(out.result.text, out.result.finishReason, {
       kind: args.kind,
       evidence: args.evidence,
       prompt,
     });
+    const reading = "reading" in checked ? checked.reading : null;
     if (reading) {
       result.stored = thesisFromReading({
         reading,
@@ -105,7 +106,11 @@ export async function generateThesis(args: {
       return result;
     }
     result.rejected += 1;
-    console.warn(`[${args.label}] resposta recusada pela validação (${out.result.model})`);
+    if ("rejection" in checked) {
+      console.warn(
+        `[${args.label}] resposta recusada pela validação (${out.result.model}): ${checked.rejection}`,
+      );
+    }
   }
   return result;
 }

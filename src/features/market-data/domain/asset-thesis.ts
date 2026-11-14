@@ -449,25 +449,42 @@ export type ThesisReading = {
 
 const asString = (value: unknown) => (typeof value === "string" ? value.trim() : null);
 
+/** Por que uma resposta foi recusada: só o código da regra, nunca o texto do modelo (vai ao log). */
+export type ThesisRejection =
+  | "corte"
+  | "json"
+  | "frases"
+  | "sem-texto"
+  | "sem-pontuacao"
+  | "sem-evidencia"
+  | "banida"
+  | "numero-fora"
+  | "jargao"
+  | "longo"
+  | "veredito-sem-metodo"
+  | "veredito-sem-fundamento"
+  | "desfavoravel-ausente";
+
 /**
- * A resposta validada, ou null (recusa). Recusa: sem STOP, JSON inválido, 0 ou mais de 3 frases,
- * frase sem pontuação final ou sem id válido, veredito sem sinal do método (havendo sinais) ou sem
- * fundamento, evidência desfavorável não citada, número fora dos dados, `BANNED`, jargão fora do
- * glossário e mais de 520 caracteres. Descarta sem recusar a lente inválida.
+ * A resposta validada, ou o motivo da recusa. Recusa: sem STOP, JSON inválido, 0 ou mais de 3
+ * frases, frase sem pontuação final ou sem id válido, veredito sem sinal do método (havendo sinais)
+ * ou sem fundamento, evidência desfavorável não citada, número fora dos dados, `BANNED`, jargão fora
+ * do glossário e mais de 520 caracteres. Descarta sem recusar a lente inválida.
  */
-export function parseThesis(
+export function checkThesis(
   raw: string,
   finishReason: string | null,
   context: { kind: AssetClass; evidence: readonly ThesisEvidence[]; prompt: string },
-): ThesisReading | null {
-  if (finishReason !== "STOP") return null;
+): { reading: ThesisReading } | { rejection: ThesisRejection } {
+  const reject = (rejection: ThesisRejection) => ({ rejection });
+  if (finishReason !== "STOP") return reject("corte");
   let json: unknown;
   try {
     json = JSON.parse(raw);
   } catch {
-    return null;
+    return reject("json");
   }
-  if (!json || typeof json !== "object" || Array.isArray(json)) return null;
+  if (!json || typeof json !== "object" || Array.isArray(json)) return reject("json");
   const body = json as Record<string, unknown>;
   const byId = new Map(context.evidence.map((e) => [e.id, e]));
   const allowed = allowedNumbers(context.prompt);
@@ -478,32 +495,46 @@ export function parseThesis(
         .filter((id) => byId.has(id)),
     ),
   ];
-  const clean = (text: string) =>
-    !BANNED.some((pattern) => pattern.test(text)) &&
-    [...numbersIn(text)].every((number) => allowed.has(number)) &&
-    checkJargon(text, context.kind);
+  /** A primeira regra de texto que falha, ou null. */
+  const textRejection = (text: string): ThesisRejection | null =>
+    BANNED.some((pattern) => pattern.test(text))
+      ? "banida"
+      : ![...numbersIn(text)].every((number) => allowed.has(number))
+        ? "numero-fora"
+        : !checkJargon(text, context.kind)
+          ? "jargao"
+          : null;
 
   const phrases = Array.isArray(body.frases) ? body.frases : [];
-  if (phrases.length === 0 || phrases.length > THESIS.maxSentences) return null;
+  if (phrases.length === 0 || phrases.length > THESIS.maxSentences) return reject("frases");
   const sentences: ThesisReading["sentences"] = [];
   for (const entry of phrases) {
     const value = (entry ?? {}) as Record<string, unknown>;
     const text = normalize(asString(value.texto) ?? "");
     const evidence = idsOf(value.evidencias);
-    if (!text || !/[.!?]$/.test(text) || !clean(text) || evidence.length === 0) return null;
+    if (!text) return reject("sem-texto");
+    if (!/[.!?]$/.test(text)) return reject("sem-pontuacao");
+    const failed = textRejection(text);
+    if (failed) return reject(failed);
+    if (evidence.length === 0) return reject("sem-evidencia");
     sentences.push({ text, evidence });
   }
   const full = sentences.map((s) => s.text).join(" ");
-  if (full.length > THESIS.maxChars || !checkJargon(full, context.kind)) return null;
+  if (full.length > THESIS.maxChars) return reject("longo");
+  if (!checkJargon(full, context.kind)) return reject("jargao");
 
   const groupOf = (id: string) => byId.get(id)?.group;
   const verdict = sentences[0].evidence;
   const hasMethod = context.evidence.some((e) => e.group === "metodo");
-  if (hasMethod && !verdict.some((id) => groupOf(id) === "metodo")) return null;
-  if (!verdict.some((id) => groupOf(id) === "fundamento")) return null;
+  if (hasMethod && !verdict.some((id) => groupOf(id) === "metodo")) {
+    return reject("veredito-sem-metodo");
+  }
+  if (!verdict.some((id) => groupOf(id) === "fundamento")) return reject("veredito-sem-fundamento");
   const unfavorable = context.evidence.some((e) => e.tone === "desfavoravel");
   const cited = new Set(sentences.flatMap((s) => s.evidence));
-  if (unfavorable && ![...cited].some((id) => byId.get(id)?.tone === "desfavoravel")) return null;
+  if (unfavorable && ![...cited].some((id) => byId.get(id)?.tone === "desfavoravel")) {
+    return reject("desfavoravel-ausente");
+  }
 
   const allowedLenses = new Set<LensId>(
     THESIS_LENSES[context.kind].map((lens) => lens.id).filter((id) => id !== "metodo" || hasMethod),
@@ -516,13 +547,24 @@ export function parseThesis(
     if (!id || !allowedLenses.has(id) || seen.has(id)) continue;
     const text = normalize(asString(value.observacao) ?? "");
     const evidence = idsOf(value.evidencias);
-    if (!text || text.length > THESIS.maxLensChars || !clean(text) || evidence.length === 0) {
+    if (
+      !text ||
+      text.length > THESIS.maxLensChars ||
+      textRejection(text) ||
+      evidence.length === 0
+    ) {
       continue;
     }
     seen.add(id);
     lenses.push({ id, text, evidence });
   }
-  return { sentences, lenses };
+  return { reading: { sentences, lenses } };
+}
+
+/** A resposta validada, ou null (recusa); o motivo está em `checkThesis`. */
+export function parseThesis(...args: Parameters<typeof checkThesis>): ThesisReading | null {
+  const result = checkThesis(...args);
+  return "reading" in result ? result.reading : null;
 }
 
 /** O tom de uma lente pelas evidências citadas, nunca pelo modelo. */
