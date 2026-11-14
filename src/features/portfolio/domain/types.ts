@@ -3,6 +3,7 @@ import type {
   AssetPulse,
   DayInsight,
   MarketSession,
+  RadarView,
   WeekSummaryView,
 } from "@/features/market-data";
 import type { DividendMonths, PricePeriod } from "./asset-overview";
@@ -511,6 +512,8 @@ export type AssetOverview = {
    * quando há o histórico dele) e o termômetro, de medo extremo a euforia. Null sem cotação.
    */
   pulse: AssetPulse | null;
+  /** A tese do ativo e os chips do Radar; null sem nenhum dos dois ou com falha na leitura. */
+  radar: RadarView | null;
 };
 
 /** Um ativo da lista de `/ativos`: o que o dono tem ou acompanha na Carteira Alvo. */

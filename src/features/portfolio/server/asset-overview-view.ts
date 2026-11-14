@@ -9,6 +9,7 @@ import {
   getCatalogEntry,
   getDayInsight,
   getMonthlyCloses,
+  getRadarViews,
   getWeekSummary,
 } from "@/features/market-data/server";
 import { marketSession } from "@/features/market-data";
@@ -48,7 +49,7 @@ export const getAssetOverview = cache(
       const mine = transactions.filter((item) => item.ticker === ticker);
       if (!entry && mine.length === 0) notFound();
       const assetClass = classes.get(ticker) ?? null;
-      const [assets, closes, all, ofClass, dividends, dayInsight, weekSummary, pulse] =
+      const [assets, closes, all, ofClass, dividends, dayInsight, weekSummary, pulse, radar] =
         await Promise.all([
           getAssetSnapshots([ticker]),
           getMonthlyCloses([ticker]),
@@ -59,6 +60,12 @@ export const getAssetOverview = cache(
           getDayInsight(ticker, assetClass),
           getWeekSummary(ticker, assetClass, now),
           getAssetPulse(ticker, assetClass, now),
+          getRadarViews([ticker], now)
+            .then((views) => views.get(ticker) ?? null)
+            .catch((error: unknown) => {
+              console.warn("[radar]", error instanceof Error ? error.message : String(error));
+              return null;
+            }),
         ]);
       const asset = assets.get(ticker);
       const position = all.positions.find((row) => row.ticker === ticker) ?? null;
@@ -110,6 +117,7 @@ export const getAssetOverview = cache(
         dayInsight,
         weekSummary,
         pulse,
+        radar,
       };
     },
     (overview) => ({
