@@ -1,13 +1,14 @@
 "use client";
 
-import { ChevronRightIcon } from "lucide-react";
-import { useState, type ReactNode } from "react";
+import { ChevronDownIcon, ChevronRightIcon } from "lucide-react";
+import { Fragment, useState, type ReactNode } from "react";
 import type { RadarView } from "@/features/market-data";
 import type { CeilingCheck } from "@/features/strategy";
 import { CeilingCheckBody, CeilingCheckIcon } from "@/features/strategy/ui";
 import { AssetLabel } from "@/shared/components/asset-label";
 import { InsetGroup, InsetValueRow } from "@/shared/components/inset-list";
 import { QUANTITY_MASK, Sensitive } from "@/shared/components/sensitive";
+import { cn } from "@/shared/lib/utils";
 import { formatBRL, formatPercent, formatQuantity } from "@/shared/lib/format";
 import { Badge } from "@/shared/ui/badge";
 import {
@@ -32,8 +33,9 @@ import {
   unitOf,
   type OrderKind,
 } from "./explain";
-import { ImpactGroup, IncomeBadge, impactKey, impactText } from "./impact";
-import { RadarPopover, RadarSheetGroup } from "./radar-block";
+import { ImpactGroup, IncomeBadge, impactKey } from "./impact";
+import { OrderDetail, WhyCell } from "./order-why";
+import { RadarSheetGroup } from "./radar-block";
 
 export type AssetMeta = {
   ticker: string;
@@ -63,16 +65,6 @@ const rowKey = (row: MergedOrder) => impactKey(row.kind, row.order.ticker);
 const shortOf = (row: MergedOrder) =>
   row.kind === "FII" ? shortReason(row.order) : shortStockReason(row.order);
 
-/** A conta inteira numa linha, para a dica da tabela, com o impacto da ordem no fim. */
-function fullOf(row: MergedOrder, impact: OrderImpact | undefined) {
-  const reason =
-    row.kind === "FII" ? capitalize(explain(row.order).join(" · ")) : explainStock(row.order);
-  return impact
-    ? `${reason}
-${impactText(impact)}`
-    : reason;
-}
-
 /** "Cotas" só com FIIs, "Ações" só com ações e "Qtd." com as duas. */
 function quantityHeader(rows: readonly MergedOrder[]) {
   if (rows.every((row) => row.kind === "FII")) return "Cotas";
@@ -85,11 +77,19 @@ function ClassBadge({ kind }: { kind: OrderKind }) {
 }
 
 /**
- * Tabela das ordens (a partir de 760 px de card), de FIIs, de ações ou das duas. O porquê é um
- * comentário curto e discreto; a conta inteira (nos FIIs, cada tensor, o pedido e a trava; nas
- * ações, a margem e a meta) fica na dica ao passar o mouse.
+ * Tabela das ordens (a partir de 760 px de card), de FIIs, de ações ou das duas. A linha 1 do
+ * porquê é a decisão do método em palavras e a 2 o veredito da tese; o botão abre a linha de
+ * detalhe com a leitura da IA e o cálculo.
  */
 export function OrdersTable({ rows, meta, showClass, impacts }: OrdersProps) {
+  const [open, setOpen] = useState<ReadonlySet<string>>(() => new Set());
+  const toggle = (key: string) =>
+    setOpen((previous) => {
+      const next = new Set(previous);
+      if (next.has(key)) next.delete(key);
+      else next.add(key);
+      return next;
+    });
   return (
     <Table>
       <TableHeader>
@@ -106,61 +106,89 @@ export function OrdersTable({ rows, meta, showClass, impacts }: OrdersProps) {
       <TableBody>
         {rows.map((row) => {
           const { order } = row;
+          const key = rowKey(row);
           const info = meta.get(order.ticker);
-          const impact = impacts.get(rowKey(row));
+          const impact = impacts.get(key);
+          const isOpen = open.has(key);
+          const detailId = `ordem-${row.kind}-${order.ticker}`;
           return (
-            <TableRow key={rowKey(row)}>
-              <TableCell className="pl-(--card-spacing)">
-                {/* O selo à direita da célula: os de todas as linhas ficam numa coluna. */}
-                <div className="flex items-center justify-between gap-3">
-                  <div className="flex min-w-0 items-center gap-2">
-                    <AssetLabel
-                      ticker={order.ticker}
-                      name={info?.name}
-                      logoUrl={info?.logoUrl}
-                      href={`/ativos/${order.ticker}`}
-                    />
-                    {info?.ceilingWarning ? (
-                      <CeilingCheckIcon
-                        check={info.ceilingWarning.check}
-                        ceiling={info.ceilingWarning.ceiling}
-                        price={order.price}
-                      />
-                    ) : null}
-                    {info?.radar ? (
-                      <RadarPopover
-                        ticker={order.ticker}
-                        radar={info.radar}
-                        reason={shortOf(row)}
-                      />
-                    ) : null}
-                  </div>
-                  {showClass ? <ClassBadge kind={row.kind} /> : null}
-                </div>
-              </TableCell>
-              <TableCell className="text-right font-medium tabular-nums">
-                <Sensitive mask={QUANTITY_MASK}>{formatQuantity(order.quantity)}</Sensitive>
-              </TableCell>
-              <TableCell className="text-right tabular-nums">{formatBRL(order.price)}</TableCell>
-              <TableCell className="text-right font-medium tabular-nums">
-                <div className="grid justify-items-end">
-                  <Sensitive>{formatBRL(order.total)}</Sensitive>
-                  <IncomeBadge impact={impact} className="font-normal" />
-                </div>
-              </TableCell>
-              <TableCell className="text-right tabular-nums">
-                {formatPercent(order.weightBefore, 1)} → {formatPercent(order.weightAfter, 1)}
-              </TableCell>
-              <TableCell className="text-right tabular-nums">
-                {formatPercent(order.targetWeight, 1)}
-              </TableCell>
-              <TableCell
-                className="min-w-48 pr-(--card-spacing) text-caption whitespace-normal text-muted-foreground"
-                title={fullOf(row, impact)}
+            <Fragment key={key}>
+              <TableRow
+                data-state={isOpen ? "open" : undefined}
+                className="cursor-pointer"
+                onClick={(event) => {
+                  // O link do ticker e os botões (aviso do teto) fazem o seu próprio trabalho.
+                  if ((event.target as HTMLElement).closest("a, button")) return;
+                  toggle(key);
+                }}
               >
-                {shortOf(row)}
-              </TableCell>
-            </TableRow>
+                <TableCell className="pl-(--card-spacing)">
+                  <div className="flex items-center justify-between gap-3">
+                    <div
+                      className="flex max-w-64 min-w-0 items-center gap-2"
+                      title={info?.name ?? undefined}
+                    >
+                      <AssetLabel
+                        ticker={order.ticker}
+                        name={info?.name}
+                        logoUrl={info?.logoUrl}
+                        href={`/ativos/${order.ticker}`}
+                      />
+                      {info?.ceilingWarning ? (
+                        <CeilingCheckIcon
+                          check={info.ceilingWarning.check}
+                          ceiling={info.ceilingWarning.ceiling}
+                          price={order.price}
+                        />
+                      ) : null}
+                    </div>
+                    {showClass ? <ClassBadge kind={row.kind} /> : null}
+                  </div>
+                </TableCell>
+                <TableCell className="text-right font-medium tabular-nums">
+                  <Sensitive mask={QUANTITY_MASK}>{formatQuantity(order.quantity)}</Sensitive>
+                </TableCell>
+                <TableCell className="text-right tabular-nums">{formatBRL(order.price)}</TableCell>
+                <TableCell className="text-right font-medium tabular-nums">
+                  <div className="grid justify-items-end">
+                    <Sensitive>{formatBRL(order.total)}</Sensitive>
+                    <IncomeBadge impact={impact} className="font-normal" />
+                  </div>
+                </TableCell>
+                <TableCell className="text-right tabular-nums">
+                  {formatPercent(order.weightBefore, 1)} → {formatPercent(order.weightAfter, 1)}
+                </TableCell>
+                <TableCell className="text-right tabular-nums">
+                  {formatPercent(order.targetWeight, 1)}
+                </TableCell>
+                <TableCell className="min-w-64 pr-(--card-spacing) whitespace-normal">
+                  <button
+                    type="button"
+                    aria-expanded={isOpen}
+                    aria-controls={detailId}
+                    onClick={() => toggle(key)}
+                    className="flex w-full items-start justify-between gap-2 rounded-lg text-left outline-none focus-visible:ring-2 focus-visible:ring-ring pointer-coarse:min-h-11"
+                  >
+                    <span className="sr-only">{`Detalhes de ${order.ticker}: `}</span>
+                    <WhyCell row={row} thesis={info?.radar?.thesis ?? null} />
+                    <ChevronDownIcon
+                      aria-hidden="true"
+                      className={cn(
+                        "mt-0.5 size-4 shrink-0 text-muted-foreground transition-transform duration-200 ease-snappy motion-reduce:transition-none",
+                        isOpen && "rotate-180",
+                      )}
+                    />
+                  </button>
+                </TableCell>
+              </TableRow>
+              {isOpen ? (
+                <TableRow id={detailId} className="hover:bg-transparent">
+                  <TableCell colSpan={7} className="px-(--card-spacing) pb-5 whitespace-normal">
+                    <OrderDetail row={row} info={info} impact={impact} />
+                  </TableCell>
+                </TableRow>
+              ) : null}
+            </Fragment>
           );
         })}
       </TableBody>
