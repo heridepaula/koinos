@@ -1,7 +1,7 @@
 "use client";
 
 import { ChevronDownIcon, ChevronRightIcon } from "lucide-react";
-import { Fragment, useState } from "react";
+import { Fragment, useId, useState } from "react";
 import type { RadarView } from "@/features/market-data";
 import type { CeilingCheck } from "@/features/strategy";
 import { CeilingCheckBody, CeilingCheckIcon } from "@/features/strategy/ui";
@@ -73,6 +73,7 @@ function ClassBadge({ kind }: { kind: OrderKind }) {
  * detalhe com a leitura da IA e o cálculo.
  */
 export function OrdersTable({ rows, meta, showClass, impacts }: OrdersProps) {
+  const tableId = useId();
   const [open, setOpen] = useState<ReadonlySet<string>>(() => new Set());
   const toggle = (key: string) =>
     setOpen((previous) => {
@@ -101,30 +102,37 @@ export function OrdersTable({ rows, meta, showClass, impacts }: OrdersProps) {
           const info = meta.get(order.ticker);
           const impact = impacts.get(key);
           const isOpen = open.has(key);
-          const detailId = `ordem-${row.kind}-${order.ticker}`;
+          const detailId = `${tableId}-ordem-${row.kind}-${order.ticker}`;
           return (
             <Fragment key={key}>
               <TableRow
                 data-state={isOpen ? "open" : undefined}
                 className="cursor-pointer"
                 onClick={(event) => {
-                  // O link do ticker e os botões (aviso do teto) fazem o seu próprio trabalho.
-                  if ((event.target as HTMLElement).closest("a, button")) return;
+                  // O link do ticker, os botões e o aviso do teto (gatilho de tooltip, um <span>)
+                  // fazem o seu próprio trabalho; selecionar texto também não abre a linha.
+                  if (
+                    (event.target as HTMLElement).closest(
+                      'a, button, [data-slot="tooltip-trigger"]',
+                    )
+                  ) {
+                    return;
+                  }
+                  if (window.getSelection()?.toString()) return;
                   toggle(key);
                 }}
               >
                 <TableCell className="pl-(--card-spacing)">
                   <div className="flex items-center justify-between gap-3">
-                    <div
-                      className="flex max-w-64 min-w-0 items-center gap-2"
-                      title={info?.name ?? undefined}
-                    >
-                      <AssetLabel
-                        ticker={order.ticker}
-                        name={info?.name}
-                        logoUrl={info?.logoUrl}
-                        href={`/ativos/${order.ticker}`}
-                      />
+                    <div className="flex max-w-64 min-w-0 items-center gap-2">
+                      <span className="min-w-0" title={info?.name ?? undefined}>
+                        <AssetLabel
+                          ticker={order.ticker}
+                          name={info?.name}
+                          logoUrl={info?.logoUrl}
+                          href={`/ativos/${order.ticker}`}
+                        />
+                      </span>
                       {info?.ceilingWarning ? (
                         <CeilingCheckIcon
                           check={info.ceilingWarning.check}
@@ -173,7 +181,10 @@ export function OrdersTable({ rows, meta, showClass, impacts }: OrdersProps) {
                 </TableCell>
               </TableRow>
               {isOpen ? (
-                <TableRow id={detailId} className="hover:bg-transparent">
+                <TableRow
+                  id={detailId}
+                  className="bg-muted/50 hover:bg-muted/50 has-aria-expanded:bg-muted/50"
+                >
                   <TableCell colSpan={7} className="px-(--card-spacing) pb-5 whitespace-normal">
                     <OrderDetail row={row} info={info} impact={impact} />
                   </TableCell>

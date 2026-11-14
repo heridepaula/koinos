@@ -6,7 +6,8 @@ import { ThesisPoints } from "@/features/market-data/ui";
 import { CeilingCheckBody } from "@/features/strategy/ui";
 import { GlossaryText } from "@/shared/components/glossary-text";
 import { InsetGroup, InsetValueRow } from "@/shared/components/inset-list";
-import { formatPercent, formatTradeDate } from "@/shared/lib/format";
+import { QUANTITY_MASK, Sensitive } from "@/shared/components/sensitive";
+import { formatBRL, formatPercent, formatQuantity, formatTradeDate } from "@/shared/lib/format";
 import { glossaryEntry, glossaryIdsIn } from "@/shared/lib/glossary";
 import type { MergedOrder } from "../../domain/merge-orders";
 import type { OrderImpact } from "../../domain/aporte-impact";
@@ -17,6 +18,7 @@ import {
   plainStockReason,
   stockCalcSteps,
   stockCalcSummary,
+  type CalcPart,
   type CalcStep,
 } from "./explain";
 import { ImpactList } from "./impact";
@@ -38,10 +40,14 @@ const summaryOf = (row: MergedOrder) =>
 
 const EFFECT_TEXT = { mais: "↑ compra mais", menos: "↓ compra menos" } as const;
 
-/** Os termos do glossário da tese inteira, para "Termos deste texto" na folha. */
+/** Os termos do glossário da tese inteira (veredito, frases e lentes), para "Termos deste texto". */
 export function thesisTerms(radar: RadarView | undefined) {
   if (!radar?.thesis) return [];
-  const text = [radar.thesis.verdict, ...radar.thesis.sentences].join(" ");
+  const text = [
+    radar.thesis.verdict,
+    ...radar.thesis.sentences,
+    ...radar.thesis.lenses.map((lens) => lens.text),
+  ].join(" ");
   return glossaryIdsIn(text, radar.kind).flatMap((id) => glossaryEntry(id) ?? []);
 }
 
@@ -80,8 +86,8 @@ function AiReadingBody({ radar }: { radar: RadarView }) {
           <p className="text-headline text-pretty">
             <GlossaryText text={thesis.verdict} assetClass={radar.kind} />
           </p>
-          {thesis.sentences.map((sentence) => (
-            <p key={sentence} className="text-subheadline text-pretty">
+          {thesis.sentences.map((sentence, index) => (
+            <p key={`${index}-${sentence}`} className="text-subheadline text-pretty">
               <GlossaryText text={sentence} assetClass={radar.kind} />
             </p>
           ))}
@@ -125,15 +131,31 @@ export function AiReading({ radar }: { radar: RadarView }) {
   );
 }
 
+/** Uma frase do cálculo: R$ e quantidades da carteira somem no modo privacidade. */
+function CalcSentence({ parts }: { parts: readonly CalcPart[] }) {
+  return parts.map((part, index) => {
+    if (typeof part === "string") return part;
+    if ("money" in part) return <Sensitive key={index}>{formatBRL(part.money)}</Sensitive>;
+    return (
+      <Sensitive key={index} mask={QUANTITY_MASK}>
+        {formatQuantity(part.quantity)}
+      </Sensitive>
+    );
+  });
+}
+
+const stepValue = (step: CalcStep) =>
+  step.sensitive ? <Sensitive>{step.value}</Sensitive> : step.value;
+
 /** Uma linha do cálculo: rótulo com glossário, valor e o efeito; o multiplicador no `title`. */
 function StepRow({ step, kind }: { step: CalcStep; kind: MergedOrder["kind"] }) {
   return (
-    <div className="flex justify-between gap-4" title={step.exact ?? undefined}>
+    <div className="flex justify-between gap-4">
       <dt className="text-muted-foreground">
         <GlossaryText text={step.label} assetClass={kind} methodTerms />
       </dt>
-      <dd className="text-right tabular-nums">
-        {step.value}
+      <dd className="text-right tabular-nums" title={step.exact ?? undefined}>
+        {stepValue(step)}
         {step.effect ? (
           <span className="block text-footnote text-muted-foreground">
             {EFFECT_TEXT[step.effect]}
@@ -158,7 +180,9 @@ export function KoinosCalc({
   return (
     <section className="grid content-start gap-4" aria-label="Cálculo do Koinos">
       <SectionTitle icon={CalculatorIcon}>Cálculo do Koinos</SectionTitle>
-      <p className="text-subheadline text-pretty">{summaryOf(row)}</p>
+      <p className="text-subheadline text-pretty">
+        <CalcSentence parts={summaryOf(row)} />
+      </p>
       <dl className="grid gap-2 text-subheadline">
         {stepsOf(row).map((step) => (
           <StepRow key={step.label} step={step} kind={row.kind} />
@@ -223,14 +247,16 @@ export function CalcSheetGroup({ row }: { row: MergedOrder }) {
   const { order } = row;
   return (
     <InsetGroup title="Por que esta quantidade">
-      <p className="px-4 py-3 text-subheadline text-pretty">{summaryOf(row)}</p>
+      <p className="px-4 py-3 text-subheadline text-pretty">
+        <CalcSentence parts={summaryOf(row)} />
+      </p>
       {stepsOf(row).map((step) => (
         <InsetValueRow
           key={step.label}
           label={<GlossaryText text={step.label} assetClass={row.kind} methodTerms />}
           value={
             <span className="text-right">
-              {step.value}
+              {stepValue(step)}
               {step.effect ? (
                 <span className="block text-footnote">{EFFECT_TEXT[step.effect]}</span>
               ) : null}

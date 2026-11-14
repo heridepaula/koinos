@@ -35,24 +35,6 @@ function toneOf(before: number | null, after: number | null, better: "up" | "dow
   return diff > 0 === (better === "up") ? "text-gain" : "text-loss";
 }
 
-const pct = (value: number | null) => (value === null ? "—" : formatPercent(value, 1));
-
-/** As três linhas antes ➔ depois, para a dica da tabela. */
-export function impactText(impact: OrderImpact): string {
-  const pm =
-    impact.averagePriceBefore === null
-      ? `posição nova, PM ${formatBRL(impact.averagePriceAfter)}`
-      : `PM ${formatBRL(impact.averagePriceBefore)} ➔ ${formatBRL(impact.averagePriceAfter)}`;
-  const parts = [pm];
-  if (impact.yieldOnCostAfter !== null) {
-    parts.push(`YOC ${pct(impact.yieldOnCostBefore)} ➔ ${pct(impact.yieldOnCostAfter)}`);
-  }
-  if (impact.resultPercentBefore !== null) {
-    parts.push(`L/P ${pct(impact.resultPercentBefore)} ➔ ${pct(impact.resultPercentAfter)}`);
-  }
-  return `Depois desta ordem: ${parts.join(" · ")}.`;
-}
-
 function Transition({
   before,
   after,

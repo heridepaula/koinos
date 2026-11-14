@@ -4,6 +4,7 @@ import type { StockBuyOrder, StockExclusionReason } from "../../domain/stock-buy
 import {
   calcSteps,
   calcSummary,
+  calcText,
   groupExcluded,
   NEUTRAL_REASON_HELP,
   plainReason,
@@ -99,6 +100,7 @@ describe("calcSteps", () => {
     ]);
     expect(steps.map((s) => s.effect)).toEqual([null, null, "mais", "mais", "menos"]);
     expect(steps.map((s) => s.exact)).toEqual([null, null, "×1,23", "×1,24", "×0,86"]);
+    expect(steps.map((s) => Boolean(s.sensitive))).toEqual([false, true, false, false, false]);
     expect(steps.map((s) => plainText(s.value))).toEqual([
       "6º",
       "R$ 1.421,08 (5%)",
@@ -120,22 +122,31 @@ describe("calcSteps", () => {
 
 describe("calcSummary", () => {
   it("liga o que faltava ao pedido e à compra", () => {
-    expect(plainText(calcSummary(recr()))).toBe(
+    expect(plainText(calcText(calcSummary(recr())))).toBe(
       "Faltavam R$ 1.421,08 para a meta. O método pediu R$ 1.850,97 (mais pelo desconto no preço e pela margem até o teto, menos pelo rendimento menor) e comprou R$ 1.786,20 (26 cotas).",
     );
   });
+  it("marca os valores da carteira para o modo privacidade", () => {
+    const parts = calcSummary(recr());
+    expect(parts).toContainEqual({ money: 1421.08 });
+    expect(parts).toContainEqual({ money: 1850.97 });
+    expect(parts).toContainEqual({ money: 1786.2 });
+    expect(parts).toContainEqual({ quantity: 26 });
+  });
   it("a trava, o saldo e a sobra", () => {
-    expect(plainText(calcSummary(order({ limitedBy: "ativo" })))).toBe(
+    expect(plainText(calcText(calcSummary(order({ limitedBy: "ativo" }))))).toBe(
       "Faltavam R$ 2.000,00 para a meta. O método pediu R$ 2.000,00 e comprou R$ 1.000,00 (10 cotas). O limite de 25% do aporte por FII cortou o pedido.",
     );
-    expect(calcSummary(order({ limitedBy: "saldo" }))).toContain(
+    expect(calcText(calcSummary(order({ limitedBy: "saldo" })))).toContain(
       "O saldo do aporte acabou antes do pedido.",
     );
-    expect(calcSummary(order({ quantity: 12, fromLeftover: 2 }))).toContain(
+    expect(calcText(calcSummary(order({ quantity: 12, fromLeftover: 2 })))).toContain(
       "2 cota(s) vieram da sobra.",
     );
     expect(
-      plainText(calcSummary(order({ fromLeftover: 10, gapBefore: -50, fillBefore: 1.01 }))),
+      plainText(
+        calcText(calcSummary(order({ fromLeftover: 10, gapBefore: -50, fillBefore: 1.01 }))),
+      ),
     ).toBe("Já estava na meta: comprou R$ 1.000,00 (10 cotas) com a sobra do aporte.");
   });
 });
@@ -166,14 +177,16 @@ describe("ações", () => {
       "37% (teto R$ 70,00)",
       "R$ 1.200,00",
     ]);
-    expect(plain(stockCalcSummary(stock))).toBe(
+    expect(plain(calcText(stockCalcSummary(stock)))).toBe(
       "Faltavam R$ 1.200,00 para a meta de 20,0%. Comprou R$ 510,00 (10 ações).",
     );
     const lots = { ...stock, quantity: 300, fromLeftover: 200, lot: 100, total: 15_300 };
-    expect(plain(stockCalcSummary(lots))).toBe(
+    expect(plain(calcText(stockCalcSummary(lots)))).toBe(
       "Faltavam R$ 1.200,00 para a meta de 20,0%. Comprou R$ 15.300,00 (300 ações, em lotes de 100). 2 lote(s) vieram da sobra.",
     );
     expect(plain(plainStockReason(lots))).toContain("2 lote(s) pela sobra");
+    expect(stockCalcSteps(stock).map((s) => s.sensitive)).toEqual([undefined, true]);
+    expect(stockCalcSummary(stock)).toContainEqual({ money: 1_200 });
   });
 });
 
