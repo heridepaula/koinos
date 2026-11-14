@@ -88,3 +88,18 @@ describe("glossaryIdsIn e stripGlossary", () => {
     expect(stripGlossary("O dividend yield subiu.", "ACAO")).toBe(`O ${" ".repeat(14)} subiu.`);
   });
 });
+
+describe("termos do método", () => {
+  it("meta, teto e lista do método, como palavra inteira", () => {
+    expect(glossaryIdsIn("Faltava para a meta", "FII")).toContain("meta-carteira");
+    expect(glossaryIdsIn("Margem até o teto", "ACAO")).toContain("teto-metodo");
+    expect(glossaryIdsIn("Posição na lista do método", "FII")).toContain("lista-metodo");
+    expect(glossaryIdsIn("6º do ranking", "FII")).toContain("lista-metodo");
+    expect(glossaryIdsIn("Pagou metade do normal", "FII")).not.toContain("meta-carteira");
+  });
+  it("comuns: não contam no limite do Radar", () => {
+    for (const id of ["meta-carteira", "teto-metodo", "lista-metodo"]) {
+      expect(glossaryEntry(id)?.common).toBe(true);
+    }
+  });
+});

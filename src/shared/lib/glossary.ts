@@ -280,6 +280,33 @@ export const GLOSSARY: readonly GlossaryEntry[] = [
     definition:
       "Quando muita gente vende depois de uma alta para garantir o ganho, e o preço cai mesmo sem notícia ruim.",
   },
+  {
+    id: "meta-carteira",
+    term: "meta",
+    aliases: ["% meta"],
+    scope: "geral",
+    common: true,
+    definition:
+      "Quanto este ativo deveria pesar na sua carteira, pela % sugerida que você definiu na Carteira Alvo. Abaixo da meta, o método compra mais dele.",
+  },
+  {
+    id: "teto-metodo",
+    term: "teto",
+    aliases: ["preço teto"],
+    scope: "geral",
+    common: true,
+    definition:
+      "O preço máximo que o método aceita pagar, cadastrado na sua Carteira Alvo. No teto ou acima dele, o ativo não recebe aporte.",
+  },
+  {
+    id: "lista-metodo",
+    term: "lista do método",
+    aliases: ["ranking"],
+    scope: "geral",
+    common: true,
+    definition:
+      "A ordem de preferência dos ativos na sua Carteira Alvo (o rank). O método atende primeiro os mais bem colocados.",
+  },
 ];
 
 const BY_ID = new Map(GLOSSARY.map((entry) => [entry.id, entry]));
