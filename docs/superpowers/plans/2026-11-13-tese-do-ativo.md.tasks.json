@@ -37,7 +37,7 @@
     {
       "id": 4,
       "subject": "Task 5: `RadarView.thesis` na leitura",
-      "status": "pending",
+      "status": "completed",
       "description": "**Goal:** `getRadarViews` devolve `thesis: ThesisView | null` no lugar de `text`.\n\n**Files:**\n- Modify: `src/features/market-data/domain/radar.ts` (tipo `RadarView`)\n- Modify: `src/features/market-data/server/radar-read.ts`\n\n**Acceptance Criteria:**\n- [ ] `RadarView = { kind; chips; thesis: ThesisView | null }`.\n- [ ] Um ativo entra no mapa com chips ou com tese.\n- [ ] `npm run typecheck` acusa os usos de `radar.text` na UI (corrigidos na Task 6).\n\n**Verify:** `npx tsc --noEmit -p . 2>&1 | rg \"radar\"` → só erros em `radar-block.tsx` (resolvidos na Task 6).\n\n```json:metadata\n{\"files\":[\"src/features/market-data/domain/radar.ts\",\"src/features/market-data/server/radar-read.ts\"],\"verifyCommand\":\"npx tsc --noEmit -p . 2>&1 | rg \\\"radar\\\"\",\"acceptanceCriteria\":[\"`RadarView = { kind; chips; thesis: ThesisView | null }`.\",\"Um ativo entra no mapa com chips ou com tese.\",\"`npm run typecheck` acusa os usos de `radar.text` na UI (corrigidos na Task 6).\"]}\n```",
       "blockedBy": [
         3
@@ -46,7 +46,7 @@
     {
       "id": 5,
       "subject": "Task 6: \"Por que este ativo\" em Recomendações",
-      "status": "pending",
+      "status": "completed",
       "description": "**Goal:** O popover ✨ e a folha do celular mostram a linha deste aporte (código), o veredito, as outras frases, as lentes, os chips e a nota com a data.\n\n**Files:**\n- Modify: `src/features/smart-buy/components/aporte/radar-block.tsx`\n- Modify: `src/features/smart-buy/components/aporte/orders.tsx:130,314`\n\n**Acceptance Criteria:**\n- [ ] Desktop: o botão ✨ tem `aria-label=\"Por que comprar {ticker}: tese e indicadores\"`; o popover tem o título \"Por que este ativo\", \"Neste aporte\" com `shortOf(row)`, o veredito em `text-headline`, as lentes recolhidas, os chips e a nota \"… em dd/mm/aaaa …\".\n- [ ] Celular: o grupo se chama \"Por que este ativo\", com o veredito, as frases, as lentes (`CouncilLenses`), os indicadores e \"Termos deste texto\" (do texto inteiro da tese).\n- [ ] Sem tese, só chips e a linha do aporte (sem nota de IA).\n- [ ] `npm run lint && npm run typecheck` passam.\n\n**Verify:** `npm run lint && npm run typecheck` → sem erros; depois, na Task 8, conferir na tela.\n\n```json:metadata\n{\"files\":[\"src/features/smart-buy/components/aporte/radar-block.tsx\",\"src/features/smart-buy/components/aporte/orders.tsx\"],\"verifyCommand\":\"npm run lint && npm run typecheck\",\"acceptanceCriteria\":[\"Desktop: o botão ✨ tem `aria-label=\\\"Por que comprar {ticker}: tese e indicadores\\\"`; o popover tem o título \\\"Por que este ativo\\\", \\\"Neste aporte\\\" com `shortOf(row)`, o veredito em `text-headline`, as lentes recolhidas, os chips e a nota \\\"… em dd/mm/aaaa …\\\".\",\"Celular: o grupo se chama \\\"Por que este ativo\\\", com o veredito, as frases, as lentes (`CouncilLenses`), os indicadores e \\\"Termos deste texto\\\" (do texto inteiro da tese).\",\"Sem tese, só chips e a linha do aporte (sem nota de IA).\",\"`npm run lint && npm run typecheck` passam.\"]}\n```",
       "blockedBy": [
         4
@@ -55,7 +55,7 @@
     {
       "id": 6,
       "subject": "Task 7: A tese no `AporteCard` do ativo",
-      "status": "pending",
+      "status": "completed",
       "description": "**Goal:** `/ativos/[ticker]` mostra o veredito no `AporteCard`, com \"Lentes e indicadores\" recolhido.\n\n**Files:**\n- Modify: `src/features/portfolio/domain/types.ts:~513` (`AssetOverview`)\n- Modify: `src/features/portfolio/server/asset-overview-view.ts:51-61,112`\n- Modify: `src/features/portfolio/components/asset/aporte-card.tsx`\n\n**Acceptance Criteria:**\n- [ ] `AssetOverview.radar: RadarView | null`, lido com `getRadarViews([ticker])` no mesmo `Promise.all`, com falha virando `null` (log `[radar]`).\n- [ ] Com tese: o veredito em Subheadline abaixo do detalhe da fila; um `Disclosure` \"Lentes e indicadores\" com as outras frases, as lentes, os chips e a nota.\n- [ ] Sem tese ou sem `strategy`: o card fica como hoje.\n- [ ] `npm run lint && npm run typecheck && npm test` passam.\n\n**Verify:** `npm run lint && npm run typecheck && npm test` → sem erros.\n\n```json:metadata\n{\"files\":[\"src/features/portfolio/domain/types.ts\",\"src/features/portfolio/server/asset-overview-view.ts\",\"src/features/portfolio/components/asset/aporte-card.tsx\"],\"verifyCommand\":\"npm run lint && npm run typecheck && npm test\",\"acceptanceCriteria\":[\"`AssetOverview.radar: RadarView | null`, lido com `getRadarViews([ticker])` no mesmo `Promise.all`, com falha virando `null` (log `[radar]`).\",\"Com tese: o veredito em Subheadline abaixo do detalhe da fila; um `Disclosure` \\\"Lentes e indicadores\\\" com as outras frases, as lentes, os chips e a nota.\",\"Sem tese ou sem `strategy`: o card fica como hoje.\",\"`npm run lint && npm run typecheck && npm test` passam.\"]}\n```",
       "blockedBy": [
         5
@@ -64,12 +64,12 @@
     {
       "id": 7,
       "subject": "Task 8: Docs, verificação completa e conferência na tela",
-      "status": "pending",
+      "status": "completed",
       "description": "**Goal:** CLAUDE.md e spec do Radar atualizados; CI local verde; tela conferida no dev server.\n\n**Files:**\n- Modify: `CLAUDE.md` (bullet \"Radar de fundamentos\" em `/recomendacoes`, a lista de testes, o `AporteCard` em `/ativos/[ticker]`)\n- Modify: `docs/superpowers/specs/2026-11-12-radar-fundamentos-design.md` (nota no topo: o texto foi substituído pela tese, spec `2026-11-13-tese-do-ativo-design.md`)\n\n**Acceptance Criteria:**\n- [ ] `npm run format:check && npm run lint && npm run typecheck && npm test && npm run build` passam.\n- [ ] Em `npm run dev`, `/recomendacoes` abre o popover ✨ com \"Por que este ativo\" e \"Neste aporte\" (sem tese, até o cron rodar: só chips e a linha); `/ativos/HGLG11` abre sem erro.\n- [ ] CLAUDE.md descreve: a tese (evidências do código, lentes, validação, tons pelo código, chave por faixa, 20 h, v1→v2 em 60 min), `listAllTargetSignals` e a decisão do dono de mandar rank e % até o teto ao Gemini.\n\n**Verify:** `npm run format:check && npm run lint && npm run typecheck && npm test && npm run build` → tudo verde.\n\n```json:metadata\n{\"files\":[\"CLAUDE.md\",\"docs/superpowers/specs/2026-11-12-radar-fundamentos-design.md\"],\"verifyCommand\":\"npm run format:check && npm run lint && npm run typecheck && npm test && npm run build\",\"acceptanceCriteria\":[\"`npm run format:check && npm run lint && npm run typecheck && npm test && npm run build` passam.\",\"Em `npm run dev`, `/recomendacoes` abre o popover ✨ com \\\"Por que este ativo\\\" e \\\"Neste aporte\\\" (sem tese, até o cron rodar: só chips e a linha); `/ativos/HGLG11` abre sem erro.\",\"CLAUDE.md descreve: a tese (evidências do código, lentes, validação, tons pelo código, chave por faixa, 20 h, v1→v2 em 60 min), `listAllTargetSignals` e a decisão do dono de mandar rank e % até o teto ao Gemini.\"]}\n```",
       "blockedBy": [
         6
       ]
     }
   ],
-  "lastUpdated": "2026-11-13T21:15:17.773Z"
+  "lastUpdated": "2026-11-14T12:00:00.000Z"
 }

@@ -1,5 +1,7 @@
 # Radar de fundamentos nas recomendações
 
+> 2026-11-13: o texto livre foi substituído pela tese do ativo (spec `2026-11-13-tese-do-ativo-design.md`). Fatos, chips, cron e fontes continuam valendo.
+
 Data: 2026-11-12. Escrito a partir do spec "Explainable AI para o Smart Buy" que o dono colou, ajustado ao Koinos na mesma data.
 
 Cada ordem de `/recomendacoes` ganha um "Radar de fundamentos": os indicadores atuais do ativo em chips e uma ou duas frases da IA sobre o momento dele (barato ou caro, rentável ou não, endividado ou não). A conta do aporte não muda e continua explicada pelo "Por quê" determinístico.
