@@ -2,15 +2,21 @@ import { describe, expect, it } from "vitest";
 import type { CascadeOrder } from "../../domain/fii-cascade";
 import type { StockBuyOrder, StockExclusionReason } from "../../domain/stock-buy";
 import {
+  calcSteps,
+  calcSummary,
   explain,
   explainStock,
   groupExcluded,
   NEUTRAL_REASON_HELP,
+  plainReason,
+  plainStockReason,
   REASON_HELP,
   reasonHelp,
   shortReason,
   shortStockReason,
   STOCK_REASON_HELP,
+  stockCalcSteps,
+  stockCalcSummary,
   unitOf,
 } from "./explain";
 
@@ -90,6 +96,101 @@ describe("explain", () => {
   });
 });
 
+// O RECR11 do `lab recomendar --valor 10000` de 2026-11-14.
+const recr = () =>
+  order({
+    ticker: "RECR11",
+    rank: 6,
+    quantity: 26,
+    price: 68.7,
+    total: 1_786.2,
+    fillBefore: 0.947,
+    gapBefore: 1_421.08,
+    need: 1_850.97,
+    priceToBook: 0.77,
+    dividendRatio: 0.86,
+    marginToCeiling: 0.24,
+    macro: "Papel",
+    tensors: { valuation: 1.23, dividends: 0.86, safety: 1.24, vacancy: 1 },
+  });
+const plainText = (text: string) => text.replace(/ /g, " ");
+
+describe("plainReason", () => {
+  it("a decisão do método em palavras, sem siglas", () => {
+    expect(plainReason(recr())).toBe(
+      "6º na lista do método · faltam 5% para a meta · rendimento caiu",
+    );
+    expect(
+      plainReason(order({ priceToBook: 0.84, tensors: { ...neutral, valuation: 1.16 } })),
+    ).toBe("3º na lista do método · faltam 20% para a meta · desconto no preço");
+    expect(plainReason(order({ tensors: { ...neutral, safety: 1.2 } }))).toBe(
+      "3º na lista do método · faltam 20% para a meta · bem abaixo do teto",
+    );
+  });
+  it("sobra, quase na meta e trava", () => {
+    expect(plainReason(order({ fromLeftover: 10, gapBefore: -50, fillBefore: 1.01 }))).toBe(
+      "Sobra do aporte · já na meta",
+    );
+    expect(plainReason(order({ fillBefore: 0.998 }))).toBe("3º na lista do método · quase na meta");
+    expect(plainReason(order({ limitedBy: "setor", sector: "Shoppings" }))).toBe(
+      "3º na lista do método · faltam 20% para a meta · limite do setor",
+    );
+  });
+});
+
+describe("calcSteps", () => {
+  it("cada tensor que mexeu, com o efeito e o multiplicador exato", () => {
+    const steps = calcSteps(recr());
+    expect(steps.map((s) => s.label)).toEqual([
+      "Posição na lista do método",
+      "Faltava para a meta",
+      "Preço sobre o patrimônio",
+      "Margem até o teto",
+      "Último rendimento",
+    ]);
+    expect(steps.map((s) => s.effect)).toEqual([null, null, "mais", "mais", "menos"]);
+    expect(steps.map((s) => s.exact)).toEqual([null, null, "×1,23", "×1,24", "×0,86"]);
+    expect(steps.map((s) => plainText(s.value))).toEqual([
+      "6º",
+      "R$ 1.421,08 (5%)",
+      "P/VP 0,77",
+      "24%",
+      "14% abaixo da média de 12 meses",
+    ]);
+  });
+  it("vacância só no tijolo; na meta, só a posição e a distância", () => {
+    const brick = calcSteps(
+      order({ vacancy: 0.12, tensors: { ...neutral, vacancy: 0.88 }, macro: "Tijolo" }),
+    );
+    expect(brick.at(-1)).toMatchObject({ label: "Vacância", effect: "menos", exact: "×0,88" });
+    expect(
+      calcSteps(order({ fromLeftover: 10, gapBefore: -50, fillBefore: 1.01 })).map((s) => s.value),
+    ).toEqual(["3º", "já na meta"]);
+  });
+});
+
+describe("calcSummary", () => {
+  it("liga o que faltava ao pedido e à compra", () => {
+    expect(plainText(calcSummary(recr()))).toBe(
+      "Faltavam R$ 1.421,08 para a meta. O método pediu R$ 1.850,97 (mais pelo desconto no preço e pela margem até o teto, menos pelo rendimento menor) e comprou R$ 1.786,20 (26 cotas).",
+    );
+  });
+  it("a trava, o saldo e a sobra", () => {
+    expect(plainText(calcSummary(order({ limitedBy: "ativo" })))).toBe(
+      "Faltavam R$ 2.000,00 para a meta. O método pediu R$ 2.000,00 e comprou R$ 1.000,00 (10 cotas). O limite de 25% do aporte por FII cortou o pedido.",
+    );
+    expect(calcSummary(order({ limitedBy: "saldo" }))).toContain(
+      "O saldo do aporte acabou antes do pedido.",
+    );
+    expect(calcSummary(order({ quantity: 12, fromLeftover: 2 }))).toContain(
+      "2 cota(s) vieram da sobra.",
+    );
+    expect(
+      plainText(calcSummary(order({ fromLeftover: 10, gapBefore: -50, fillBefore: 1.01 }))),
+    ).toBe("Já estava na meta: comprou R$ 1.000,00 (10 cotas) com a sobra do aporte.");
+  });
+});
+
 describe("ações", () => {
   const stock: StockBuyOrder = {
     ticker: "WEGE3",
@@ -112,6 +213,24 @@ describe("ações", () => {
     expect(plain(explainStock(stock))).toBe(
       "Margem de segurança de 37% (teto R$ 70,00, preço R$ 51,00) · faltavam R$ 1.200,00 para a meta de 20,0%",
     );
+  });
+
+  it("as versões em palavras", () => {
+    expect(plain(plainStockReason(stock))).toBe(
+      "Margem de segurança de 37% · faltavam R$ 1.200,00 para a meta",
+    );
+    expect(stockCalcSteps(stock).map((s) => plain(s.value))).toEqual([
+      "37% (teto R$ 70,00)",
+      "R$ 1.200,00",
+    ]);
+    expect(plain(stockCalcSummary(stock))).toBe(
+      "Faltavam R$ 1.200,00 para a meta de 20,0%. Comprou R$ 510,00 (10 ações).",
+    );
+    const lots = { ...stock, quantity: 300, fromLeftover: 200, lot: 100, total: 15_300 };
+    expect(plain(stockCalcSummary(lots))).toBe(
+      "Faltavam R$ 1.200,00 para a meta de 20,0%. Comprou R$ 15.300,00 (300 ações, em lotes de 100). 2 lote(s) vieram da sobra.",
+    );
+    expect(plain(plainStockReason(lots))).toContain("2 lote(s) pela sobra");
   });
 
   it("a linha curta", () => {

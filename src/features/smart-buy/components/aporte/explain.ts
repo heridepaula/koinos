@@ -231,3 +231,180 @@ export function explainStock(order: StockBuyOrder): string {
 export function shortStockReason(order: StockBuyOrder): string {
   return `margem de segurança de ${formatPercent(order.marginOfSafety, 0)} · ${missingText(order)}${leftoverText(order)}`;
 }
+
+/** "faltam 5% para a meta", "quase na meta" ou "já na meta". */
+function distanceWords(order: CascadeOrder): string {
+  const shortfall = 1 - order.fillBefore;
+  if (order.gapBefore <= 0) return "já na meta";
+  if (shortfall < 0.005) return "quase na meta";
+  return `faltam ${formatPercent(shortfall, 0)} para a meta`;
+}
+
+/**
+ * A linha 1 do "Por quê" (spec por-que-na-tabela §7): a decisão do método em palavras, sem siglas
+ * nem tensores. O sinal que mais pesou na mesma ordem de `shortReason`.
+ */
+export function plainReason(order: CascadeOrder): string {
+  if (onlyLeftover(order)) return `Sobra do aporte · ${distanceWords(order)}`;
+  const { tensors } = order;
+  const parts = [`${order.rank}º na lista do método`, distanceWords(order)];
+  if (order.limitedBy === "setor" || order.limitedBy === "macro") {
+    parts.push(
+      order.limitedBy === "setor" ? "limite do setor" : `limite de ${order.macro.toLowerCase()}`,
+    );
+  } else if (tensors.dividends < 0.95) {
+    parts.push("rendimento caiu");
+  } else if (tensors.vacancy < 0.9) {
+    parts.push(`vacância de ${formatPercent(order.vacancy ?? 0, 0)}`);
+  } else if (order.priceToBook !== null && tensors.valuation >= 1.05) {
+    parts.push("desconto no preço");
+  } else if (tensors.safety >= 1.1) {
+    parts.push("bem abaixo do teto");
+  }
+  return parts.join(" · ");
+}
+
+export type CalcEffect = "mais" | "menos";
+
+/** Uma linha do "Cálculo do Koinos": o rótulo, o valor, o efeito no pedido e o multiplicador. */
+export type CalcStep = {
+  label: string;
+  value: string;
+  effect: CalcEffect | null;
+  /** "×1,23", para o dono (no `title`); null quando o tensor é neutro. */
+  exact: string | null;
+};
+
+const moved = (tensor: number) => Math.abs(tensor - 1) >= 0.005;
+const effectOf = (tensor: number): CalcEffect | null =>
+  moved(tensor) ? (tensor > 1 ? "mais" : "menos") : null;
+const exactOf = (tensor: number) => (moved(tensor) ? `×${formatQuantity(tensor)}` : null);
+
+/** O cálculo de uma ordem de FII em linhas: posição, distância e cada tensor que mexeu no pedido. */
+export function calcSteps(order: CascadeOrder): CalcStep[] {
+  const steps: CalcStep[] = [
+    { label: "Posição na lista do método", value: `${order.rank}º`, effect: null, exact: null },
+    {
+      label: "Faltava para a meta",
+      value:
+        order.gapBefore > 0
+          ? `${formatBRL(order.gapBefore)} (${formatPercent(1 - order.fillBefore, 0)})`
+          : "já na meta",
+      effect: null,
+      exact: null,
+    },
+  ];
+  if (order.gapBefore <= 0) return steps;
+  const { tensors } = order;
+  const step = (label: string, value: string, tensor: number) =>
+    steps.push({ label, value, effect: effectOf(tensor), exact: exactOf(tensor) });
+  if (order.priceToBook !== null && moved(tensors.valuation)) {
+    step(
+      "Preço sobre o patrimônio",
+      `P/VP ${formatQuantity(order.priceToBook)}`,
+      tensors.valuation,
+    );
+  }
+  if (moved(tensors.safety)) {
+    step("Margem até o teto", formatPercent(order.marginToCeiling, 0), tensors.safety);
+  }
+  if (order.dividendRatio !== null && tensors.dividends < 1 && moved(tensors.dividends)) {
+    step(
+      "Último rendimento",
+      `${formatPercent(1 - order.dividendRatio, 0)} abaixo da média de 12 meses`,
+      tensors.dividends,
+    );
+  }
+  if (order.macro === "Tijolo" && order.vacancy !== null && moved(tensors.vacancy)) {
+    step("Vacância", formatPercent(order.vacancy, 0), tensors.vacancy);
+  }
+  return steps;
+}
+
+/** "a, b e c". */
+const listPt = (items: readonly string[]) =>
+  items.length <= 1 ? (items[0] ?? "") : `${items.slice(0, -1).join(", ")} e ${items.at(-1)}`;
+
+/** A trava como frase; null sem trava. */
+function limitSentence(order: CascadeOrder): string | null {
+  if (order.limitedBy === "saldo") return "O saldo do aporte acabou antes do pedido.";
+  const limit = limitText(order);
+  return limit ? `O ${limit} cortou o pedido.` : null;
+}
+
+/**
+ * A frase que liga a meta ao pedido e à compra (o leitor leigo não entendia "faltava R$ X, pediu
+ * R$ Y"): o que aumentou, o que diminuiu, a trava e a sobra.
+ */
+export function calcSummary(order: CascadeOrder): string {
+  const bought = `${formatBRL(order.total)} (${formatQuantity(order.quantity)} ${unitOf("FII", order.quantity)})`;
+  if (order.gapBefore <= 0) return `Já estava na meta: comprou ${bought} com a sobra do aporte.`;
+  const { tensors } = order;
+  const up: string[] = [];
+  const down: string[] = [];
+  if (order.priceToBook !== null && moved(tensors.valuation)) {
+    (tensors.valuation > 1 ? up : down).push(
+      tensors.valuation > 1 ? "pelo desconto no preço" : "pelo preço acima do patrimônio",
+    );
+  }
+  if (moved(tensors.safety)) up.push("pela margem até o teto");
+  if (order.dividendRatio !== null && tensors.dividends < 0.995) down.push("pelo rendimento menor");
+  if (order.macro === "Tijolo" && order.vacancy !== null && tensors.vacancy < 0.995) {
+    down.push("pela vacância");
+  }
+  const adjust = [
+    up.length ? `mais ${listPt(up)}` : null,
+    down.length ? `menos ${listPt(down)}` : null,
+  ]
+    .filter(Boolean)
+    .join(", ");
+  const sentences = [
+    `Faltavam ${formatBRL(order.gapBefore)} para a meta.`,
+    `O método pediu ${formatBRL(order.need)}${adjust ? ` (${adjust})` : ""} e comprou ${bought}.`,
+    limitSentence(order),
+    order.fromLeftover > 0 && order.fromLeftover < order.quantity
+      ? `${order.fromLeftover} cota(s) vieram da sobra.`
+      : null,
+  ];
+  return sentences.filter(Boolean).join(" ");
+}
+
+/** A linha 1 das ações: a margem de segurança e o que faltava, com a sobra em lotes. */
+export function plainStockReason(order: StockBuyOrder): string {
+  const missing =
+    order.deficitBefore <= 0
+      ? "já estava na meta"
+      : `faltavam ${formatBRL(order.deficitBefore)} para a meta`;
+  return `Margem de segurança de ${formatPercent(order.marginOfSafety, 0)} · ${missing}${leftoverText(order)}`;
+}
+
+/** O cálculo de uma ordem de ação em linhas: a margem de segurança e o que faltava. */
+export function stockCalcSteps(order: StockBuyOrder): CalcStep[] {
+  const ceiling = order.price * (1 + order.marginOfSafety);
+  return [
+    {
+      label: "Margem de segurança",
+      value: `${formatPercent(order.marginOfSafety, 0)} (teto ${formatBRL(ceiling)})`,
+      effect: null,
+      exact: null,
+    },
+    {
+      label: "Faltava para a meta",
+      value: order.deficitBefore > 0 ? formatBRL(order.deficitBefore) : "já na meta",
+      effect: null,
+      exact: null,
+    },
+  ];
+}
+
+/** A frase do cálculo das ações: o que faltava, a compra (em lotes) e os lotes da sobra. */
+export function stockCalcSummary(order: StockBuyOrder): string {
+  const start =
+    order.deficitBefore > 0
+      ? `Faltavam ${formatBRL(order.deficitBefore)} para a meta de ${formatPercent(order.targetWeight, 1)}.`
+      : "Já estava na meta.";
+  const lots = order.lot > 1 ? `, em lotes de ${order.lot}` : "";
+  const leftover =
+    order.fromLeftover > 0 ? ` ${order.fromLeftover / order.lot} lote(s) vieram da sobra.` : "";
+  return `${start} Comprou ${formatBRL(order.total)} (${formatQuantity(order.quantity)} ${unitOf("ACAO", order.quantity)}${lots}).${leftover}`;
+}
