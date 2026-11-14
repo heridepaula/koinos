@@ -183,52 +183,37 @@ export type CalcStep = {
   effect: CalcEffect | null;
   /** "×1,23", para o dono (no `title`); null quando o tensor é neutro. */
   exact: string | null;
-  /** O valor traz R$ da carteira: some no modo privacidade. */
-  sensitive?: boolean;
 };
 
-/** Um pedaço de frase: texto, R$ da carteira (`money`) ou quantidade da carteira (`quantity`). */
-export type CalcPart = string | { money: number } | { quantity: number };
-
-/** A frase como texto puro (testes e qualquer uso sem o modo privacidade). */
-export function calcText(parts: readonly CalcPart[]): string {
-  return parts
-    .map((part) =>
-      typeof part === "string"
-        ? part
-        : "money" in part
-          ? formatBRL(part.money)
-          : formatQuantity(part.quantity),
-    )
-    .join("");
-}
-
-/** Junta as frases com um espaço, ignorando as nulas. */
-const joinSentences = (sentences: readonly (readonly CalcPart[] | null)[]): CalcPart[] =>
-  sentences.flatMap((sentence, index) =>
-    sentence ? (index > 0 ? [" ", ...sentence] : [...sentence]) : [],
-  );
+/**
+ * O caminho da conta em três números (spec por-que-na-tabela §8): quanto faltava para a meta, quanto
+ * o método pediu (só FIIs: o que faltava × os fatores) e quanto comprou. `gap` e `need` são null na
+ * meta (compra da sobra). Os R$ e a quantidade são da carteira: a tela os esconde no modo
+ * privacidade.
+ */
+export type CalcFlow = {
+  gap: number | null;
+  need: number | null;
+  total: number;
+  quantity: number;
+  unit: string;
+  /** A trava que cortou o pedido ("limite de 25% do aporte por FII", "o saldo acabou"). */
+  limit: string | null;
+  /** Lote e sobra, em poucas palavras. */
+  note: string | null;
+};
 
 const moved = (tensor: number) => Math.abs(tensor - 1) >= 0.005;
 const effectOf = (tensor: number): CalcEffect | null =>
   moved(tensor) ? (tensor > 1 ? "mais" : "menos") : null;
 const exactOf = (tensor: number) => (moved(tensor) ? `×${formatQuantity(tensor)}` : null);
 
-/** O cálculo de uma ordem de FII em linhas: posição, distância e cada tensor que mexeu no pedido. */
+/**
+ * Os fatores que mexeram no pedido de um FII, um por linha (o rank está na linha da tabela e o que
+ * faltava, no fluxo de `calcFlow`). Vazio na meta: a compra veio da sobra.
+ */
 export function calcSteps(order: CascadeOrder): CalcStep[] {
-  const steps: CalcStep[] = [
-    { label: "Posição na lista do método", value: `${order.rank}º`, effect: null, exact: null },
-    {
-      label: "Faltava para a meta",
-      value:
-        order.gapBefore > 0
-          ? `${formatBRL(order.gapBefore)} (${formatPercent(1 - order.fillBefore, 0)})`
-          : "já na meta",
-      effect: null,
-      exact: null,
-      sensitive: order.gapBefore > 0,
-    },
-  ];
+  const steps: CalcStep[] = [];
   if (order.gapBefore <= 0) return steps;
   const { tensors } = order;
   const step = (label: string, value: string, tensor: number) =>
@@ -256,65 +241,23 @@ export function calcSteps(order: CascadeOrder): CalcStep[] {
   return steps;
 }
 
-/** "a, b e c". */
-const listPt = (items: readonly string[]) =>
-  items.length <= 1 ? (items[0] ?? "") : `${items.slice(0, -1).join(", ")} e ${items.at(-1)}`;
-
-/** A trava como frase; null sem trava. */
-function limitSentence(order: CascadeOrder): string | null {
-  if (order.limitedBy === "saldo") return "O saldo do aporte acabou antes do pedido.";
-  const limit = limitText(order);
-  return limit ? `O ${limit} cortou o pedido.` : null;
-}
-
-/**
- * A frase que liga a meta ao pedido e à compra (o leitor leigo não entendia "faltava R$ X, pediu
- * R$ Y"): o que aumentou, o que diminuiu, a trava e a sobra.
- */
-export function calcSummary(order: CascadeOrder): CalcPart[] {
-  const bought: CalcPart[] = [
-    { money: order.total },
-    ` (`,
-    { quantity: order.quantity },
-    ` ${unitOf("FII", order.quantity)})`,
-  ];
-  if (order.gapBefore <= 0) {
-    return ["Já estava na meta: comprou ", ...bought, " com a sobra do aporte."];
-  }
-  const { tensors } = order;
-  const up: string[] = [];
-  const down: string[] = [];
-  if (order.priceToBook !== null && moved(tensors.valuation)) {
-    (tensors.valuation > 1 ? up : down).push(
-      tensors.valuation > 1 ? "pelo desconto no preço" : "pelo preço acima do patrimônio",
-    );
-  }
-  if (moved(tensors.safety)) up.push("pela margem até o teto");
-  if (order.dividendRatio !== null && tensors.dividends < 0.995) down.push("pelo rendimento menor");
-  if (order.macro === "Tijolo" && order.vacancy !== null && tensors.vacancy < 0.995) {
-    down.push("pela vacância");
-  }
-  const adjust = [
-    up.length ? `mais ${listPt(up)}` : null,
-    down.length ? `menos ${listPt(down)}` : null,
-  ]
-    .filter(Boolean)
-    .join(", ");
-  const limit = limitSentence(order);
-  return joinSentences([
-    ["Faltavam ", { money: order.gapBefore }, " para a meta."],
-    [
-      "O método pediu ",
-      { money: order.need },
-      `${adjust ? ` (${adjust})` : ""} e comprou `,
-      ...bought,
-      ".",
-    ],
-    limit ? [limit] : null,
-    order.fromLeftover > 0 && order.fromLeftover < order.quantity
-      ? [{ quantity: order.fromLeftover }, " cota(s) vieram da sobra."]
-      : null,
-  ]);
+/** O fluxo da conta de um FII: faltava → pediu → comprou, com a trava e a sobra. */
+export function calcFlow(order: CascadeOrder): CalcFlow {
+  const onTarget = order.gapBefore <= 0;
+  const partial = order.fromLeftover > 0 && order.fromLeftover < order.quantity;
+  return {
+    gap: onTarget ? null : order.gapBefore,
+    need: onTarget ? null : order.need,
+    total: order.total,
+    quantity: order.quantity,
+    unit: unitOf("FII", order.quantity),
+    limit: limitText(order),
+    note: onTarget
+      ? "compra da sobra do aporte"
+      : partial
+        ? `${order.fromLeftover} cota(s) da sobra`
+        : null,
+  };
 }
 
 /** A linha 1 das ações: a margem de segurança e o que faltava, com a sobra em lotes. */
@@ -326,7 +269,7 @@ export function plainStockReason(order: StockBuyOrder): string {
   return `Margem de segurança de ${formatPercent(order.marginOfSafety, 0)} · ${missing}${leftoverText(order)}`;
 }
 
-/** O cálculo de uma ordem de ação em linhas: a margem de segurança e o que faltava. */
+/** O fator das ações: a margem de segurança até o teto (o que faltava está no fluxo). */
 export function stockCalcSteps(order: StockBuyOrder): CalcStep[] {
   const ceiling = order.price * (1 + order.marginOfSafety);
   return [
@@ -336,34 +279,24 @@ export function stockCalcSteps(order: StockBuyOrder): CalcStep[] {
       effect: null,
       exact: null,
     },
-    {
-      label: "Faltava para a meta",
-      value: order.deficitBefore > 0 ? formatBRL(order.deficitBefore) : "já na meta",
-      effect: null,
-      exact: null,
-      sensitive: order.deficitBefore > 0,
-    },
   ];
 }
 
-/** A frase do cálculo das ações: o que faltava, a compra (em lotes) e os lotes da sobra. */
-export function stockCalcSummary(order: StockBuyOrder): CalcPart[] {
-  const lots = order.lot > 1 ? `, em lotes de ${order.lot}` : "";
-  return joinSentences([
-    order.deficitBefore > 0
-      ? [
-          "Faltavam ",
-          { money: order.deficitBefore },
-          ` para a meta de ${formatPercent(order.targetWeight, 1)}.`,
-        ]
-      : ["Já estava na meta."],
-    [
-      "Comprou ",
-      { money: order.total },
-      " (",
-      { quantity: order.quantity },
-      ` ${unitOf("ACAO", order.quantity)}${lots}).`,
-    ],
-    order.fromLeftover > 0 ? [`${order.fromLeftover / order.lot} lote(s) vieram da sobra.`] : null,
-  ]);
+/** O fluxo da conta de uma ação: faltava → comprou (sem pedido com fatores), com lote e sobra. */
+export function stockCalcFlow(order: StockBuyOrder): CalcFlow {
+  const note = [
+    order.lot > 1 ? `em lotes de ${order.lot}` : null,
+    order.fromLeftover > 0 ? `${order.fromLeftover / order.lot} lote(s) da sobra` : null,
+  ]
+    .filter(Boolean)
+    .join(" · ");
+  return {
+    gap: order.deficitBefore > 0 ? order.deficitBefore : null,
+    need: null,
+    total: order.total,
+    quantity: order.quantity,
+    unit: unitOf("ACAO", order.quantity),
+    limit: null,
+    note: note || null,
+  };
 }

@@ -25,13 +25,11 @@ function PointList({
         />
         {title}
       </p>
-      <ul className="grid gap-2">
+      <ul className="grid gap-1.5">
         {points.map((point) => (
-          <li key={point.id} className="grid gap-0.5">
-            <span className="text-caption text-muted-foreground">{point.label}</span>
-            <p className="text-subheadline text-pretty">
-              <GlossaryText text={point.text} assetClass={assetClass} />
-            </p>
+          <li key={point.id} className="text-subheadline text-pretty">
+            <span className="text-muted-foreground">{point.label} · </span>
+            <GlossaryText text={point.text} assetClass={assetClass} />
           </li>
         ))}
       </ul>
@@ -39,7 +37,7 @@ function PointList({
   );
 }
 
-/** As lentes da tese como "A favor" e "Atenção" (pelo tom do código), com o nome da lente pequeno. */
+/** As lentes da tese como "A favor" e "Atenção" (pelo tom do código), o nome da lente antes do texto. */
 export function ThesisPoints({
   lenses,
   assetClass,

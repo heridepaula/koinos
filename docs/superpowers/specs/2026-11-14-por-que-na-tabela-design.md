@@ -238,3 +238,26 @@ Ativo                    Cotas  Preço     Total          % antes→depois  % me
     FII REC Recebíveis…                   +R$ 19,85/mês                          P/VP baixo, mas o último pagamento foi menor
                                                                                  que o de costume.
 ```
+
+## 8. Revisão de espaço (2026-11-14, depois do deploy)
+
+O dono mandou um print da linha aberta do TRXF11. A leitura da IA ocupava 60% da largura e acabava em ~180 px; o cálculo, nos outros 40%, descia ~760 px. Metade dele repetia informação que já estava na tela.
+
+**O que saiu:**
+- **A frase longa do cálculo.** No lugar dela entra um fluxo de três números (`calcFlow`/`stockCalcFlow`): faltava → o método pediu → comprou. A trava e a sobra ficam numa linha embaixo.
+- **"Posição na lista do método".** Já está na linha fechada.
+- **"Faltava para a meta" como linha à parte.** Agora está no fluxo.
+- **"Peso na carteira".** Já está nas colunas "% antes → depois" e "% meta". A folha do celular mantém essa linha, porque a lista não tem essas colunas.
+- **O chip de P/VP**, quando o P/VP aparece como fator do cálculo.
+- **A nota "Em R$, o resultado…".** Foi para o ⓘ do L/P.
+- **O aviso do teto inteiro.** Virou uma linha: ícone, teto calculado e a diferença. O texto completo continua no tooltip do ícone.
+- **A nota da IA em duas linhas.** Virou uma faixa de rodapé numa linha só.
+- **"↑ compra mais" numa linha própria.** Virou uma seta verde ou vermelha antes do rótulo do fator.
+- **O veredito duplicado.** Com a linha aberta, ele sai da célula "Por quê", porque já está logo abaixo.
+
+**O layout:**
+- **Três colunas**, a partir de 1.100 px de card: Leitura da IA (`1.4fr`), "Por que esta quantidade" (`1fr`) e "Depois desta ordem" (`1fr`).
+- **Duas colunas** abaixo disso.
+- **O rodapé da IA** ocupa a largura toda.
+- **Os pontos "A favor"/"Atenção"** trazem o nome da lente antes do texto, na mesma linha.
+- **A altura** caiu de ~760 px para ~250 px, conferida numa prévia com os números do print.

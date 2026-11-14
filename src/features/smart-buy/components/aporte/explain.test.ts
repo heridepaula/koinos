@@ -2,9 +2,8 @@ import { describe, expect, it } from "vitest";
 import type { CascadeOrder } from "../../domain/fii-cascade";
 import type { StockBuyOrder, StockExclusionReason } from "../../domain/stock-buy";
 import {
+  calcFlow,
   calcSteps,
-  calcSummary,
-  calcText,
   groupExcluded,
   NEUTRAL_REASON_HELP,
   plainReason,
@@ -12,8 +11,8 @@ import {
   REASON_HELP,
   reasonHelp,
   STOCK_REASON_HELP,
+  stockCalcFlow,
   stockCalcSteps,
-  stockCalcSummary,
   unitOf,
 } from "./explain";
 
@@ -63,7 +62,6 @@ const recr = () =>
     macro: "Papel",
     tensors: { valuation: 1.23, dividends: 0.86, safety: 1.24, vacancy: 1 },
   });
-const plainText = (text: string) => text.replace(/ /g, " ");
 
 describe("plainReason", () => {
   it("a decisão do método em palavras, sem siglas", () => {
@@ -89,65 +87,51 @@ describe("plainReason", () => {
 });
 
 describe("calcSteps", () => {
-  it("cada tensor que mexeu, com o efeito e o multiplicador exato", () => {
+  it("só os fatores que mexeram, com o efeito e o multiplicador exato", () => {
     const steps = calcSteps(recr());
     expect(steps.map((s) => s.label)).toEqual([
-      "Posição na lista do método",
-      "Faltava para a meta",
       "Preço sobre o patrimônio",
       "Margem até o teto",
       "Último rendimento",
     ]);
-    expect(steps.map((s) => s.effect)).toEqual([null, null, "mais", "mais", "menos"]);
-    expect(steps.map((s) => s.exact)).toEqual([null, null, "×1,23", "×1,24", "×0,86"]);
-    expect(steps.map((s) => Boolean(s.sensitive))).toEqual([false, true, false, false, false]);
-    expect(steps.map((s) => plainText(s.value))).toEqual([
-      "6º",
-      "R$ 1.421,08 (5%)",
+    expect(steps.map((s) => s.effect)).toEqual(["mais", "mais", "menos"]);
+    expect(steps.map((s) => s.exact)).toEqual(["×1,23", "×1,24", "×0,86"]);
+    expect(steps.map((s) => s.value)).toEqual([
       "P/VP 0,77",
       "24%",
       "14% abaixo da média de 12 meses",
     ]);
   });
-  it("vacância só no tijolo; na meta, só a posição e a distância", () => {
+  it("vacância só no tijolo; na meta, nenhum fator", () => {
     const brick = calcSteps(
       order({ vacancy: 0.12, tensors: { ...neutral, vacancy: 0.88 }, macro: "Tijolo" }),
     );
     expect(brick.at(-1)).toMatchObject({ label: "Vacância", effect: "menos", exact: "×0,88" });
-    expect(
-      calcSteps(order({ fromLeftover: 10, gapBefore: -50, fillBefore: 1.01 })).map((s) => s.value),
-    ).toEqual(["3º", "já na meta"]);
+    expect(calcSteps(order({ fromLeftover: 10, gapBefore: -50, fillBefore: 1.01 }))).toEqual([]);
   });
 });
 
-describe("calcSummary", () => {
-  it("liga o que faltava ao pedido e à compra", () => {
-    expect(plainText(calcText(calcSummary(recr())))).toBe(
-      "Faltavam R$ 1.421,08 para a meta. O método pediu R$ 1.850,97 (mais pelo desconto no preço e pela margem até o teto, menos pelo rendimento menor) e comprou R$ 1.786,20 (26 cotas).",
-    );
-  });
-  it("marca os valores da carteira para o modo privacidade", () => {
-    const parts = calcSummary(recr());
-    expect(parts).toContainEqual({ money: 1421.08 });
-    expect(parts).toContainEqual({ money: 1850.97 });
-    expect(parts).toContainEqual({ money: 1786.2 });
-    expect(parts).toContainEqual({ quantity: 26 });
+describe("calcFlow", () => {
+  it("faltava → pediu → comprou", () => {
+    expect(calcFlow(recr())).toEqual({
+      gap: 1_421.08,
+      need: 1_850.97,
+      total: 1_786.2,
+      quantity: 26,
+      unit: "cotas",
+      limit: null,
+      note: null,
+    });
   });
   it("a trava, o saldo e a sobra", () => {
-    expect(plainText(calcText(calcSummary(order({ limitedBy: "ativo" }))))).toBe(
-      "Faltavam R$ 2.000,00 para a meta. O método pediu R$ 2.000,00 e comprou R$ 1.000,00 (10 cotas). O limite de 25% do aporte por FII cortou o pedido.",
-    );
-    expect(calcText(calcSummary(order({ limitedBy: "saldo" })))).toContain(
-      "O saldo do aporte acabou antes do pedido.",
-    );
-    expect(calcText(calcSummary(order({ quantity: 12, fromLeftover: 2 })))).toContain(
-      "2 cota(s) vieram da sobra.",
-    );
-    expect(
-      plainText(
-        calcText(calcSummary(order({ fromLeftover: 10, gapBefore: -50, fillBefore: 1.01 }))),
-      ),
-    ).toBe("Já estava na meta: comprou R$ 1.000,00 (10 cotas) com a sobra do aporte.");
+    expect(calcFlow(order({ limitedBy: "ativo" })).limit).toBe("limite de 25% do aporte por FII");
+    expect(calcFlow(order({ limitedBy: "saldo" })).limit).toBe("o saldo acabou");
+    expect(calcFlow(order({ quantity: 12, fromLeftover: 2 })).note).toBe("2 cota(s) da sobra");
+    expect(calcFlow(order({ fromLeftover: 10, gapBefore: -50, fillBefore: 1.01 }))).toMatchObject({
+      gap: null,
+      need: null,
+      note: "compra da sobra do aporte",
+    });
   });
 });
 
@@ -169,24 +153,24 @@ describe("ações", () => {
   };
   const plain = (text: string) => text.replace(/ /g, " ");
 
-  it("as versões em palavras", () => {
+  it("as versões em palavras e o fluxo", () => {
     expect(plain(plainStockReason(stock))).toBe(
       "Margem de segurança de 37% · faltavam R$ 1.200,00 para a meta",
     );
-    expect(stockCalcSteps(stock).map((s) => plain(s.value))).toEqual([
-      "37% (teto R$ 70,00)",
-      "R$ 1.200,00",
-    ]);
-    expect(plain(calcText(stockCalcSummary(stock)))).toBe(
-      "Faltavam R$ 1.200,00 para a meta de 20,0%. Comprou R$ 510,00 (10 ações).",
-    );
+    expect(stockCalcSteps(stock).map((s) => plain(s.value))).toEqual(["37% (teto R$ 70,00)"]);
+    expect(stockCalcFlow(stock)).toEqual({
+      gap: 1_200,
+      need: null,
+      total: 510,
+      quantity: 10,
+      unit: "ações",
+      limit: null,
+      note: null,
+    });
     const lots = { ...stock, quantity: 300, fromLeftover: 200, lot: 100, total: 15_300 };
-    expect(plain(calcText(stockCalcSummary(lots)))).toBe(
-      "Faltavam R$ 1.200,00 para a meta de 20,0%. Comprou R$ 15.300,00 (300 ações, em lotes de 100). 2 lote(s) vieram da sobra.",
-    );
+    expect(stockCalcFlow(lots).note).toBe("em lotes de 100 · 2 lote(s) da sobra");
+    expect(stockCalcFlow({ ...stock, deficitBefore: -10 }).gap).toBeNull();
     expect(plain(plainStockReason(lots))).toContain("2 lote(s) pela sobra");
-    expect(stockCalcSteps(stock).map((s) => s.sensitive)).toEqual([undefined, true]);
-    expect(stockCalcSummary(stock)).toContainEqual({ money: 1_200 });
   });
 });
 

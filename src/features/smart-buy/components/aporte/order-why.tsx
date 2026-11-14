@@ -1,9 +1,18 @@
 "use client";
 
-import { CalculatorIcon, SparklesIcon } from "lucide-react";
+import {
+  ArrowDownIcon,
+  ArrowUpIcon,
+  CalculatorIcon,
+  ChevronRightIcon,
+  SparklesIcon,
+  TrendingUpIcon,
+} from "lucide-react";
+import type { ReactNode } from "react";
 import type { RadarChip, RadarView, ThesisView } from "@/features/market-data";
 import { ThesisPoints } from "@/features/market-data/ui";
-import { CeilingCheckBody } from "@/features/strategy/ui";
+import { ceilingCheckDetails, type CeilingCheck } from "@/features/strategy";
+import { CeilingCheckIcon } from "@/features/strategy/ui";
 import { GlossaryText } from "@/shared/components/glossary-text";
 import { InsetGroup, InsetValueRow } from "@/shared/components/inset-list";
 import { QUANTITY_MASK, Sensitive } from "@/shared/components/sensitive";
@@ -12,22 +21,29 @@ import { glossaryEntry, glossaryIdsIn } from "@/shared/lib/glossary";
 import type { MergedOrder } from "../../domain/merge-orders";
 import type { OrderImpact } from "../../domain/aporte-impact";
 import {
+  calcFlow,
   calcSteps,
-  calcSummary,
   plainReason,
   plainStockReason,
+  stockCalcFlow,
   stockCalcSteps,
-  stockCalcSummary,
-  type CalcPart,
+  type CalcFlow,
   type CalcStep,
 } from "./explain";
 import { ImpactList } from "./impact";
 import type { AssetMeta } from "./orders";
 
+// O "Por quê" de uma ordem (spec por-que-na-tabela §7 e §8): a linha da tabela, a linha expandida
+// em três colunas (leitura da IA, por que esta quantidade, depois desta ordem) e a folha do celular.
+
 const NO_THESIS = "A leitura da IA deste ativo ainda não foi gerada.";
 
+/** A nota da IA numa linha: quem gerou, quando, o aviso e a fonte. */
 const thesisNote = (date: Date) =>
-  `Gerada por IA (Gemini) em ${formatTradeDate(date)} a partir dos sinais do método da sua Carteira Alvo e dos indicadores públicos. Pode conter erros e não é recomendação. Fonte: Fundamentus.`;
+  `Gerado por IA (Gemini) em ${formatTradeDate(date)} · pode conter erros e não é recomendação · Fonte: Fundamentus`;
+
+/** O rótulo do fator de P/VP: quando ele aparece no cálculo, o chip de P/VP sai da leitura. */
+const PVP_STEP = "Preço sobre o patrimônio";
 
 /** A linha 1 do "Por quê": a decisão do método em palavras. */
 export const whyOf = (row: MergedOrder) =>
@@ -35,10 +51,22 @@ export const whyOf = (row: MergedOrder) =>
 
 const stepsOf = (row: MergedOrder): CalcStep[] =>
   row.kind === "FII" ? calcSteps(row.order) : stockCalcSteps(row.order);
-const summaryOf = (row: MergedOrder) =>
-  row.kind === "FII" ? calcSummary(row.order) : stockCalcSummary(row.order);
+const flowOf = (row: MergedOrder): CalcFlow =>
+  row.kind === "FII" ? calcFlow(row.order) : stockCalcFlow(row.order);
 
-const EFFECT_TEXT = { mais: "↑ compra mais", menos: "↓ compra menos" } as const;
+const capitalize = (text: string) => text.charAt(0).toUpperCase() + text.slice(1);
+
+/** A trava e a sobra numa frase curta, embaixo do fluxo. */
+function flowFootnote(flow: CalcFlow): string | null {
+  const limit =
+    flow.limit === null
+      ? null
+      : flow.limit === "o saldo acabou"
+        ? "O saldo do aporte acabou antes do pedido."
+        : `Cortado pelo ${flow.limit}.`;
+  const note = flow.note ? `${capitalize(flow.note)}.` : null;
+  return [limit, note].filter(Boolean).join(" ") || null;
+}
 
 /** Os termos do glossário da tese inteira (veredito, frases e lentes), para "Termos deste texto". */
 export function thesisTerms(radar: RadarView | undefined) {
@@ -51,12 +79,23 @@ export function thesisTerms(radar: RadarView | undefined) {
   return glossaryIdsIn(text, radar.kind).flatMap((id) => glossaryEntry(id) ?? []);
 }
 
-/** A célula fechada (dentro do botão da linha: nada interativo aqui). */
-export function WhyCell({ row, thesis }: { row: MergedOrder; thesis: ThesisView | null }) {
+/**
+ * A célula do "Por quê" (dentro do botão da linha: nada interativo aqui). Com a linha aberta, o
+ * veredito sai daqui: ele está logo abaixo, na leitura da IA.
+ */
+export function WhyCell({
+  row,
+  thesis,
+  open = false,
+}: {
+  row: MergedOrder;
+  thesis: ThesisView | null;
+  open?: boolean;
+}) {
   return (
     <span className="grid gap-0.5 text-left">
       <span className="text-footnote font-medium">{whyOf(row)}</span>
-      {thesis ? (
+      {thesis && !open ? (
         <span className="line-clamp-2 text-footnote text-muted-foreground">{thesis.verdict}</span>
       ) : null}
     </span>
@@ -76,9 +115,16 @@ function Chip({ chip }: { chip: RadarChip }) {
   );
 }
 
-/** O corpo da leitura da IA: veredito, frases, pontos, indicadores e nota. */
-function AiReadingBody({ radar }: { radar: RadarView }) {
+/** O corpo da leitura da IA: veredito, frases, pontos e indicadores (sem os que o cálculo já mostra). */
+function AiReadingBody({
+  radar,
+  hideChips = [],
+}: {
+  radar: RadarView;
+  hideChips?: readonly string[];
+}) {
   const { thesis } = radar;
+  const chips = radar.chips.filter((chip) => !hideChips.includes(chip.label));
   return (
     <div className="grid gap-3">
       {thesis ? (
@@ -96,17 +142,12 @@ function AiReadingBody({ radar }: { radar: RadarView }) {
       ) : (
         <p className="text-subheadline text-muted-foreground">{NO_THESIS}</p>
       )}
-      {radar.chips.length > 0 ? (
+      {chips.length > 0 ? (
         <div className="flex flex-wrap gap-1.5">
-          {radar.chips.map((chip) => (
+          {chips.map((chip) => (
             <Chip key={chip.label} chip={chip} />
           ))}
         </div>
-      ) : null}
-      {thesis ? (
-        <p className="text-footnote text-pretty text-muted-foreground">
-          {thesisNote(thesis.generatedAt)}
-        </p>
       ) : null}
     </div>
   );
@@ -121,93 +162,129 @@ function SectionTitle({ icon: Icon, children }: { icon: typeof SparklesIcon; chi
   );
 }
 
-/** Desktop: a coluna "Leitura da IA". */
-export function AiReading({ radar }: { radar: RadarView }) {
+/** Um número do fluxo: o rótulo pequeno em cima e o valor (da carteira, some na privacidade). */
+function FlowCell({
+  label,
+  value,
+  detail,
+}: {
+  label: ReactNode;
+  value: ReactNode;
+  detail?: ReactNode;
+}) {
   return (
-    <section className="grid content-start gap-3" aria-label="Leitura da IA">
-      <SectionTitle icon={SparklesIcon}>Leitura da IA</SectionTitle>
-      <AiReadingBody radar={radar} />
-    </section>
+    <div className="grid content-start gap-0.5">
+      <span className="text-caption text-muted-foreground">{label}</span>
+      <span className="text-headline tabular-nums">{value}</span>
+      {detail ? (
+        <span className="text-caption text-muted-foreground tabular-nums">{detail}</span>
+      ) : null}
+    </div>
   );
 }
 
-/** Uma frase do cálculo: R$ e quantidades da carteira somem no modo privacidade. */
-function CalcSentence({ parts }: { parts: readonly CalcPart[] }) {
-  return parts.map((part, index) => {
-    if (typeof part === "string") return part;
-    if ("money" in part) return <Sensitive key={index}>{formatBRL(part.money)}</Sensitive>;
-    return (
-      <Sensitive key={index} mask={QUANTITY_MASK}>
-        {formatQuantity(part.quantity)}
-      </Sensitive>
-    );
-  });
+const FlowArrow = () => (
+  <ChevronRightIcon className="mt-5 size-4 text-muted-foreground" aria-hidden="true" />
+);
+
+/** Faltava → pediu → comprou (ações: faltava → comprou), com a trava e a sobra embaixo. */
+function FlowView({ flow, kind }: { flow: CalcFlow; kind: MergedOrder["kind"] }) {
+  const footnote = flowFootnote(flow);
+  const bought = (
+    <FlowCell
+      label="Comprou"
+      value={<Sensitive>{formatBRL(flow.total)}</Sensitive>}
+      detail={
+        <>
+          <Sensitive mask={QUANTITY_MASK}>{formatQuantity(flow.quantity)}</Sensitive> {flow.unit}
+        </>
+      }
+    />
+  );
+  return (
+    <div className="grid gap-2">
+      <div
+        className={
+          flow.need === null
+            ? "grid grid-cols-[1fr_auto_1fr] gap-x-2"
+            : "grid grid-cols-[1fr_auto_1fr_auto_1fr] gap-x-2"
+        }
+      >
+        <FlowCell
+          label={<GlossaryText text="Faltava para a meta" assetClass={kind} methodTerms />}
+          value={flow.gap === null ? "já na meta" : <Sensitive>{formatBRL(flow.gap)}</Sensitive>}
+        />
+        <FlowArrow />
+        {flow.need === null ? null : (
+          <>
+            <FlowCell
+              label="O método pediu"
+              value={<Sensitive>{formatBRL(flow.need)}</Sensitive>}
+            />
+            <FlowArrow />
+          </>
+        )}
+        {bought}
+      </div>
+      {footnote ? <p className="text-footnote text-muted-foreground">{footnote}</p> : null}
+    </div>
+  );
 }
 
-const stepValue = (step: CalcStep) =>
-  step.sensitive ? <Sensitive>{step.value}</Sensitive> : step.value;
-
-/** Uma linha do cálculo: rótulo com glossário, valor e o efeito; o multiplicador no `title`. */
-function StepRow({ step, kind }: { step: CalcStep; kind: MergedOrder["kind"] }) {
+/** Um fator: a seta (verde aumenta a compra, vermelha reduz), o rótulo e o valor. */
+function FactorRow({ step, kind }: { step: CalcStep; kind: MergedOrder["kind"] }) {
   return (
-    <div className="flex justify-between gap-4">
-      <dt className="text-muted-foreground">
-        <GlossaryText text={step.label} assetClass={kind} methodTerms />
+    <div className="flex items-baseline justify-between gap-3">
+      <dt className="flex items-baseline gap-1.5 text-muted-foreground">
+        {step.effect === "mais" ? (
+          <ArrowUpIcon className="size-3.5 shrink-0 self-center text-gain" aria-hidden="true" />
+        ) : step.effect === "menos" ? (
+          <ArrowDownIcon className="size-3.5 shrink-0 self-center text-loss" aria-hidden="true" />
+        ) : (
+          <span className="w-3.5 shrink-0" aria-hidden="true" />
+        )}
+        <span>
+          <GlossaryText text={step.label} assetClass={kind} methodTerms />
+          {step.effect ? (
+            <span className="sr-only">
+              {step.effect === "mais" ? ", aumenta a compra" : ", reduz a compra"}
+            </span>
+          ) : null}
+        </span>
       </dt>
       <dd className="text-right tabular-nums" title={step.exact ?? undefined}>
-        {stepValue(step)}
-        {step.effect ? (
-          <span className="block text-footnote text-muted-foreground">
-            {EFFECT_TEXT[step.effect]}
-          </span>
-        ) : null}
+        {step.value}
       </dd>
     </div>
   );
 }
 
-/** Desktop: a coluna "Cálculo do Koinos". */
-export function KoinosCalc({
-  row,
-  info,
-  impact,
+/** O aviso do teto numa linha: o ícone (o texto completo no tooltip dele), o teto e a diferença. */
+function CeilingLine({
+  check,
+  ceiling,
+  price,
 }: {
-  row: MergedOrder;
-  info: AssetMeta | undefined;
-  impact: OrderImpact | undefined;
+  check: CeilingCheck;
+  ceiling: number;
+  price: number;
 }) {
-  const { order } = row;
+  const details = ceilingCheckDetails(check, ceiling, price);
   return (
-    <section className="grid content-start gap-4" aria-label="Cálculo do Koinos">
-      <SectionTitle icon={CalculatorIcon}>Cálculo do Koinos</SectionTitle>
-      <p className="text-subheadline text-pretty">
-        <CalcSentence parts={summaryOf(row)} />
-      </p>
-      <dl className="grid gap-2 text-subheadline">
-        {stepsOf(row).map((step) => (
-          <StepRow key={step.label} step={step} kind={row.kind} />
-        ))}
-      </dl>
-      <ImpactList
-        impact={impact}
-        weightBefore={order.weightBefore}
-        weightAfter={order.weightAfter}
-        targetWeight={order.targetWeight}
-      />
-      {info?.ceilingWarning ? (
-        <div className="text-footnote">
-          <CeilingCheckBody
-            check={info.ceilingWarning.check}
-            ceiling={info.ceilingWarning.ceiling}
-            price={order.price}
-          />
-        </div>
-      ) : null}
-    </section>
+    <p className="flex flex-wrap items-center gap-x-1.5 text-footnote">
+      <CeilingCheckIcon check={check} ceiling={ceiling} price={price} />
+      <span>
+        Teto calculado <span className="font-medium">{formatBRL(check.calculated)}</span>
+      </span>
+      <span className="text-muted-foreground">· {details.change} em relação ao do ranking</span>
+    </p>
   );
 }
 
-/** A linha expandida (desktop): a leitura da IA e o cálculo lado a lado a partir de 1.000 px. */
+/**
+ * A linha expandida (desktop): três colunas de altura parecida (a leitura da IA mais larga), duas
+ * abaixo de 1.100 px de card, e a nota da IA numa faixa de rodapé.
+ */
 export function OrderDetail({
   row,
   info,
@@ -217,16 +294,49 @@ export function OrderDetail({
   info: AssetMeta | undefined;
   impact: OrderImpact | undefined;
 }) {
+  const steps = stepsOf(row);
+  const thesis = info?.radar?.thesis ?? null;
+  const hideChips = steps.some((step) => step.label === PVP_STEP) ? ["P/VP"] : [];
   return (
-    <div className="grid gap-6 py-2 motion-safe:animate-in motion-safe:fade-in-0 @min-[1000px]:grid-cols-[3fr_2fr]">
-      {info?.radar ? (
-        <AiReading radar={info.radar} />
-      ) : (
-        <p className="text-subheadline text-muted-foreground @min-[1000px]:col-span-2">
-          {NO_THESIS}
+    <div className="grid gap-x-10 gap-y-6 py-2 motion-safe:animate-in motion-safe:fade-in-0 @min-[700px]:grid-cols-2 @min-[1100px]:grid-cols-[1.4fr_1fr_1fr]">
+      <section className="grid content-start gap-3" aria-label="Leitura da IA">
+        <SectionTitle icon={SparklesIcon}>Leitura da IA</SectionTitle>
+        {info?.radar ? (
+          <AiReadingBody radar={info.radar} hideChips={hideChips} />
+        ) : (
+          <p className="text-subheadline text-muted-foreground">{NO_THESIS}</p>
+        )}
+      </section>
+      <section className="grid content-start gap-4" aria-label="Por que esta quantidade">
+        <SectionTitle icon={CalculatorIcon}>Por que esta quantidade</SectionTitle>
+        <FlowView flow={flowOf(row)} kind={row.kind} />
+        {steps.length > 0 ? (
+          <dl className="grid gap-2 text-subheadline">
+            {steps.map((step) => (
+              <FactorRow key={step.label} step={step} kind={row.kind} />
+            ))}
+          </dl>
+        ) : null}
+      </section>
+      {impact || info?.ceilingWarning ? (
+        <section className="grid content-start gap-4" aria-label="Depois desta ordem">
+          <SectionTitle icon={TrendingUpIcon}>Depois desta ordem</SectionTitle>
+          {impact ? <ImpactList impact={impact} /> : null}
+          {info?.ceilingWarning ? (
+            <CeilingLine
+              check={info.ceilingWarning.check}
+              ceiling={info.ceilingWarning.ceiling}
+              price={row.order.price}
+            />
+          ) : null}
+        </section>
+      ) : null}
+      {thesis ? (
+        <p className="col-span-full flex items-center gap-1.5 border-t pt-3 text-footnote text-muted-foreground">
+          <SparklesIcon className="size-3.5 shrink-0" aria-hidden="true" />
+          {thesisNote(thesis.generatedAt)}
         </p>
-      )}
-      <KoinosCalc row={row} info={info} impact={impact} />
+      ) : null}
     </div>
   );
 }
@@ -234,7 +344,10 @@ export function OrderDetail({
 /** Folha: "Por que este ativo". */
 export function AiSheetGroup({ radar }: { radar: RadarView }) {
   return (
-    <InsetGroup title="Por que este ativo">
+    <InsetGroup
+      title="Por que este ativo"
+      footer={radar.thesis ? thesisNote(radar.thesis.generatedAt) : undefined}
+    >
       <div className="px-4 py-3">
         <AiReadingBody radar={radar} />
       </div>
@@ -242,30 +355,42 @@ export function AiSheetGroup({ radar }: { radar: RadarView }) {
   );
 }
 
-/** Folha: "Por que esta quantidade" (o cálculo e o peso antes, depois e meta). */
+/** Folha: "Por que esta quantidade": o fluxo em linhas, os fatores e o peso (a lista não tem as colunas). */
 export function CalcSheetGroup({ row }: { row: MergedOrder }) {
   const { order } = row;
+  const flow = flowOf(row);
   return (
-    <InsetGroup title="Por que esta quantidade">
-      <p className="px-4 py-3 text-subheadline text-pretty">
-        <CalcSentence parts={summaryOf(row)} />
-      </p>
+    <InsetGroup title="Por que esta quantidade" footer={flowFootnote(flow) ?? undefined}>
+      <InsetValueRow
+        label={<GlossaryText text="Faltava para a meta" assetClass={row.kind} methodTerms />}
+        value={flow.gap === null ? "já na meta" : <Sensitive>{formatBRL(flow.gap)}</Sensitive>}
+      />
+      {flow.need === null ? null : (
+        <InsetValueRow
+          label="O método pediu"
+          value={<Sensitive>{formatBRL(flow.need)}</Sensitive>}
+        />
+      )}
       {stepsOf(row).map((step) => (
         <InsetValueRow
           key={step.label}
-          label={<GlossaryText text={step.label} assetClass={row.kind} methodTerms />}
-          value={
-            <span className="text-right">
-              {stepValue(step)}
-              {step.effect ? (
-                <span className="block text-footnote">{EFFECT_TEXT[step.effect]}</span>
+          label={
+            <span className="inline-flex items-baseline gap-1.5">
+              {step.effect === "mais" ? (
+                <ArrowUpIcon className="size-3.5 self-center text-gain" aria-hidden="true" />
+              ) : step.effect === "menos" ? (
+                <ArrowDownIcon className="size-3.5 self-center text-loss" aria-hidden="true" />
               ) : null}
+              <GlossaryText text={step.label} assetClass={row.kind} methodTerms />
             </span>
           }
+          value={step.value}
         />
       ))}
-      <InsetValueRow label="Peso antes" value={formatPercent(order.weightBefore, 1)} />
-      <InsetValueRow label="Peso depois" value={formatPercent(order.weightAfter, 1)} />
+      <InsetValueRow
+        label="Peso antes ➔ depois"
+        value={`${formatPercent(order.weightBefore, 1)} ➔ ${formatPercent(order.weightAfter, 1)}`}
+      />
       <InsetValueRow
         label={<GlossaryText text="Peso da meta" assetClass={row.kind} methodTerms />}
         value={formatPercent(order.targetWeight, 1)}

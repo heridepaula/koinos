@@ -1,10 +1,12 @@
 "use client";
 
+import { InfoIcon } from "lucide-react";
 import type { ReactNode } from "react";
 import { InsetGroup, InsetValueRow } from "@/shared/components/inset-list";
 import { Sensitive } from "@/shared/components/sensitive";
 import { formatBRL, formatPercent } from "@/shared/lib/format";
 import { cn } from "@/shared/lib/utils";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/shared/ui/tooltip";
 import type { OrderImpact } from "../../domain/aporte-impact";
 
 // O impacto de cada ordem na tela (spec impacto-do-aporte): o selo da renda na linha e o bloco
@@ -119,22 +121,37 @@ export function ImpactGroup({ impact }: { impact: OrderImpact }) {
   );
 }
 
-/** "Depois desta ordem" no desktop (linha expandida): renda primeiro, o peso com a meta, e os do PM. */
-export function ImpactList({
-  impact,
-  weightBefore,
-  weightAfter,
-  targetWeight,
-}: {
-  impact: OrderImpact | undefined;
-  weightBefore: number;
-  weightAfter: number;
-  targetWeight: number;
-}) {
+/** O ⓘ do L/P: comprar ao preço atual não muda o resultado em R$, só dilui o %. */
+function ResultInfo({ note }: { note: string }) {
+  return (
+    <Tooltip>
+      <TooltipTrigger
+        render={
+          <button
+            type="button"
+            aria-label={note}
+            className="relative inline-flex align-middle text-muted-foreground after:absolute after:-inset-2"
+          />
+        }
+      >
+        <InfoIcon className="size-3.5" aria-hidden="true" />
+      </TooltipTrigger>
+      <TooltipContent side="top" className="max-w-64">
+        {note}
+      </TooltipContent>
+    </Tooltip>
+  );
+}
+
+/**
+ * "Depois desta ordem" na linha expandida (spec por-que-na-tabela §8): a renda primeiro, o preço
+ * médio, o YOC e o L/P (com a nota no ⓘ). O peso fica nas colunas da tabela.
+ */
+export function ImpactList({ impact }: { impact: OrderImpact }) {
   const percent = (value: number) => formatPercent(value, 1);
-  const rows: { label: string; value: ReactNode }[] = [];
-  if (impact) {
-    rows.push({
+  const rows: { label: ReactNode; key: string; value: ReactNode }[] = [
+    {
+      key: "renda",
       label: "Renda/mês a mais",
       value:
         impact.monthlyIncome === null ? (
@@ -144,20 +161,10 @@ export function ImpactList({
             +<Sensitive>{formatBRL(impact.monthlyIncome)}</Sensitive>
           </span>
         ),
-    });
-  }
-  rows.push({
-    label: "Peso na carteira",
-    value: (
-      <>
-        {percent(weightBefore)} ➔ {percent(weightAfter)}
-        <span className="text-muted-foreground"> (meta {percent(targetWeight)})</span>
-      </>
-    ),
-  });
-  if (impact) {
-    rows.push({
-      label: "Preço médio",
+    },
+    {
+      key: "pm",
+      label: impact.averagePriceBefore === null ? "Preço médio (posição nova)" : "Preço médio",
       value: (
         <Transition
           before={impact.averagePriceBefore}
@@ -167,50 +174,48 @@ export function ImpactList({
           sensitive
         />
       ),
+    },
+  ];
+  if (impact.yieldOnCostAfter !== null) {
+    rows.push({
+      key: "yoc",
+      label: "Yield on cost",
+      value: (
+        <Transition
+          before={impact.yieldOnCostBefore}
+          after={impact.yieldOnCostAfter}
+          format={percent}
+          better="up"
+        />
+      ),
     });
-    if (impact.yieldOnCostAfter !== null) {
-      rows.push({
-        label: "Yield on cost",
-        value: (
-          <Transition
-            before={impact.yieldOnCostBefore}
-            after={impact.yieldOnCostAfter}
-            format={percent}
-            better="up"
-          />
-        ),
-      });
-    }
-    if (impact.resultPercentBefore !== null) {
-      rows.push({
-        label: "L/P",
-        value: (
-          <Transition
-            before={impact.resultPercentBefore}
-            after={impact.resultPercentAfter}
-            format={percent}
-            better="up"
-          />
-        ),
-      });
-    }
+  }
+  if (impact.resultPercentBefore !== null) {
+    rows.push({
+      key: "lp",
+      label: (
+        <span className="inline-flex items-center gap-1">
+          L/P <ResultInfo note={RESULT_NOTE} />
+        </span>
+      ),
+      value: (
+        <Transition
+          before={impact.resultPercentBefore}
+          after={impact.resultPercentAfter}
+          format={percent}
+          better="up"
+        />
+      ),
+    });
   }
   return (
-    <div className="grid gap-2">
-      <p className="text-footnote font-semibold">Depois desta ordem</p>
-      <dl className="grid gap-1.5 text-subheadline">
-        {rows.map((row) => (
-          <div key={row.label} className="flex justify-between gap-4">
-            <dt className="text-muted-foreground">{row.label}</dt>
-            <dd className="text-right tabular-nums">{row.value}</dd>
-          </div>
-        ))}
-      </dl>
-      {impact ? (
-        <p className="text-footnote text-muted-foreground">
-          {impact.averagePriceBefore === null ? "Posição nova." : RESULT_NOTE}
-        </p>
-      ) : null}
-    </div>
+    <dl className="grid gap-1.5 text-subheadline">
+      {rows.map((row) => (
+        <div key={row.key} className="flex justify-between gap-4">
+          <dt className="text-muted-foreground">{row.label}</dt>
+          <dd className="text-right tabular-nums">{row.value}</dd>
+        </div>
+      ))}
+    </dl>
   );
 }

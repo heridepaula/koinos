@@ -169,7 +169,7 @@ export function OrdersTable({ rows, meta, showClass, impacts }: OrdersProps) {
                     className="flex w-full items-start justify-between gap-2 rounded-lg text-left outline-none focus-visible:ring-2 focus-visible:ring-ring pointer-coarse:min-h-11"
                   >
                     <span className="sr-only">{`Detalhes de ${order.ticker}: `}</span>
-                    <WhyCell row={row} thesis={info?.radar?.thesis ?? null} />
+                    <WhyCell row={row} thesis={info?.radar?.thesis ?? null} open={isOpen} />
                     <ChevronDownIcon
                       aria-hidden="true"
                       className={cn(
