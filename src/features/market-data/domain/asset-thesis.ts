@@ -641,6 +641,17 @@ export type ThesisView = {
   generatedAt: Date;
 };
 
+/**
+ * As lentes da tese em "A favor" e "Atenção", pelo tom do código (spec por-que-na-tabela §7): o
+ * leitor leigo leu "Risco: Favorável" como contradição. Neutro não entra.
+ */
+export function groupLenses<T extends { tone: NewsTone }>(lenses: readonly T[]) {
+  return {
+    favor: lenses.filter((lens) => lens.tone === "favoravel"),
+    attention: lenses.filter((lens) => lens.tone === "desfavoravel" || lens.tone === "misto"),
+  };
+}
+
 /** O que a tela mostra; null sem texto, com falha ou com mais de `RADAR.staleDays` dias. A v1 vira só veredito. */
 export function thesisView(
   stored: StoredThesis | null | undefined,

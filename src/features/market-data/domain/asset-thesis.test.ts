@@ -4,6 +4,7 @@ import type { WeekSummary } from "./week-summary";
 import {
   buildThesisPrompt,
   factNumber,
+  groupLenses,
   lensToneOf,
   methodLensTone,
   methodSignals,
@@ -672,5 +673,22 @@ describe("thesisFromReading e thesisView", () => {
     expect(thesisView({ ...stored, text: null }, "FII", NOW)).toBeNull();
     const old = new Date(NOW.getTime() - 10 * 86_400_000 - 1);
     expect(thesisView({ ...stored, generatedAt: old }, "FII", NOW)).toBeNull();
+  });
+});
+
+describe("groupLenses", () => {
+  it("a favor, atenção (desfavorável e misto) e neutro fora, na ordem", () => {
+    const lens = (id: string, tone: "favoravel" | "desfavoravel" | "misto" | "neutro") => ({
+      id,
+      tone,
+    });
+    const { favor, attention } = groupLenses([
+      lens("renda", "desfavoravel"),
+      lens("imoveis", "favoravel"),
+      lens("risco", "neutro"),
+      lens("metodo", "misto"),
+    ]);
+    expect(favor.map((l) => l.id)).toEqual(["imoveis"]);
+    expect(attention.map((l) => l.id)).toEqual(["renda", "metodo"]);
   });
 });
