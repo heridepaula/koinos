@@ -1,0 +1,101 @@
+{
+  "schema_version": 1,
+  "diagram_type": "architecture",
+  "meta": {
+    "title": "Arquitetura do Koinos",
+    "output": ".archify/architecture-koinos-20261114-213000/koinos.html",
+    "quality_profile": "showcase",
+    "locale": "pt-BR",
+    "repository": {
+      "url": "git@github.com:heridepaula/koinos.git",
+      "link_mode": "local-only",
+      "revision": "240b18bc7c1aa75a461f05b79bd9b21aef971c51"
+    }
+  },
+  "components": [
+    { "id": "dono", "type": "external", "label": "Dono", "sublabel": "navegador / iPhone", "pos": [40, 200], "size": [140, 64] },
+    { "id": "proxy", "type": "security", "label": "proxy.ts", "sublabel": "redirect por cookie", "pos": [270, 200], "size": [140, 64],
+      "sources": [{ "path": "src/proxy.ts", "line": 14, "end_line": 24, "label": "matcher das rotas (app)" }] },
+    { "id": "pages", "type": "frontend", "label": "Páginas App Router", "sublabel": "shell + Suspense", "pos": [500, 200], "size": [140, 64],
+      "sources": [{ "path": "src/app/(app)/dashboard/page.tsx", "line": 2, "end_line": 38, "label": "Dashboard com Suspense" }] },
+    { "id": "server", "type": "backend", "label": "DAL + Server Actions", "sublabel": "getTenant / requireTenant", "pos": [730, 200], "size": [140, 64],
+      "sources": [
+        { "path": "src/features/auth/server/session.ts", "line": 67, "end_line": 80, "label": "tenant pela sessão" },
+        { "path": "src/features/portfolio/server/snapshot.ts", "line": 60, "end_line": 111, "label": "getPortfolioSnapshot" },
+        { "path": "src/features/transactions/server/b3-import.ts", "line": 270, "end_line": 294, "label": "atualização B3 com lock" }
+      ] },
+    { "id": "mongo", "type": "database", "label": "MongoDB", "sublabel": "banco koinos", "pos": [960, 200], "size": [140, 64],
+      "sources": [{ "path": "src/shared/db/mongo.ts", "line": 17, "label": "MongoClient único" }] },
+    { "id": "auth", "type": "security", "label": "Better Auth", "sublabel": "sessão de 1 h", "pos": [730, 40], "size": [140, 64],
+      "sources": [{ "path": "src/features/auth/server/auth.ts", "line": 23, "end_line": 31, "label": "Redis + Google" }] },
+    { "id": "google", "type": "external", "label": "Google OAuth", "sublabel": "login", "pos": [500, 40], "size": [140, 64] },
+    { "id": "redis", "type": "database", "label": "Redis", "sublabel": "sessões + locks", "pos": [960, 40], "size": [140, 64],
+      "sources": [
+        { "path": "src/shared/db/redis.ts", "line": 10, "label": "cliente ioredis" },
+        { "path": "src/shared/db/lock.ts", "line": 16, "label": "withLock" }
+      ] },
+    { "id": "domain", "type": "backend", "label": "Domínio puro", "sublabel": "snapshot + regras", "pos": [730, 360], "size": [140, 64],
+      "sources": [
+        { "path": "src/features/portfolio/domain/snapshot.ts", "line": 85, "label": "buildSnapshot" },
+        { "path": "src/features/smart-buy/domain/fii-cascade.ts", "line": 274, "label": "fiiCascade" },
+        { "path": "src/features/smart-buy/domain/stock-buy.ts", "line": 149, "label": "stockSmartBuy" }
+      ] },
+    { "id": "calc", "type": "frontend", "label": "AporteCalculator", "sublabel": "roda no navegador", "pos": [500, 360], "size": [140, 64],
+      "sources": [{ "path": "src/features/smart-buy/components/aporte-calculator.tsx", "line": 187, "end_line": 188, "label": "motores no cliente" }] },
+    { "id": "cron", "type": "external", "label": "Agendadores", "sublabel": "Vercel Cron + cron-job.org", "pos": [40, 540], "size": [140, 64],
+      "sources": [{ "path": "vercel.json", "line": 9, "end_line": 18, "label": "crons da Vercel" }] },
+    { "id": "routes", "type": "security", "label": "/api/cron/*", "sublabel": "Bearer ou Basic", "pos": [270, 540], "size": [140, 64],
+      "sources": [
+        { "path": "src/shared/lib/cron-auth.ts", "line": 14, "label": "matchesCronAuth" },
+        { "path": "src/app/api/cron/news/route.ts", "line": 36, "end_line": 44, "label": "notícias, índices, semana" },
+        { "path": "src/app/api/cron/radar/route.ts", "line": 38, "end_line": 54, "label": "indicadores e tese" }
+      ] },
+    { "id": "services", "type": "backend", "label": "Serviços market-data", "sublabel": "cotações, proventos, IA", "pos": [770, 540], "size": [140, 64],
+      "sources": [
+        { "path": "src/features/market-data/server/quote-service.ts", "line": 34, "end_line": 62, "label": "brapi e fallback Yahoo" },
+        { "path": "src/app/api/cron/daily/route.ts", "line": 28, "label": "runDailyMarketJob" },
+        { "path": "src/features/portfolio/actions.ts", "line": 28, "end_line": 43, "label": "refresh ao abrir o app" }
+      ] },
+    { "id": "quotes", "type": "cloud", "label": "brapi + Yahoo", "sublabel": "cotações, proventos", "pos": [480, 720], "size": [130, 64],
+      "sources": [
+        { "path": "src/features/market-data/adapters/brapi.ts", "line": 4, "label": "brapi.dev" },
+        { "path": "src/features/market-data/adapters/yahoo.ts", "line": 2, "label": "yahoo-finance2" }
+      ] },
+    { "id": "fundamentals", "type": "cloud", "label": "Fundamentos", "sublabel": "usebolsai, Fundamentus", "pos": [625, 720], "size": [130, 64],
+      "sources": [
+        { "path": "src/features/market-data/adapters/bolsai.ts", "line": 6, "label": "usebolsai" },
+        { "path": "src/features/market-data/adapters/fundamentus.ts", "line": 9, "label": "Fundamentus" }
+      ] },
+    { "id": "news", "type": "cloud", "label": "Bing News + RSS", "sublabel": "notícias", "pos": [770, 720], "size": [130, 64],
+      "sources": [{ "path": "src/features/market-data/adapters/news.ts", "line": 18, "end_line": 32, "label": "Bing e feeds" }] },
+    { "id": "gemini", "type": "cloud", "label": "Gemini", "sublabel": "resumos e tese", "pos": [915, 720], "size": [130, 64],
+      "sources": [{ "path": "src/features/market-data/adapters/gemini.ts", "line": 7, "label": "generativelanguage API" }] },
+    { "id": "tesouro", "type": "cloud", "label": "Tesouro Transparente", "sublabel": "taxa NTN-B", "pos": [1060, 720], "size": [130, 64],
+      "sources": [{ "path": "src/features/market-data/adapters/tesouro-transparente.ts", "line": 7, "label": "CSV do Tesouro" }] }
+  ],
+  "connections": [
+    { "id": "dono-proxy", "from": "dono", "to": "proxy", "label": "HTTPS", "variant": "emphasis" },
+    { "id": "proxy-pages", "from": "proxy", "to": "pages", "variant": "emphasis" },
+    { "id": "pages-server", "from": "pages", "to": "server", "label": "await view", "variant": "emphasis" },
+    { "id": "server-mongo", "from": "server", "to": "mongo", "label": "Mongoose" },
+    { "id": "server-auth", "from": "server", "to": "auth", "label": "getSession", "variant": "security" },
+    { "id": "auth-google", "from": "auth", "to": "google", "label": "OAuth", "variant": "security" },
+    { "id": "auth-redis", "from": "auth", "to": "redis", "label": "sessão AES" },
+    { "id": "server-domain", "from": "server", "to": "domain", "label": "buildSnapshot" },
+    { "id": "pages-calc", "from": "pages", "to": "calc", "label": "cascadeInput" },
+    { "id": "calc-domain", "from": "calc", "to": "domain", "label": "motores" },
+    { "id": "cron-routes", "from": "cron", "to": "routes", "label": "agenda", "variant": "dashed" },
+    { "id": "routes-services", "from": "routes", "to": "services", "label": "roda o job" },
+    { "id": "services-mongo", "from": "services", "to": "mongo", "label": "upsert" },
+    { "id": "services-quotes", "from": "services", "to": "quotes" },
+    { "id": "services-fundamentals", "from": "services", "to": "fundamentals" },
+    { "id": "services-news", "from": "services", "to": "news" },
+    { "id": "services-gemini", "from": "services", "to": "gemini" },
+    { "id": "services-tesouro", "from": "services", "to": "tesouro" }
+  ],
+  "cards": [
+    { "dot": "cyan", "title": "Leitura", "items": ["Páginas são shell estático + seções em Suspense que leem a DAL", "Toda query filtra pelo portfolioId do tenant da sessão", "Os motores de aporte (3.1) rodam no navegador"] },
+    { "dot": "emerald", "title": "Dados de mercado", "items": ["Só jobs e o refresh ao abrir o app buscam fora; as telas só leem o Mongo", "brapi primeiro, Yahoo como reserva", "Gemini só recebe dados públicos"] },
+    { "dot": "rose", "title": "Fora do diagrama", "items": ["APM: OpenTelemetry para a New Relic", "Extratos B3 entram por upload, nunca por chamada à B3"] }
+  ]
+}

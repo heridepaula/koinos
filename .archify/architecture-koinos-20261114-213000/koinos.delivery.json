@@ -1,0 +1,17 @@
+{
+  "schemaVersion": 1,
+  "receiptId": "450a03c9-37e5-4844-a854-bc780849c82c",
+  "status": "current",
+  "command": "deliver",
+  "type": "architecture",
+  "input": "D:\\workspace\\koinos\\.archify\\architecture-koinos-20261114-213000\\candidate.json",
+  "output": "D:\\workspace\\koinos\\.archify\\architecture-koinos-20261114-213000\\koinos.html",
+  "specification": {
+    "sha256": "cc8c72ea7bedbc0f20e279a1308b612d82acbd10f0509a58427427ab85ade93f",
+    "bytes": 8383
+  },
+  "artifact": {
+    "sha256": "a261f804ea4199c6d4cd738b65756374810bf8582daafc1f79686b4447985145",
+    "bytes": 866496
+  }
+}
