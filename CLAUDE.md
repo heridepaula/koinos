@@ -412,16 +412,11 @@ Koinos is a single-owner dashboard for a Brazilian portfolio of FIIs (REITs) and
   - It checks the math, the edge cases and the invariants, runs the engines on the real portfolio (read-only) and reviews the formula through the lenses of Tiago Reis, Professor Baroni, Warren Buffett and Luiz Barsi.
   - It reports and doesn't change code.
 
-## Model routing
+## Workflow
 
-The routing table and the agents (`architect`, `implementor`, `reviewer`, `runner`) are global, in `C:\Users\HTN-PC\.claude\CLAUDE.md` and `C:\Users\HTN-PC\.claude\agents\`. Route every request by that table without asking. What is specific to Koinos:
-
-- Specs go in `docs/superpowers/specs`; a step is one spec step.
+- Specs go in `docs/superpowers/specs`.
 - Checks: `format:check`, `lint`, `typecheck`, `test`, `build`.
-- An aporte formula goes through `conselho-investidores` before `architect` designs it.
-- `implementor` uses `tdd` in `domain/` and `financial-quant-sanitizer` for parsers of external data and financial numbers.
-- `reviewer` checks the feature boundaries, the tenancy filters and the privacy rules of spans and Gemini prompts.
-- A visual change is opened with the chrome-devtools MCP after the review. Vercel MCP only when the owner asks about a deploy.
+- A visual change is opened with the chrome-devtools MCP. Vercel MCP only when the owner asks about a deploy.
 - **Hook:** `.claude/settings.json` runs ESLint on each edited file under `src` and returns only the errors. Don't run `lint` after every edit; `typecheck` and the tests run once per step.
 
 ## Gotchas
