@@ -38,8 +38,7 @@ export const env = createEnv({
     // Gemini (free tier, chave do Google AI Studio): o resumo da IA das variações fortes do dia.
     // Sem a chave, o resumo fica desligado. Só dados públicos vão para o Gemini.
     GEMINI_API_KEY: z.string().min(1).optional(),
-    CRON_SECRET: z.string().min(16).optional(),
-    // Senha do HTTP Basic (usuário fixo "cron") para o cron-job.org chamar /api/cron/*.
+    // Senha do HTTP Basic (usuário fixo "cron") para o cron-job.org chamar /api/cron/*, o único agendador.
     CRON_BASIC_PASSWORD: z.string().min(24).optional(),
     // APM (OpenTelemetry → New Relic). O SDK lê estas variáveis direto do ambiente; aqui só o
     // formato é conferido. Sem o endpoint, nenhum span nem log sai do servidor.

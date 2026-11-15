@@ -36,8 +36,7 @@ npm run dev                  # http://localhost:3000
 | `ALLOWED_EMAILS`                            | Só para desenvolvimento local: e-mails que podem entrar, separados por vírgula. Em produção fica sem valor, e quem entra é definido pelos usuários de teste do app OAuth no console do Google. |
 | `BRAPI_TOKEN`                               | Opcional. Sem token, as cotações vêm da listagem em lote da brapi, e o que faltar vem do Yahoo.                                                                                                |
 | `BRAPI_MONTHLY_QUOTA`                       | Cota mensal do seu plano da brapi (padrão 15000). Ao passar de 90%, o app usa só o Yahoo até o mês virar.                                                                                      |
-| `CRON_SECRET`                               | 16+ caracteres. Protege `/api/cron/*` (Bearer, Vercel Cron); obrigatório em produção.                                                                                                          |
-| `CRON_BASIC_PASSWORD`                       | Opcional, 24+ caracteres. Senha do HTTP Basic (usuário `cron`) de `/api/cron/*`, para o cron-job.org. Na Vercel, marque como Sensitive.                                                        |
+| `CRON_BASIC_PASSWORD`                       | 24+ caracteres. Senha do HTTP Basic (usuário `cron`) de `/api/cron/*`, para o cron-job.org (único agendador). Obrigatória em produção; na Vercel, marque como Sensitive.                       |
 | `OTEL_EXPORTER_OTLP_ENDPOINT`               | Opcional. Para onde vão os traces do APM (em produção, a New Relic: `https://otlp.nr-data.net:4318`). Sem ele, nada sai do servidor.                                                           |
 | `OTEL_EXPORTER_OTLP_HEADERS`                | Opcional. Cabeçalho do envio, no formato `api-key=<chave de ingestão>`. É segredo: na Vercel, marque como Sensitive.                                                                           |
 | `OTEL_EXPORTER_OTLP_LOGS_HEADERS`           | Opcional. Uma chave só para os logs, no mesmo formato. Sem ela, os logs usam a de cima.                                                                                                        |
@@ -130,7 +129,7 @@ npm run import:b3 -- --negociacao negociacao.xlsx --movimentacao movimentacao.xl
 - **Atualização:** as páginas atualizam em segundo plano o que estiver vencido, e o botão ao lado do horário força a atualização.
 - **Histórico mensal e proventos** (DY 12 meses, último rendimento e os anúncios dos últimos 90 dias) vêm do Yahoo. Cada mês fechado é buscado uma vez; os proventos, no máximo a cada 20 horas.
 - **Proventos da B3:** os recebidos vêm só do extrato de Movimentação, e o "a receber" vem do extrato de Eventos. Os anúncios do Yahoo completam o "a receber" com o que saiu depois do último envio (ou tudo, se o Eventos nunca foi enviado).
-- **Cron diário** (`vercel.json`, `0 22 * * 1-5`): às 19h de Brasília, nos dias úteis, atualiza fechamento, proventos, histórico e o catálogo de tickers.
+- **Cron diário** (`/api/cron/daily`, cron-job.org, seg a sex, 19h de Brasília): atualiza fechamento, proventos, histórico e o catálogo de tickers. Os jobs estão listados em `docs/operations/cron-job-org.md`.
 
 ## Arquitetura
 
@@ -161,15 +160,15 @@ O app manda traces e logs OpenTelemetry (`@vercel/otel`) para a New Relic: os We
 - Server Actions validam a entrada com Zod e só devolvem mensagens seguras.
 - As sessões ficam cifradas no Redis, e o login tem rate limit de 100 requisições por minuto.
 - Há cabeçalhos de segurança: HSTS, X-Frame-Options, nosniff, Referrer-Policy e Permissions-Policy.
-- `/api/cron/*` exige o `CRON_SECRET` (Bearer) ou a `CRON_BASIC_PASSWORD` (Basic), comparados em tempo constante, e responde só contagens.
+- `/api/cron/*` exige a `CRON_BASIC_PASSWORD` (HTTP Basic, usuário `cron`), comparada em tempo constante, e responde só contagens.
 - Os segredos ficam no `.env.local` e nas variáveis da Vercel, nunca no Git.
 
 ## Deploy na Vercel
 
 1. Importe o repositório na Vercel (framework Next.js). As Functions rodam em Node 24.x.
-2. Em **Settings → Environment Variables**, cadastre as variáveis do `.env.example` com os valores de produção, incluindo `CRON_SECRET` e o `BETTER_AUTH_URL` com o domínio de produção do projeto (o que aparece em **Settings → Domains**, não os aliases `*-git-*` ou `*-projects.vercel.app`).
+2. Em **Settings → Environment Variables**, cadastre as variáveis do `.env.example` com os valores de produção, incluindo `CRON_BASIC_PASSWORD` e o `BETTER_AUTH_URL` com o domínio de produção do projeto (o que aparece em **Settings → Domains**, não os aliases `*-git-*` ou `*-projects.vercel.app`).
 3. Adicione o domínio de produção ao cliente OAuth do Google (origem e redirecionamento).
-4. O cron já vem no `vercel.json`. Quando `CRON_SECRET` existe, a Vercel envia `Authorization: Bearer <CRON_SECRET>` sozinha. No plano Hobby, o cron roda uma vez por dia, em algum momento dentro da hora agendada.
+4. Os jobs são agendados no cron-job.org, não na Vercel (o `vercel.json` não tem `crons`). Cada um chama `/api/cron/*` com HTTP Basic, como descrito em `docs/operations/cron-job-org.md`.
 5. Publique, entre com o seu e-mail e importe a planilha apontando para o banco de produção.
 
 A configuração também fixa três escolhas:
