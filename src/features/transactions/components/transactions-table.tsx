@@ -1,14 +1,9 @@
 "use client";
 
-import {
-  parseAsInteger,
-  parseAsNumberLiteral,
-  parseAsString,
-  parseAsStringLiteral,
-  useQueryStates,
-} from "nuqs";
+import { parseAsString, parseAsStringLiteral, useQueryStates } from "nuqs";
 import { Pagination } from "@/shared/components/pagination";
 import { SortableHead } from "@/shared/components/sortable-head";
+import { usePagedRows } from "@/shared/hooks/use-paged-rows";
 import { useSortState } from "@/shared/hooks/use-sort-state";
 import { CLASS_PARAMS, inClass, parseClassParam } from "@/shared/lib/class-filter";
 import { formatBRL, formatQuantity, formatTradeDate } from "@/shared/lib/format";
@@ -33,7 +28,6 @@ const SORT_VALUE: Record<SortKey, (row: TransactionRow) => number | string> = {
   preco: (row) => row.unitPrice,
   total,
 };
-const PAGE_SIZES = [10, 50, 100] as const;
 
 /**
  * Lançamentos com filtros, ordenação e páginas (tudo na URL). A partir de 640 px de card é uma
@@ -47,16 +41,10 @@ export function TransactionsTable({ rows }: { rows: TransactionRow[] }) {
       tipo: parseAsStringLiteral(TYPES).withDefault("todos"),
       ano: parseAsString.withDefault(""),
       classe: parseAsStringLiteral(CLASS_PARAMS),
-      pagina: parseAsInteger.withDefault(1),
-      por: parseAsNumberLiteral(PAGE_SIZES).withDefault(10),
     },
     { history: "replace" },
   );
   const { sortKey, direction, toggle } = useSortState(SORT_KEYS, "data", "desc", ["ativo"]);
-  const sortBy = (key: SortKey) => {
-    toggle(key);
-    void setFilters({ pagina: 1 });
-  };
 
   const classFilter = parseClassParam(filters.classe);
   const years = [...new Set(rows.map((row) => String(row.date.getUTCFullYear())))].sort().reverse();
@@ -69,11 +57,11 @@ export function TransactionsTable({ rows }: { rows: TransactionRow[] }) {
       (!filters.ano || String(row.date.getUTCFullYear()) === filters.ano),
   );
   const sorted = sortRows(filtered, SORT_VALUE[sortKey], direction);
-  const pageCount = Math.max(1, Math.ceil(sorted.length / filters.por));
-  // Uma página fora da faixa (ex.: depois de filtrar) volta para a última que existe.
-  const page = Math.min(Math.max(1, filters.pagina), pageCount);
-  const firstIndex = (page - 1) * filters.por;
-  const pageRows = sorted.slice(firstIndex, firstIndex + filters.por);
+  const { rows: pageRows, pagination, resetPage } = usePagedRows(sorted);
+  const sortBy = (key: SortKey) => {
+    toggle(key);
+    resetPage();
+  };
 
   return (
     <Card className="@container">
@@ -93,7 +81,10 @@ export function TransactionsTable({ rows }: { rows: TransactionRow[] }) {
           year={filters.ano}
           years={years}
           resultCount={filtered.length}
-          onChange={(patch) => void setFilters({ ...patch, pagina: 1 })}
+          onChange={(patch) => {
+            void setFilters(patch);
+            resetPage();
+          }}
         />
       </CardHeader>
       <CardContent className="px-0">
@@ -195,18 +186,7 @@ export function TransactionsTable({ rows }: { rows: TransactionRow[] }) {
               </TableBody>
             </Table>
             <div className="hidden @min-[640px]:block">
-              <Pagination
-                page={page}
-                pageCount={pageCount}
-                pageSize={filters.por}
-                pageSizes={PAGE_SIZES}
-                total={sorted.length}
-                firstIndex={firstIndex}
-                shown={pageRows.length}
-                itemLabel="Lançamentos"
-                onPage={(next) => void setFilters({ pagina: next })}
-                onPageSize={(size) => void setFilters({ por: size, pagina: 1 })}
-              />
+              <Pagination {...pagination} itemLabel="Lançamentos" />
             </div>
           </>
         )}

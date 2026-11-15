@@ -1,6 +1,7 @@
 "use client";
 
 import { ChevronLeftIcon, ChevronRightIcon } from "lucide-react";
+import { cn } from "@/shared/lib/utils";
 import { Button } from "@/shared/ui/button";
 import { NativeSelect } from "@/shared/ui/native-select";
 
@@ -8,18 +9,7 @@ import { NativeSelect } from "@/shared/ui/native-select";
  * Rodapé de tabela paginada: quantos por página à esquerda; à direita, a faixa mostrada e os
  * botões de página, redondos. Em telas estreitas, as duas metades quebram em linhas.
  */
-export function Pagination<Size extends number>({
-  page,
-  pageCount,
-  pageSize,
-  pageSizes,
-  total,
-  firstIndex,
-  shown,
-  itemLabel,
-  onPage,
-  onPageSize,
-}: {
+export type PaginationProps<Size extends number> = {
   page: number;
   pageCount: number;
   pageSize: Size;
@@ -31,9 +21,29 @@ export function Pagination<Size extends number>({
   itemLabel: string;
   onPage: (page: number) => void;
   onPageSize: (size: Size) => void;
-}) {
+  className?: string;
+};
+
+export function Pagination<Size extends number>({
+  page,
+  pageCount,
+  pageSize,
+  pageSizes,
+  total,
+  firstIndex,
+  shown,
+  itemLabel,
+  onPage,
+  onPageSize,
+  className,
+}: PaginationProps<Size>) {
   return (
-    <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-3 px-(--card-spacing) pt-4 text-sm text-muted-foreground">
+    <div
+      className={cn(
+        "flex flex-wrap items-center justify-between gap-x-4 gap-y-3 px-(--card-spacing) pt-4 text-sm text-muted-foreground",
+        className,
+      )}
+    >
       <label className="flex items-center gap-2">
         Mostrar
         <NativeSelect

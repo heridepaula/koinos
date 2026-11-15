@@ -1,69 +1,14 @@
 import { CalendarClockIcon } from "lucide-react";
 import { DIVIDEND_KIND_LABELS } from "@/features/transactions";
-import { Disclosure } from "@/shared/components/disclosure";
 import { Sensitive } from "@/shared/components/sensitive";
 import { formatBRL, formatTradeDate } from "@/shared/lib/format";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/shared/ui/card";
 import type { AssetOverview } from "../../domain/types";
 import { DividendBars } from "./dividend-bars";
+import { MoneyRow } from "./money-row";
+import { ReceivedList } from "./received-list";
 
-/** Quantos recebidos aparecem antes do "Mostrar todos". */
-const VISIBLE = 5;
 const SOURCE_LABEL = { B3: "B3", FUNDAMENTUS: "anunciado", YAHOO: "estimado" } as const;
-
-type Received = AssetOverview["received"][number];
-
-/** Uma linha de dinheiro: a data e o tipo à esquerda, o valor (e o por cota) à direita. */
-function MoneyRow({
-  date,
-  detail,
-  amount,
-  perShare,
-  unit,
-}: {
-  date: string;
-  detail: string;
-  amount: number;
-  perShare: number | null;
-  /** "por cota" ou "por ação". */
-  unit: string;
-}) {
-  return (
-    <li className="flex min-h-13 items-center justify-between gap-4 py-2">
-      <div className="grid min-w-0 gap-0.5">
-        <span className="font-medium">{date}</span>
-        <span className="truncate text-footnote text-muted-foreground">{detail}</span>
-      </div>
-      <div className="grid justify-items-end gap-0.5 text-right tabular-nums">
-        <span className="font-medium">
-          <Sensitive>{formatBRL(amount)}</Sensitive>
-        </span>
-        {perShare !== null ? (
-          <span className="text-footnote text-muted-foreground">
-            {formatBRL(perShare)} {unit}
-          </span>
-        ) : null}
-      </div>
-    </li>
-  );
-}
-
-function ReceivedRows({ items, unit }: { items: Received[]; unit: string }) {
-  return (
-    <ul className="divide-y divide-border/70">
-      {items.map((item, index) => (
-        <MoneyRow
-          key={`${item.paidAt.toISOString()}-${item.kind}-${index}`}
-          date={formatTradeDate(item.paidAt)}
-          detail={DIVIDEND_KIND_LABELS[item.kind]}
-          amount={item.amount}
-          perShare={item.perShare}
-          unit={unit}
-        />
-      ))}
-    </ul>
-  );
-}
 
 /**
  * Proventos do ativo: o que está para cair (em destaque, no topo), os 12 meses fechados em barras
@@ -80,8 +25,6 @@ export function DividendsCard({
   const unit = overview.assetClass === "ACAO" ? "por ação" : "por cota";
   if (upcoming.length === 0 && received.length === 0) return null;
   const first = received.at(-1);
-  const visible = received.slice(0, VISIBLE);
-  const rest = received.slice(VISIBLE);
 
   return (
     <Card className={className}>
@@ -136,18 +79,10 @@ export function DividendsCard({
           </section>
         ) : null}
 
-        {visible.length > 0 ? (
+        {received.length > 0 ? (
           <section aria-label="Recebidos" className="grid gap-1">
             <h3 className="text-footnote font-medium text-muted-foreground">Recebidos</h3>
-            <ReceivedRows items={visible} unit={unit} />
-            {rest.length > 0 ? (
-              <Disclosure
-                summary={`Mostrar mais ${rest.length}`}
-                className="border-t border-border/70 pt-3"
-              >
-                <ReceivedRows items={rest} unit={unit} />
-              </Disclosure>
-            ) : null}
+            <ReceivedList items={received} unit={unit} />
           </section>
         ) : null}
       </CardContent>
