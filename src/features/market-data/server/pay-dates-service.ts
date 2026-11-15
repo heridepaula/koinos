@@ -9,6 +9,7 @@ import {
   type FundamentusPage,
   type PaySchedule,
 } from "../domain/fundamentus";
+import { detectScaleAnomaly } from "../domain/scale-anomaly";
 import { AssetModel } from "./models";
 
 const RECHECK_MS = 20 * 60 * 60 * 1000;
@@ -39,6 +40,25 @@ async function fetchSchedules(ticker: string): Promise<PaySchedule[] | null> {
 }
 
 /**
+ * Um valor fora da escala do histórico do próprio ativo (1500 onde se paga 1,50) vai para o log e
+ * segue gravado: o lote não para por um valor suspeito, e um provento extra de verdade passa. O
+ * valor do log sai sem números pela redação da telemetria; o ticker basta para achar a linha.
+ */
+function warnScaleAnomalies(
+  ticker: string,
+  schedules: readonly PaySchedule[] | null,
+  history: readonly number[],
+) {
+  for (const item of schedules ?? []) {
+    const anomaly = detectScaleAnomaly(item.perShare, history);
+    if (!anomaly) continue;
+    console.warn(
+      `[pagamentos] ${ticker}: valor fora da escala do histórico (${item.kind}, ${item.perShare} contra mediana ${anomaly.reference})`,
+    );
+  }
+}
+
+/**
  * Guarda no ativo os proventos anunciados com data de pagamento (Fundamentus), para o "a
  * receber". Pula o ativo buscado nas últimas 20 h; `force` ignora essa checagem. Ticker que o
  * site não conhece guarda null (o "a receber" usa o Yahoo); uma busca que falha não grava nada.
@@ -53,9 +73,15 @@ export async function refreshPayDates(
   await connectMongo();
   const assets = await AssetModel.find(
     { _id: mongoose.trusted({ $in: unique }) },
-    { payDatesFetchedAt: 1 },
+    { payDatesFetchedAt: 1, dividendAnnouncements: 1 },
   ).lean();
   const fetchedAt = new Map(assets.map((asset) => [asset._id, asset.payDatesFetchedAt]));
+  const history = new Map(
+    assets.map((asset) => [
+      asset._id,
+      (asset.dividendAnnouncements ?? []).map((item) => item.perShare),
+    ]),
+  );
   const due = unique.filter(
     (ticker) =>
       options.force || (fetchedAt.get(ticker)?.getTime() ?? 0) < now.getTime() - RECHECK_MS,
@@ -64,6 +90,7 @@ export async function refreshPayDates(
   const results = await mapWithConcurrency(due, CONCURRENCY, async (ticker) => {
     try {
       const schedules = await fetchSchedules(ticker);
+      warnScaleAnomalies(ticker, schedules, history.get(ticker) ?? []);
       await AssetModel.updateOne(
         { _id: ticker },
         {

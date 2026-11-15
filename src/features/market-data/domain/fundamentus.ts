@@ -1,3 +1,4 @@
+import { parseFinancialAmount } from "@/shared/lib/financial-amount";
 import { parseTradeDate } from "@/shared/lib/time";
 
 // Página de proventos do Fundamentus (spec 2026-11-06-fundamentus-pagamentos-design.md): uma
@@ -34,12 +35,14 @@ export function parseBrDate(text: string): Date | null {
   return Number.isNaN(date.getTime()) || date.getUTCDate() !== Number(day) ? null : date;
 }
 
-/** "1.234,5678" vira 1234.5678; o que não for número, null. */
+/** "1.234,5678" vira 1234.5678; o que não for número claro, null (ver `parseFinancialAmount`). */
 export function parseBrNumber(text: string): number | null {
-  const clean = text.trim().replace(/\./g, "").replace(",", ".");
-  if (!/^-?\d+(\.\d+)?$/.test(clean)) return null;
-  return Number(clean);
+  return parseFinancialAmount(text, { dotOnly: "thousands" });
 }
+
+/** A identidade de um provento anunciado: a página repetida ou uma linha dobrada não conta duas vezes. */
+export const scheduleKey = (item: PaySchedule) =>
+  `${item.kind}|${item.comDate.getTime()}|${item.payDate.getTime()}|${item.perShare}`;
 
 /** O tipo pelo texto da página, sem acento e sem caixa. */
 export function scheduleKindOf(text: string, page: FundamentusPage): ScheduleKind | null {
@@ -52,7 +55,7 @@ export function scheduleKindOf(text: string, page: FundamentusPage): ScheduleKin
 
 /**
  * Os proventos da página. FII: data com | tipo | pagamento | valor. Ação: data com | valor | tipo |
- * pagamento | por quantas ações (o valor é por esse lote, então é dividido por ele). Linhas sem
+ * pagamento | por quantas ações (o valor é por esse lote, então é dividido por ele). Linhas repetidas contam uma vez. Linhas sem
  * data de pagamento, com valor inválido ou de outro tipo ficam de fora. Sem a tabela (ticker que
  * o site não conhece), null.
  */
@@ -64,6 +67,7 @@ export function parseFundamentusDividends(
   if (!table) return null;
   const body = /<tbody[^>]*>([\s\S]*?)<\/tbody>/i.exec(table[1])?.[1] ?? table[1];
   const result: PaySchedule[] = [];
+  const seen = new Set<string>();
   for (const row of body.matchAll(/<tr[^>]*>([\s\S]*?)<\/tr>/gi)) {
     const cells = [...row[1].matchAll(/<td[^>]*>([\s\S]*?)<\/td>/gi)].map((cell) =>
       stripTags(cell[1]),
@@ -79,7 +83,11 @@ export function parseFundamentusDividends(
     const value = parseBrNumber(valueText);
     const lot = parseBrNumber(lotText);
     if (!comDate || !payDate || !kind || value === null || value <= 0 || !lot || lot <= 0) continue;
-    result.push({ comDate, payDate, perShare: value / lot, kind });
+    const item = { comDate, payDate, perShare: value / lot, kind };
+    const key = scheduleKey(item);
+    if (seen.has(key)) continue;
+    seen.add(key);
+    result.push(item);
   }
   return result;
 }
