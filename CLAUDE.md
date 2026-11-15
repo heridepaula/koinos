@@ -414,36 +414,15 @@ Koinos is a single-owner dashboard for a Brazilian portfolio of FIIs (REITs) and
 
 ## Model routing
 
-Opus designs, Sonnet builds, Opus reviews, Haiku coordinates (the owner's choice of 2026-11-14). Routing is automatic. Classify every request by the table below and delegate to the subagents in `.claude/agents/` without asking: this section is the owner's standing request to spawn them. The owner never has to name an agent or a model.
+The routing table and the agents (`architect`, `implementor`, `reviewer`, `runner`) are global, in `C:\Users\HTN-PC\.claude\CLAUDE.md` and `C:\Users\HTN-PC\.claude\agents\`. Route every request by that table without asking. What is specific to Koinos:
 
-**The main session is the coordinator** and is meant to run on Haiku (`/model haiku`). Subagents can't be relied on to spawn other subagents, so the swarm is dispatched from here. The coordinator only classifies, briefs, dispatches (in parallel whenever the pieces don't share files) and relays reports. It does not design, read source to form an opinion, write code or judge a diff: those go to the agent of that stage, whatever model the session runs on. Each brief stands on its own: the spec path, the step, the files and what to report.
-
-| Request                                                                                  | Flow                                                                                  |
-| ---------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------- |
-| New feature, behavior change, or a refactor across features                              | Full: `architect` → `implementor`, one spec step per call → checks → `reviewer`       |
-| Bug with an unknown cause                                                                | `architect` for the root cause and the fix plan → `implementor` → checks → `reviewer` |
-| Well-specified change: known cause, named files, a test to add, a mechanical edit        | `implementor` → checks → `reviewer` when it touches `domain/` or `server/`            |
-| Review of a diff, a branch or a PR                                                       | `reviewer`                                                                            |
-| A question that needs design judgment or reading much code                               | `architect`, asked to answer without writing a spec                                   |
-| Search across many files, logs, the full check run, a commit or push the owner asked for | The coordinator itself on Haiku, else `runner`                                        |
-| A simple question, an edit of a few lines, one short command                             | Inline, no subagent                                                                   |
-
-- **`architect`** (Opus, high effort) writes the spec in `docs/superpowers/specs` and no code. Show the owner its step list and open questions, and wait only when there are open questions or the change touches an aporte formula.
-- **`implementor`** (Sonnet, medium effort) gets the spec path and one step. Steps that touch different files run in parallel, one agent each.
-- **Checks:** `format:check`, `lint`, `typecheck`, `test` and `build` once at the end, and again after a fix; a failure goes back to `implementor` with the `path:line` and the message. On Haiku the coordinator runs them; on a larger model it sends them to `runner` (Haiku, low effort), which reports and never edits.
-- **`reviewer`** (Opus, high effort) gets the spec path and reviews the diff once the checks pass, before any commit. `CHANGES NEEDED` goes back to `implementor` with the findings, then checks and `reviewer` again, at most twice; after that, report to the owner.
-- **Skills and MCPs inside the flow** (each one at one stage, none replaces the table):
-  - this table wins over any plugin skill that asks for its own process (brainstorming, writing-plans, subagent-driven-development and the `ecc:*` planner, architect and reviewer agents). Use `brainstorming` only when the request is too vague to give `architect` a goal;
-  - `architect`: the code graph for impact, Context7 or the Next docs for APIs, `diagnosing-bugs` for a bug. An aporte formula goes through `conselho-investidores` first;
-  - `implementor`: `tdd` in `domain/`, `ast-grep`, and `financial-quant-sanitizer` for parsers of external data and financial numbers;
-  - `runner`: rtk and context-mode keep long output out of the conversation;
-  - `reviewer`: the code graph (`detect_changes`, `get_review_context`) for what the diff can break;
-  - a visual change is opened with the chrome-devtools MCP after the review. Vercel MCP only when the owner asks about a deploy.
-- **When unsure between two rows**, take the lighter one, and move up only if the work turns out larger.
-- A subagent starts cold and reloads this file, so one short command (`git status`, one test file) stays inline.
-- **Same file, one agent:** never run two `implementor` agents on the same file at once.
-- **Hook:** `.claude/settings.json` runs ESLint on each edited file under `src` (`.claude/hooks/lint-edited.mjs`) and returns only the errors. Don't run `lint` after every edit; `typecheck` and the tests run once per step.
-- **Size:** the smallest change that meets the request. No abstraction, option or dependency nobody asked for, and no summary of what the diff already shows.
+- Specs go in `docs/superpowers/specs`; a step is one spec step.
+- Checks: `format:check`, `lint`, `typecheck`, `test`, `build`.
+- An aporte formula goes through `conselho-investidores` before `architect` designs it.
+- `implementor` uses `tdd` in `domain/` and `financial-quant-sanitizer` for parsers of external data and financial numbers.
+- `reviewer` checks the feature boundaries, the tenancy filters and the privacy rules of spans and Gemini prompts.
+- A visual change is opened with the chrome-devtools MCP after the review. Vercel MCP only when the owner asks about a deploy.
+- **Hook:** `.claude/settings.json` runs ESLint on each edited file under `src` and returns only the errors. Don't run `lint` after every edit; `typecheck` and the tests run once per step.
 
 ## Gotchas
 
