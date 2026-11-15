@@ -32,6 +32,7 @@ Koinos is a single-owner dashboard for a Brazilian portfolio of FIIs (REITs) and
   - `smart-buy/domain/merge-orders.test.ts`: the merged orders (total descending, ties by ticker, the class of each row);
   - `smart-buy/domain/aporte-impact.test.ts`: the aporte impact (the average price with and without a position, the result in R$ unchanged in 500 seeded cases, the FII income by the last dividend and the stock's by 12 months ÷ 12, the yield on cost, null without data, the patrimony after = before + spent and `incomeMissing`), plus `stockBuyInput` carrying the average price and dividends (`snapshot.test.ts`);
   - the "Por quê" in words and the calculation (`plainReason`, `calcSteps`, `calcFlow` and the stock ones, with the lot and "N lote(s) pela sobra"), and the help text of each reason in "Fora deste aporte" (the three 3.1 ones included), picked by the classes in it: FII, stock or neutral (`smart-buy/components/aporte/explain.test.ts`);
+  - `shared/lib/paginate.ts`: the list pages (slices, the last page when the current one is out of range, the sizes 10, 50 and 100);
   - `strategy/domain`: weights and the 0% quarantine rule;
   - the snapshot keeping the quarantine and the stocks out of the FII cascade, with each class's strategy adding up to 100% on its own (the stocks' % rescaled like the FIIs', with the warning and the alert in Geral), the bias reaching the cascade input and the rows, the stocks' Prioridade, `stockBuyInput`/`stockMeta`, and the 3.1 cascade input (`daysSinceLastDividend` null when the dividends are over 10 days old, the new fields reaching the cascade, the Prioridade by the current version) (`portfolio/domain/snapshot.test.ts`), and the strategy alerts by class (`portfolio/domain/alerts.test.ts`);
   - usebolsai's parsing (`market-data/domain/fundamentals.test.ts`);
@@ -170,7 +171,7 @@ Koinos is a single-owner dashboard for a Brazilian portfolio of FIIs (REITs) and
 - `getCurrentUser` uses `'use cache: private'`.
 - `getTenant` calls `connection()` before touching the database. Any new database path reached from rendering must go through `getTenant` or call `await connection()` first. Otherwise prerendering fails on the Mongo driver's internal `new Date()`.
 - The DAL readers (`getMyTransactions`, `getMyDividends`, `getPortfolioSnapshot`…) are wrapped in React `cache`, so several `<Suspense>` sections of one page can call them and each query runs once per request.
-- Client state that should survive a reload or a shared link lives in the URL through `nuqs`: the tables' filters, page and sort (`shared/hooks/use-sort-state.ts`), the dividends grouping and month (`?agrupar=&mes=`), the class (`?classe=`), the dividend kind (`?tipo=`, `DividendKindSelect`) the aporte amount (`?valor=`) and the FIIs % (`?fiis=`). The reinvestment month uses `shallow: false`, because the server reads it.
+- Client state that should survive a reload or a shared link lives in the URL through `nuqs`: the tables' filters, page and sort (`shared/hooks/use-sort-state.ts`), the list pages through `usePagedRows` (`pagina`/`por` in the transactions, `recebidos`/`recebidos-por` in the asset's dividends; the next lists take their own keys, like `ordens`/`ordens-por`), the dividends grouping and month (`?agrupar=&mes=`), the class (`?classe=`), the dividend kind (`?tipo=`, `DividendKindSelect`) the aporte amount (`?valor=`) and the FIIs % (`?fiis=`). The reinvestment month uses `shallow: false`, because the server reads it.
 
 **Mutations:**
 
@@ -410,6 +411,39 @@ Koinos is a single-owner dashboard for a Brazilian portfolio of FIIs (REITs) and
 - **Formula reviews:** before changing an aporte formula (the cascade, the stock smart buy, the split, the weights or the reinvestment), and whenever the owner asks to evaluate one, use the `conselho-investidores` skill (`.claude/skills/`).
   - It checks the math, the edge cases and the invariants, runs the engines on the real portfolio (read-only) and reviews the formula through the lenses of Tiago Reis, Professor Baroni, Warren Buffett and Luiz Barsi.
   - It reports and doesn't change code.
+
+## Model routing
+
+Opus designs, Sonnet builds, Opus reviews, Haiku coordinates (the owner's choice of 2026-11-14). Routing is automatic. Classify every request by the table below and delegate to the subagents in `.claude/agents/` without asking: this section is the owner's standing request to spawn them. The owner never has to name an agent or a model.
+
+**The main session is the coordinator** and is meant to run on Haiku (`/model haiku`). Subagents can't be relied on to spawn other subagents, so the swarm is dispatched from here. The coordinator only classifies, briefs, dispatches (in parallel whenever the pieces don't share files) and relays reports. It does not design, read source to form an opinion, write code or judge a diff: those go to the agent of that stage, whatever model the session runs on. Each brief stands on its own: the spec path, the step, the files and what to report.
+
+| Request                                                                                  | Flow                                                                                  |
+| ---------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------- |
+| New feature, behavior change, or a refactor across features                              | Full: `architect` → `implementor`, one spec step per call → checks → `reviewer`       |
+| Bug with an unknown cause                                                                | `architect` for the root cause and the fix plan → `implementor` → checks → `reviewer` |
+| Well-specified change: known cause, named files, a test to add, a mechanical edit        | `implementor` → checks → `reviewer` when it touches `domain/` or `server/`            |
+| Review of a diff, a branch or a PR                                                       | `reviewer`                                                                            |
+| A question that needs design judgment or reading much code                               | `architect`, asked to answer without writing a spec                                   |
+| Search across many files, logs, the full check run, a commit or push the owner asked for | The coordinator itself on Haiku, else `runner`                                        |
+| A simple question, an edit of a few lines, one short command                             | Inline, no subagent                                                                   |
+
+- **`architect`** (Opus, high effort) writes the spec in `docs/superpowers/specs` and no code. Show the owner its step list and open questions, and wait only when there are open questions or the change touches an aporte formula.
+- **`implementor`** (Sonnet, medium effort) gets the spec path and one step. Steps that touch different files run in parallel, one agent each.
+- **Checks:** `format:check`, `lint`, `typecheck`, `test` and `build` once at the end, and again after a fix; a failure goes back to `implementor` with the `path:line` and the message. On Haiku the coordinator runs them; on a larger model it sends them to `runner` (Haiku, low effort), which reports and never edits.
+- **`reviewer`** (Opus, high effort) gets the spec path and reviews the diff once the checks pass, before any commit. `CHANGES NEEDED` goes back to `implementor` with the findings, then checks and `reviewer` again, at most twice; after that, report to the owner.
+- **Skills and MCPs inside the flow** (each one at one stage, none replaces the table):
+  - this table wins over any plugin skill that asks for its own process (brainstorming, writing-plans, subagent-driven-development and the `ecc:*` planner, architect and reviewer agents). Use `brainstorming` only when the request is too vague to give `architect` a goal;
+  - `architect`: the code graph for impact, Context7 or the Next docs for APIs, `diagnosing-bugs` for a bug. An aporte formula goes through `conselho-investidores` first;
+  - `implementor`: `tdd` in `domain/`, `ast-grep`, and `financial-quant-sanitizer` for parsers of external data and financial numbers;
+  - `runner`: rtk and context-mode keep long output out of the conversation;
+  - `reviewer`: the code graph (`detect_changes`, `get_review_context`) for what the diff can break;
+  - a visual change is opened with the chrome-devtools MCP after the review. Vercel MCP only when the owner asks about a deploy.
+- **When unsure between two rows**, take the lighter one, and move up only if the work turns out larger.
+- A subagent starts cold and reloads this file, so one short command (`git status`, one test file) stays inline.
+- **Same file, one agent:** never run two `implementor` agents on the same file at once.
+- **Hook:** `.claude/settings.json` runs ESLint on each edited file under `src` (`.claude/hooks/lint-edited.mjs`) and returns only the errors. Don't run `lint` after every edit; `typecheck` and the tests run once per step.
+- **Size:** the smallest change that meets the request. No abstraction, option or dependency nobody asked for, and no summary of what the diff already shows.
 
 ## Gotchas
 
