@@ -7,4 +7,5 @@ export { getAssetWatchlist } from "./server/asset-watchlist-view";
 export { getClosedPositionsView } from "./server/closed-positions-view";
 export { getDividendsView } from "./server/dividends-view";
 export { getMyReinvestmentPercents, getReinvestmentView } from "./server/reinvestment-view";
+export { getQuoteStatus } from "./server/quote-status";
 export { getEvolution, getPeriodResults, getPortfolioSnapshot } from "./server/snapshot";

@@ -7,8 +7,8 @@ import {
   UserMenuSkeleton,
 } from "@/features/auth/ui";
 import { getCurrentUser } from "@/features/auth/server";
-import { getMyAlertNotifications } from "@/features/portfolio/server";
-import { AlertsBell } from "@/features/portfolio/ui";
+import { getMyAlertNotifications, getQuoteStatus } from "@/features/portfolio/server";
+import { AlertsBell, QuoteClock } from "@/features/portfolio/ui";
 import { AppSidebar } from "@/shared/components/app-sidebar";
 import { AutoHideHeader } from "@/shared/components/auto-hide-header";
 import { MobileNavBar } from "@/shared/components/mobile-nav-bar";
@@ -41,6 +41,12 @@ async function CurrentAlerts({ sheet = false }: { sheet?: boolean }) {
   return <AlertsBell alerts={await getMyAlertNotifications()} sheet={sheet} />;
 }
 
+// O relógio das cotações: lê só o horário da cotação mais nova e atualiza sozinho a cada 30 min.
+async function CurrentQuoteClock() {
+  const { lastFetchedAt } = await getQuoteStatus();
+  return <QuoteClock lastFetchedAt={lastFetchedAt} />;
+}
+
 async function CurrentAccount() {
   const user = await getCurrentUser();
   return <AccountSection user={{ name: user.name, email: user.email, image: user.image }} />;
@@ -51,6 +57,9 @@ export default function AppLayout({ children }: { children: ReactNode }) {
     <QueryProvider>
       <PointerGlow />
       <SessionKeepAlive />
+      <Suspense fallback={null}>
+        <CurrentQuoteClock />
+      </Suspense>
       <WebVitals />
       <TabBarActionProvider>
         <SidebarProvider>

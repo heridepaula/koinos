@@ -8,6 +8,7 @@ import {
   refreshDividends,
   refreshPayDates,
   refreshMissingFundamentals,
+  latestQuoteFetchedAt,
   refreshQuotes,
   reportApiUsage,
 } from "@/features/market-data/server";
@@ -76,15 +77,20 @@ export const refreshMyQuotesAction = authActionClient
     if ((result.status === "done" && result.stale > 0) || fundamentals.requested > 0) {
       await reportApiUsage();
     }
-    if (
+    const rerender =
       (result.status === "done" && result.updated > 0) ||
       dividends.updated > 0 ||
       payDates.updated > 0 ||
-      fundamentals.updated > 0
-    ) {
-      refresh();
-    }
-    return result;
+      fundamentals.updated > 0;
+    if (rerender) refresh();
+    // A cotação mais nova do banco, com a tentativa já feita: se outra aba, o `after()` ou o cron
+    // gravaram antes, `updated` é 0 e nada re-renderiza aqui. O cliente compara com o que a tela
+    // mostra (`needsRerender`) e pede um `router.refresh()` só se faltar.
+    const lastFetchedAt = await latestQuoteFetchedAt([
+      ...held,
+      ...targets.map((target) => target.ticker),
+    ]);
+    return { ...result, lastFetchedAt, rerendered: rerender };
   });
 
 /**

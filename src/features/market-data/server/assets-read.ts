@@ -113,6 +113,21 @@ export async function getAssetSnapshots(
   );
 }
 
+/** A cotação mais recente gravada entre os tickers (null sem nenhuma): o que a tela deveria mostrar. */
+export async function latestQuoteFetchedAt(tickers: readonly string[]): Promise<Date | null> {
+  const unique = [...new Set(tickers)];
+  if (unique.length === 0) return null;
+  await connectMongo();
+  const docs = await AssetModel.find(
+    { _id: mongoose.trusted({ $in: unique }) },
+    { quoteFetchedAt: 1 },
+  ).lean();
+  const times = docs
+    .map((doc) => doc.quoteFetchedAt?.getTime())
+    .filter((time): time is number => time !== undefined);
+  return times.length > 0 ? new Date(Math.max(...times)) : null;
+}
+
 /** Quantos dos tickers estão com cotação vencida agora. */
 export function countStaleQuotes(
   tickers: readonly string[],

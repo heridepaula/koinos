@@ -254,6 +254,9 @@ export type PortfolioAlert = {
 /** Um alerta no sino: lido quando o dono marcou esta mesma impressão. */
 export type AlertNotification = PortfolioAlert & { read: boolean };
 
+/** O que o relógio de cotações do layout precisa saber: a cotação mais nova que a tela mostra. */
+export type QuoteStatus = { lastFetchedAt: Date | null };
+
 export type PortfolioSnapshot = {
   summary: PortfolioSummary;
   positions: PositionRow[];

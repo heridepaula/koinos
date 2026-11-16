@@ -1,15 +1,15 @@
 "use client";
 
-import { useMutation } from "@tanstack/react-query";
 import { RefreshCwIcon } from "lucide-react";
-import { useEffect } from "react";
-import { toast } from "sonner";
 import { formatDateTime } from "@/shared/lib/format";
 import { cn } from "@/shared/lib/utils";
 import { Button } from "@/shared/ui/button";
-import { refreshMyQuotesAction } from "../actions";
+import { requestManualQuoteRefresh, useQuoteRefreshPending } from "./quote-refresh-store";
 
-/** Mostra o horário das cotações e, se houver alguma vencida, atualiza em segundo plano. */
+/**
+ * Mostra o horário das cotações e o botão manual. Quem atualiza sozinho é o `QuoteClock`, no
+ * layout: aqui só aparece o estado (em andamento, em dia) e o pedido manual.
+ */
 export function QuoteRefresher({
   staleCount,
   lastFetchedAt,
@@ -20,18 +20,7 @@ export function QuoteRefresher({
   /** O pregão agora: o texto começa por "Mercado aberto" ou "Mercado fechado". */
   marketOpen: boolean;
 }) {
-  const { mutate, isPending } = useMutation({
-    mutationFn: async () => {
-      const result = await refreshMyQuotesAction();
-      if (result?.serverError) throw new Error(result.serverError);
-      return result?.data;
-    },
-    onError: (error) => toast.error(error.message),
-  });
-
-  useEffect(() => {
-    if (staleCount > 0) mutate();
-  }, [staleCount, mutate]);
+  const isPending = useQuoteRefreshPending();
 
   const fresh = !isPending && staleCount === 0 && lastFetchedAt !== null;
   // Selo de status em vidro: ponto verde com as cotações em dia, âmbar pulsando enquanto atualiza.
@@ -63,7 +52,7 @@ export function QuoteRefresher({
         size="icon-sm"
         aria-label="Atualizar cotações"
         disabled={isPending}
-        onClick={() => mutate()}
+        onClick={requestManualQuoteRefresh}
       >
         <RefreshCwIcon className={isPending ? "motion-safe:animate-spin" : undefined} />
       </Button>

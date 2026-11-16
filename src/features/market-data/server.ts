@@ -5,6 +5,7 @@ export { refreshQuotes, type RefreshResult } from "./server/quote-service";
 export {
   countStaleQuotes,
   getAssetSnapshots,
+  latestQuoteFetchedAt,
   getMonthlyCloses,
   type AssetSnapshot,
   type FiiProfile,
