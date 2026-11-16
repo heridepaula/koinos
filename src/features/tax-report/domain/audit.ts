@@ -64,16 +64,37 @@ export function auditReport(input: {
   }
 
   for (const u of input.dividends.unclassified) {
-    const reimbursement = u.kind === "REEMBOLSO";
-    out.push({
-      code: reimbursement ? "PROVENTO_REEMBOLSO" : "ALUGUEL_NAO_CLASSIFICADO",
-      severity: "ATENCAO",
-      ticker: u.ticker,
-      month: u.month,
-      message: reimbursement
-        ? `${u.ticker}: reembolso de R$ ${formatMoney(u.amount)} em ${u.month} ficou fora das fichas; confira de qual provento ele é.`
-        : `${u.ticker}: aluguel de ativos de R$ ${formatMoney(u.amount)} em ${u.month} ficou fora das fichas; confira como declarar.`,
-    });
+    const where = `${u.ticker}: ${u.kind === "ALUGUEL" ? "aluguel de ativos" : "provento"}`;
+    const value = `R$ ${formatMoney(u.amount)} em ${u.month}`;
+    if (u.reason === "REEMBOLSO") {
+      out.push({
+        code: "PROVENTO_REEMBOLSO",
+        severity: "ATENCAO",
+        ticker: u.ticker,
+        month: u.month,
+        message: `${u.ticker}: reembolso de ${value} ficou fora das fichas; confira de qual provento ele é.`,
+      });
+    } else if (u.reason === "ALUGUEL") {
+      out.push({
+        code: "ALUGUEL_NAO_CLASSIFICADO",
+        severity: "ATENCAO",
+        ticker: u.ticker,
+        month: u.month,
+        message: `${u.ticker}: aluguel de ativos de ${value} ficou fora das fichas; confira como declarar.`,
+      });
+    } else {
+      const why =
+        u.reason === "SEM_CLASSE"
+          ? "o ativo não tem classe (FII ou ação)"
+          : "esse tipo de provento não tem ficha para essa classe";
+      out.push({
+        code: "PROVENTO_NAO_CLASSIFICADO",
+        severity: "ATENCAO",
+        ticker: u.ticker,
+        month: u.month,
+        message: `${where} (${u.kind}) de ${value} ficou fora das fichas porque ${why}; confira como declarar.`,
+      });
+    }
   }
 
   for (const ticker of input.dividends.jcpOffRange) {

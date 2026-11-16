@@ -4,32 +4,40 @@ import { receitaCodesFor } from "./receita-codes";
 import type { DividendFiscalItem, FiscalClass } from "./types";
 
 /**
- * O JCP vem líquido dos 15% retidos na fonte. Com bruto por cota e quantidade (o extrato da B3 os
- * traz), o bruto é quantidade × bruto por cota e o líquido precisa ser 85% dele, com até R$ 0,02 de
- * diferença; fora disso o dado é suspeito (`offRange`). Sem eles, o bruto é líquido ÷ 0,85 e não há
- * como conferir (recompor o bruto do próprio líquido sempre fecha, então `offRange` é falso).
+ * O JCP vem líquido dos 15% retidos na fonte, então o bruto é sempre líquido ÷ 0,85, ao centavo
+ * (o bruto por cota da B3 pode vir arredondado e não serve de base). Com bruto por cota e
+ * quantidade, eles só conferem: `offRange` quando 85% de quantidade × bruto por cota difere do
+ * líquido em mais de max(R$ 0,05; 1% do líquido). Sem eles não há como conferir.
  */
 export function grossUpJcp(
   net: number,
   perShare: number | null = null,
   quantity: number | null = null,
 ): { gross: number; withheld: number; offRange: boolean } {
-  if (perShare !== null && quantity !== null && perShare > 0 && quantity > 0) {
-    const gross = round2(perShare * quantity);
-    return {
-      gross,
-      withheld: round2(gross - net),
-      offRange: Math.abs(round2(gross * 0.85) - net) > 0.02,
-    };
-  }
   const gross = round2(net / 0.85);
-  return { gross, withheld: round2(gross - net), offRange: false };
+  const withheld = round2(gross - net);
+  let offRange = false;
+  if (perShare !== null && quantity !== null && perShare > 0 && quantity > 0) {
+    const tolerance = Math.max(0.05, Math.abs(net) * 0.01);
+    offRange = Math.abs(round2(perShare * quantity * 0.85) - net) > tolerance;
+  }
+  return { gross, withheld, offRange };
 }
+
+export type UnclassifiedReason = "REEMBOLSO" | "ALUGUEL" | "SEM_CLASSE" | "TIPO_FORA_DA_FICHA";
+
+export type UnclassifiedDividend = {
+  ticker: string;
+  kind: string;
+  month: string;
+  amount: number;
+  reason: UnclassifiedReason;
+};
 
 export type YearDividends = {
   exempt: DividendFiscalItem[];
   exclusive: DividendFiscalItem[];
-  unclassified: { ticker: string; kind: string; month: string; amount: number }[];
+  unclassified: UnclassifiedDividend[];
   jcpOffRange: string[];
 };
 
@@ -83,16 +91,26 @@ export function groupYearDividends(input: {
 
   for (const d of dividends) {
     if (d.paidAt.getUTCFullYear() !== year) continue;
+    const month = `${year}-${String(d.paidAt.getUTCMonth() + 1).padStart(2, "0")}`;
+    const out = (reason: UnclassifiedReason) =>
+      unclassified.push({ ticker: d.ticker, kind: d.kind, month, amount: d.amount, reason });
     if (d.kind === "REEMBOLSO" || d.kind === "ALUGUEL") {
-      unclassified.push({
-        ticker: d.ticker,
-        kind: d.kind,
-        month: `${year}-${String(d.paidAt.getUTCMonth() + 1).padStart(2, "0")}`,
-        amount: d.amount,
-      });
+      out(d.kind);
       continue;
     }
-    if (!classOf(d.ticker)) continue;
+    const assetClass = classOf(d.ticker);
+    if (!assetClass) {
+      out("SEM_CLASSE");
+      continue;
+    }
+    const known =
+      (d.kind === "DIVIDENDO" && assetClass === "ACAO") ||
+      (d.kind === "RENDIMENTO" && assetClass === "FII") ||
+      (d.kind === "JCP" && assetClass === "ACAO");
+    if (!known) {
+      out("TIPO_FORA_DA_FICHA");
+      continue;
+    }
     const cnpj = cnpjOf(d.ticker);
     add(cnpj ?? d.ticker, d.ticker, cnpj, d.kind, d.amount, d.perShare, d.quantity);
   }

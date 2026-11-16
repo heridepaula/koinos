@@ -17,16 +17,88 @@ describe("grossUpJcp", () => {
     expect(grossUpJcp(85)).toEqual({ gross: 100, withheld: 15, offRange: false });
     expect(grossUpJcp(0.85)).toEqual({ gross: 1, withheld: 0.15, offRange: false });
   });
-  it("com bruto por cota e quantidade, o bruto é o do extrato e confere os 85%", () => {
+  it("com bruto por cota e quantidade, o bruto continua líquido ÷ 0,85 e a faixa só confere", () => {
     // 100 ações × R$ 1,00 bruto = 100,00; líquido 85,00
     expect(grossUpJcp(85, 1, 100)).toEqual({ gross: 100, withheld: 15, offRange: false });
   });
   it("marca o líquido que não bate com 85% do bruto do extrato", () => {
-    expect(grossUpJcp(80, 1, 100)).toMatchObject({ gross: 100, withheld: 20, offRange: true });
+    expect(grossUpJcp(80, 1, 100)).toEqual({ gross: 94.12, withheld: 14.12, offRange: true });
+  });
+  it("tolera o bruto por cota arredondado pela B3 (até 1% do líquido)", () => {
+    // 3 ações, bruto por cota 0,3333 (arredondado): 3 × 0,3333 × 0,85 = 0,85; líquido 0,85
+    expect(grossUpJcp(0.85, 0.3333, 3).offRange).toBe(false);
   });
 });
 
 describe("groupYearDividends", () => {
+  const classes: Record<string, "FII" | "ACAO"> = { PETR4: "ACAO", HGLG11: "FII" };
+  const cnpj = () => "33.000.167/0001-01";
+  const run = (dividends: DividendEntry[]) =>
+    groupYearDividends({
+      year: 2025,
+      dividends,
+      cnpjOf: cnpj,
+      classOf: (t) => classes[t] ?? null,
+    });
+  const sumNet = (r: ReturnType<typeof run>) =>
+    Math.round(
+      ([...r.exempt, ...r.exclusive].reduce((a, i) => a + i.net, 0) +
+        r.unclassified.reduce((a, u) => a + u.amount, 0)) *
+        100,
+    ) / 100;
+
+  it("a ficha depende de tipo e classe: pares fora do mapa vão para unclassified", () => {
+    const r = run([
+      pay("2025-03-10", { ticker: "PETR4", kind: "RENDIMENTO", amount: 1 }),
+      pay("2025-03-11", { ticker: "HGLG11", kind: "DIVIDENDO", amount: 2 }),
+      pay("2025-03-12", { ticker: "HGLG11", kind: "JCP", amount: 4 }),
+      pay("2025-03-13", { ticker: "DESC3", kind: "DIVIDENDO", amount: 8 }),
+      pay("2025-03-14", { ticker: "PETR4", kind: "DIVIDENDO", amount: 16 }),
+    ]);
+    expect(r.exempt).toHaveLength(1);
+    expect(r.exclusive).toHaveLength(0);
+    expect(r.unclassified.map((u) => [u.ticker, u.reason]).sort()).toEqual([
+      ["DESC3", "SEM_CLASSE"],
+      ["HGLG11", "TIPO_FORA_DA_FICHA"],
+      ["HGLG11", "TIPO_FORA_DA_FICHA"],
+      ["PETR4", "TIPO_FORA_DA_FICHA"],
+    ]);
+  });
+
+  it("reembolso e aluguel carregam o motivo", () => {
+    const r = run([
+      pay("2025-05-11", { ticker: "PETR4", kind: "REEMBOLSO", amount: 1 }),
+      pay("2025-05-12", { ticker: "PETR4", kind: "ALUGUEL", amount: 2 }),
+    ]);
+    expect(r.unclassified.map((u) => u.reason)).toEqual(["REEMBOLSO", "ALUGUEL"]);
+  });
+
+  it("nenhum centavo some: fichas (líquido) + unclassified = proventos pagos no ano", () => {
+    const list = [
+      pay("2025-03-10", { ticker: "PETR4", kind: "RENDIMENTO", amount: 1.01 }),
+      pay("2025-03-11", { ticker: "HGLG11", kind: "DIVIDENDO", amount: 2.02 }),
+      pay("2025-03-13", { ticker: "DESC3", kind: "DIVIDENDO", amount: 8.08 }),
+      pay("2025-03-14", { ticker: "PETR4", kind: "DIVIDENDO", amount: 16.16 }),
+      pay("2025-04-14", { ticker: "PETR4", kind: "JCP", amount: 85 }),
+      pay("2025-06-14", { ticker: "HGLG11", kind: "RENDIMENTO", amount: 3.3 }),
+      pay("2024-06-14", { ticker: "HGLG11", kind: "RENDIMENTO", amount: 99 }),
+    ];
+    expect(sumNet(run(list))).toBe(115.57);
+  });
+
+  it("o bruto do JCP é sempre líquido ÷ 0,85, mesmo com bruto por cota arredondado", () => {
+    const r = run([
+      pay("2025-04-14", {
+        ticker: "PETR4",
+        kind: "JCP",
+        amount: 0.85,
+        quantity: 3,
+        perShare: 0.33,
+      }),
+    ]);
+    expect(r.exclusive[0]).toMatchObject({ net: 0.85, gross: 1, withheld: 0.15 });
+  });
+
   const cnpjOf = (t: string) =>
     t.startsWith("PETR") ? "33.000.167/0001-01" : t === "SEMCNPJ3" ? null : "00.000.000/0001-91";
   const classOf = (t: string) => (t.endsWith("11") ? ("FII" as const) : ("ACAO" as const));

@@ -1,4 +1,5 @@
 import type { AssetClass } from "@/features/market-data";
+import type { UnclassifiedDividend } from "./year-dividends";
 
 /** As duas classes que o app acompanha. */
 export type FiscalClass = AssetClass;
@@ -59,6 +60,7 @@ export type FiscalFlagCode =
   | "POSICAO_ANTERIOR"
   | "SALDO_PREJUIZO_NAO_INFORMADO"
   | "PROVENTO_REEMBOLSO"
+  | "PROVENTO_NAO_CLASSIFICADO"
   | "ALUGUEL_NAO_CLASSIFICADO"
   | "RETENCAO_DIVIDENDO_POSSIVEL"
   | "JCP_FORA_DA_FAIXA"
@@ -98,8 +100,8 @@ export type FiscalYearReport = {
   positions: AssetFiscalPosition[];
   exempt: DividendFiscalItem[];
   exclusive: DividendFiscalItem[];
-  /** Reembolso e aluguel: fora das fichas até o dono conferir. */
-  unclassified: { ticker: string; kind: string; month: string; amount: number }[];
+  /** Reembolso, aluguel e o que não cabe numa ficha: fora delas até o dono conferir. */
+  unclassified: UnclassifiedDividend[];
   apuration: {
     months: ApurationMonth[];
     darf: DarfMonth[];

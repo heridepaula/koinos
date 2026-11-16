@@ -95,8 +95,14 @@ describe("auditReport", () => {
       dividends: {
         ...noDividends,
         unclassified: [
-          { ticker: "TEST3", kind: "REEMBOLSO", month: "2025-05", amount: 12.5 },
-          { ticker: "ALUG3", kind: "ALUGUEL", month: "2025-06", amount: 3 },
+          {
+            ticker: "TEST3",
+            kind: "REEMBOLSO",
+            month: "2025-05",
+            amount: 12.5,
+            reason: "REEMBOLSO",
+          },
+          { ticker: "ALUG3", kind: "ALUGUEL", month: "2025-06", amount: 3, reason: "ALUGUEL" },
         ],
       },
     });
@@ -105,6 +111,30 @@ describe("auditReport", () => {
       ["ALUGUEL_NAO_CLASSIFICADO", "ATENCAO", "ALUG3", "2025-06"],
     ]);
     expect(r[0].message).toContain("12,50");
+  });
+
+  it("sem classe e tipo fora da ficha viram PROVENTO_NAO_CLASSIFICADO", () => {
+    const r = run({
+      dividends: {
+        ...noDividends,
+        unclassified: [
+          { ticker: "SEMC3", kind: "DIVIDENDO", month: "2025-05", amount: 7, reason: "SEM_CLASSE" },
+          {
+            ticker: "HGLG11",
+            kind: "JCP",
+            month: "2025-06",
+            amount: 3,
+            reason: "TIPO_FORA_DA_FICHA",
+          },
+        ],
+      },
+    });
+    expect(r.map((f) => [f.code, f.severity, f.ticker, f.month])).toEqual([
+      ["PROVENTO_NAO_CLASSIFICADO", "ATENCAO", "SEMC3", "2025-05"],
+      ["PROVENTO_NAO_CLASSIFICADO", "ATENCAO", "HGLG11", "2025-06"],
+    ]);
+    expect(r[0].message).toContain("7,00");
+    expect(r[0].message).toContain("2025-05");
   });
 
   it("JCP_FORA_DA_FAIXA: um achado por ticker", () => {
