@@ -5,6 +5,7 @@ export {
   getMyDividendForecast,
   getMyDividends,
   getMyTransactions,
+  listDividendsOf,
   listTransactionsOf,
 } from "./server/transactions-dal";
 export { listDividendTickers } from "./server/dividend-repo";

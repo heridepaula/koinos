@@ -2,3 +2,4 @@
 import "server-only";
 
 export { syncCnpjs, type CnpjSyncResult } from "./server/cvm-service";
+export { getTaxReportView } from "./server/tax-report-view";

@@ -11,6 +11,11 @@ export async function listTransactionsOf(tenant: Tenant): Promise<TransactionRec
   return listTransactions(tenant.portfolioId);
 }
 
+/** Proventos de um tenant (que só existe se veio da sessão), sem ids internos. */
+export async function listDividendsOf(tenant: Tenant): Promise<DividendEntry[]> {
+  return listDividends(tenant.portfolioId);
+}
+
 /** Lançamentos do usuário logado, para renderização. React.cache evita repetir na mesma requisição. */
 export const getMyTransactions = cache(async (): Promise<TransactionRecord[]> =>
   listTransactionsOf(await getTenant()),

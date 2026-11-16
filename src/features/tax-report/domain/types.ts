@@ -110,3 +110,15 @@ export type FiscalYearReport = {
   closingLoss: Record<FiscalClass, number>;
   findings: AuditFinding[];
 };
+
+/** O emissor de um ativo do relatório, para o dono conferir ou digitar o CNPJ. */
+export type TaxReportIdentity = AssetIdentity & { ticker: string };
+
+/** O que a tela `/imposto-de-renda` recebe: o relatório do ano, os anos com dados e as identidades. */
+export type TaxReportView = {
+  year: number;
+  /** Anos com lançamento ou provento, do mais recente ao mais antigo. */
+  years: number[];
+  report: FiscalYearReport;
+  identities: TaxReportIdentity[];
+};
