@@ -62,6 +62,24 @@ describe("acceptRewrite", () => {
       acceptRewrite(goodRewrite.replace("33.000.167/0001-01", "33.000.167/0001-02"), ref),
     ).toMatchObject({ ok: false });
   });
+  it("recusa o total e o preço médio trocados de lugar", () => {
+    const swapped =
+      "Possuo 200 ações da Petróleo Brasileiro S.A. (PETR4), CNPJ 33.000.167/0001-01, com custo total de aquisição de R$ 11,025 e preço médio de R$ 2.205,00.";
+    expect(acceptRewrite(swapped, ref)).toEqual({ ok: false, rule: "numero-fora-de-ordem" });
+  });
+  it("aceita outra frase com os números na mesma ordem", () => {
+    const other =
+      "Tenho 200 ações da Petróleo Brasileiro S.A. (PETR4), inscrita no CNPJ 33.000.167/0001-01; custo total de R$ 2.205,00 e preço médio de R$ 11,025.";
+    expect(acceptRewrite(other, ref)).toEqual({ ok: true });
+  });
+  it("recusa a quantidade repetida no texto", () => {
+    expect(
+      acceptRewrite(goodRewrite.replace("com custo", "ou seja, 200 ações, com custo"), ref),
+    ).toEqual({
+      ok: false,
+      rule: "numero-fora-de-ordem",
+    });
+  });
   it("recusa número faltando", () => {
     expect(acceptRewrite("Possuo ações da Petróleo (PETR4), com 200 unidades.", ref)).toEqual({
       ok: false,

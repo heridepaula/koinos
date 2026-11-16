@@ -58,8 +58,9 @@ export function numbersIn(text: string): string[] {
 }
 
 /**
- * A reescrita da discriminação de uma posição: vale se tiver todos os números do texto de modelo
- * fixo (`reference`) e nenhum fora dele. Recusa vazio, mais de 600 caracteres e texto sem acentos
+ * A reescrita da discriminação de uma posição: vale se tiver os números do texto de modelo fixo
+ * (`reference`), todos e só eles, na mesma ordem e com a mesma repetição (quantidade, CNPJ, custo
+ * total, preço médio). Recusa vazio, mais de 600 caracteres e texto sem acentos
  * quando a referência tem (o Flash-Lite às vezes os perde).
  */
 export function acceptRewrite(candidate: string, reference: string): NarrativeResult {
@@ -67,10 +68,16 @@ export function acceptRewrite(candidate: string, reference: string): NarrativeRe
   if (!text) return { ok: false, rule: "vazio" };
   if (text.length > NARRATIVE_LIMITS.position) return { ok: false, rule: "longo" };
   if (ACCENTED.test(reference) && !ACCENTED.test(text)) return { ok: false, rule: "sem-acento" };
-  const allowed = new Set(numbersIn(reference));
-  const found = new Set(numbersIn(text));
+  const expected = numbersIn(reference);
+  const actual = numbersIn(text);
+  const allowed = new Set(expected);
+  const found = new Set(actual);
   if ([...found].some((n) => !allowed.has(n))) return { ok: false, rule: "numero-extra" };
   if ([...allowed].some((n) => !found.has(n))) return { ok: false, rule: "numero-faltando" };
+  // Mesmos números, mas a sequência difere (total e preço médio trocados, número repetido).
+  if (actual.length !== expected.length || actual.some((n, i) => n !== expected[i])) {
+    return { ok: false, rule: "numero-fora-de-ordem" };
+  }
   return { ok: true };
 }
 
