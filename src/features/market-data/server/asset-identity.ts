@@ -10,6 +10,7 @@ export type StoredAssetIdentity = {
   legalName: string | null;
   cnpj: string | null;
   cnpjSource: "CVM_FCA" | "CVM_ISIN" | "MANUAL" | null;
+  subType: string | null;
 };
 
 export async function readAssetIdentities(
@@ -20,7 +21,7 @@ export async function readAssetIdentities(
   await connectMongo();
   const docs = await AssetModel.find(
     { _id: mongoose.trusted({ $in: unique }) },
-    { name: 1, legalName: 1, cnpj: 1, cnpjSource: 1 },
+    { name: 1, legalName: 1, cnpj: 1, cnpjSource: 1, subType: 1 },
   ).lean();
   return new Map(
     docs.map((doc) => [
@@ -30,6 +31,7 @@ export async function readAssetIdentities(
         legalName: doc.legalName ?? null,
         cnpj: doc.cnpj ?? null,
         cnpjSource: doc.cnpjSource ?? null,
+        subType: doc.subType ?? null,
       },
     ]),
   );

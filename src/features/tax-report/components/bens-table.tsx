@@ -10,6 +10,14 @@ import { CnpjField } from "./cnpj-field";
 import { CopyButton } from "./copy-button";
 import { CLASS_LABEL, Money, Qty, Seal } from "./parts";
 
+function CheckSeal() {
+  return (
+    <span className="mt-1 flex">
+      <Seal tone="warn">conferir o código no programa da Receita</Seal>
+    </span>
+  );
+}
+
 function flagSeals(position: AssetFiscalPosition) {
   return (
     <>
@@ -93,6 +101,7 @@ export function BensTable({
                   <span className="flex-1">Grupo e código</span>
                   <span className="text-right text-muted-foreground tabular-nums">
                     {p.receita.group} · {p.receita.code}
+                    {p.receita.needsCheck ? <CheckSeal /> : null}
                   </span>
                 </div>
                 <div className={insetRowClass(false)}>
@@ -152,6 +161,7 @@ export function BensTable({
                   </TableCell>
                   <TableCell className="tabular-nums">
                     {p.receita.group} · {p.receita.code}
+                    {p.receita.needsCheck ? <CheckSeal /> : null}
                   </TableCell>
                   <TableCell className="text-right tabular-nums">
                     <span className="grid">

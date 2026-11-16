@@ -108,7 +108,10 @@ export function buildAssetPositions(input: {
       quantity,
       cost,
       averagePrice,
-      receita: codes.bens[assetClass],
+      receita:
+        assetClass === "FII" && identity?.subType?.toLowerCase() === "fi-agro"
+          ? codes.fiagro
+          : codes.bens[assetClass],
       discrimination:
         quantity > 0
           ? discriminationOf({ assetClass, quantity, name, ticker, cnpj, cost, averagePrice })

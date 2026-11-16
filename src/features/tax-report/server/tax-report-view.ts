@@ -9,7 +9,13 @@ import { reportTickers, yearsWithActivity } from "../domain/report-view";
 import type { AssetIdentity, FiscalClass, TaxReportIdentity, TaxReportView } from "../domain/types";
 import { findOpeningLoss } from "./tax-loss-repo";
 
-const NO_IDENTITY: AssetIdentity = { name: null, legalName: null, cnpj: null, cnpjSource: null };
+const NO_IDENTITY: AssetIdentity = {
+  name: null,
+  legalName: null,
+  cnpj: null,
+  cnpjSource: null,
+  subType: null,
+};
 
 /**
  * O relatório de IR do ano para o usuário logado (spec 2026-11-16-relatorio-ir-design.md). Lê o

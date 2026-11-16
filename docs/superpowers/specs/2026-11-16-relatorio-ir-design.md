@@ -172,6 +172,7 @@ Critério de desempenho: 50 ativos em menos de 3,5 s (a spec original); o relat�
 5. Texto da Lei 15.270/2025: transição dos lucros apurados até 2025 e o que o relatório deve fazer para o ano-calendário 2026.
 5b. **Alíquota do JCP:** uma fonte cita 17,5% (LC 224/2025), não confirmada. Se a retenção mudou, `bruto = líquido ÷ 0,85` só vale até o ano-calendário 2025; tornar a alíquota constante por ano antes de declarar 2026. Também não está claro se a ficha de Tributação Exclusiva leva o JCP bruto ou o líquido: a tela mostra líquido, bruto e retido e manda conferir com o informe de rendimentos.
 5c. **Fiagro** é tratado como FII (Grupo 07, Código 03) e pode ter outro código na ficha: conferir.
+   Implementado: 07/02 com selo `needsCheck`; conferir no programa da Receita.
 5d. **Saldo inicial de prejuízo (decisão do dono, 2026-11-16):** é o saldo anterior a nov/2019, o primeiro mês do livro-razão; a apuração soma os prejuízos dali em diante. O rótulo do formulário diz isso.
 6. (Resolvida) PDF pelo navegador, export completo no modo privado, corretora fora do texto.
 7. **Entrega em dois passos (decisão do dono), no mesmo contrato de dados:** passo 1 = CNPJ, Bens e Direitos, proventos, auditoria, Gemini, exportação e a apuração mensal com saldo inicial e compensação por classe, **sem** day trade e **sem** IRRF (`irrfEstimated` nulo, vendas de day trade sinalizadas `DAY_TRADE_NAO_APURADO` e a tela avisa); passo 2 = day trade e IRRF. Cada passo tem plano e testes próprios.

@@ -2,6 +2,8 @@ import type { FiscalClass, ReceitaCode } from "./types";
 
 export type ReceitaCodes = {
   bens: Record<FiscalClass, ReceitaCode>;
+  /** Fiagro: classe FII na apuração, mas código próprio de Bens e Direitos. */
+  fiagro: ReceitaCode;
   dividendo: ReceitaCode;
   rendimentoFii: ReceitaCode;
   jcp: ReceitaCode;
@@ -17,6 +19,15 @@ const CODES: Record<number, ReceitaCodes> = {
     bens: {
       ACAO: { group: "03", code: "01", label: "Participações societárias: ações" },
       FII: { group: "07", code: "03", label: "Fundos: Fundo de Investimento Imobiliário (FII)" },
+    },
+    // Fonte divergente (consulta de 2026-11-16): a maioria dá Grupo 07, Código 02 para o Fiagro
+    // (a tabela do InvestNews de 2022 lista "02 – Fiagro" e "03 – FII"), uma dá 03. Falta
+    // conferir no programa do ano.
+    fiagro: {
+      group: "07",
+      code: "02",
+      label: "Fundos: Fundo de Investimento nas Cadeias Produtivas Agroindustriais (Fiagro)",
+      needsCheck: true,
     },
     dividendo: { group: "Isentos", code: "09", label: "Lucros e dividendos recebidos" },
     rendimentoFii: {

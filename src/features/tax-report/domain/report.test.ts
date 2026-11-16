@@ -23,9 +23,15 @@ const assetClasses = new Map<string, FiscalClass>([
 const identities = new Map<string, AssetIdentity>([
   [
     "TEST3",
-    { name: "Teste", legalName: "TESTE S.A.", cnpj: "11222333000181", cnpjSource: "MANUAL" },
+    {
+      name: "Teste",
+      legalName: "TESTE S.A.",
+      cnpj: "11222333000181",
+      cnpjSource: "MANUAL",
+      subType: null,
+    },
   ],
-  ["TSTF11", { name: "Fundo", legalName: null, cnpj: null, cnpjSource: null }],
+  ["TSTF11", { name: "Fundo", legalName: null, cnpj: null, cnpjSource: null, subType: null }],
 ]);
 
 // Cenário de 2025: compra de 400 TEST3 a 100 (40.000), venda de 300 a 120 em março (vendido 36.000,

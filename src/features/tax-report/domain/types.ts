@@ -12,6 +12,8 @@ export type AssetIdentity = {
   legalName: string | null;
   cnpj: string | null;
   cnpjSource: CnpjSource | null;
+  /** Subtipo do catálogo (`fi-agro`, `fii`…): o Fiagro tem outro código de Bens e Direitos. */
+  subType: string | null;
 };
 
 export type ReceitaCode = { group: string; code: string; label: string; needsCheck?: boolean };
