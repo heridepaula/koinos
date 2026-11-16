@@ -6,8 +6,10 @@ import { buildAssetPositions, discriminationOf } from "./year-end-positions";
 const day = (iso: string) => new Date(`${iso}T00:00:00Z`);
 let seq = 0;
 function entry(
-  p: Partial<LedgerEntry> &
-    Pick<LedgerEntry, "ticker" | "type" | "quantity" | "unitPrice" | "date">,
+  p: Partial<LedgerEntry> & { relatedTicker?: string | null } & Pick<
+      LedgerEntry,
+      "ticker" | "type" | "quantity" | "unitPrice" | "date"
+    >,
 ): LedgerEntry & { priceSource?: "ESTIMADO" | null } {
   seq += 1;
   return { id: `e${seq}`, fees: 0, createdAt: new Date(2020, 0, 1, 0, 0, seq), ...p };
@@ -26,6 +28,124 @@ const classes = new Map([
 ]);
 
 describe("buildAssetPositions", () => {
+  it("desdobro sobe a quantidade e mantém o custo total", () => {
+    const entries = [
+      entry({
+        ticker: "TEST3",
+        type: "BUY",
+        quantity: 100,
+        unitPrice: 10,
+        date: day("2025-01-10"),
+      }),
+      entry({
+        ticker: "TEST3",
+        type: "BUY",
+        quantity: 100,
+        unitPrice: 0,
+        kind: "DESDOBRO",
+        date: day("2025-06-10"),
+      }),
+    ];
+    const [p] = buildAssetPositions({
+      year: 2025,
+      entries,
+      assetClasses: classes,
+      identities: new Map(),
+    });
+    expect(p.quantity).toBe(200);
+    expect(p.cost).toBeCloseTo(1000, 6);
+    expect(p.averagePrice).toBeCloseTo(5, 6);
+  });
+
+  it("incorporação: a origem fecha no ano e o destino leva o custo dela", () => {
+    const entries = [
+      entry({
+        ticker: "TSTF11",
+        type: "BUY",
+        quantity: 10,
+        unitPrice: 100,
+        date: day("2024-05-01"),
+      }),
+      entry({
+        ticker: "TSTF11",
+        type: "SELL",
+        quantity: 10,
+        unitPrice: 100,
+        kind: "INCORPORACAO",
+        relatedTicker: "NEWF11",
+        date: day("2025-05-01"),
+      }),
+      entry({
+        ticker: "NEWF11",
+        type: "BUY",
+        quantity: 8,
+        unitPrice: 125,
+        kind: "INCORPORACAO",
+        relatedTicker: "TSTF11",
+        date: day("2025-05-01"),
+      }),
+    ];
+    const rows = buildAssetPositions({
+      year: 2025,
+      entries,
+      assetClasses: new Map([
+        ["TSTF11", "FII" as const],
+        ["NEWF11", "FII" as const],
+      ]),
+      identities: new Map(),
+    });
+    const origin = rows.find((r) => r.ticker === "TSTF11")!;
+    const dest = rows.find((r) => r.ticker === "NEWF11")!;
+    expect(origin.closedInYear).toBe(true);
+    expect(dest.quantity).toBe(8);
+    expect(dest.cost).toBeCloseTo(1000, 6);
+  });
+
+  it("o destino de uma incorporação herda PRECO_ESTIMADO da origem (também em cadeia)", () => {
+    const base = (ticker: string, related: string, iso: string) => [
+      entry({
+        ticker: related,
+        type: "SELL",
+        quantity: 10,
+        unitPrice: 100,
+        kind: "INCORPORACAO",
+        relatedTicker: ticker,
+        date: day(iso),
+      }),
+      entry({
+        ticker,
+        type: "BUY",
+        quantity: 10,
+        unitPrice: 100,
+        kind: "INCORPORACAO",
+        relatedTicker: related,
+        date: day(iso),
+      }),
+    ];
+    const entries = [
+      {
+        ...entry({
+          ticker: "AAAA11",
+          type: "BUY",
+          quantity: 10,
+          unitPrice: 100,
+          date: day("2023-01-02"),
+        }),
+        priceSource: "ESTIMADO" as const,
+      },
+      ...base("BBBB11", "AAAA11", "2024-02-01"),
+      ...base("CCCC11", "BBBB11", "2025-02-01"),
+    ];
+    const rows = buildAssetPositions({
+      year: 2025,
+      entries,
+      assetClasses: new Map(["AAAA11", "BBBB11", "CCCC11"].map((t) => [t, "FII" as const])),
+      identities: new Map(),
+    });
+    expect(rows.find((r) => r.ticker === "CCCC11")!.flags).toContain("PRECO_ESTIMADO");
+    expect(rows.find((r) => r.ticker === "BBBB11")!.flags).toContain("PRECO_ESTIMADO");
+  });
+
   it("custo inclui taxas e a coluna anterior é a foto do ano passado", () => {
     const entries = [
       entry({

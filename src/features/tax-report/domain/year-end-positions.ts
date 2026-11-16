@@ -6,7 +6,34 @@ import type { AssetFiscalPosition, AssetIdentity, FiscalClass, PositionFlag } fr
 
 const EPSILON = 1e-9;
 
-export type TaxLedgerEntry = LedgerEntry & { priceSource?: PriceSource | null };
+export type TaxLedgerEntry = LedgerEntry & {
+  priceSource?: PriceSource | null;
+  relatedTicker?: string | null;
+};
+
+/**
+ * Tickers com preço de compra estimado, direto ou herdado: o destino de uma incorporação recebe o
+ * custo da origem, e com ele a estimativa (mesma regra de `closed-positions.ts`, em cadeia A → B → C).
+ */
+function estimatedTickers(entries: readonly TaxLedgerEntry[]): Set<string> {
+  const estimated = new Set(
+    entries.filter((e) => e.type === "BUY" && e.priceSource === "ESTIMADO").map((e) => e.ticker),
+  );
+  const incorporations = entries.filter(
+    (e) => e.type === "BUY" && e.kind === "INCORPORACAO" && e.relatedTicker,
+  );
+  let grew = true;
+  while (grew) {
+    grew = false;
+    for (const e of incorporations) {
+      if (estimated.has(e.relatedTicker!) && !estimated.has(e.ticker)) {
+        estimated.add(e.ticker);
+        grew = true;
+      }
+    }
+  }
+  return estimated;
+}
 
 const endOfYear = (year: number) => Date.UTC(year, 11, 31);
 
@@ -49,6 +76,7 @@ export function buildAssetPositions(input: {
   const current = positionsAt(entries, year);
   const codes = receitaCodesFor(year);
   const cutoff = endOfYear(year);
+  const estimated = estimatedTickers(entries.filter((e) => e.date.getTime() <= cutoff));
   const rows: AssetFiscalPosition[] = [];
 
   for (const ticker of new Set([...previous.keys(), ...current.keys()])) {
@@ -62,8 +90,7 @@ export function buildAssetPositions(input: {
 
     const own = entries.filter((e) => e.ticker === ticker && e.date.getTime() <= cutoff);
     const flags: PositionFlag[] = [];
-    if (own.some((e) => e.type === "BUY" && e.priceSource === "ESTIMADO"))
-      flags.push("PRECO_ESTIMADO");
+    if (estimated.has(ticker)) flags.push("PRECO_ESTIMADO");
     if (own.some((e) => e.kind === "POSICAO_ANTERIOR")) flags.push("POSICAO_ANTERIOR");
 
     const identity = identities.get(ticker);
