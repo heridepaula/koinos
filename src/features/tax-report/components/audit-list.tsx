@@ -121,7 +121,8 @@ export function AuditList({
         <CardHeader>
           <CardTitle>Pendências</CardTitle>
           <CardDescription>O que falta para os números do ano ficarem completos.</CardDescription>
-          <CardAction>
+          {/* Abaixo de 480 px de cabeçalho o botão desce para a própria linha, sob a descrição. */}
+          <CardAction className="col-start-1 row-span-1 row-start-3 mt-2 justify-self-start @min-[480px]/card-header:col-start-2 @min-[480px]/card-header:row-span-2 @min-[480px]/card-header:row-start-1 @min-[480px]/card-header:mt-0 @min-[480px]/card-header:justify-self-end">
             <GenerateNarrativesButton year={report.year} narratives={narratives} />
           </CardAction>
         </CardHeader>
