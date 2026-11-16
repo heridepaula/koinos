@@ -307,42 +307,42 @@ describe("discriminationOf", () => {
     );
     expect(discriminationOf({ ...base, cnpj: null })).toBeNull();
   });
+});
 
-  describe("código de Bens e Direitos do Fiagro", () => {
-    const buy = [
-      entry({
-        ticker: "TSTF11",
-        type: "BUY",
-        quantity: 10,
-        unitPrice: 10,
-        date: day("2025-01-10"),
-      }),
-    ];
-    const run = (identities: Map<string, AssetIdentity>) =>
-      buildAssetPositions({ year: 2025, entries: buy, assetClasses: classes, identities })[0];
+describe("código de Bens e Direitos do Fiagro", () => {
+  const buy = [
+    entry({
+      ticker: "TSTF11",
+      type: "BUY",
+      quantity: 10,
+      unitPrice: 10,
+      date: day("2025-01-10"),
+    }),
+  ];
+  const run = (identities: Map<string, AssetIdentity>) =>
+    buildAssetPositions({ year: 2025, entries: buy, assetClasses: classes, identities })[0];
 
-    it("fi-agro usa 07/02 com selo needsCheck e segue como classe FII", () => {
-      const p = run(new Map([["TSTF11", { ...ident("11222333000181"), subType: "fi-agro" }]]));
-      expect(p.receita).toMatchObject({ group: "07", code: "02", needsCheck: true });
-      expect(p.assetClass).toBe("FII");
-    });
+  it("fi-agro usa 07/02 com selo needsCheck e segue como classe FII", () => {
+    const p = run(new Map([["TSTF11", { ...ident("11222333000181"), subType: "fi-agro" }]]));
+    expect(p.receita).toMatchObject({ group: "07", code: "02", needsCheck: true });
+    expect(p.assetClass).toBe("FII");
+  });
 
-    it("subType em outra caixa também vale", () => {
-      const p = run(new Map([["TSTF11", { ...ident(null), subType: "FI-AGRO" }]]));
-      expect(p.receita).toMatchObject({ group: "07", code: "02", needsCheck: true });
-    });
+  it("subType em outra caixa também vale", () => {
+    const p = run(new Map([["TSTF11", { ...ident(null), subType: "FI-AGRO" }]]));
+    expect(p.receita).toMatchObject({ group: "07", code: "02", needsCheck: true });
+  });
 
-    it("FII comum continua 07/03 sem needsCheck", () => {
-      const p = run(new Map([["TSTF11", { ...ident(null), subType: "fii" }]]));
-      expect(p.receita.group).toBe("07");
-      expect(p.receita.code).toBe("03");
-      expect(p.receita.needsCheck).toBeUndefined();
-    });
+  it("FII comum continua 07/03 sem needsCheck", () => {
+    const p = run(new Map([["TSTF11", { ...ident(null), subType: "fii" }]]));
+    expect(p.receita.group).toBe("07");
+    expect(p.receita.code).toBe("03");
+    expect(p.receita.needsCheck).toBeUndefined();
+  });
 
-    it("sem identidade volta ao código do FII", () => {
-      const p = run(new Map());
-      expect(p.receita.code).toBe("03");
-      expect(p.receita.needsCheck).toBeUndefined();
-    });
+  it("sem identidade volta ao código do FII", () => {
+    const p = run(new Map());
+    expect(p.receita.code).toBe("03");
+    expect(p.receita.needsCheck).toBeUndefined();
   });
 });
