@@ -5,6 +5,8 @@ export {
   closedPositions,
   estimateCapitalGainsTax,
   FII_CAPITAL_GAINS_RATE,
+  STOCK_CAPITAL_GAINS_RATE,
+  STOCK_EXEMPTION_LIMIT,
   summarizeClosedPositions,
   type ClosedLedgerEntry,
 } from "./domain/closed-positions";
