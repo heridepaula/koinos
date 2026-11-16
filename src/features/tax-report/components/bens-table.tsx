@@ -106,16 +106,14 @@ export function BensTable({
                     <Money value={p.cost} />
                   </span>
                 </div>
-                {p.closedInYear ? null : (
-                  <div className={`${insetRowClass(false)} flex-col items-stretch py-3`}>
-                    <span className="text-footnote text-muted-foreground">CNPJ do emissor</span>
-                    <CnpjField
-                      ticker={p.ticker}
-                      cnpj={p.cnpj}
-                      source={identity?.cnpjSource ?? null}
-                    />
-                  </div>
-                )}
+                <div className={`${insetRowClass(false)} flex-col items-stretch py-3`}>
+                  <span className="text-footnote text-muted-foreground">CNPJ do emissor</span>
+                  <CnpjField
+                    ticker={p.ticker}
+                    cnpj={p.cnpj}
+                    source={identity?.cnpjSource ?? null}
+                  />
+                </div>
                 <div className={`${insetRowClass(false)} flex-col items-stretch py-3`}>
                   <span className="text-footnote text-muted-foreground">Discriminação</span>
                   <Discrimination position={p} />
@@ -171,21 +169,15 @@ export function BensTable({
                 </TableRow>
                 <TableRow className="border-0 hover:bg-transparent">
                   <TableCell colSpan={4} className="px-(--card-spacing) pb-4 whitespace-normal">
-                    <div
-                      className={`grid gap-3 ${p.closedInYear ? "" : "@min-[1000px]:grid-cols-[minmax(0,16rem)_minmax(0,1fr)]"}`}
-                    >
-                      {p.closedInYear ? null : (
-                        <div className="grid content-start gap-1">
-                          <span className="text-footnote text-muted-foreground">
-                            CNPJ do emissor
-                          </span>
-                          <CnpjField
-                            ticker={p.ticker}
-                            cnpj={p.cnpj}
-                            source={identity?.cnpjSource ?? null}
-                          />
-                        </div>
-                      )}
+                    <div className="grid gap-3 @min-[1000px]:grid-cols-[minmax(0,16rem)_minmax(0,1fr)]">
+                      <div className="grid content-start gap-1">
+                        <span className="text-footnote text-muted-foreground">CNPJ do emissor</span>
+                        <CnpjField
+                          ticker={p.ticker}
+                          cnpj={p.cnpj}
+                          source={identity?.cnpjSource ?? null}
+                        />
+                      </div>
                       <div className="grid content-start gap-1">
                         <span className="text-footnote text-muted-foreground">Discriminação</span>
                         <Discrimination position={p} />
