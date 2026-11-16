@@ -78,7 +78,41 @@ export function acceptRewrite(candidate: string, reference: string): NarrativeRe
   if (actual.length !== expected.length || actual.some((n, i) => n !== expected[i])) {
     return { ok: false, rule: "numero-fora-de-ordem" };
   }
+  if (!keepsLabels(text, reference)) return { ok: false, rule: "rotulo-trocado" };
   return { ok: true };
+}
+
+/** Minúsculas e sem acento, para comparar rótulos ("Preço médio" casa com "preco medio"). */
+const fold = (s: string) => s.normalize("NFD").replace(/\p{M}/gu, "").toLowerCase();
+const escapeRegex = (s: string) => s.replace(/[.*+?^${}()|[\]\\/]/g, String.raw`\$&`);
+
+const REF_COST = /CUSTO TOTAL DE AQUISIÇÃO: R\$ ([\d.,]*\d) \(PREÇO MÉDIO DE R\$ ([\d.,]*\d)\)/i;
+const REF_CNPJ = /CNPJ (\d{2}\.\d{3}\.\d{3}\/\d{4}-\d{2})/i;
+
+/**
+ * Cada valor do modelo fixo precisa vir logo depois do rótulo certo: o custo total depois de
+ * "custo total" (até 60 caracteres sem dígito), o preço médio depois de "preço médio" (até 40) e o
+ * CNPJ depois de "CNPJ" (até 10). Referência sem esses rótulos: nada a conferir.
+ */
+function keepsLabels(text: string, reference: string): boolean {
+  const folded = fold(text);
+  const cost = REF_COST.exec(reference);
+  if (cost) {
+    const [, total, average] = cost;
+    const after = String.raw`(?!\d|[.,]\d)`;
+    const totalAfterLabel = new RegExp(
+      String.raw`custo total\D{0,60}?r\$\s*${escapeRegex(total)}${after}`,
+    );
+    const averageAfterLabel = new RegExp(
+      String.raw`preco medio\D{0,40}?r\$\s*${escapeRegex(average)}${after}`,
+    );
+    if (!totalAfterLabel.test(folded) || !averageAfterLabel.test(folded)) return false;
+  }
+  const cnpj = REF_CNPJ.exec(reference);
+  if (cnpj && !new RegExp(String.raw`cnpj.{0,10}?${escapeRegex(cnpj[1])}`).test(folded)) {
+    return false;
+  }
+  return true;
 }
 
 /** A narrativa de um tipo de achado: sem dígito algum, até 300 caracteres, com acentos. */

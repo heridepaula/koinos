@@ -87,6 +87,41 @@ describe("acceptRewrite", () => {
       rule: "numero-faltando",
     });
   });
+
+  describe("rótulos", () => {
+    it("recusa os rótulos trocados com os números na mesma ordem", () => {
+      const swapped =
+        "Possuo 200 ações da Petróleo Brasileiro S.A. (PETR4), CNPJ 33.000.167/0001-01, com preço médio de R$ 2.205,00 e custo total de R$ 11,025.";
+      expect(acceptRewrite(swapped, ref)).toEqual({ ok: false, rule: "rotulo-trocado" });
+    });
+    it("aceita a redação certa com outra frase", () => {
+      const other =
+        "Possuo 200 ações da Petróleo Brasileiro S.A. (PETR4), CNPJ 33.000.167/0001-01. Custo total de aquisição de R$ 2.205,00, com preço médio de R$ 11,025.";
+      expect(acceptRewrite(other, ref)).toEqual({ ok: true });
+    });
+    it("recusa o CNPJ sem o rótulo CNPJ antes", () => {
+      const noLabel =
+        "Possuo 200 ações da Petróleo Brasileiro S.A. (PETR4), inscrita sob o número 33.000.167/0001-01, com custo total de aquisição de R$ 2.205,00 e preço médio de R$ 11,025.";
+      expect(acceptRewrite(noLabel, ref)).toEqual({ ok: false, rule: "rotulo-trocado" });
+    });
+    it("recusa o total repetido depois do rótulo errado", () => {
+      const repeated =
+        "Possuo 200 ações da Petróleo Brasileiro S.A. (PETR4), CNPJ 33.000.167/0001-01, com preço médio de R$ 2.205,00 e custo total de R$ 2.205,00 e R$ 11,025.";
+      expect(acceptRewrite(repeated, ref).ok).toBe(false);
+    });
+    it("recusa o valor longe do rótulo", () => {
+      const far = goodRewrite.replace(
+        "custo total de aquisição de R$",
+        "custo total de aquisição, que reúne todas as compras feitas ao longo dos anos pelo investidor, de R$",
+      );
+      expect(acceptRewrite(far, ref)).toEqual({ ok: false, rule: "rotulo-trocado" });
+    });
+    it("mantém só as regras numéricas sem esses rótulos na referência", () => {
+      expect(acceptRewrite("Tenho 10 cotas a 5,00.", "10 COTAS A R$ 5,00.")).toEqual({
+        ok: true,
+      });
+    });
+  });
 });
 
 describe("acceptCodeNarrative", () => {
