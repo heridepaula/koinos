@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { connection } from "next/server";
 import { Suspense } from "react";
 import { resolveReportYear } from "@/features/tax-report";
 import { getTaxReportView } from "@/features/tax-report/server";
@@ -29,7 +30,9 @@ async function TaxReportContent({
   searchParams,
 }: Pick<PageProps<"/imposto-de-renda">, "searchParams">) {
   const { ano } = await searchParams;
-  // A data de hoje só existe aqui dentro: no shell estático ela não pode ser lida.
+  // A data de hoje só existe em tempo de requisição: sem `connection()` antes, o prerender recusa
+  // o `new Date()` e a página volta para o Dashboard.
+  await connection();
   const year = resolveReportYear(ano, new Date());
   const view = await getTaxReportView(year);
   return <TaxReportPanel view={view} />;

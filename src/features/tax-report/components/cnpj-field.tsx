@@ -72,7 +72,7 @@ export function CnpjField({
       }}
     >
       <label htmlFor={inputId} className="text-footnote text-muted-foreground">
-        {cnpj ? "Novo CNPJ do emissor" : "CNPJ do emissor (a CVM não casou este ativo)"}
+        {cnpj ? "Novo CNPJ do emissor" : "Digite os 14 números do CNPJ"}
       </label>
       <div className="flex flex-wrap items-center gap-2">
         <Input
