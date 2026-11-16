@@ -21,5 +21,6 @@ export const config = {
     "/recomendacoes/:path*",
     "/ativos/:path*",
     "/independencia/:path*",
+    "/imposto-de-renda/:path*",
   ],
 };

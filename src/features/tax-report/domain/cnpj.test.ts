@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { digitsOf, formatCnpj, isValidCnpj } from "./cnpj";
+import { digitsOf, formatCnpj, isValidCnpj, maskCnpj } from "./cnpj";
 
 describe("isValidCnpj", () => {
   it("aceita CNPJs reais, com ou sem máscara", () => {
@@ -20,5 +20,21 @@ describe("formatCnpj e digitsOf", () => {
     expect(formatCnpj("33000167000101")).toBe("33.000.167/0001-01");
     expect(formatCnpj("123")).toBe("123");
     expect(digitsOf("33.000.167/0001-01")).toBe("33000167000101");
+  });
+});
+
+describe("maskCnpj", () => {
+  it("põe a máscara aos poucos, enquanto se digita", () => {
+    expect(maskCnpj("")).toBe("");
+    expect(maskCnpj("33")).toBe("33");
+    expect(maskCnpj("33000")).toBe("33.000");
+    expect(maskCnpj("33000167")).toBe("33.000.167");
+    expect(maskCnpj("330001670001")).toBe("33.000.167/0001");
+    expect(maskCnpj("33000167000101")).toBe("33.000.167/0001-01");
+  });
+
+  it("ignora o que não é dígito e o que passa de 14", () => {
+    expect(maskCnpj("33.000.167/0001-01 99")).toBe("33.000.167/0001-01");
+    expect(maskCnpj("ab")).toBe("");
   });
 });

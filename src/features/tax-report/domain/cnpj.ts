@@ -26,3 +26,15 @@ export function formatCnpj(value: string): string {
   if (d.length !== 14) return value;
   return d.replace(/^(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})$/, "$1.$2.$3/$4-$5");
 }
+
+/** A máscara do CNPJ enquanto se digita: `33000` → `33.000`; só os 14 primeiros dígitos contam. */
+export function maskCnpj(value: string): string {
+  const d = digitsOf(value).slice(0, 14);
+  const parts = [d.slice(0, 2), d.slice(2, 5), d.slice(5, 8), d.slice(8, 12), d.slice(12, 14)];
+  let out = parts[0];
+  if (parts[1]) out += `.${parts[1]}`;
+  if (parts[2]) out += `.${parts[2]}`;
+  if (parts[3]) out += `/${parts[3]}`;
+  if (parts[4]) out += `-${parts[4]}`;
+  return out;
+}

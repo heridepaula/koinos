@@ -2,6 +2,7 @@ import {
   ArchiveIcon,
   ArrowLeftRightIcon,
   ChartLineIcon,
+  FileTextIcon,
   FlagIcon,
   HandCoinsIcon,
   LayoutDashboardIcon,
@@ -113,6 +114,13 @@ export const NAV_ITEMS: readonly NavItem[] = [
     label: "Atualização B3",
     icon: RefreshCwIcon,
     tile: "[--tile:var(--tile-indigo)]",
+  },
+  {
+    href: "/imposto-de-renda",
+    group: "registros",
+    label: "Imposto de Renda",
+    icon: FileTextIcon,
+    tile: "[--tile:var(--tile-orange)]",
   },
 ];
 

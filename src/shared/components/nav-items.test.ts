@@ -8,7 +8,7 @@ describe("navGroups", () => {
     expect(navGroups().map((group) => [group.label, hrefs(group.items)])).toEqual([
       ["Carteira", ["/dashboard", "/ativos", "/proventos", "/independencia"]],
       ["Aporte", ["/recomendacoes", "/carteira-alvo"]],
-      ["Registros", ["/transacoes", "/encerradas", "/atualizacao-b3"]],
+      ["Registros", ["/transacoes", "/encerradas", "/atualizacao-b3", "/imposto-de-renda"]],
     ]);
   });
 
@@ -22,7 +22,7 @@ describe("navGroups", () => {
     expect(more.map((group) => [group.label, hrefs(group.items)])).toEqual([
       ["Carteira", ["/ativos", "/independencia"]],
       ["Aporte", ["/carteira-alvo"]],
-      ["Registros", ["/transacoes", "/encerradas", "/atualizacao-b3"]],
+      ["Registros", ["/transacoes", "/encerradas", "/atualizacao-b3", "/imposto-de-renda"]],
     ]);
   });
 
