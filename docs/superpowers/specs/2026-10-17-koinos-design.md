@@ -241,10 +241,11 @@ O pregão da B3 vai de segunda a sexta, das 10:00 às 18:00 em `America/Sao_Paul
 
 ### 6.5 Gatilhos
 
-- **Páginas** (dashboard, carteira alvo, recomendações):
-  - O servidor manda quantas cotações estão vencidas entre os tickers em carteira e na Carteira Alvo.
-  - Se houver alguma, `QuoteRefresher` chama `refreshQuotesAction` uma vez (TanStack Query `useMutation`) e, ao terminar, atualiza a rota.
-  - O cabeçalho mostra "Cotações de HH:mm" e "atualizando…".
+- **Relógio no navegador** (spec `2026-11-16-atualizacao-automatica-cotacoes-design.md`):
+  - `QuoteClock`, no layout `(app)`, agenda um `setTimeout` para `nextQuoteRefreshAt` (30 min e 1 s depois da última cotação no pregão; a abertura seguinte fora dele) e chama `refreshMyQuotesAction`. O Next re-renderiza só o que mudou, sem recarregar o documento.
+  - Depois de uma tentativa sem cotação nova, recua 5 min (dobra até 30). Aba oculta não dispara; sem interação há 60 min também não (a action renovaria a sessão). A falha automática é silenciosa; sessão expirada para o relógio.
+  - Se outra aba ou o cron gravaram antes, a action devolve `lastFetchedAt` e o cliente faz `router.refresh()` quando a tela está atrás (`needsRerender`).
+  - `QuoteRefresher`, nas telas com o selo, mostra "Cotações de HH:mm" e "atualizando…" e tem o botão manual, que ignora o recuo.
 - **Cron diário:** `vercel.json` com `{"path": "/api/cron/daily", "schedule": "0 22 * * 1-5"}` (19:00 em Brasília). A rota exige `Authorization: Bearer CRON_SECRET` e:
   1. atualiza as cotações de todos os tickers em carteira ou em alguma Carteira Alvo, de qualquer usuário;
   2. atualiza `dy12m` (soma dos rendimentos dos últimos 12 meses ÷ preço) e `lastDividend`;
