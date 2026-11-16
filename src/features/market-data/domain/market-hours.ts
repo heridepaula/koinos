@@ -114,3 +114,38 @@ export function isQuoteStale(fetchedAt: Date | null | undefined, now: Date): boo
   if (isTradingWindow(now)) return now.getTime() - fetchedAt.getTime() > QUOTE_MAX_AGE_MS;
   return fetchedAt.getTime() < lastCloseAtOrBefore(now).getTime();
 }
+
+/** Próxima abertura (10:00 em São Paulo de um dia útil) estritamente depois de `now`. */
+function nextOpenAfter(now: Date): Date {
+  const today = saoPauloParts(now);
+  for (let daysAhead = 0; daysAhead <= 7; daysAhead++) {
+    const day = new Date(Date.UTC(today.year, today.month - 1, today.day + daysAhead, 12));
+    if (!isWeekday(day.getUTCDay())) continue;
+    const open = saoPauloToUtc(
+      day.getUTCFullYear(),
+      day.getUTCMonth() + 1,
+      day.getUTCDate(),
+      10,
+      0,
+    );
+    if (open.getTime() > now.getTime()) return open;
+  }
+  return new Date(now.getTime() + 86_400_000);
+}
+
+/**
+ * Quando o navegador deve buscar cotações de novo; sempre um instante em que `isQuoteStale` é
+ * verdadeiro, para a rodada não ser perdida.
+ * - Vencida agora (ou sem cotação): agora. Fora do pregão isso é uma busca só, para fechar o dia.
+ * - No pregão: 30 min e 1 s depois da busca (a regra é "mais de 30 min"), limitado ao fim da
+ *   janela (18:30), quando a cotação anterior ao fechamento já vence pela outra regra.
+ * - Fora do pregão e em dia: a próxima abertura. Feriados não são tratados.
+ */
+export function nextQuoteRefreshAt(fetchedAt: Date | null, now: Date): Date {
+  if (isQuoteStale(fetchedAt, now)) return now;
+  if (!isTradingWindow(now)) return nextOpenAfter(now);
+  const today = saoPauloParts(now);
+  const windowEnd = saoPauloToUtc(today.year, today.month, today.day, 18, 30);
+  const due = new Date(fetchedAt!.getTime() + QUOTE_MAX_AGE_MS + 1000);
+  return due.getTime() < windowEnd.getTime() ? due : windowEnd;
+}

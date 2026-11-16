@@ -6,6 +6,7 @@ export {
   isTradingWindow,
   lastCloseAtOrBefore,
   marketSession,
+  nextQuoteRefreshAt,
   QUOTE_MAX_AGE_MS,
   quoteSessionDate,
   type MarketSession,
@@ -49,3 +50,11 @@ export {
   type TrackedTitle,
   type TreasurySeriesPoint,
 } from "./domain/treasury-rates";
+export {
+  BACKOFF_INITIAL_MS,
+  BACKOFF_MAX_MS,
+  IDLE_LIMIT_MS,
+  isIdle,
+  needsRerender,
+  nextBackoffMs,
+} from "./domain/quote-clock";

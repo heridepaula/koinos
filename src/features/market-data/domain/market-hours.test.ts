@@ -1,5 +1,12 @@
 import { describe, expect, it } from "vitest";
-import { dayChangeLabel, isMarketOpen, marketSession, quoteSessionDate } from "./market-hours";
+import {
+  dayChangeLabel,
+  isMarketOpen,
+  isQuoteStale,
+  marketSession,
+  nextQuoteRefreshAt,
+  quoteSessionDate,
+} from "./market-hours";
 
 // São Paulo é UTC−3 o ano todo (sem horário de verão desde 2019).
 const sp = (iso: string) => new Date(`${iso}-03:00`);
@@ -67,5 +74,63 @@ describe("marketSession e dayChangeLabel", () => {
     const session = marketSession(sp("2026-11-07T14:00"), null);
     expect(session.sessionDate).toBeNull();
     expect(session.today).toBe(false);
+  });
+});
+
+describe("nextQuoteRefreshAt", () => {
+  // Disparar nesse instante tem que encontrar a cotação vencida, senão a rodada se perde.
+  const expectStaleAt = (fetchedAt: Date | null, now: Date) => {
+    const next = nextQuoteRefreshAt(fetchedAt, now);
+    expect(isQuoteStale(fetchedAt, next)).toBe(true);
+    return next;
+  };
+
+  it("no pregão, 30 min e 1 s depois da busca", () => {
+    const next = expectStaleAt(sp("2026-11-06T10:00"), sp("2026-11-06T10:05"));
+    expect(next).toEqual(sp("2026-11-06T10:30:01"));
+  });
+
+  it("no pregão, sem cotação ou já vencida, é agora", () => {
+    const now = sp("2026-11-06T11:00");
+    expect(expectStaleAt(null, now)).toEqual(now);
+    expect(expectStaleAt(sp("2026-11-06T10:00"), now)).toEqual(now);
+  });
+
+  it("às 17:59 espera até 18:29:01, ainda dentro da janela", () => {
+    const next = expectStaleAt(sp("2026-11-06T17:59"), sp("2026-11-06T18:00"));
+    expect(next).toEqual(sp("2026-11-06T18:29:01"));
+  });
+
+  it("uma busca às 18:29 vence no fim da janela (18:30)", () => {
+    const next = expectStaleAt(sp("2026-11-06T18:29"), sp("2026-11-06T18:29:30"));
+    expect(next).toEqual(sp("2026-11-06T18:30"));
+  });
+
+  it("a cotação das 18:30, em dia: a abertura do próximo dia útil", () => {
+    const next = expectStaleAt(sp("2026-11-06T18:30"), sp("2026-11-06T18:30:01"));
+    expect(next).toEqual(sp("2026-11-09T10:00"));
+  });
+
+  it("sexta à noite com a cotação do fechamento: segunda às 10:00", () => {
+    const next = expectStaleAt(sp("2026-11-06T19:05"), sp("2026-11-06T22:00"));
+    expect(next).toEqual(sp("2026-11-09T10:00"));
+  });
+
+  it("sábado e domingo com a cotação em dia: segunda às 10:00", () => {
+    const saturday = expectStaleAt(sp("2026-11-06T19:05"), sp("2026-11-07T12:00"));
+    expect(saturday).toEqual(sp("2026-11-09T10:00"));
+    const sunday = expectStaleAt(sp("2026-11-06T19:05"), sp("2026-11-08T12:00"));
+    expect(sunday).toEqual(sp("2026-11-09T10:00"));
+  });
+
+  it("antes da abertura de um dia útil com a cotação em dia: hoje às 10:00", () => {
+    const next = expectStaleAt(sp("2026-11-05T19:05"), sp("2026-11-06T08:00"));
+    expect(next).toEqual(sp("2026-11-06T10:00"));
+  });
+
+  it("fora do pregão com a cotação anterior ao fechamento: agora, uma busca para fechar o dia", () => {
+    const now = sp("2026-11-07T12:00");
+    expect(expectStaleAt(sp("2026-11-06T17:00"), now)).toEqual(now);
+    expect(expectStaleAt(null, now)).toEqual(now);
   });
 });
