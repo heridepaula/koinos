@@ -10,6 +10,7 @@ import {
   narrativeKey,
   narrativeReferences,
   narrativeSchema,
+  narrativesComplete,
   parseNarratives,
   validPositionTexts,
 } from "../domain/narrative";
@@ -21,8 +22,11 @@ import { loadTaxReport } from "./tax-report-view";
 // registra como exceção de privacidade (ticker, classe, quantidade, custo, preço médio, CNPJ e
 // razão social por posição; só os códigos dos achados) e nada mais.
 
-const TIMEOUT_MS = 20_000;
-const DEADLINE_MS = 25_000;
+// Aqui o limite de 30 s do cron-job.org não vale: a geração é uma Server Action pedida pelo dono,
+// que espera na tela. Com 60 s por chamada e 120 s no total cabe um segundo modelo da cadeia
+// quando o primeiro estoura o prazo ou recusa (o JSON de todas as posições é longo).
+const TIMEOUT_MS = 60_000;
+const DEADLINE_MS = 120_000;
 
 export type NarrativeRun = "generated" | "unchanged" | "failed";
 
@@ -39,7 +43,14 @@ export async function generateTaxNarratives(tenant: Tenant, year: number): Promi
     }
     const key = narrativeKey(references, codes);
     const stored = await findNarratives(tenant.portfolioId, year);
-    if (stored && stored.status === "ok" && stored.key === key) {
+    // Só sai cedo quando a chave é a mesma e todo texto enviado foi aceito: com texto recusado, gera
+    // de novo e mescla com o que já valia.
+    if (
+      stored &&
+      stored.status === "ok" &&
+      stored.key === key &&
+      narrativesComplete({ references, codes }, stored)
+    ) {
       span.setAttributes({ "koinos.tax.accepted": 0, "koinos.tax.rejected": 0 });
       return "unchanged";
     }

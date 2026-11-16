@@ -258,6 +258,26 @@ export type StoredNarratives = {
   codes: Readonly<Record<string, string>>;
 };
 
+/**
+ * Todo ticker e todo código enviados têm texto aceito (e ainda válido) nos textos guardados? Texto
+ * guardado de ticker ou código que saiu não atrapalha. Sem nada a gerar, está completo.
+ */
+export function narrativesComplete(
+  inputs: {
+    references: Readonly<Record<string, string>>;
+    codes: readonly FiscalFlagCode[];
+  },
+  stored: Pick<StoredNarratives, "positions" | "codes"> | null,
+): boolean {
+  const positions = validPositionTexts(stored?.positions ?? {}, inputs.references);
+  const hasAllPositions = Object.keys(inputs.references).every((t) => t in positions);
+  const hasAllCodes = inputs.codes.every((c) => {
+    const text = stored?.codes[c];
+    return text !== undefined && acceptCodeNarrative(text).ok;
+  });
+  return hasAllPositions && hasAllCodes;
+}
+
 /** O que a tela mostra dos textos guardados: só os que ainda valem, e se os dados mudaram desde então. */
 export function narrativesView(
   stored: StoredNarratives | null,

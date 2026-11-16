@@ -5,6 +5,7 @@ import {
   buildNarrativePrompt,
   FINDING_DESCRIPTIONS,
   narrativeKey,
+  narrativesComplete,
   narrativeSchema,
   narrativesView,
   numbersIn,
@@ -283,5 +284,40 @@ describe("narrativesView", () => {
       codes,
     );
     expect(view.codes).toEqual({});
+  });
+});
+
+describe("narrativesComplete", () => {
+  const full = { codes: { CNPJ_AUSENTE: goodCode } };
+  const refs = { PETR4: ref };
+  const only = { references: refs, codes: ["CNPJ_AUSENTE"] as FiscalFlagCode[] };
+
+  it("completo: todo ticker e todo código têm texto aceito", () => {
+    expect(narrativesComplete(only, { positions: { PETR4: goodRewrite }, codes: full.codes })).toBe(
+      true,
+    );
+  });
+  it("falta um ticker", () => {
+    expect(narrativesComplete(only, { positions: {}, codes: full.codes })).toBe(false);
+  });
+  it("falta um código", () => {
+    expect(narrativesComplete(only, { positions: { PETR4: goodRewrite }, codes: {} })).toBe(false);
+  });
+  it("texto guardado que não passa mais na referência não conta", () => {
+    expect(
+      narrativesComplete(only, { positions: { PETR4: "sem números" }, codes: full.codes }),
+    ).toBe(false);
+  });
+  it("sobra texto de ticker que saiu: continua completo", () => {
+    expect(
+      narrativesComplete(only, {
+        positions: { PETR4: goodRewrite, VALE3: goodRewrite },
+        codes: full.codes,
+      }),
+    ).toBe(true);
+  });
+  it("sem documento guardado: incompleto, e sem nada a gerar: completo", () => {
+    expect(narrativesComplete(only, null)).toBe(false);
+    expect(narrativesComplete({ references: {}, codes: [] }, null)).toBe(true);
   });
 });
