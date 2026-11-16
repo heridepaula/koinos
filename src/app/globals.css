@@ -900,3 +900,41 @@
     --card: #262632;
   }
 }
+
+/*
+ * Impressão do relatório de IR (/imposto-de-renda): só a área `data-print-area` sai, com as cinco
+ * fichas, uma por página. O modo privado não vale no papel: os valores aparecem, como no JSON.
+ */
+@media print {
+  body * {
+    visibility: hidden;
+  }
+  [data-print-area],
+  [data-print-area] * {
+    visibility: visible;
+  }
+  [data-print-area] {
+    position: absolute;
+    inset: 0;
+    background: #fff;
+    color: #000;
+  }
+  [data-print-hide] {
+    display: none !important;
+  }
+  [data-print-area] [data-sensitive-value] {
+    display: inline !important;
+  }
+  [data-print-area] [data-sensitive-mask] {
+    display: none !important;
+  }
+  [data-print-area] [data-print-section] + [data-print-section] {
+    break-before: page;
+  }
+  [data-print-area] [data-print-section] > * {
+    break-inside: avoid-page;
+  }
+  [data-print-area] [data-slot="table-container"] {
+    overflow: visible;
+  }
+}
