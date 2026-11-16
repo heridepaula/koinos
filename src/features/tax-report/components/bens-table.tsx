@@ -1,5 +1,6 @@
 "use client";
 
+import { Sensitive } from "@/shared/components/sensitive";
 import { InsetGroup } from "@/shared/components/inset-list";
 import { insetRowClass } from "@/shared/components/inset-list";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/shared/ui/card";
@@ -32,7 +33,9 @@ function Discrimination({ position }: { position: AssetFiscalPosition }) {
   }
   return (
     <div className="flex items-start gap-2">
-      <p className="min-w-0 flex-1 text-footnote break-words">{position.discrimination}</p>
+      <p className="min-w-0 flex-1 text-footnote break-words">
+        <Sensitive mask="•••••••••">{position.discrimination}</Sensitive>
+      </p>
       <CopyButton
         text={position.discrimination}
         label={`Copiar discriminação de ${position.ticker}`}

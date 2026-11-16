@@ -2,6 +2,7 @@
 
 import { AlertTriangleIcon, CircleCheckIcon, InfoIcon, OctagonAlertIcon } from "lucide-react";
 import type { ReactNode } from "react";
+import { Sensitive } from "@/shared/components/sensitive";
 import { cn } from "@/shared/lib/utils";
 import {
   Card,
@@ -11,6 +12,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/shared/ui/card";
+import { moneySegments } from "../domain/money-segments";
 import type { AuditFinding, FindingSeverity, FiscalYearReport } from "../domain/types";
 import { monthText } from "./parts";
 
@@ -33,7 +35,15 @@ const SEVERITIES: {
 function Finding({ finding }: { finding: AuditFinding }) {
   return (
     <li className="py-2">
-      <p>{finding.message}</p>
+      <p>
+        {moneySegments(finding.message).map((segment, index) =>
+          segment.money ? (
+            <Sensitive key={index}>{segment.text}</Sensitive>
+          ) : (
+            <span key={index}>{segment.text}</span>
+          ),
+        )}
+      </p>
       {finding.ticker || finding.month ? (
         <p className="text-footnote text-muted-foreground">
           {[finding.ticker, finding.month ? monthText(finding.month) : null]
