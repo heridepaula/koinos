@@ -1696,7 +1696,9 @@ git commit -m "feat(tax-report): add the /imposto-de-renda page with the five ta
 
 ### Task 9: Textos do Gemini com validação numérica
 
-**Goal:** Reescrita opcional da discriminação e narrativa da auditoria, aceitas só se os números forem os do modelo fixo, geradas fora da página.
+**Goal:** Reescrita opcional da discriminação por ativo e uma narrativa por **tipo de achado** (sem números), aceitas só depois da validação do código, geradas fora da página.
+
+> **Mudança de desenho (2026-11-16, após a validação com dados reais; spec §6):** 2025 tem 125 achados, 80 quase idênticos, então narrar um por achado não cabe numa chamada. O schema passa a ser `positions[{ ticker, text }]` (reescrita da discriminação, com validação numérica contra o modelo fixo) e `codeNarratives[{ code, text }]` (uma por `FiscalFlagCode`, explicando o que o achado significa e o que conferir, **sem nenhum número**: o texto não pode conter dígito; `acceptRewrite` para esse caso é "sem número algum"). A mensagem de cada achado (ticker, mês, valor) continua vinda do código. O texto da IA que aparece na tela passa por `moneySegments` e `Sensitive`, e o teste de vazamento do modo privado é refeito depois. O botão "Gerar textos com IA" envia dados da carteira ao Gemini e grava em produção: **só o dono o aciona**, nunca a automação de navegador.
 
 **Files:**
 - Create: `src/features/tax-report/domain/narrative.ts`, `narrative.test.ts`, `server/narrative.model.ts`, `narrative-repo.ts`, `narrative-service.ts`
@@ -1705,7 +1707,8 @@ git commit -m "feat(tax-report): add the /imposto-de-renda page with the five ta
 **Acceptance Criteria:**
 - [ ] `numbersIn(text)` extrai os tokens numéricos (`\d[\d.,]*`); `acceptRewrite(candidate, reference)` só aceita se todos os números de `reference` estão em `candidate` e `candidate` não tem número fora de `reference`.
 - [ ] Recusa: número extra, CNPJ trocado, quantidade diferente, texto vazio, texto maior que 600 caracteres, sem acentos quando a referência tem acentos (como `parseWeekReading` faz).
-- [ ] O prompt leva só ticker, classe, quantidade, custo, preço médio, CNPJ, razão social e os achados (código, mensagem). Nunca id de carteira, e-mail ou patrimônio total (teste do conteúdo do prompt).
+- [ ] O prompt leva só ticker, classe, quantidade, custo, preço médio, CNPJ e razão social **das posições** e, para os achados, **só os códigos** distintos presentes (sem tickers nem valores). Nunca id de carteira, e-mail ou patrimônio total (teste do conteúdo do prompt).
+- [ ] Uma narrativa por código de achado, sem dígito algum: `acceptCodeNarrative(text)` recusa texto com número, vazio, com mais de 300 caracteres ou sem acentos (uma regra por teste).
 - [ ] `generateTaxNarrativesAction({ year })` só chama o Gemini quando a chave dos dados mudou; guarda em `tax_narratives` (carteira + ano + chave) e, sem `GEMINI_API_KEY` ou com falha, grava nada e a tela segue com os modelos fixos.
 - [ ] Contadores: span `tax.narratives`, atributos `koinos.tax.accepted` e `koinos.tax.rejected`; o log traz o código da recusa, nunca o texto.
 
