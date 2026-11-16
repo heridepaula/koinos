@@ -29,6 +29,7 @@ export {
   writeCvmCnpjs,
   type StoredAssetIdentity,
 } from "./server/asset-identity";
+export { generateWithChain, GEMINI_BUDGET_MS, geminiModelsWithQuota } from "./server/gemini-chain";
 export { refreshPayDates } from "./server/pay-dates-service";
 export { getDayInsight } from "./server/day-insight-read";
 export { refreshDayInsights, type DayInsightSummary } from "./server/day-insight-service";
