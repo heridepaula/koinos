@@ -28,7 +28,13 @@ function flagSeals(position: AssetFiscalPosition) {
   );
 }
 
-function Discrimination({ position }: { position: AssetFiscalPosition }) {
+function Discrimination({
+  position,
+  narrative,
+}: {
+  position: AssetFiscalPosition;
+  narrative?: string;
+}) {
   if (position.closedInYear) {
     return (
       <p className="text-muted-foreground">Posição encerrada no ano: declare com valor 0,00.</p>
@@ -39,16 +45,21 @@ function Discrimination({ position }: { position: AssetFiscalPosition }) {
       <p className="text-muted-foreground">Informe o CNPJ para gerar o texto de discriminação.</p>
     );
   }
+  // O texto da IA só chega aqui depois de passar pela validação numérica contra o modelo fixo.
+  const text = narrative ?? position.discrimination;
   return (
-    <div className="flex items-start gap-2">
-      <p className="min-w-0 flex-1 text-footnote break-words">
-        <Sensitive mask="•••••••••">{position.discrimination}</Sensitive>
-      </p>
-      <CopyButton
-        text={position.discrimination}
-        label={`Copiar discriminação de ${position.ticker}`}
-        iconOnly
-      />
+    <div className="grid gap-1">
+      <div className="flex items-start gap-2">
+        <p className="min-w-0 flex-1 text-footnote break-words">
+          <Sensitive mask="•••••••••">{text}</Sensitive>
+        </p>
+        <CopyButton text={text} label={`Copiar discriminação de ${position.ticker}`} iconOnly />
+      </div>
+      {narrative ? (
+        <p className="text-caption text-muted-foreground">
+          Reescrito por IA, com os mesmos números do texto fixo.
+        </p>
+      ) : null}
     </div>
   );
 }
@@ -62,10 +73,13 @@ export function BensTable({
   year,
   positions,
   identities,
+  narratives,
 }: {
   year: number;
   positions: readonly AssetFiscalPosition[];
   identities: ReadonlyMap<string, TaxReportIdentity>;
+  /** Reescrita da IA por ticker (só a que passou na validação); sem ela vale o modelo fixo. */
+  narratives: Readonly<Record<string, string>>;
 }) {
   if (positions.length === 0) {
     return (
@@ -128,7 +142,7 @@ export function BensTable({
                 </div>
                 <div className={`${insetRowClass(false)} flex-col items-stretch py-3`}>
                   <span className="text-footnote text-muted-foreground">Discriminação</span>
-                  <Discrimination position={p} />
+                  <Discrimination position={p} narrative={narratives[p.ticker]} />
                 </div>
               </InsetGroup>
             );
@@ -193,7 +207,7 @@ export function BensTable({
                       </div>
                       <div className="grid content-start gap-1">
                         <span className="text-footnote text-muted-foreground">Discriminação</span>
-                        <Discrimination position={p} />
+                        <Discrimination position={p} narrative={narratives[p.ticker]} />
                       </div>
                     </div>
                   </TableCell>

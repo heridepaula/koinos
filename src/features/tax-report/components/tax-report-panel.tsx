@@ -46,8 +46,15 @@ export function TaxReportPanel({ view }: { view: TaxReportView }) {
   );
 
   const sections: Record<TabId, ReactNode> = {
-    resumo: <AuditList report={report} />,
-    bens: <BensTable year={view.year} positions={report.positions} identities={identities} />,
+    resumo: <AuditList report={report} narratives={view.narratives} />,
+    bens: (
+      <BensTable
+        year={view.year}
+        positions={report.positions}
+        identities={identities}
+        narratives={view.narratives.positions}
+      />
+    ),
     isentos: <ExemptTab report={report} />,
     exclusiva: <ExclusiveTab report={report} />,
     vendas: <ApurationTab report={report} />,
