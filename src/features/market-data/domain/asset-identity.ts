@@ -2,7 +2,7 @@ export type CvmCnpjUpdate = {
   ticker: string;
   cnpj: string;
   legalName: string;
-  source: "CVM_FCA" | "CVM_ISIN";
+  source: "CVM_FCA" | "CVM_ISIN" | "CVM_ISIN_NOME";
 };
 
 /**

@@ -37,7 +37,7 @@ export interface AssetDoc {
   cnpj?: string | null;
   legalName?: string | null;
   /** De onde veio o CNPJ: CVM (FCA das ações, ISIN dos FIIs) ou digitado pelo dono (nunca sobrescrito). */
-  cnpjSource?: "CVM_FCA" | "CVM_ISIN" | "MANUAL" | null;
+  cnpjSource?: "CVM_FCA" | "CVM_ISIN" | "CVM_ISIN_NOME" | "MANUAL" | null;
   cnpjFetchedAt?: Date | null;
   historyCheckedAt?: Date | null;
   /** Início (YYYY-MM) da faixa de histórico já buscada. */
@@ -246,7 +246,11 @@ const assetSchema = new Schema<AssetDoc>(
     payDatesFetchedAt: { type: Date, default: null },
     cnpj: { type: String, default: null },
     legalName: { type: String, default: null },
-    cnpjSource: { type: String, enum: ["CVM_FCA", "CVM_ISIN", "MANUAL", null], default: null },
+    cnpjSource: {
+      type: String,
+      enum: ["CVM_FCA", "CVM_ISIN", "CVM_ISIN_NOME", "MANUAL", null],
+      default: null,
+    },
     cnpjFetchedAt: { type: Date, default: null },
     historyCheckedAt: { type: Date, default: null },
     historyFromMonth: { type: String, default: null },

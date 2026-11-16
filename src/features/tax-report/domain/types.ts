@@ -4,7 +4,7 @@ import type { UnclassifiedDividend } from "./year-dividends";
 /** As duas classes que o app acompanha. */
 export type FiscalClass = AssetClass;
 
-export type CnpjSource = "CVM_FCA" | "CVM_ISIN" | "MANUAL";
+export type CnpjSource = "CVM_FCA" | "CVM_ISIN" | "CVM_ISIN_NOME" | "MANUAL";
 
 /** O que se sabe do emissor de um ativo. */
 export type AssetIdentity = {

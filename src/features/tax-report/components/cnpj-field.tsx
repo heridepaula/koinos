@@ -14,6 +14,7 @@ import type { CnpjSource } from "../domain/types";
 const SOURCE_LABEL: Record<CnpjSource, string> = {
   CVM_FCA: "CVM",
   CVM_ISIN: "CVM",
+  CVM_ISIN_NOME: "CVM (por nome)",
   MANUAL: "Informado por você",
 };
 

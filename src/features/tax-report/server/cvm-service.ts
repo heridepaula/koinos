@@ -1,6 +1,6 @@
 import "server-only";
 import { unzipSync } from "fflate";
-import { getAssetClasses, writeCvmCnpjs } from "@/features/market-data/server";
+import { getAssetClasses, readAssetIdentities, writeCvmCnpjs } from "@/features/market-data/server";
 import {
   listDividendTickers,
   listTradedTickersWithFirstDate,
@@ -88,10 +88,13 @@ async function run(now: Date): Promise<CnpjSyncResult> {
     listDividendTickers(),
   ]);
   const tickers = [...new Set([...traded.map((item) => item.ticker), ...dividendTickers])];
-  const classes = await getAssetClasses(tickers);
+  const [classes, identities] = await Promise.all([
+    getAssetClasses(tickers),
+    readAssetIdentities(tickers),
+  ]);
   const targets = tickers.flatMap((ticker) => {
     const assetClass = classes.get(ticker);
-    return assetClass ? [{ ticker, assetClass }] : [];
+    return assetClass ? [{ ticker, assetClass, name: identities.get(ticker)?.name ?? null }] : [];
   });
 
   const { matched, unmatched } = resolveCnpjs(targets, stockCnpjByTicker(stockRows), funds);

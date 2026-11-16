@@ -67,41 +67,89 @@ export function stockCnpjByTicker(rows: readonly Record<string, string>[]): Map<
 
 export type CvmFund = { cnpj: string; name: string; isin: string };
 
+const GENERIC_WORDS = new Set(
+  (
+    "FII FUNDO FUNDOS DE DO DA DOS DAS E EM INVESTIMENTO INVESTIMENTOS IMOBILIARIO IMOBILIARIOS " +
+    "RESPONSABILIDADE LIMITADA RL RESP COTAS FIC SA FI LTDA"
+  ).split(" "),
+);
+
+function significantTokens(name: string): Set<string> {
+  const normalized = name
+    .normalize("NFD")
+    .replace(/\p{M}/gu, "")
+    .toUpperCase()
+    .replace(/[^A-Z0-9]+/g, " ");
+  return new Set(normalized.split(" ").filter((t) => t.length >= 2 && !GENERIC_WORDS.has(t)));
+}
+
+/** Quantos tokens significativos (sem as palavras genéricas de fundo) os dois nomes têm em comum. */
+export function nameScore(appName: string, cvmName: string): number {
+  const app = significantTokens(appName);
+  let score = 0;
+  for (const token of significantTokens(cvmName)) if (app.has(token)) score++;
+  return score;
+}
+
 /**
- * FII: o ISIN da cota é `BR` + 4 letras do ticker + `CTF` + 4 caracteres. Aceita só um CNPJ
- * distinto no prefixo; com zero ou mais de um, é pendência para o dono (spec §4).
+ * FII: o ISIN da cota é `BR` + 4 letras do ticker + `CTF` + 4 caracteres. Com um só CNPJ no
+ * prefixo, casa. Com mais de um, só o nome do ativo no app desempata (`byName`): exatamente um
+ * candidato com algo em comum, ou o melhor com 2+ e pelo menos o dobro do segundo. Fora disso,
+ * é pendência para o dono (spec §4).
  */
-export function fiiCnpjForTicker(ticker: string, funds: readonly CvmFund[]): CnpjMatch | null {
+export function fiiCnpjForTicker(
+  ticker: string,
+  funds: readonly CvmFund[],
+  appName?: string | null,
+): (CnpjMatch & { byName?: true }) | null {
   const prefix = `BR${ticker.slice(0, 4).toUpperCase()}CTF`;
   const owners = new Map<string, string>();
   for (const f of funds) if (f.isin.toUpperCase().startsWith(prefix)) owners.set(f.cnpj, f.name);
-  if (owners.size !== 1) return null;
-  const [[cnpj, legalName]] = [...owners];
-  return { cnpj, legalName };
+  if (owners.size === 1) {
+    const [[cnpj, legalName]] = [...owners];
+    return { cnpj, legalName };
+  }
+  if (owners.size < 2 || !appName) return null;
+  const ranked = [...owners]
+    .map(([cnpj, legalName]) => ({ cnpj, legalName, score: nameScore(appName, legalName) }))
+    .sort((a, b) => b.score - a.score);
+  const [best, second] = ranked;
+  const decisive =
+    best.score >= 1 && (second.score === 0 || (best.score >= 2 && best.score >= second.score * 2));
+  if (!decisive) return null;
+  return { cnpj: best.cnpj, legalName: best.legalName, byName: true };
 }
 
-export type ResolvedCnpj = CnpjMatch & { ticker: string; source: "CVM_FCA" | "CVM_ISIN" };
+export type ResolvedCnpj = CnpjMatch & {
+  ticker: string;
+  source: "CVM_FCA" | "CVM_ISIN" | "CVM_ISIN_NOME";
+};
 
 /**
  * Casa cada ticker acompanhado com o CNPJ da CVM: ações pelo FCA (`CVM_FCA`), FIIs pelo prefixo
- * do ISIN (`CVM_ISIN`). O que não casa sem ambiguidade volta em `unmatched`, para o dono digitar.
+ * do ISIN (`CVM_ISIN`, ou `CVM_ISIN_NOME` quando o nome do ativo desempatou). O que não casa sem
+ * ambiguidade volta em `unmatched`, para o dono digitar.
  */
 export function resolveCnpjs(
-  targets: readonly { ticker: string; assetClass: "FII" | "ACAO" }[],
+  targets: readonly { ticker: string; assetClass: "FII" | "ACAO"; name?: string | null }[],
   stocks: ReadonlyMap<string, CnpjMatch>,
   funds: readonly CvmFund[],
 ): { matched: ResolvedCnpj[]; unmatched: string[] } {
   const matched: ResolvedCnpj[] = [];
   const unmatched: string[] = [];
-  for (const { ticker, assetClass } of targets) {
-    const found = assetClass === "FII" ? fiiCnpjForTicker(ticker, funds) : stocks.get(ticker);
+  for (const { ticker, assetClass, name } of targets) {
+    if (assetClass === "ACAO") {
+      const found = stocks.get(ticker);
+      if (!found) unmatched.push(ticker);
+      else matched.push({ ticker, ...found, source: "CVM_FCA" });
+      continue;
+    }
+    const found = fiiCnpjForTicker(ticker, funds, name);
     if (!found) unmatched.push(ticker);
-    else
-      matched.push({
-        ticker,
-        ...found,
-        source: assetClass === "FII" ? "CVM_ISIN" : "CVM_FCA",
-      });
+    else {
+      const { byName, ...match } = found;
+      matched.push({ ticker, ...match, source: byName ? "CVM_ISIN_NOME" : "CVM_ISIN" });
+    }
   }
   return { matched, unmatched };
 }

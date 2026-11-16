@@ -9,7 +9,7 @@ export type StoredAssetIdentity = {
   name: string | null;
   legalName: string | null;
   cnpj: string | null;
-  cnpjSource: "CVM_FCA" | "CVM_ISIN" | "MANUAL" | null;
+  cnpjSource: "CVM_FCA" | "CVM_ISIN" | "CVM_ISIN_NOME" | "MANUAL" | null;
   subType: string | null;
 };
 
