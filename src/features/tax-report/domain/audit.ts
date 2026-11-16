@@ -153,7 +153,7 @@ export function auditReport(input: {
       severity: "ATENCAO",
       ticker,
       month,
-      message: `${ticker}: houve compra e venda no mesmo dia em ${month}. Day trade ainda não é apurado aqui (20%, à parte do swing trade).`,
+      message: `${ticker}: houve compra e venda no mesmo dia em ${month}. Day trade ainda não é apurado aqui (20%, à parte do swing trade), e os números do swing trade de ${month} incluem essa venda e podem estar errados (a isenção de R$ 20 mil das ações e a compensação de prejuízo).`,
     });
   }
 

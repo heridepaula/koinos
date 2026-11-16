@@ -223,6 +223,10 @@ describe("auditReport", () => {
         ticker: "TEST3",
         month: "2025-03",
       });
+      expect(r[0].message).toContain("swing trade");
+      expect(r[0].message).toContain("podem estar errados");
+      expect(r[0].message).toContain("isenção");
+      expect(r[0].message).toContain("compensação");
     });
 
     it("dias diferentes, tickers diferentes, outro ano ou compra não-negócio não contam", () => {
