@@ -33,6 +33,12 @@ export interface AssetDoc {
    */
   payDates?: PaySchedule[] | null;
   payDatesFetchedAt?: Date | null;
+  /** Identidade do emissor, para o relatório de IR: CNPJ formatado e razão social. */
+  cnpj?: string | null;
+  legalName?: string | null;
+  /** De onde veio o CNPJ: CVM (FCA das ações, ISIN dos FIIs) ou digitado pelo dono (nunca sobrescrito). */
+  cnpjSource?: "CVM_FCA" | "CVM_ISIN" | "MANUAL" | null;
+  cnpjFetchedAt?: Date | null;
   historyCheckedAt?: Date | null;
   /** Início (YYYY-MM) da faixa de histórico já buscada. */
   historyFromMonth?: string | null;
@@ -238,6 +244,10 @@ const assetSchema = new Schema<AssetDoc>(
       default: undefined,
     },
     payDatesFetchedAt: { type: Date, default: null },
+    cnpj: { type: String, default: null },
+    legalName: { type: String, default: null },
+    cnpjSource: { type: String, enum: ["CVM_FCA", "CVM_ISIN", "MANUAL", null], default: null },
+    cnpjFetchedAt: { type: Date, default: null },
     historyCheckedAt: { type: Date, default: null },
     historyFromMonth: { type: String, default: null },
     bookValuePerShare: { type: Number, default: null },

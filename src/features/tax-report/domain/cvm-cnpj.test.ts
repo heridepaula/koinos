@@ -1,5 +1,11 @@
 import { describe, expect, it } from "vitest";
-import { decodeCvm, fiiCnpjForTicker, parseCvmCsv, stockCnpjByTicker } from "./cvm-cnpj";
+import {
+  decodeCvm,
+  fiiCnpjForTicker,
+  parseCvmCsv,
+  resolveCnpjs,
+  stockCnpjByTicker,
+} from "./cvm-cnpj";
 
 describe("parseCvmCsv", () => {
   it("lê ; aspas e vazios", () => {
@@ -65,5 +71,25 @@ describe("fiiCnpjForTicker", () => {
 describe("decodeCvm", () => {
   it("decodifica Latin-1", () => {
     expect(decodeCvm(new Uint8Array([0xe7, 0xe3]))).toBe("çã");
+  });
+});
+
+describe("resolveCnpjs", () => {
+  const stocks = new Map([["EGIE3", { cnpj: "02.474.103/0001-19", legalName: "ENGIE" }]]);
+  const funds = [{ cnpj: "11.111.111/0001-11", name: "FUNDO HGLG", isin: "BRHGLGCTF004" }];
+  const targets = [
+    { ticker: "EGIE3", assetClass: "ACAO" as const },
+    { ticker: "HGLG11", assetClass: "FII" as const },
+    { ticker: "ZZZZ11", assetClass: "FII" as const },
+    { ticker: "ABCD3", assetClass: "ACAO" as const },
+  ];
+
+  it("separa o que casou, com a fonte de cada um, do que ficou sem CNPJ", () => {
+    const { matched, unmatched } = resolveCnpjs(targets, stocks, funds);
+    expect(matched).toEqual([
+      { ticker: "EGIE3", cnpj: "02.474.103/0001-19", legalName: "ENGIE", source: "CVM_FCA" },
+      { ticker: "HGLG11", cnpj: "11.111.111/0001-11", legalName: "FUNDO HGLG", source: "CVM_ISIN" },
+    ]);
+    expect(unmatched).toEqual(["ZZZZ11", "ABCD3"]);
   });
 });

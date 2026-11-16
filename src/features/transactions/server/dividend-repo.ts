@@ -58,3 +58,12 @@ export async function getDividendForecast(portfolioId: string): Promise<PlannedU
     })),
   };
 }
+
+/**
+ * Tickers com algum provento, em todas as carteiras. Uso interno dos crons (o CNPJ pela CVM): há
+ * ativos que só aparecem por proventos. Devolve só tickers, nada que identifique o usuário.
+ */
+export async function listDividendTickers(): Promise<string[]> {
+  await connectMongo();
+  return DividendModel.distinct("ticker");
+}

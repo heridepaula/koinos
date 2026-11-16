@@ -23,6 +23,12 @@ export {
   refreshCatalog,
   searchTickers,
 } from "./server/catalog";
+export {
+  readAssetIdentities,
+  setAssetCnpj,
+  writeCvmCnpjs,
+  type StoredAssetIdentity,
+} from "./server/asset-identity";
 export { refreshPayDates } from "./server/pay-dates-service";
 export { getDayInsight } from "./server/day-insight-read";
 export { refreshDayInsights, type DayInsightSummary } from "./server/day-insight-service";

@@ -7,5 +7,6 @@ export {
   getMyTransactions,
   listTransactionsOf,
 } from "./server/transactions-dal";
+export { listDividendTickers } from "./server/dividend-repo";
 export { listHeldQuantities, listTradedTickersWithFirstDate } from "./server/transaction-repo";
 export type { TransactionRecord } from "./server/transaction-repo";

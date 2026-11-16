@@ -79,3 +79,29 @@ export function fiiCnpjForTicker(ticker: string, funds: readonly CvmFund[]): Cnp
   const [[cnpj, legalName]] = [...owners];
   return { cnpj, legalName };
 }
+
+export type ResolvedCnpj = CnpjMatch & { ticker: string; source: "CVM_FCA" | "CVM_ISIN" };
+
+/**
+ * Casa cada ticker acompanhado com o CNPJ da CVM: ações pelo FCA (`CVM_FCA`), FIIs pelo prefixo
+ * do ISIN (`CVM_ISIN`). O que não casa sem ambiguidade volta em `unmatched`, para o dono digitar.
+ */
+export function resolveCnpjs(
+  targets: readonly { ticker: string; assetClass: "FII" | "ACAO" }[],
+  stocks: ReadonlyMap<string, CnpjMatch>,
+  funds: readonly CvmFund[],
+): { matched: ResolvedCnpj[]; unmatched: string[] } {
+  const matched: ResolvedCnpj[] = [];
+  const unmatched: string[] = [];
+  for (const { ticker, assetClass } of targets) {
+    const found = assetClass === "FII" ? fiiCnpjForTicker(ticker, funds) : stocks.get(ticker);
+    if (!found) unmatched.push(ticker);
+    else
+      matched.push({
+        ticker,
+        ...found,
+        source: assetClass === "FII" ? "CVM_ISIN" : "CVM_FCA",
+      });
+  }
+  return { matched, unmatched };
+}
