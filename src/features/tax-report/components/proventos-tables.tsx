@@ -45,7 +45,7 @@ function Source({ item }: { item: DividendFiscalItem }) {
 
 function CodeCell({ item }: { item: DividendFiscalItem }) {
   return (
-    <span className="grid justify-items-start gap-1">
+    <span className="grid max-w-full min-w-0 justify-items-start gap-1">
       <span className="tabular-nums">
         {item.receita.group} · código {item.receita.code}
       </span>

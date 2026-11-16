@@ -22,7 +22,10 @@ export function Seal({ children, tone }: { children: ReactNode; tone?: "warn" })
   return (
     <Badge
       variant="outline"
-      className={cn("h-auto py-0.5", tone === "warn" && "text-amber-700 dark:text-amber-400")}
+      className={cn(
+        "h-auto max-w-full shrink py-0.5 text-left whitespace-normal",
+        tone === "warn" && "text-amber-700 dark:text-amber-400",
+      )}
     >
       {children}
     </Badge>
