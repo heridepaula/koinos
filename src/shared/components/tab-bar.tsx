@@ -18,7 +18,7 @@ const NARROW_TABS = tabItemsFor("narrow").length;
  * --tab-active (o systemBlue dá menos de 4,5:1 no vidro) e o ícone afunda no toque.
  */
 const TAB =
-  "group/tab flex min-w-0 flex-col items-center justify-center gap-0.5 rounded-full text-[0.625rem] leading-3 font-semibold text-foreground outline-none select-none [-webkit-touch-callout:none] focus-visible:ring-3 focus-visible:ring-ring/50 aria-[current=page]:text-(--tab-active) data-current-narrow:max-[480px]:text-(--tab-active) data-current-wide:min-[481px]:text-(--tab-active)";
+  "group/tab flex min-w-0 flex-col items-center justify-center gap-0.5 rounded-full text-[0.625rem] leading-3 font-semibold text-foreground outline-none select-none [-webkit-touch-callout:none] focus-visible:ring-3 focus-visible:ring-ring/50 aria-[current=page]:text-(--tab-active) data-current-narrow:max-[481px]:text-(--tab-active) data-current-wide:min-[481px]:text-(--tab-active)";
 const TAB_ICON =
   "size-6 transition-transform duration-150 ease-out group-active/tab:scale-88 motion-reduce:transition-none";
 
@@ -57,7 +57,9 @@ export function TabBar({ account }: { account: ReactNode }) {
             key={item.href}
             href={item.href}
             aria-current={isWithin(item.href, pathname) ? "page" : undefined}
-            className={cn(TAB, !item.tab && "max-[480px]:hidden")}
+            // `max-[481px]` é "largura < 481" no Tailwind 4, o par exato de `min-[481px]` ("≥ 481"). Com
+            // `max-[480px]` ("< 480") a faixa de 480 a 481 px ficava sem regra nenhuma.
+            className={cn(TAB, !item.tab && "max-[481px]:hidden")}
           >
             <item.icon aria-hidden="true" className={TAB_ICON} />
             <span className="max-w-full truncate px-0.5">{item.tabLabel}</span>
