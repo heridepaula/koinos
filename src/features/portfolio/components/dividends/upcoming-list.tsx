@@ -219,6 +219,12 @@ function UpcomingPhoneList({
               <Sensitive>{formatBRL(row.amount)}</Sensitive>
             </span>
             <span className="flex items-center gap-1.5 text-footnote text-muted-foreground tabular-nums">
+              {row.quantity !== null && (
+                <>
+                  <Sensitive mask={QUANTITY_MASK}>{formatQuantity(row.quantity)}</Sensitive>
+                  {row.quantity === 1 ? " papel" : " papéis"} ·{" "}
+                </>
+              )}
               <PaidBadge />
               {formatTradeDate(row.paidAt)}
             </span>
@@ -359,8 +365,16 @@ export function UpcomingDividends({
                     <TableCell className="hidden @min-[400px]:table-cell">
                       <PaidBadge />
                     </TableCell>
-                    <TableCell className="hidden text-right @min-[400px]:table-cell">—</TableCell>
-                    <TableCell className="hidden text-right @min-[640px]:table-cell">—</TableCell>
+                    <TableCell className="hidden text-right tabular-nums @min-[400px]:table-cell">
+                      {row.quantity !== null ? (
+                        <Sensitive mask={QUANTITY_MASK}>{formatQuantity(row.quantity)}</Sensitive>
+                      ) : (
+                        "—"
+                      )}
+                    </TableCell>
+                    <TableCell className="hidden text-right tabular-nums @min-[640px]:table-cell">
+                      {row.perShare !== null ? formatBRL(row.perShare) : "—"}
+                    </TableCell>
                     <TableCell className="text-right font-medium tabular-nums">
                       <Sensitive>{formatBRL(row.amount)}</Sensitive>
                     </TableCell>

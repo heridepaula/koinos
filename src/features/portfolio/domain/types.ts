@@ -340,6 +340,9 @@ export type PaidDividend = {
   kind: DividendKind;
   paidAt: Date;
   amount: number;
+  /** Cotas que receberam e valor por cota, do extrato; null quando a B3 não informou. */
+  quantity: number | null;
+  perShare: number | null;
 };
 
 /** FII que paga todo mês e ainda não divulgou o provento deste mês. */

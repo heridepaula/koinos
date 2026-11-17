@@ -589,4 +589,21 @@ describe("paidThisMonth", () => {
     ]);
     expect(list.map((item) => `${item.ticker}:${item.amount}`)).toEqual(["BBBB11:7", "AAAA11:15"]);
   });
+
+  it("leva a quantidade e o valor por cota do extrato; somando no dia, o por cota é valor ÷ cotas", () => {
+    const entry = (amount: number, quantity: number | null, perShare: number | null) => ({
+      ...paid("AAAA11", "RENDIMENTO", amount, "2026-10-14"),
+      quantity,
+      perShare,
+    });
+    expect(paidThisMonth(now, [entry(10, 100, 0.1)])).toMatchObject([
+      { quantity: 100, perShare: 0.1 },
+    ]);
+    expect(paidThisMonth(now, [entry(10, 100, 0.1), entry(5, 100, 0.05)])).toMatchObject([
+      { amount: 15, quantity: 100, perShare: 0.15 },
+    ]);
+    expect(paidThisMonth(now, [entry(10, null, null)])).toMatchObject([
+      { quantity: null, perShare: null },
+    ]);
+  });
 });

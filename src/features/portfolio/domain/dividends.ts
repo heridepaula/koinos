@@ -396,7 +396,10 @@ export function undisclosedDividends(input: {
   return result.sort((a, b) => a.ticker.localeCompare(b.ticker));
 }
 
-/** O que já foi pago no mês atual, somado por ativo, tipo e dia; o mais recente primeiro. */
+/**
+ * O que já foi pago no mês atual, somado por ativo, tipo e dia; o mais recente primeiro. Quantidade
+ * e valor por cota vêm do extrato; somados no mesmo dia, o por cota é o valor ÷ a quantidade.
+ */
 export function paidThisMonth(now: Date, received: readonly DividendEntry[]): PaidDividend[] {
   const month = currentMonthKey(now);
   const sums = new Map<string, PaidDividend>();
@@ -404,14 +407,20 @@ export function paidThisMonth(now: Date, received: readonly DividendEntry[]): Pa
     if (monthKeyOfTradeDate(item.paidAt) !== month) continue;
     const key = `${item.ticker}|${item.kind}|${item.paidAt.getTime()}`;
     const current = sums.get(key);
-    if (current) current.amount += item.amount;
-    else
+    if (current) {
+      current.amount += item.amount;
+      current.quantity = Math.max(current.quantity ?? 0, item.quantity ?? 0) || null;
+      current.perShare = current.quantity ? current.amount / current.quantity : null;
+    } else {
       sums.set(key, {
         ticker: item.ticker,
         kind: item.kind,
         paidAt: item.paidAt,
         amount: item.amount,
+        quantity: item.quantity,
+        perShare: item.perShare,
       });
+    }
   }
   return [...sums.values()].sort(
     (a, b) => b.paidAt.getTime() - a.paidAt.getTime() || a.ticker.localeCompare(b.ticker),
