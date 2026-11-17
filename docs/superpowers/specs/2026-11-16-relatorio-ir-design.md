@@ -1,7 +1,7 @@
 # Relatório de Imposto de Renda e consistência fiscal: especificação de design
 
 - **Data:** 2026-11-16
-- **Status:** rascunho validado com o dono em 2026-11-16, aguardando a revisão final antes do plano. Nada implementado.
+- **Status:** passo 1 implementado em 2026-11-16 (branch `feat/relatorio-ir`, plano `2026-11-16-relatorio-ir-passo-1.md`) e validado no navegador com a carteira real: proventos de 2025 e custo das posições batem com o Dashboard (diferença 0,00). Desvios do plano: o CNPJ roda em rota própria `/api/cron/cnpj` (semanal), `PROVENTO_APOS_ENCERRAR` ficou para o passo 2, a narrativa da IA é por tipo de achado (sem números) e o desempate do CNPJ por nome foi aceito. Falta o passo 2 (day trade e IRRF) e os itens abertos do §9.
 - **Origem:** especificação "Feature #10" colada pelo dono, revisada contra o código. §10 lista o que mudou em relação a ela.
 - **Specs relacionadas:** `2026-10-23-posicoes-encerradas-design.md` (IR estimado por posição), `2026-10-30-acoes-etapa-1-design.md` §8 (IR de ações), `2026-11-12-resumo-ia-variacao-design.md` (cadeia Gemini).
 
