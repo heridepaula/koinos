@@ -3,22 +3,10 @@
 import { AlertTriangleIcon, CircleCheckIcon, InfoIcon, OctagonAlertIcon } from "lucide-react";
 import { Sensitive } from "@/shared/components/sensitive";
 import { cn } from "@/shared/lib/utils";
-import {
-  Card,
-  CardAction,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/shared/ui/card";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/shared/ui/card";
 import { moneySegments } from "../domain/money-segments";
-import type {
-  AuditFinding,
-  FindingSeverity,
-  FiscalYearReport,
-  TaxNarrativesView,
-} from "../domain/types";
-import { GenerateNarrativesButton } from "./generate-narratives-button";
+import { FINDING_NOTES } from "../domain/finding-notes";
+import type { AuditFinding, FindingSeverity, FiscalYearReport } from "../domain/types";
 import { monthText } from "./parts";
 
 const SEVERITIES: {
@@ -76,24 +64,16 @@ function Finding({ finding, note }: { finding: AuditFinding; note?: string }) {
 
 /**
  * Aba "Resumo e auditoria": o estado das pendências e os achados das regras, por severidade. A
- * explicação de cada tipo de achado (texto da IA, sem número) aparece uma vez, no primeiro achado
- * daquele tipo; a mensagem de cada achado vem sempre das regras. O botão "Gerar textos com IA"
- * fica no cabeçalho das pendências.
+ * explicação de cada tipo de achado (texto fixo, `FINDING_NOTES`) aparece uma vez, no primeiro
+ * achado daquele tipo; a mensagem de cada achado vem sempre das regras.
  */
-export function AuditList({
-  report,
-  narratives,
-}: {
-  report: FiscalYearReport;
-  narratives: TaxNarrativesView;
-}) {
+export function AuditList({ report }: { report: FiscalYearReport }) {
   const firstOfCode = new Map<string, AuditFinding>();
   for (const finding of report.findings) {
     if (!firstOfCode.has(finding.code)) firstOfCode.set(finding.code, finding);
   }
   const noteOf = (finding: AuditFinding) =>
-    firstOfCode.get(finding.code) === finding ? narratives.codes[finding.code] : undefined;
-  const hasNotes = Object.keys(narratives.codes).length > 0;
+    firstOfCode.get(finding.code) === finding ? FINDING_NOTES[finding.code] : undefined;
   const count = (code: AuditFinding["code"]) =>
     report.findings.filter((f) => f.code === code).length;
   const missingCnpj = count("CNPJ_AUSENTE");
@@ -121,22 +101,8 @@ export function AuditList({
         <CardHeader>
           <CardTitle>Pendências</CardTitle>
           <CardDescription>O que falta para os números do ano ficarem completos.</CardDescription>
-          {/* Abaixo de 480 px de cabeçalho o botão desce para a própria linha, sob a descrição. */}
-          <CardAction className="col-start-1 row-span-1 row-start-3 mt-2 justify-self-start @min-[480px]/card-header:col-start-2 @min-[480px]/card-header:row-span-2 @min-[480px]/card-header:row-start-1 @min-[480px]/card-header:mt-0 @min-[480px]/card-header:justify-self-end">
-            <GenerateNarrativesButton year={report.year} narratives={narratives} />
-          </CardAction>
         </CardHeader>
         <CardContent className="grid gap-4">
-          {narratives.status === "failed" ? (
-            <p className="flex items-start gap-2 text-footnote" role="status">
-              <AlertTriangleIcon
-                className="mt-0.5 size-4 shrink-0 text-amber-700 dark:text-amber-400"
-                aria-hidden="true"
-              />
-              Os textos automáticos estão indisponíveis agora. Os textos fixos e as mensagens das
-              regras seguem valendo.
-            </p>
-          ) : null}
           <ul className="grid gap-2">
             {pending.map((item) => (
               <li key={item.text} className="flex items-start gap-2">
@@ -162,7 +128,7 @@ export function AuditList({
           <CardTitle>Auditoria</CardTitle>
           <CardDescription>
             Regras do Koinos sobre o que você precisa conferir antes de declarar.
-            {hasNotes ? " As explicações em cinza foram geradas por IA e não trazem números." : ""}
+            {" As explicações em cinza dizem o que conferir em cada tipo de achado."}
           </CardDescription>
         </CardHeader>
         <CardContent className="grid gap-5">
