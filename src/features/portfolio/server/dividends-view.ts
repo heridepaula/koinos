@@ -138,8 +138,12 @@ export const getDividendsView = traced(
           received: classReceived.filter((item) => isFiiLike(item.ticker)),
           announcements,
           upcoming: classUpcoming,
+          classes,
         })
       : [];
+    const stocks = new Set(
+      [...classes].filter(([, assetClass]) => assetClass === "ACAO").map(([ticker]) => ticker),
+    );
     const today = todayTradeDate(now);
 
     const byMonth = groupByMonth(received);
@@ -151,7 +155,7 @@ export const getDividendsView = traced(
     );
 
     return {
-      month: monthSummary(now, received, upcoming),
+      month: monthSummary(now, received, upcoming, undisclosed, stocks),
       upcoming: upcoming.map((item) => ({
         ...item,
         ...meta(item.ticker),

@@ -1,6 +1,6 @@
 # Proventos: FIIs sem anúncio e ações fora da previsão do mês
 
-Data: 2026-11-17. Estado: proposta, aguardando o dono. Código afetado: `portfolio/domain/dividends.ts`
+Data: 2026-11-17. Estado: implementada na branch `feat/proventos-sem-anuncio`. Código afetado: `portfolio/domain/dividends.ts`
 (`undisclosedDividends`, `monthSummary`), `portfolio/server/dividends-view.ts`, os cards do mês e a
 lista "A receber" de `/proventos`. Spec de origem: `2026-10-18-proventos-design.md` (§4).
 

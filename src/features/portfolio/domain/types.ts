@@ -337,8 +337,10 @@ export type UpcomingDividend = {
 /** FII que paga todo mês e ainda não divulgou o provento deste mês. */
 export type UndisclosedDividend = {
   ticker: string;
-  /** Total pago no mês passado, como referência. */
+  /** Total pago no último mês com crédito, como referência. */
   lastAmount: number;
+  /** Esse mês (YYYY-MM); o mês passado, ou antes quando o FII pulou um. */
+  lastMonth: string;
 };
 
 export type DividendMonthSummary = {
@@ -360,6 +362,11 @@ export type DividendMonthSummary = {
   nextUpcoming: { ticker: string; date: Date } | null;
   /** A data do último pagamento previsto no mês; null sem item. */
   lastUpcoming: Date | null;
+  /** Soma das referências dos FIIs mensais sem anúncio. Fora de `total`: não é anunciado. */
+  undisclosed: number;
+  undisclosedAssets: number;
+  /** Ações com pagamento anunciado para outro mês: aparecem na lista, fora do total do mês. */
+  otherMonthStocks: number;
 };
 
 export type DividendMonthGroup = {

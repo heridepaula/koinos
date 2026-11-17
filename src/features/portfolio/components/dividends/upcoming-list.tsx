@@ -2,7 +2,7 @@ import { CircleAlertIcon } from "lucide-react";
 import type { ReactNode } from "react";
 import { AssetLabel } from "@/shared/components/asset-label";
 import { InfoSheet } from "@/shared/components/info-sheet";
-import { formatBRL, formatQuantity, formatTradeDate } from "@/shared/lib/format";
+import { formatBRL, formatMonth, formatQuantity, formatTradeDate } from "@/shared/lib/format";
 import { cn } from "@/shared/lib/utils";
 import { Badge } from "@/shared/ui/badge";
 import {
@@ -88,7 +88,7 @@ function UpcomingLegend({
     items.push({
       key: "nao-divulgado",
       term: <NotDisclosedBadge />,
-      text: "paga todo mês e ainda não anunciou; o valor é o do mês passado",
+      text: "paga todo mês e ainda não anunciou; o valor é o do último pagamento",
     });
   }
   if (rows.some((row) => row.payByPassed)) {
@@ -175,9 +175,12 @@ function UpcomingPhoneList({
           <div className="grid justify-items-end gap-1">
             <span
               className="text-headline font-normal text-muted-foreground tabular-nums"
-              title="Pago no mês passado, como referência."
+              title="Último pagamento, como referência."
             >
               <Sensitive>{formatBRL(row.lastAmount)}</Sensitive>
+              <span className="block text-right text-footnote">
+                ref. {formatMonth(row.lastMonth)}
+              </span>
             </span>
             <NotDisclosedBadge />
           </div>
@@ -288,9 +291,10 @@ export function UpcomingDividends({
                     <TableCell className="hidden text-right @min-[640px]:table-cell">—</TableCell>
                     <TableCell
                       className="text-right text-muted-foreground tabular-nums"
-                      title="Pago no mês passado, como referência."
+                      title="Último pagamento, como referência."
                     >
                       <Sensitive>{formatBRL(row.lastAmount)}</Sensitive>
+                      <span className="block text-footnote">ref. {formatMonth(row.lastMonth)}</span>
                     </TableCell>
                     <TableCell className="pr-(--card-spacing) text-right whitespace-nowrap text-muted-foreground">
                       {/* Na tela estreita a coluna Origem some: o aviso fica aqui. */}

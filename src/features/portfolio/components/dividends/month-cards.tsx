@@ -114,6 +114,30 @@ export function DividendMonthCards({
                 ))}
               </StatList>
             ) : null}
+            {month.undisclosedAssets > 0 ? (
+              <StatList>
+                <StatRow
+                  label={`Sem anúncio · ref. (${month.undisclosedAssets})`}
+                  value={<Sensitive>{formatBRL(month.undisclosed)}</Sensitive>}
+                />
+                <StatRow
+                  label="Se repetirem o último pagamento"
+                  value={<Sensitive>{formatBRL(month.total + month.undisclosed)}</Sensitive>}
+                />
+              </StatList>
+            ) : null}
+            {month.undisclosedAssets > 0 ? (
+              <p className="text-footnote text-muted-foreground">
+                Estimativa dos FIIs mensais que ainda não anunciaram. Ações ficam de fora.
+              </p>
+            ) : null}
+            {month.otherMonthStocks > 0 ? (
+              <p className="text-footnote text-muted-foreground">
+                {month.otherMonthStocks}{" "}
+                {month.otherMonthStocks === 1 ? "ação com pagamento" : "ações com pagamento"} em
+                outro mês, fora deste total.
+              </p>
+            ) : null}
           </div>
         </MetricCard>
       </div>

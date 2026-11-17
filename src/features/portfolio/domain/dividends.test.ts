@@ -5,6 +5,7 @@ import {
   monthSummary,
   parseKindParam,
   payLagDays,
+  undisclosedDividends,
   upcomingDividends,
 } from "./dividends";
 
@@ -427,5 +428,108 @@ describe("monthSummary: detalhes dos cards do mês", () => {
       nextUpcoming: null,
       lastUpcoming: null,
     });
+  });
+});
+
+describe("undisclosedDividends: FII mensal sem anúncio (spec 2026-11-17)", () => {
+  const nov = new Date("2026-11-17T15:00:00Z");
+  const months = (list: string[], ticker = "AAAA11", kind: DividendEntry["kind"] = "RENDIMENTO") =>
+    list.map((month) => paid(ticker, kind, 10, `${month}-14`));
+  // Os 12 meses fechados antes de novembro de 2026.
+  const closed = [
+    "2025-11",
+    "2025-12",
+    "2026-01",
+    "2026-02",
+    "2026-03",
+    "2026-04",
+    "2026-05",
+    "2026-06",
+    "2026-07",
+    "2026-08",
+    "2026-09",
+    "2026-10",
+  ];
+  const base = { now: nov, transactions: [buy], announcements: new Map(), upcoming: [] };
+  const run = (received: DividendEntry[], extra: object = {}) =>
+    undisclosedDividends({ ...base, received, ...extra });
+
+  it("o FII que pulou o mês passado, mas pagou 11 de 12, entra com o último mês pago", () => {
+    const received = months(closed.filter((month) => month !== "2026-10"));
+    expect(run(received)).toEqual([{ ticker: "AAAA11", lastAmount: 10, lastMonth: "2026-09" }]);
+  });
+
+  it("9 de 12 meses entra e 8 de 12 não", () => {
+    expect(run(months(closed.slice(3)))).toHaveLength(1);
+    expect(run(months(closed.slice(4)))).toHaveLength(0);
+  });
+
+  it("o trimestral não entra", () => {
+    expect(run(months(["2026-01", "2026-04", "2026-07", "2026-10"]))).toHaveLength(0);
+  });
+
+  it("sem cotas hoje, com crédito neste mês ou com data ex no mês, não entra", () => {
+    const received = months(closed);
+    expect(run(received, { transactions: [] })).toHaveLength(0);
+    expect(run([...received, paid("AAAA11", "RENDIMENTO", 10, "2026-11-12")])).toHaveLength(0);
+    const ann = new Map([["AAAA11", [{ exDate: at("2026-11-10") }]]]);
+    expect(run(received, { announcements: ann })).toHaveLength(0);
+  });
+
+  const item = (payBy: Date | null) => ({
+    ticker: "AAAA11",
+    kind: "RENDIMENTO" as const,
+    exDate: null,
+    comDate: null,
+    quantity: 100,
+    perShare: 0.1,
+    amount: 10,
+    payBy,
+    source: "B3" as const,
+  });
+  it("item do a receber que paga no mês seguinte não esconde o FII; o do mês, sim", () => {
+    const received = months(closed);
+    expect(run(received, { upcoming: [item(at("2026-12-10"))] })).toHaveLength(1);
+    expect(run(received, { upcoming: [item(at("2026-11-25"))] })).toHaveLength(0);
+    expect(run(received, { upcoming: [item(null)] })).toHaveLength(0);
+  });
+
+  it("Aluguel não conta como mês pago", () => {
+    expect(run(months(closed, "AAAA11", "ALUGUEL"))).toHaveLength(0);
+  });
+
+  it("ação nunca entra, mesmo com o histórico de um pagador mensal", () => {
+    const received = months(closed, "VALE3", "DIVIDENDO");
+    const stock = new Map([["VALE3", "ACAO"]]);
+    const asRendimento = months(closed, "VALE3", "RENDIMENTO");
+    expect(run(received, { classes: stock })).toHaveLength(0);
+    expect(
+      run(asRendimento, { classes: stock, transactions: [{ ...buy, ticker: "VALE3" }] }),
+    ).toHaveLength(0);
+  });
+});
+
+describe("monthSummary: sem anúncio e ações fora do mês", () => {
+  const b3 = (ticker: string, payBy: Date) => ({
+    ticker,
+    kind: "DIVIDENDO" as const,
+    exDate: null,
+    comDate: null,
+    quantity: 1,
+    perShare: 1,
+    amount: 7,
+    payBy,
+    source: "B3" as const,
+  });
+  it("a referência não entra no total e a ação de outro mês fica fora dele", () => {
+    const summary = monthSummary(
+      now,
+      [paid("AAAA11", "RENDIMENTO", 10, "2026-10-14")],
+      [b3("VALE3", at("2026-12-10")), b3("PETR4", at("2026-10-28"))],
+      [{ ticker: "BBBB11", lastAmount: 4, lastMonth: "2026-09" }],
+      new Set(["VALE3", "PETR4"]),
+    );
+    expect(summary.total).toBe(17);
+    expect(summary).toMatchObject({ undisclosed: 4, undisclosedAssets: 1, otherMonthStocks: 1 });
   });
 });

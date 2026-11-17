@@ -326,10 +326,17 @@ function scheduledUpcoming(
   return result;
 }
 
+/** Pagador mensal: créditos em pelo menos 9 dos 12 meses fechados anteriores ao atual. */
+const MONTHLY_PAYER_WINDOW = 12;
+const MONTHLY_PAYER_MIN_MONTHS = 9;
+
 /**
- * FIIs da carteira que pagam todo mês e ainda não divulgaram o provento deste mês: receberam nos
- * dois meses anteriores, têm cotas hoje e, neste mês, não receberam, não estão no "a receber" e
- * não têm anúncio do Yahoo com data ex no mês. `lastAmount` é o que pagaram no mês passado.
+ * FIIs da carteira que pagam todo mês e ainda não divulgaram o provento deste mês (spec
+ * `2026-11-17-proventos-sem-anuncio-design.md`). É pagador mensal quem recebeu Rendimento ou
+ * Reembolso (nunca Aluguel) em pelo menos 9 dos 12 meses fechados anteriores. Entra o que tem
+ * cotas hoje, nenhum crédito neste mês, nenhum item do "a receber" que pague neste mês e nenhum
+ * anúncio do Yahoo com data ex no mês. Ação nunca entra (`classes`). `lastAmount` é o que pagou no
+ * último mês com crédito, `lastMonth`.
  */
 export function undisclosedDividends(input: {
   now: Date;
@@ -337,30 +344,43 @@ export function undisclosedDividends(input: {
   received: readonly DividendEntry[];
   announcements: ReadonlyMap<string, readonly { exDate: Date }[]>;
   upcoming: readonly UpcomingDividend[];
+  /** Classe de cada ativo; a ação fica de fora, o ativo sem classe segue a regra do FII. */
+  classes?: ReadonlyMap<string, string | null>;
 }): UndisclosedDividend[] {
   const month = currentMonthKey(input.now);
-  const previous = addMonths(month, -1);
-  const beforePrevious = addMonths(month, -2);
+  const firstMonth = addMonths(month, -MONTHLY_PAYER_WINDOW);
   const tomorrow = new Date(todayTradeDate(input.now).getTime() + DAY);
   const paidIn = new Map<string, Map<string, number>>();
   for (const item of input.received) {
+    if (item.kind !== "RENDIMENTO" && item.kind !== "REEMBOLSO") continue;
+    if (input.classes?.get(item.ticker) === "ACAO") continue;
     const byMonth = paidIn.get(item.ticker) ?? new Map<string, number>();
     const key = monthKeyOfTradeDate(item.paidAt);
     byMonth.set(key, (byMonth.get(key) ?? 0) + item.amount);
     paidIn.set(item.ticker, byMonth);
   }
-  const listed = new Set(input.upcoming.map((item) => item.ticker));
+  // Item sem data de pagamento (a B3 ainda não informou) é do ciclo atual e cobre o mês.
+  const listed = new Set(
+    input.upcoming
+      .filter((item) => item.payBy === null || monthKeyOfTradeDate(item.payBy) === month)
+      .map((item) => item.ticker),
+  );
   const result: UndisclosedDividend[] = [];
   for (const [ticker, byMonth] of paidIn) {
-    const lastAmount = byMonth.get(previous);
-    if (lastAmount === undefined || !byMonth.has(beforePrevious) || byMonth.has(month)) continue;
-    if (listed.has(ticker)) continue;
+    if (byMonth.has(month) || listed.has(ticker)) continue;
+    const closed = [...byMonth.keys()].filter((key) => key >= firstMonth && key < month);
+    if (closed.length < MONTHLY_PAYER_MIN_MONTHS) continue;
     const announced = (input.announcements.get(ticker) ?? []).some(
       (announcement) => monthKeyOfTradeDate(announcement.exDate) === month,
     );
     if (announced) continue;
     if (quantityBefore(input.transactions, ticker, tomorrow) <= 0) continue;
-    result.push({ ticker, lastAmount });
+    const lastMonth = [...byMonth.keys()]
+      .filter((key) => key < month)
+      .sort()
+      .at(-1);
+    if (lastMonth === undefined) continue;
+    result.push({ ticker, lastAmount: byMonth.get(lastMonth)!, lastMonth });
   }
   return result.sort((a, b) => a.ticker.localeCompare(b.ticker));
 }
@@ -396,6 +416,10 @@ export function monthSummary(
   now: Date,
   received: readonly DividendEntry[],
   upcoming: readonly UpcomingDividend[],
+  /** FIIs mensais sem anúncio: a referência não entra em `total`, só em `undisclosed`. */
+  undisclosed: readonly UndisclosedDividend[] = [],
+  /** Tickers de ação: o anúncio deles para outro mês é contado em `otherMonthStocks`. */
+  stocks: ReadonlySet<string> = new Set(),
 ): DividendMonthSummary {
   const month = currentMonthKey(now);
   const monthReceived = received.filter((item) => monthKeyOfTradeDate(item.paidAt) === month);
@@ -430,6 +454,18 @@ export function monthSummary(
     upcomingAssets: new Set(monthUpcoming.map((item) => item.ticker)).size,
     nextUpcoming: next ? { ticker: next.ticker, date: next.payBy } : null,
     lastUpcoming: dated.at(-1)?.payBy ?? null,
+    undisclosed: undisclosed.reduce((sum, item) => sum + item.lastAmount, 0),
+    undisclosedAssets: undisclosed.length,
+    otherMonthStocks: new Set(
+      upcoming
+        .filter(
+          (item) =>
+            stocks.has(item.ticker) &&
+            item.payBy !== null &&
+            monthKeyOfTradeDate(item.payBy) !== month,
+        )
+        .map((item) => item.ticker),
+    ).size,
   };
 }
 
