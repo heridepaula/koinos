@@ -14,7 +14,3 @@ export const assetCnpjSchema = z.object({
   ticker: z.string().regex(/^[A-Z]{4}\d{1,2}$/),
   cnpj: z.string().refine((value) => isValidCnpj(value), "CNPJ inválido"),
 });
-
-export const generateNarrativesSchema = z.object({
-  year: z.number().int().min(2019).max(2100),
-});

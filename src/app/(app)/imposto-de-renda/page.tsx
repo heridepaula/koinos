@@ -9,10 +9,6 @@ import { CardSkeleton } from "@/shared/components/skeletons";
 
 export const metadata: Metadata = { title: "Imposto de Renda" };
 
-// Cobre a Server Action chamada a partir desta página (`generateTaxNarrativesAction`, prazo de 120 s
-// no serviço). O corte de 30 s do cron-job.org não vale aqui: a ação roda a pedido do usuário.
-export const maxDuration = 120;
-
 // O cabeçalho vai no shell estático; o relatório (sessão, banco e a data de hoje) chega por streaming.
 export default function TaxReportPage({ searchParams }: PageProps<"/imposto-de-renda">) {
   return (

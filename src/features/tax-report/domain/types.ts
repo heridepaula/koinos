@@ -116,17 +116,6 @@ export type FiscalYearReport = {
 /** O emissor de um ativo do relatório, para o dono conferir ou digitar o CNPJ. */
 export type TaxReportIdentity = AssetIdentity & { ticker: string };
 
-/** Os textos do Gemini que a tela pode mostrar (só os que o código aceitou e que ainda valem). */
-export type TaxNarrativesView = {
-  status: "none" | "ok" | "failed";
-  /** Reescrita da discriminação por ticker. */
-  positions: Record<string, string>;
-  /** Uma explicação por tipo de achado, sem número. */
-  codes: Record<string, string>;
-  /** Os dados mudaram desde a geração dos textos. */
-  stale: boolean;
-};
-
 /** O que a tela `/imposto-de-renda` recebe: o relatório do ano, os anos com dados e as identidades. */
 export type TaxReportView = {
   year: number;
@@ -134,5 +123,4 @@ export type TaxReportView = {
   years: number[];
   report: FiscalYearReport;
   identities: TaxReportIdentity[];
-  narratives: TaxNarrativesView;
 };
