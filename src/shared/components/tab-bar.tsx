@@ -3,19 +3,22 @@
 import { EllipsisIcon } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useState, type ReactNode } from "react";
+import { useState, type CSSProperties, type ReactNode } from "react";
+import { cn } from "@/shared/lib/utils";
 import { MoreSheet } from "./more-sheet";
-import { NAV_ITEMS, isWithin } from "./nav-items";
+import { activeTabIndex, isWithin, tabItemsFor } from "./nav-items";
 import { useCurrentTabBarAction } from "./tab-bar-action";
 
-const TABS = NAV_ITEMS.filter((item) => item.tab);
+// A barra larga (481 a 767 px) tem uma aba a mais, o Ativos; abaixo de 481 px ela fica escondida.
+const TABS = tabItemsFor("wide");
+const NARROW_TABS = tabItemsFor("narrow").length;
 
 /*
  * Aba: ícone de 24 px sobre o rótulo de 10 px, como no iOS. A escolhida fica no azul AA da
  * --tab-active (o systemBlue dá menos de 4,5:1 no vidro) e o ícone afunda no toque.
  */
 const TAB =
-  "group/tab flex min-w-0 flex-col items-center justify-center gap-0.5 rounded-full text-[0.625rem] leading-3 font-semibold text-foreground outline-none select-none [-webkit-touch-callout:none] focus-visible:ring-3 focus-visible:ring-ring/50 aria-[current=page]:text-(--tab-active) data-current:text-(--tab-active)";
+  "group/tab flex min-w-0 flex-col items-center justify-center gap-0.5 rounded-full text-[0.625rem] leading-3 font-semibold text-foreground outline-none select-none [-webkit-touch-callout:none] focus-visible:ring-3 focus-visible:ring-ring/50 aria-[current=page]:text-(--tab-active) data-current-narrow:max-[480px]:text-(--tab-active) data-current-wide:min-[481px]:text-(--tab-active)";
 const TAB_ICON =
   "size-6 transition-transform duration-150 ease-out group-active/tab:scale-88 motion-reduce:transition-none";
 
@@ -31,40 +34,41 @@ export function TabBar({ account }: { account: ReactNode }) {
   const pathname = usePathname();
   const [moreOpen, setMoreOpen] = useState(false);
   const action = useCurrentTabBarAction();
-  const tab = TABS.findIndex((item) => isWithin(item.href, pathname));
-  // Fora das abas (Carteira Alvo, Encerradas, B3), quem fica marcado é o "Mais".
-  const index = tab === -1 ? TABS.length : tab;
+  // Fora das abas (Carteira Alvo, Encerradas, B3), quem fica marcado é o "Mais". O Ativos é aba só
+  // na barra larga, e na estreita (onde está no "Mais") o índice conta sem ele: o CSS escolhe.
+  const narrow = activeTabIndex("narrow", pathname);
+  const wide = activeTabIndex("wide", pathname);
 
   return (
     <nav
       aria-label="Navegação principal"
       className="pointer-events-none fixed inset-x-0 bottom-(--tab-bar-bottom) z-30 mx-auto flex max-w-lg gap-2 pr-[max(1rem,var(--safe-right))] pl-[max(1rem,var(--safe-left))] md:hidden"
     >
-      <div className="pointer-events-auto relative isolate grid h-(--tab-bar-height) flex-1 auto-cols-fr grid-flow-col rounded-full p-1 glass-strong [--glass-strong-tint:var(--tab-bar-tint)]">
+      <div
+        className="pointer-events-auto relative isolate grid h-(--tab-bar-height) flex-1 auto-cols-fr grid-flow-col rounded-full p-1 glass-strong [--glass-strong-tint:var(--tab-bar-tint)] [--index:var(--index-narrow)] [--tabs:4] min-[481px]:[--index:var(--index-wide)] min-[481px]:[--tabs:5]"
+        style={{ "--index-narrow": narrow, "--index-wide": wide } as CSSProperties}
+      >
         <span
           aria-hidden="true"
-          className="absolute inset-y-1 left-1 -z-10 rounded-full bg-white/70 shadow-[inset_0_1px_0_#fff,0_1px_3px_rgb(30_40_100/0.14)] transition-transform duration-690 ease-bouncy motion-reduce:transition-none dark:bg-white/14 dark:shadow-[inset_0_1px_0_rgb(255_255_255/0.2)]"
-          style={{
-            width: `calc((100% - 8px) / ${TABS.length + 1})`,
-            transform: `translateX(${index * 100}%)`,
-          }}
+          className="absolute inset-y-1 left-1 -z-10 w-[calc((100%-8px)/var(--tabs))] translate-x-[calc(var(--index)*100%)] rounded-full bg-white/70 shadow-[inset_0_1px_0_#fff,0_1px_3px_rgb(30_40_100/0.14)] transition-transform duration-690 ease-bouncy motion-reduce:transition-none dark:bg-white/14 dark:shadow-[inset_0_1px_0_rgb(255_255_255/0.2)]"
         />
-        {TABS.map((item, position) => (
+        {TABS.map((item) => (
           <Link
             key={item.href}
             href={item.href}
-            aria-current={position === index ? "page" : undefined}
-            className={TAB}
+            aria-current={isWithin(item.href, pathname) ? "page" : undefined}
+            className={cn(TAB, !item.tab && "max-[480px]:hidden")}
           >
             <item.icon aria-hidden="true" className={TAB_ICON} />
-            <span className="max-w-full truncate px-0.5">{item.tab}</span>
+            <span className="max-w-full truncate px-0.5">{item.tabLabel}</span>
           </Link>
         ))}
         <button
           type="button"
           aria-haspopup="dialog"
           aria-expanded={moreOpen}
-          data-current={index === TABS.length || undefined}
+          data-current-narrow={narrow === NARROW_TABS || undefined}
+          data-current-wide={wide === TABS.length || undefined}
           onClick={() => setMoreOpen(true)}
           className={TAB}
         >

@@ -31,6 +31,11 @@ export type NavItem = {
    * e o botão da ação principal ao lado, os rótulos não cabiam em 393 px.
    */
   tab?: string;
+  /**
+   * Aba só na tab bar larga (481 a 767 px, celular deitado ou tablet pequeno), onde cabe uma quinta
+   * aba. Abaixo de 481 px a página fica no "Mais"; a partir dela sai de lá.
+   */
+  tabWide?: string;
   /** Subpáginas que aparecem no menu, abaixo do item (somem com a sidebar recolhida). */
   children?: readonly NavChild[];
 };
@@ -61,6 +66,7 @@ export const NAV_ITEMS: readonly NavItem[] = [
     label: "Ativos",
     icon: ChartLineIcon,
     tile: "[--tile:var(--tile-indigo)]",
+    tabWide: "Ativos",
   },
   {
     href: "/proventos",
@@ -132,9 +138,35 @@ export function navGroups(items: readonly NavItem[] = NAV_ITEMS) {
   })).filter((group) => group.items.length > 0);
 }
 
+/** Largura da tab bar: estreita (até 480 px, quatro abas) ou larga (481 a 767 px, cinco). */
+export type TabWidth = "narrow" | "wide";
+
+export type TabItem = NavItem & { tabLabel: string };
+
+/** As páginas que têm aba na barra naquela largura, na ordem do menu, com o rótulo curto. */
+export function tabItemsFor(width: TabWidth): TabItem[] {
+  return NAV_ITEMS.flatMap((item) => {
+    const tabLabel = item.tab ?? (width === "wide" ? item.tabWide : undefined);
+    return tabLabel ? [{ ...item, tabLabel }] : [];
+  });
+}
+
+/** As páginas que ficam na folha "Mais" naquela largura. */
+export function moreItemsFor(width: TabWidth): NavItem[] {
+  const tabs = new Set(tabItemsFor(width).map((item) => item.href));
+  return NAV_ITEMS.filter((item) => !tabs.has(item.href));
+}
+
 /** A página ou uma subpágina dela está aberta. */
 export const isWithin = (href: string, pathname: string) =>
   pathname === href || pathname.startsWith(`${href}/`);
+
+/** O índice da aba marcada; fora das abas é o "Mais", a última posição. */
+export function activeTabIndex(width: TabWidth, pathname: string): number {
+  const tabs = tabItemsFor(width);
+  const index = tabs.findIndex((item) => isWithin(item.href, pathname));
+  return index === -1 ? tabs.length : index;
+}
 
 /**
  * A página-mãe de uma subpágina, para o botão voltar da barra do iPhone: a do menu (os `children`)

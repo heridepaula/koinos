@@ -15,9 +15,10 @@ import {
 } from "@/shared/ui/drawer";
 import { SegmentedControl } from "@/shared/ui/segmented-control";
 import { InsetGroup, insetRowClass } from "./inset-list";
-import { NAV_ITEMS, isWithin, navGroups } from "./nav-items";
+import { isWithin, moreItemsFor, navGroups } from "./nav-items";
 
-const MORE_GROUPS = navGroups(NAV_ITEMS.filter((item) => !item.tab));
+// O Ativos tem aba própria a partir de 481 px: lá ele sai da folha (min-[481px]:hidden).
+const MORE_GROUPS = navGroups(moreItemsFor("narrow"));
 
 const THEME_OPTIONS = [
   { value: "system", label: "Automático" },
@@ -65,7 +66,11 @@ export function MoreSheet({
                       href={item.href}
                       aria-current={current ? "page" : undefined}
                       onClick={() => onOpenChange(false)}
-                      className={cn(insetRowClass(), current && "bg-foreground/5")}
+                      className={cn(
+                        insetRowClass(),
+                        current && "bg-foreground/5",
+                        item.tabWide && "min-[481px]:hidden",
+                      )}
                     >
                       <span className={cn("tile size-8 rounded-lg [&_svg]:size-4.5", item.tile)}>
                         <item.icon aria-hidden="true" />
