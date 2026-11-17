@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { DividendEntry } from "@/features/transactions";
-import { grossUpJcp, groupYearDividends } from "./year-dividends";
+import { grossUpJcp, groupYearDividends, jcpWithholdingRate } from "./year-dividends";
 
 const pay = (
   iso: string,
@@ -10,6 +10,32 @@ const pay = (
   quantity: null,
   perShare: null,
   ...p,
+});
+
+describe("jcpWithholdingRate", () => {
+  it("15% até 2025 e 17,5% de 2026 em diante, pela data de pagamento", () => {
+    expect(jcpWithholdingRate(new Date("2025-12-31T00:00:00Z"))).toBe(0.15);
+    expect(jcpWithholdingRate(new Date("2026-01-01T00:00:00Z"))).toBe(0.175);
+    expect(jcpWithholdingRate(new Date("2023-06-10T00:00:00Z"))).toBe(0.15);
+    expect(jcpWithholdingRate(new Date("2026-08-20T00:00:00Z"))).toBe(0.175);
+  });
+});
+
+describe("grossUpJcp com a taxa de cada ano", () => {
+  it("2025 (15%): líquido 85 vira bruto 100 e retido 15", () => {
+    expect(grossUpJcp(85, null, null, 0.15)).toEqual({ gross: 100, withheld: 15, offRange: false });
+  });
+  it("2026 (17,5%): líquido 82,5 vira bruto 100 e retido 17,5", () => {
+    expect(grossUpJcp(82.5, null, null, 0.175)).toEqual({
+      gross: 100,
+      withheld: 17.5,
+      offRange: false,
+    });
+  });
+  it("JCP real de 2026 (PETR4, 100 ações, bruto por cota 0,35, líquido 28,91) só passa com 17,5%", () => {
+    expect(grossUpJcp(28.91, 0.35, 100, 0.175).offRange).toBe(false);
+    expect(grossUpJcp(28.91, 0.35, 100, 0.15).offRange).toBe(true);
+  });
 });
 
 describe("grossUpJcp", () => {
@@ -151,5 +177,42 @@ describe("groupYearDividends", () => {
       classOf,
     });
     expect(r.jcpOffRange).toEqual(["PETR4"]);
+  });
+});
+
+describe("groupYearDividends: taxa do JCP por pagamento", () => {
+  const base = {
+    cnpjOf: () => "33.000.167/0001-01",
+    classOf: () => "ACAO" as const,
+  };
+  it("2025 usa 15% e 2026 usa 17,5%", () => {
+    const a = groupYearDividends({
+      ...base,
+      year: 2025,
+      dividends: [pay("2025-12-30", { ticker: "PETR4", kind: "JCP", amount: 85 })],
+    });
+    expect(a.exclusive[0]).toMatchObject({ gross: 100, withheld: 15 });
+    const b = groupYearDividends({
+      ...base,
+      year: 2026,
+      dividends: [pay("2026-01-02", { ticker: "PETR4", kind: "JCP", amount: 82.5 })],
+    });
+    expect(b.exclusive[0]).toMatchObject({ gross: 100, withheld: 17.5 });
+  });
+  it("o JCP de 2026 com bruto por cota real não é marcado fora da faixa", () => {
+    const r = groupYearDividends({
+      ...base,
+      year: 2026,
+      dividends: [
+        pay("2026-08-20", {
+          ticker: "PETR4",
+          kind: "JCP",
+          amount: 28.91,
+          quantity: 100,
+          perShare: 0.35,
+        }),
+      ],
+    });
+    expect(r.jcpOffRange).toEqual([]);
   });
 });

@@ -4,22 +4,34 @@ import { receitaCodesFor } from "./receita-codes";
 import type { DividendFiscalItem, FiscalClass } from "./types";
 
 /**
- * O JCP vem líquido dos 15% retidos na fonte, então o bruto é sempre líquido ÷ 0,85, ao centavo
- * (o bruto por cota da B3 pode vir arredondado e não serve de base). Com bruto por cota e
- * quantidade, eles só conferem: `offRange` quando 85% de quantidade × bruto por cota difere do
- * líquido em mais de max(R$ 0,05; 1% do líquido). Sem eles não há como conferir.
+ * Alíquota de IRRF sobre o JCP pela data de pagamento do extrato: 15% até 2025 e 17,5% a partir
+ * de 1º/1/2026 (LC 224/2025). A taxa se confirma nos extratos reais (retenção ~15% até 2025 e
+ * ~17,4–17,9% em 2026, a diferença vem do arredondamento do bruto por cota). A vigência exata
+ * (data do pagamento ou do crédito) não foi confirmada no texto da lei, então a regra usa a data
+ * de pagamento do extrato.
+ */
+export function jcpWithholdingRate(paidAt: Date): number {
+  return paidAt.getTime() < Date.UTC(2026, 0, 1) ? 0.15 : 0.175;
+}
+
+/**
+ * O JCP vem líquido da retenção na fonte, então o bruto é líquido ÷ (1 − taxa), ao centavo (o
+ * bruto por cota da B3 pode vir arredondado e não serve de base). Com bruto por cota e
+ * quantidade, eles só conferem: `offRange` quando quantidade × bruto por cota × (1 − taxa) difere
+ * do líquido em mais de max(R$ 0,05; 1% do líquido). Sem eles não há como conferir.
  */
 export function grossUpJcp(
   net: number,
   perShare: number | null = null,
   quantity: number | null = null,
+  rate = 0.15,
 ): { gross: number; withheld: number; offRange: boolean } {
-  const gross = round2(net / 0.85);
+  const gross = round2(net / (1 - rate));
   const withheld = round2(gross - net);
   let offRange = false;
   if (perShare !== null && quantity !== null && perShare > 0 && quantity > 0) {
     const tolerance = Math.max(0.05, Math.abs(net) * 0.01);
-    offRange = Math.abs(round2(perShare * quantity * 0.85) - net) > tolerance;
+    offRange = Math.abs(round2(perShare * quantity * (1 - rate)) - net) > tolerance;
   }
   return { gross, withheld, offRange };
 }
@@ -61,6 +73,7 @@ export function groupYearDividends(input: {
     net: number,
     perShare: number | null,
     quantity: number | null,
+    paidAt: Date,
   ) => {
     const sheet = kind === "JCP" ? "EXCLUSIVA" : "ISENTO";
     const receita =
@@ -78,7 +91,7 @@ export function groupYearDividends(input: {
     };
     if (!item.tickers.includes(ticker)) item.tickers.push(ticker);
     if (kind === "JCP") {
-      const g = grossUpJcp(net, perShare, quantity);
+      const g = grossUpJcp(net, perShare, quantity, jcpWithholdingRate(paidAt));
       if (g.offRange) jcpOffRange.add(ticker);
       item.gross = round2(item.gross + g.gross);
       item.withheld = round2(item.withheld + g.withheld);
@@ -112,7 +125,7 @@ export function groupYearDividends(input: {
       continue;
     }
     const cnpj = cnpjOf(d.ticker);
-    add(cnpj ?? d.ticker, d.ticker, cnpj, d.kind, d.amount, d.perShare, d.quantity);
+    add(cnpj ?? d.ticker, d.ticker, cnpj, d.kind, d.amount, d.perShare, d.quantity, d.paidAt);
   }
 
   const items = [...groups.values()].sort((a, b) => a.sourceKey.localeCompare(b.sourceKey));

@@ -103,7 +103,7 @@ export function auditReport(input: {
       severity: "ATENCAO",
       ticker,
       month: null,
-      message: `${ticker}: o JCP líquido não corresponde a 85% de um valor bruto ao centavo; confira com o informe.`,
+      message: `${ticker}: o JCP líquido não corresponde ao bruto do extrato menos a retenção do ano; confira com o informe.`,
     });
   }
 
