@@ -1696,6 +1696,8 @@ git commit -m "feat(tax-report): add the /imposto-de-renda page with the five ta
 
 ### Task 9: Textos do Gemini com validação numérica
 
+> **Removida (2026-11-17):** decisão do dono de tirar a IA do relatório; as notas por achado viraram textos fixos (`finding-notes.ts`). O conteúdo abaixo é histórico.
+
 **Goal:** Reescrita opcional da discriminação por ativo e uma narrativa por **tipo de achado** (sem números), aceitas só depois da validação do código, geradas fora da página.
 
 > **Mudança de desenho (2026-11-16, após a validação com dados reais; spec §6):** 2025 tem 125 achados, 80 quase idênticos, então narrar um por achado não cabe numa chamada. O schema passa a ser `positions[{ ticker, text }]` (reescrita da discriminação, com validação numérica contra o modelo fixo) e `codeNarratives[{ code, text }]` (uma por `FiscalFlagCode`, explicando o que o achado significa e o que conferir, **sem nenhum número**: o texto não pode conter dígito; `acceptRewrite` para esse caso é "sem número algum"). A mensagem de cada achado (ticker, mês, valor) continua vinda do código. O texto da IA que aparece na tela passa por `moneySegments` e `Sensitive`, e o teste de vazamento do modo privado é refeito depois. O botão "Gerar textos com IA" envia dados da carteira ao Gemini e grava em produção: **só o dono o aciona**, nunca a automação de navegador.

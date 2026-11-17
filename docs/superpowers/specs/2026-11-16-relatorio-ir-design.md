@@ -1,7 +1,7 @@
 # Relatório de Imposto de Renda e consistência fiscal: especificação de design
 
 - **Data:** 2026-11-16
-- **Status:** passo 1 implementado em 2026-11-16 (branch `feat/relatorio-ir`, plano `2026-11-16-relatorio-ir-passo-1.md`) e validado no navegador com a carteira real: proventos de 2025 e custo das posições batem com o Dashboard (diferença 0,00). Desvios do plano: o CNPJ roda em rota própria `/api/cron/cnpj` (semanal), `PROVENTO_APOS_ENCERRAR` ficou para o passo 2, a narrativa da IA é por tipo de achado (sem números) e o desempate do CNPJ por nome foi aceito. Falta o passo 2 (day trade e IRRF) e os itens abertos do §9.
+- **Status:** o Gemini foi removido em 2026-11-17 por decisão do dono (§6); a tela é 100% determinística. Passo 1 implementado em 2026-11-16 (branch `feat/relatorio-ir`, plano `2026-11-16-relatorio-ir-passo-1.md`) e validado no navegador com a carteira real: proventos de 2025 e custo das posições batem com o Dashboard (diferença 0,00). Desvios do plano: o CNPJ roda em rota própria `/api/cron/cnpj` (semanal), `PROVENTO_APOS_ENCERRAR` ficou para o passo 2, a narrativa da IA é por tipo de achado (sem números) e o desempate do CNPJ por nome foi aceito. Falta o passo 2 (day trade e IRRF) e os itens abertos do §9.
 - **Origem:** especificação "Feature #10" colada pelo dono, revisada contra o código. §10 lista o que mudou em relação a ela.
 - **Specs relacionadas:** `2026-10-23-posicoes-encerradas-design.md` (IR estimado por posição), `2026-10-30-acoes-etapa-1-design.md` §8 (IR de ações), `2026-11-12-resumo-ia-variacao-design.md` (cadeia Gemini).
 
@@ -11,11 +11,11 @@ Uma página `/imposto-de-renda` que, para um ano-calendário, entrega os dados p
 
 ### Critérios de sucesso
 
-1. Todo número (quantidade, custo, preço médio, proventos, imposto) sai de código puro e testado. O Gemini nunca é fonte de número.
+1. Todo número (quantidade, custo, preço médio, proventos, imposto) sai de código puro e testado. Sem IA: a tela é toda determinística (decisão de 2026-11-17).
 2. Bens e Direitos de 31/12 do ano e do ano anterior batem com `replayLedger` cortado nas duas datas e com a posição atual quando o ano é o corrente.
 3. A soma dos proventos do ano bate com `/proventos` filtrado pelo mesmo ano, por tipo.
 4. A apuração mensal, nos casos de teste da §8, bate com o cálculo à mão. O IR estimado de `/encerradas/ir` não muda.
-5. Sem Gemini (cota, falha, sem chave), a tela mostra tudo, com a discriminação em modelo fixo gerado pelo código.
+5. A tela não usa Gemini: mostra tudo, com a discriminação em modelo fixo gerado pelo código e as notas da auditoria em texto fixo (`finding-notes.ts`).
 6. Ativo sem CNPJ aparece como pendência bloqueante na ficha dele, nunca com CNPJ inventado.
 
 ## 2. Decisões do dono (2026-11-16)
@@ -45,7 +45,7 @@ Uma página `/imposto-de-renda` que, para um ano-calendário, entrega os dados p
 transações + proventos + ativos (nome, CNPJ)
   → domain/: posições em 31/12, proventos do ano, apuração mensal, auditoria por regras
   → FiscalYearReport (determinístico)
-  → Gemini (opcional): texto da discriminação e narrativa da auditoria, validados pelo código
+  → notas fixas por tipo de achado (`finding-notes.ts`), sem IA
   → tela por abas + exportação
 ```
 
@@ -127,7 +127,9 @@ Cada achado tem `code`, `severity` (`INFO`, `ATENCAO`, `CRITICO`), ticker e mês
 
 `CNPJ_AUSENTE`, `PRECO_ESTIMADO`, `POSICAO_ANTERIOR`, `VENDA_ACIMA_ISENCAO_SEM_DARF` (mês acima de R$ 20 mil de ações com lucro e imposto não zerado), `SALDO_PREJUIZO_NAO_INFORMADO`, `PROVENTO_APOS_ENCERRAR`, `PROVENTO_REEMBOLSO`, `ALUGUEL_NAO_CLASSIFICADO`, `RETENCAO_DIVIDENDO_POSSIVEL`, `JCP_FORA_DA_FAIXA` (JCP líquido que não corresponde a 85% de um bruto arredondado), `POSICAO_NEGATIVA` (não deve ocorrer: `findOversells`; é guarda), `ATIVO_SEM_COTACAO_NA_DATA` (se for preciso para algo além do custo; hoje não é).
 
-## 6. Gemini
+## 6. Gemini (removido)
+
+> **Removido em 2026-11-17 por decisão do dono.** A reescrita da discriminação não agregava nada (o modelo fixo já é exato) e as explicações por tipo de achado viraram textos fixos escritos à mão (`domain/finding-notes.ts`). Não há mais chamada ao Gemini, exceção de privacidade nem coleção `tax_narratives` em uso. O texto abaixo é histórico.
 
 - **Exceção de privacidade (decisão do dono, 2026-11-16):** o prompt leva quantidade, preço médio, custo e proventos por ativo. O CLAUDE.md passa a registrar a exceção, com o risco: o nível gratuito pode treinar com os prompts (a regra antiga existia por isso).
 - **Mínimo necessário:** não vão ao prompt id de portfólio, e-mail, nome do usuário, corretora e valores de patrimônio total. O prompt leva só os campos da §3 que a discriminação pede.
