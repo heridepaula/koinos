@@ -21,6 +21,7 @@ import type {
   DividendMonthSummary,
   DividendTickerGroup,
   DividendYearGroup,
+  PaidDividend,
   UndisclosedDividend,
   UpcomingDividend,
 } from "./types";
@@ -393,6 +394,28 @@ export function undisclosedDividends(input: {
     result.push({ ticker, lastAmount: byMonth.get(lastMonth)!, lastMonth });
   }
   return result.sort((a, b) => a.ticker.localeCompare(b.ticker));
+}
+
+/** O que já foi pago no mês atual, somado por ativo, tipo e dia; o mais recente primeiro. */
+export function paidThisMonth(now: Date, received: readonly DividendEntry[]): PaidDividend[] {
+  const month = currentMonthKey(now);
+  const sums = new Map<string, PaidDividend>();
+  for (const item of received) {
+    if (monthKeyOfTradeDate(item.paidAt) !== month) continue;
+    const key = `${item.ticker}|${item.kind}|${item.paidAt.getTime()}`;
+    const current = sums.get(key);
+    if (current) current.amount += item.amount;
+    else
+      sums.set(key, {
+        ticker: item.ticker,
+        kind: item.kind,
+        paidAt: item.paidAt,
+        amount: item.amount,
+      });
+  }
+  return [...sums.values()].sort(
+    (a, b) => b.paidAt.getTime() - a.paidAt.getTime() || a.ticker.localeCompare(b.ticker),
+  );
 }
 
 /**

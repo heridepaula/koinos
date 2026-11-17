@@ -1,4 +1,4 @@
-import { CircleAlertIcon } from "lucide-react";
+import { CircleAlertIcon, CircleCheckIcon } from "lucide-react";
 import type { ReactNode } from "react";
 import { AssetLabel } from "@/shared/components/asset-label";
 import { InfoSheet } from "@/shared/components/info-sheet";
@@ -35,6 +35,15 @@ function PayBy({ row }: { row: Row }) {
   );
 }
 
+function PaidBadge() {
+  return (
+    <Badge variant="outline" className="gap-1 border-gain/40 bg-gain/10 text-gain">
+      <CircleCheckIcon aria-hidden />
+      pago
+    </Badge>
+  );
+}
+
 function NotDisclosedBadge() {
   return (
     <Badge
@@ -55,10 +64,12 @@ function NotDisclosedBadge() {
 function UpcomingLegend({
   rows,
   undisclosed,
+  paid = false,
   inSheet = false,
 }: {
   rows: Row[];
   undisclosed: boolean;
+  paid?: boolean;
   /** Dentro da folha ⓘ do celular: sem o recuo do card. */
   inSheet?: boolean;
 }) {
@@ -82,6 +93,13 @@ function UpcomingLegend({
       key: "yahoo",
       term: <Badge variant="outline">estimado</Badge>,
       text: "anúncio do Yahoo; o pagamento é estimado pelo intervalo habitual do fundo",
+    });
+  }
+  if (paid) {
+    items.push({
+      key: "pago",
+      term: <PaidBadge />,
+      text: "já caiu na conta neste mês (extrato da B3)",
     });
   }
   if (undisclosed) {
@@ -134,9 +152,11 @@ function UpcomingLegend({
 function UpcomingPhoneList({
   rows,
   undisclosed,
+  paid,
 }: {
   rows: DividendsView["upcoming"];
   undisclosed: DividendsView["undisclosed"];
+  paid: DividendsView["paid"];
 }) {
   return (
     <ul className="divide-y divide-border @min-[400px]:hidden">
@@ -186,6 +206,25 @@ function UpcomingPhoneList({
           </div>
         </li>
       ))}
+      {paid.map((row) => (
+        <li
+          key={`${row.ticker}-pago-${row.kind}-${row.paidAt.toISOString()}`}
+          className="flex items-center gap-3 px-(--card-spacing) py-3"
+        >
+          <div className="min-w-0 flex-1">
+            <AssetLabel ticker={row.ticker} name={row.name} logoUrl={row.logoUrl} size="lg" />
+          </div>
+          <div className="grid justify-items-end gap-1">
+            <span className="text-headline font-normal tabular-nums">
+              <Sensitive>{formatBRL(row.amount)}</Sensitive>
+            </span>
+            <span className="flex items-center gap-1.5 text-footnote text-muted-foreground tabular-nums">
+              <PaidBadge />
+              {formatTradeDate(row.paidAt)}
+            </span>
+          </div>
+        </li>
+      ))}
     </ul>
   );
 }
@@ -194,10 +233,12 @@ function UpcomingPhoneList({
 export function UpcomingDividends({
   rows,
   undisclosed,
+  paid,
   forecastAsOf,
 }: {
   rows: DividendsView["upcoming"];
   undisclosed: DividendsView["undisclosed"];
+  paid: DividendsView["paid"];
   forecastAsOf: Date | null;
 }) {
   const description = forecastAsOf
@@ -206,25 +247,30 @@ export function UpcomingDividends({
   return (
     <Card>
       <CardHeader>
-        <CardTitle>A receber</CardTitle>
+        <CardTitle>Proventos do mês</CardTitle>
         <CardDescription className="max-md:hidden">{description}</CardDescription>
         {/* No celular, a origem e a legenda ficam na folha ⓘ: a lista é o que importa. */}
         <CardAction className="md:hidden">
-          <InfoSheet title="A receber" label="Sobre a lista a receber">
+          <InfoSheet title="Proventos do mês" label="Sobre a lista do mês">
             <p>{description}</p>
-            <UpcomingLegend rows={rows} undisclosed={undisclosed.length > 0} inSheet />
+            <UpcomingLegend
+              rows={rows}
+              undisclosed={undisclosed.length > 0}
+              paid={paid.length > 0}
+              inSheet
+            />
           </InfoSheet>
         </CardAction>
       </CardHeader>
       {/* As colunas de detalhe saem pela largura do card: FII, valor e pagamento ficam sempre. */}
       <CardContent className="@container px-0">
-        {rows.length === 0 && undisclosed.length === 0 ? (
+        {rows.length === 0 && undisclosed.length === 0 && paid.length === 0 ? (
           <p className="px-(--card-spacing) text-sm text-muted-foreground">
             Nenhum provento anunciado a receber.
           </p>
         ) : (
           <>
-            <UpcomingPhoneList rows={rows} undisclosed={undisclosed} />
+            <UpcomingPhoneList rows={rows} undisclosed={undisclosed} paid={paid} />
             <Table className="hidden @min-[400px]:table">
               <TableHeader>
                 <TableRow>
@@ -305,12 +351,30 @@ export function UpcomingDividends({
                     </TableCell>
                   </TableRow>
                 ))}
+                {paid.map((row) => (
+                  <TableRow key={`${row.ticker}-pago-${row.kind}-${row.paidAt.toISOString()}`}>
+                    <TableCell className="pl-(--card-spacing)">
+                      <AssetLabel ticker={row.ticker} name={row.name} logoUrl={row.logoUrl} />
+                    </TableCell>
+                    <TableCell className="hidden @min-[400px]:table-cell">
+                      <PaidBadge />
+                    </TableCell>
+                    <TableCell className="hidden text-right @min-[400px]:table-cell">—</TableCell>
+                    <TableCell className="hidden text-right @min-[640px]:table-cell">—</TableCell>
+                    <TableCell className="text-right font-medium tabular-nums">
+                      <Sensitive>{formatBRL(row.amount)}</Sensitive>
+                    </TableCell>
+                    <TableCell className="pr-(--card-spacing) text-right whitespace-nowrap text-muted-foreground tabular-nums">
+                      {formatTradeDate(row.paidAt)}
+                    </TableCell>
+                  </TableRow>
+                ))}
               </TableBody>
             </Table>
           </>
         )}
         <div className="max-md:hidden">
-          <UpcomingLegend rows={rows} undisclosed={undisclosed.length > 0} />
+          <UpcomingLegend rows={rows} undisclosed={undisclosed.length > 0} paid={paid.length > 0} />
         </div>
       </CardContent>
     </Card>

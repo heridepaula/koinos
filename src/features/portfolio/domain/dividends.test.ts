@@ -5,6 +5,7 @@ import {
   monthSummary,
   parseKindParam,
   payLagDays,
+  paidThisMonth,
   undisclosedDividends,
   upcomingDividends,
 } from "./dividends";
@@ -575,5 +576,17 @@ describe("upcomingDividends: anúncio com data com antes da foto da B3", () => {
     expect(other).toHaveLength(1);
     expect(other[0].payBy).toEqual(at("2026-10-30"));
     expect(run([planned("AAAA11", "REEMBOLSO")])).toHaveLength(1);
+  });
+});
+
+describe("paidThisMonth", () => {
+  it("soma por ativo, tipo e dia, só do mês atual, o mais recente primeiro", () => {
+    const list = paidThisMonth(now, [
+      paid("AAAA11", "RENDIMENTO", 10, "2026-10-14"),
+      paid("AAAA11", "RENDIMENTO", 5, "2026-10-14"),
+      paid("BBBB11", "RENDIMENTO", 7, "2026-10-16"),
+      paid("AAAA11", "RENDIMENTO", 99, "2026-09-14"),
+    ]);
+    expect(list.map((item) => `${item.ticker}:${item.amount}`)).toEqual(["BBBB11:7", "AAAA11:15"]);
   });
 });

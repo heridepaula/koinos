@@ -79,6 +79,7 @@ async function DividendsContent({ searchParams }: Pick<PageProps<"/proventos">, 
       <UpcomingDividends
         rows={view.upcoming}
         undisclosed={view.undisclosed}
+        paid={view.paid}
         forecastAsOf={view.forecastAsOf}
       />
       {/* A chave zera o estado (ano do calendário) quando o filtro muda os anos disponíveis. */}

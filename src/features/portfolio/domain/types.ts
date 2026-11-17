@@ -334,6 +334,14 @@ export type UpcomingDividend = {
   source: "B3" | "FUNDAMENTUS" | "YAHOO";
 };
 
+/** Crédito do mês já pago (extrato da B3), um por ativo, tipo e dia. */
+export type PaidDividend = {
+  ticker: string;
+  kind: DividendKind;
+  paidAt: Date;
+  amount: number;
+};
+
 /** FII que paga todo mês e ainda não divulgou o provento deste mês. */
 export type UndisclosedDividend = {
   ticker: string;
@@ -403,6 +411,8 @@ export type DividendsView = {
     })[];
   /** FIIs mensais da carteira sem provento divulgado neste mês. */
   undisclosed: (UndisclosedDividend & AssetMeta)[];
+  /** O que já caiu neste mês, para a lista mostrar o mês inteiro. */
+  paid: (PaidDividend & AssetMeta)[];
   byMonth: DividendMonthGroup[];
   byYear: DividendYearGroup[];
   byTicker: (DividendTickerGroup & AssetMeta)[];
