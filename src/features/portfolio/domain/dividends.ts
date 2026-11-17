@@ -287,7 +287,17 @@ function scheduledUpcoming(
     for (const item of ordered) {
       if (inSnapshot.has(item)) continue;
       if (item.payDate.getTime() < monthStart.getTime()) continue;
-      if (forecast && item.comDate.getTime() <= forecast.asOf.getTime()) continue;
+      // Com antes da foto: a B3 já deveria ter listado. Só vale o anúncio quando a foto não tem
+      // nenhum item do ativo e tipo (o SNCI11 anunciou com a data com a 13/11, a foto de 16/11 não o
+      // trouxe e ele sumia da tela); com item na foto, ele é o oficial e o anúncio não repete.
+      if (
+        forecast &&
+        item.comDate.getTime() <= forecast.asOf.getTime() &&
+        forecast.items.some(
+          (planned) => planned.ticker === ticker && sameKind(planned.kind, item.kind),
+        )
+      )
+        continue;
       const credit = credits.find(
         (entry) =>
           !used.has(entry) &&

@@ -277,7 +277,7 @@ describe("upcomingDividends: datas de pagamento do Fundamentus", () => {
     expect(upcoming.map((item) => item.ticker)).toEqual(["BBBB11"]);
   });
 
-  it("com a foto da B3, só o anunciado depois dela e o que não está nela", () => {
+  it("com a foto da B3, entra o anunciado depois dela e o do ativo que não está nela", () => {
     const upcoming = upcomingDividends({
       ...base,
       announcements: new Map(),
@@ -305,11 +305,10 @@ describe("upcomingDividends: datas de pagamento do Fundamentus", () => {
         ["PETR4", [sched("JCP", "2026-10-06", "2026-11-23")]],
       ]),
     });
-    expect(upcoming.map((item) => `${item.source}:${item.ticker}`)).toEqual([
-      "FUNDAMENTUS:AAAA11",
-      "FUNDAMENTUS:PETR4",
-    ]);
-    expect(upcoming[0].payBy).toEqual(at("2026-10-22"));
+    // AAAA11 não tem item na foto: o anúncio de antes dela (15/10) também vale (spec 2026-11-17).
+    expect(
+      upcoming.map((item) => `${item.source}:${item.ticker}:${item.payBy?.getUTCDate()}`),
+    ).toEqual(["FUNDAMENTUS:AAAA11:15", "FUNDAMENTUS:AAAA11:22", "FUNDAMENTUS:PETR4:23"]);
   });
 });
 
@@ -531,5 +530,50 @@ describe("monthSummary: sem anúncio e ações fora do mês", () => {
     );
     expect(summary.total).toBe(17);
     expect(summary).toMatchObject({ undisclosed: 4, undisclosedAssets: 1, otherMonthStocks: 1 });
+  });
+});
+
+describe("upcomingDividends: anúncio com data com antes da foto da B3", () => {
+  const sched = [
+    {
+      kind: "RENDIMENTO" as const,
+      comDate: at("2026-10-12"),
+      payDate: at("2026-10-25"),
+      perShare: 1,
+    },
+  ];
+  const planned = (ticker: string, kind: "RENDIMENTO" | "REEMBOLSO" = "RENDIMENTO") => ({
+    ticker,
+    kind,
+    payDate: at("2026-10-25"),
+    quantity: 100,
+    perShare: 1,
+    amount: 100,
+  });
+  const run = (items: ReturnType<typeof planned>[]) =>
+    upcomingDividends({
+      now,
+      transactions: [buy],
+      received: [],
+      announcements: new Map(),
+      forecast: { asOf: at("2026-10-16"), items },
+      schedules: new Map([["AAAA11", sched]]),
+    });
+
+  it("sem item do ativo na foto, o anúncio do Fundamentus entra (o SNCI11 sumia da tela)", () => {
+    const upcoming = run([planned("BBBB11")]).filter((item) => item.ticker === "AAAA11");
+    expect(upcoming).toMatchObject([{ source: "FUNDAMENTUS", payBy: at("2026-10-25") }]);
+  });
+
+  it("com item do ativo e tipo na foto, o da B3 vale e o anúncio não repete", () => {
+    // Mesma data: o item da B3 (valor dele) segue como "anunciado" e o anúncio não duplica.
+    const same = run([{ ...planned("AAAA11"), amount: 90 }]);
+    expect(same).toHaveLength(1);
+    expect(same[0].amount).toBe(90);
+    // Data diferente na foto: a foto é a oficial, o anúncio de antes dela não entra de novo.
+    const other = run([{ ...planned("AAAA11"), payDate: at("2026-10-30") }]);
+    expect(other).toHaveLength(1);
+    expect(other[0].payBy).toEqual(at("2026-10-30"));
+    expect(run([planned("AAAA11", "REEMBOLSO")])).toHaveLength(1);
   });
 });

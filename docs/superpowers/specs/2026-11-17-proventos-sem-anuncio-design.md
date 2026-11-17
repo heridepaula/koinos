@@ -141,3 +141,17 @@ Regras (escritas e testadas, em vez de só dependerem do filtro da view):
    misturar aqui esconderia o efeito de cada mudança. Registrar como pendência.
 4. **Calendário habitual das ações: não agora.** Sem valor e sem total, o ganho é pequeno, e
    o aluguel precisa ser separado do dividendo nos dados antes (§3.4). Reavaliar depois.
+
+## 7. Correção posterior: anúncio com data com antes da foto da B3 (2026-11-17)
+
+Medido na tela real (foto da B3 de 16/11, datas do Fundamentus), 4 FIIs sumiam por completo: BTLG11,
+MCCI11, SNCI11 e VGIP11. Todos tinham anúncio do Fundamentus com data com em 12 ou 13/11 e pagamento
+entre 19 e 25/11, e nenhum item na foto. Duas regras se somavam: `scheduledUpcoming` descartava o
+anúncio com data com até o `asOf` da foto (a B3 "já teria listado"), e o Yahoo é pulado quando o
+ativo tem datas do Fundamentus. O "não divulgado" também não os pegava, pois há anúncio do Yahoo com
+data ex no mês. A primeira medição desta spec ignorou foto e datas do Fundamentus e estava incompleta.
+
+Regra nova: o anúncio com data com até o `asOf` só é descartado quando a foto tem item do mesmo ativo
+e tipo (o item da B3 é o oficial). Sem item do ativo na foto, ele vale. Com a correção, os 4 voltam a
+"A receber" e nenhum FII fica ausente. Isso substitui o "e fora dela" do spec
+`2026-11-06-fundamentus-pagamentos-design.md` para esse caso.
