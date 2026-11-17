@@ -24,7 +24,8 @@ const TAB_ICON =
  * flutua sobre o conteúdo, acima do home indicator, com as quatro páginas principais e o "Mais"
  * (as outras páginas, a aparência e a conta numa folha). Uma lente clara marca a aba aberta e
  * desliza com a mola bouncy. Quando a página registra uma ação principal (useTabBarAction), ela
- * aparece num círculo à direita, ao alcance do polegar.
+ * aparece num círculo à direita, ao alcance do polegar. A barra (com o círculo) não passa de 32 rem
+ * e fica centralizada: entre 481 e 767 px ela não estica pela tela toda.
  */
 export function TabBar({ account }: { account: ReactNode }) {
   const pathname = usePathname();
@@ -37,7 +38,7 @@ export function TabBar({ account }: { account: ReactNode }) {
   return (
     <nav
       aria-label="Navegação principal"
-      className="pointer-events-none fixed inset-x-0 bottom-(--tab-bar-bottom) z-30 flex gap-2 pr-[max(1rem,var(--safe-right))] pl-[max(1rem,var(--safe-left))] md:hidden"
+      className="pointer-events-none fixed inset-x-0 bottom-(--tab-bar-bottom) z-30 mx-auto flex max-w-lg gap-2 pr-[max(1rem,var(--safe-right))] pl-[max(1rem,var(--safe-left))] md:hidden"
     >
       <div className="pointer-events-auto relative isolate grid h-(--tab-bar-height) flex-1 auto-cols-fr grid-flow-col rounded-full p-1 glass-strong [--glass-strong-tint:var(--tab-bar-tint)]">
         <span
