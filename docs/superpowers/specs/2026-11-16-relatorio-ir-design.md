@@ -90,7 +90,7 @@ Fonte: coleção `dividends` por `paidAt` no ano-calendário (regime de caixa, q
 | --- | --- | --- | --- |
 | `DIVIDENDO` | ação | Rendimentos Isentos | Lucros e dividendos, por CNPJ da pagadora |
 | `RENDIMENTO` | FII | Rendimentos Isentos | Isenção do FII depende das condições legais (§9, item 3) |
-| `JCP` | ação | Tributação Exclusiva | O valor guardado é **líquido** dos 15%; a ficha pede o bruto e o imposto retido: bruto = quantidade × bruto por cota do extrato quando existem, senão líquido ÷ 0,85; retido = bruto − líquido, ao centavo. Com o bruto do extrato, líquido a mais de R$ 0,02 de 85% do bruto gera `JCP_FORA_DA_FAIXA` (recompor o bruto só do líquido sempre fecha, então ali não há o que conferir) |
+| `JCP` | ação | Tributação Exclusiva | O valor guardado é **líquido** da retenção (15% até 2025 e 17,5% de 2026 em diante, por data de pagamento: LC 224/2025, confirmado nos extratos reais, ~15% até 2025 e ~17,4–17,9% em 2026); a ficha pede o bruto e o imposto retido: bruto = quantidade × bruto por cota do extrato quando existem, senão líquido ÷ (1 − taxa); retido = bruto − líquido, ao centavo. Com o bruto do extrato, líquido a mais de max(R$ 0,05; 1% do líquido) de bruto × (1 − taxa) gera `JCP_FORA_DA_FAIXA` (recompor o bruto só do líquido sempre fecha, então ali não há o que conferir) |
 | `REEMBOLSO` | FII/ação | Segue o tipo do provento reembolsado | Em dúvida, sinaliza `PROVENTO_REEMBOLSO` para o dono conferir; não decide sozinho |
 | `ALUGUEL` | ação/FII | Tributação Exclusiva ou rendimentos de aplicação financeira, conforme a Receita | **Pendência de pesquisa** (§9, item 4). Até confirmar, aparece num grupo "Aluguel de ativos" com aviso, fora das somas das fichas |
 
@@ -125,7 +125,7 @@ Isto é aviso, não cálculo, até a regra ser lida no texto da lei (§9).
 
 Cada achado tem `code`, `severity` (`INFO`, `ATENCAO`, `CRITICO`), ticker e mês quando houver. A narrativa do Gemini (§6) só reescreve a descrição; severidade e código vêm do código. Códigos iniciais:
 
-`CNPJ_AUSENTE`, `PRECO_ESTIMADO`, `POSICAO_ANTERIOR`, `VENDA_ACIMA_ISENCAO_SEM_DARF` (mês acima de R$ 20 mil de ações com lucro e imposto não zerado), `SALDO_PREJUIZO_NAO_INFORMADO`, `PROVENTO_APOS_ENCERRAR`, `PROVENTO_REEMBOLSO`, `ALUGUEL_NAO_CLASSIFICADO`, `RETENCAO_DIVIDENDO_POSSIVEL`, `JCP_FORA_DA_FAIXA` (JCP líquido que não corresponde a 85% de um bruto arredondado), `POSICAO_NEGATIVA` (não deve ocorrer: `findOversells`; é guarda), `ATIVO_SEM_COTACAO_NA_DATA` (se for preciso para algo além do custo; hoje não é).
+`CNPJ_AUSENTE`, `PRECO_ESTIMADO`, `POSICAO_ANTERIOR`, `VENDA_ACIMA_ISENCAO_SEM_DARF` (mês acima de R$ 20 mil de ações com lucro e imposto não zerado), `SALDO_PREJUIZO_NAO_INFORMADO`, `PROVENTO_APOS_ENCERRAR`, `PROVENTO_REEMBOLSO`, `ALUGUEL_NAO_CLASSIFICADO`, `RETENCAO_DIVIDENDO_POSSIVEL`, `JCP_FORA_DA_FAIXA` (JCP líquido que não corresponde ao bruto arredondado menos a retenção do ano), `POSICAO_NEGATIVA` (não deve ocorrer: `findOversells`; é guarda), `ATIVO_SEM_COTACAO_NA_DATA` (se for preciso para algo além do custo; hoje não é).
 
 ## 6. Gemini (removido)
 
@@ -178,7 +178,7 @@ Critério de desempenho: 50 ativos em menos de 3,5 s (a spec original); o relat�
 3. Isenção do rendimento de FII (condições legais do fundo: cotas negociadas em bolsa, 100 cotistas ou mais, cotista com menos de 10% das cotas) e o código da ficha (26 ou 14).
 4. Tratamento do aluguel de ativos na declaração e o código da ficha.
 5. Texto da Lei 15.270/2025: transição dos lucros apurados até 2025 e o que o relatório deve fazer para o ano-calendário 2026.
-5b. **Alíquota do JCP:** uma fonte cita 17,5% (LC 224/2025), não confirmada. Se a retenção mudou, `bruto = líquido ÷ 0,85` só vale até o ano-calendário 2025; tornar a alíquota constante por ano antes de declarar 2026. Também não está claro se a ficha de Tributação Exclusiva leva o JCP bruto ou o líquido: a tela mostra líquido, bruto e retido e manda conferir com o informe de rendimentos.
+5b. **Alíquota do JCP:** **confirmado** com os extratos reais (2026-11-17): retenção de 15% até 2025 e ~17,5% em 2026 (LC 224/2025). Implementado por data de pagamento (`jcpWithholdingRate`, 17,5% de 2026-01-01 em diante); a vigência exata (pagamento ou crédito) não está no texto da lei. Também não está claro se a ficha de Tributação Exclusiva leva o JCP bruto ou o líquido: a tela mostra líquido, bruto e retido e manda conferir com o informe de rendimentos.
 5c. **Fiagro** é tratado como FII (Grupo 07, Código 03) e pode ter outro código na ficha: conferir.
    Implementado: 07/02 com selo `needsCheck`; conferir no programa da Receita.
 5d. **Saldo inicial de prejuízo (decisão do dono, 2026-11-16):** é o saldo anterior a nov/2019, o primeiro mês do livro-razão; a apuração soma os prejuízos dali em diante. O rótulo do formulário diz isso.
